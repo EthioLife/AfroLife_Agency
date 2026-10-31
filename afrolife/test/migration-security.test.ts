@@ -51,6 +51,7 @@ const leaseRentStartDate = readFileSync(new URL('../migrations/107_lease_rent_st
 const globalAdminPropertyAuthorityReview = readFileSync(new URL('../migrations/108_global_admin_property_authority_review.sql', import.meta.url), 'utf8');
 const maintenanceSlaEscalationIndex = readFileSync(new URL('../migrations/109_maintenance_sla_escalation_index.sql', import.meta.url), 'utf8');
 const workforceOffboardingSerialization = readFileSync(new URL('../migrations/110_workforce_offboarding_serialization.sql', import.meta.url), 'utf8');
+const workforcePropertySupportAssistant = readFileSync(new URL('../migrations/113_workforce_property_support_assistant.sql', import.meta.url), 'utf8');
 const marketplaceRouter = readFileSync(new URL('../services/marketplace/router.ts', import.meta.url), 'utf8');
 const propertyManagementRouter = readFileSync(new URL('../services/property-management/router.ts', import.meta.url), 'utf8');
 const propertyVendorPortal = readFileSync(new URL('../src/property-vendor-portal.ts', import.meta.url), 'utf8');
@@ -444,6 +445,27 @@ test('support cases preserve urgent escalation, independent access approval, and
   assert.match(supportCases,/expires_at <= reviewed_at \+ interval '15 minutes'/);
   assert.match(supportCases,/formal_workflow_reference IS NOT NULL/);
   assert.match(supportCases,/Support case intake evidence is immutable/);
+});
+
+test('WPSA conversations isolate transcripts to owners and claimed support agents', () => {
+  assert.match(workforcePropertySupportAssistant,/CREATE TABLE assistant_conversations/);
+  assert.match(workforcePropertySupportAssistant,/CREATE TABLE assistant_messages/);
+  assert.match(workforcePropertySupportAssistant,/CREATE POLICY assistant_conversations_owner_read/);
+  assert.match(workforcePropertySupportAssistant,/assigned_to=app_user_id\(\)[\s\S]*?app_role\(\) IN \('global_admin','super_admin','compliance','corporate_business_manager'\)/);
+  assert.match(workforcePropertySupportAssistant,/CREATE POLICY assistant_messages_authorized_read/);
+  assert.match(workforcePropertySupportAssistant,/CREATE POLICY assistant_messages_owner_insert/);
+  assert.match(workforcePropertySupportAssistant,/CREATE POLICY assistant_messages_staff_insert/);
+  assert.match(workforcePropertySupportAssistant,/CREATE OR REPLACE FUNCTION app_claim_assistant_conversation/);
+  assert.match(workforcePropertySupportAssistant,/WHERE id=target_conversation AND \(assigned_to IS NULL OR assigned_to=app_user_id\(\)\)/);
+  assert.match(workforcePropertySupportAssistant,/CREATE OR REPLACE FUNCTION app_assistant_conversation_queue/);
+  assert.match(workforcePropertySupportAssistant,/CREATE TABLE assistant_support_presence/);
+  assert.match(workforcePropertySupportAssistant,/updated_at>now\(\)-interval '2 minutes'/);
+  assert.match(workforcePropertySupportAssistant,/CREATE POLICY assistant_presence_staff_update/);
+  assert.match(operations,/ops\.post\('\/assistant\/conversations\/:id\/claim', requireRole\(\.\.\.SUPPORT_STAFF\)/);
+  assert.match(operations,/ops\.post\('\/assistant\/conversations\/:id\/messages'/);
+  assert.match(operations,/sender_type: senderType/);
+  assert.match(publicApp,/assistant-launcher/);
+  assert.match(publicApp,/Your support request is private to you and the support agent who claims it/);
 });
 
 test('support case details and timelines require owner or active independent approval at the database boundary', () => {

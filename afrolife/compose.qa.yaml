@@ -75,6 +75,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Run npm run qa:docker:up to create .env.docker}
       MFA_ENC_KEY: ${MFA_ENC_KEY:?Run npm run qa:docker:up to create .env.docker}
       FILE_STORAGE_DIR: /app/afrolife/data/private-files
+      EDIR_SERVICE_URL: ${EDIR_SERVICE_URL:-}
+      EDIR_GATEWAY_SECRET: ${EDIR_GATEWAY_SECRET:-}
+      EDIR_PUBLIC_GATEWAY_HTTP_HOST: ${EDIR_PUBLIC_GATEWAY_HTTP_HOST:-}
       MFI_PILOT_ENABLED: "1"
       INSURANCE_BROKERAGE_MODE: sandbox
     ports:

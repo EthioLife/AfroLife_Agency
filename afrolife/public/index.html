@@ -37,6 +37,7 @@
       <button id="install-app" class="button button-outline install-app" type="button" hidden>Install app</button>
       <div id="account-tools" class="account-tools" hidden>
         <span id="account-name" class="account-name"></span>
+        <button id="return-super-app" class="button button-outline" type="button">Super App</button>
         <button id="logout" class="button button-quiet" type="button">Sign out</button>
       </div>
     </header>
@@ -231,6 +232,7 @@
             <a class="service-card" data-panel="edir" href="#login-form"><span class="service-icon">◉</span><strong>AfroLife Edir</strong><span>Request community membership after KYC. Available membership products and terms are shown in the Edir workspace.</span><small>Community mini app →</small></a>
             <a class="service-card" data-panel="mfi" href="#login-form"><span class="service-icon">▤</span><strong>SACCO / MFI</strong><span>Financial cooperative tools appear only when the organization enables the pilot for your account.</span><small>Finance mini app →</small></a>
             <a class="service-card" data-panel="agents" href="#login-form"><span class="service-icon">▣</span><strong>Agent services</strong><span>Manage referrals, service requests, contracts, and team activity based on your role.</span><small>Agency mini app →</small></a>
+            <a class="service-card" data-panel="accounting" href="#login-form"><span class="service-icon">▤</span><strong>Accounting &amp; Finance</strong><span>Manage entity books, journals, financial operations, and entity-scoped reporting.</span><small>Accounting mini app →</small></a>
           </div>
         </section>
         <section class="hub-section community-benefits-section" aria-labelledby="member-benefits-title">
@@ -382,6 +384,50 @@
         </div>
         <nav id="mobile-workspace-nav" class="mobile-workspace-nav" aria-label="Quick workspace navigation" hidden></nav>
       </section>
+      <button id="assistant-launcher" class="assistant-launcher button button-primary" type="button" aria-haspopup="dialog" hidden>
+        AfroLife Support
+      </button>
+      <dialog id="assistant-dialog" class="assistant-dialog" aria-labelledby="assistant-title">
+        <div class="assistant-header">
+          <div>
+            <h2 id="assistant-title">Role-aware assistant and peer support</h2>
+            <p id="assistant-intro" class="muted"></p>
+          </div>
+          <button id="assistant-close" class="button button-outline" type="button">Close</button>
+        </div>
+        <div class="assistant-presence">
+          <span id="assistant-availability-status" role="status" aria-live="polite"></span>
+          <button id="assistant-presence-toggle" class="button button-outline" type="button" hidden></button>
+        </div>
+        <div id="assistant-role-actions" class="assistant-role-actions"></div>
+        <div class="assistant-content">
+          <section class="assistant-conversations" aria-labelledby="assistant-conversations-title">
+            <h3 id="assistant-conversations-title">My conversations</h3>
+            <div id="assistant-mine"></div>
+            <form id="assistant-start-form" data-form="assistant-start">
+              <label>Start a new support request
+                <textarea name="message" maxlength="4000" required></textarea>
+              </label>
+              <button class="button button-primary" type="submit">Send request</button>
+            </form>
+          </section>
+          <section id="assistant-staff-queue" class="assistant-staff-queue" aria-labelledby="assistant-queue-title" hidden>
+            <h3 id="assistant-queue-title">Requests awaiting support</h3>
+            <div id="assistant-queue"></div>
+          </section>
+        </div>
+        <section id="assistant-thread" class="assistant-thread" aria-labelledby="assistant-thread-title" hidden>
+          <h3 id="assistant-thread-title">Conversation</h3>
+          <ol id="assistant-messages" class="assistant-messages" aria-live="polite"></ol>
+          <form id="assistant-reply-form" data-form="assistant-reply">
+            <label>Message
+              <textarea name="message" maxlength="4000" required></textarea>
+            </label>
+            <button class="button button-primary" type="submit">Send message</button>
+          </form>
+        </section>
+        <p id="assistant-disclosure" class="assistant-disclosure"></p>
+      </dialog>
     </main>
     <dialog id="workspace-more-dialog" class="workspace-more-dialog" aria-labelledby="workspace-more-title">
       <div class="workspace-more-header">

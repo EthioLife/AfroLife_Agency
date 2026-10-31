@@ -4,6 +4,7 @@ import { enqueueAccountingEvent } from './accounting-outbox.js';
 import { HttpError, requireRole, withUser } from './core.js';
 
 const services = [
+  { key: 'accounting', name: 'Accounting & Finance' },
   { key: 'property_management', name: 'Property Management' },
   { key: 'workforce_management', name: 'Workforce Management' },
   { key: 'super_agent', name: 'Super Agent' },
@@ -26,7 +27,7 @@ export function getPublicSubscriptionCatalog() {
 }
 
 const serviceKeys = [
-  'property_management', 'workforce_management', 'super_agent', 'edir',
+  'accounting', 'property_management', 'workforce_management', 'super_agent', 'edir',
   'insurance_brokerage', 'agent', 'landlord', 'seller',
 ] as const;
 const financeRoles = ['finance', 'finance_manager', 'global_admin', 'super_admin'] as const;

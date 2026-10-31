@@ -187,6 +187,7 @@ api.post('/edir/public/registration-applications', process.env.EDIR_SERVICE_URL
     secret: process.env.EDIR_GATEWAY_SECRET ?? '',
     servicePath: '/api/v1/edir',
     serviceName: 'AfroLife Edir registration',
+    allowInternalHttpHost: process.env.EDIR_PUBLIC_GATEWAY_HTTP_HOST,
   })
   : (_req, res) => res.status(503).json({ error: 'AfroLife Edir service is not configured' }));
 api.post(
@@ -199,6 +200,7 @@ api.post(
       secret: process.env.EDIR_GATEWAY_SECRET ?? '',
       servicePath: '/api/v1/edir',
       serviceName: 'AfroLife Edir document upload',
+      allowInternalHttpHost: process.env.EDIR_PUBLIC_GATEWAY_HTTP_HOST,
     })
     : (_req, res) => res.status(503).json({ error: 'AfroLife Edir service is not configured' }),
 );
@@ -417,7 +419,11 @@ api.use('/properties', propertyManagementGateway);
 api.use('/marketplace', marketplaceGateway);
 api.use(supply);
 const internalAccountingGateway = process.env.ACCOUNTING_SERVICE_URL
-  ? createAccountingServiceGateway({ baseUrl: process.env.ACCOUNTING_SERVICE_URL, secret: process.env.ACCOUNTING_GATEWAY_SECRET ?? '' })
+  ? createAccountingServiceGateway({
+      baseUrl: process.env.ACCOUNTING_SERVICE_URL,
+      secret: process.env.ACCOUNTING_GATEWAY_SECRET ?? '',
+      allowInternalHttpHost: process.env.ACCOUNTING_SERVICE_HTTP_HOST,
+    })
   : null;
 const subscriberAccountingGateway = process.env.ACCOUNTING_SUBSCRIBER_SERVICE_URL
   ? createAccountingServiceGateway({ baseUrl: process.env.ACCOUNTING_SUBSCRIBER_SERVICE_URL, secret: process.env.ACCOUNTING_SUBSCRIBER_GATEWAY_SECRET ?? '' })
@@ -818,7 +824,7 @@ if (process.env.ACCOUNTING_SERVICE_URL && process.env.ACCOUNTING_INGEST_SECRET) 
 }
 
 const onListening = () => console.log(`API listening; industry news refreshes every ${INDUSTRY_NEWS_REFRESH_INTERVAL_MS / 60_000} minutes`);
-const port = Number(process.env.PORT ?? 3000);
+const port = Number(process.env.PORT ?? 3010);
 if (runtimeConfig.isProduction) await assertRuntimeDatabaseSafety();
 const server = process.env.HOST
   ? app.listen(port, process.env.HOST, onListening)

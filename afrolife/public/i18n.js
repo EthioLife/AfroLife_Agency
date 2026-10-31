@@ -1378,6 +1378,31 @@ const publicSurfaceTranslations = {
   'Your service mini-apps': {
     am: 'የአገልግሎት ሚኒ-መተግበሪያዎችዎ', om: 'Mini-appoota tajaajilaa keessan', ti: 'ሚኒ-ኣፕሊኬሽናት ኣገልግሎትኩም', so: 'Barnaamijyada yaryar ee adeegyadaada', ar: 'تطبيقات الخدمات المصغّرة الخاصة بك', sw: 'Programu ndogo za huduma zako',
   },
+  'Super App': {
+    am: 'ሱፐር አፕ', om: 'Appii tajaajila waliigalaa', ti: 'ሱፐር ኣፕ', so: 'App-ka Guud', ar: 'التطبيق الشامل', sw: 'Programu Kuu',
+  },
+  'Accounting & Finance': {
+    am: 'ሂሳብ እና ፋይናንስ', om: 'Herrega fi Faayinaansii', ti: 'ሒሳብን ፋይናንስን', so: 'Xisaabaadka & Maaliyadda', ar: 'المحاسبة والمالية', sw: 'Uhasibu na Fedha',
+  },
+  'Manage entity books, journals, financial operations, and entity-scoped reporting.': {
+    am: 'የድርጅት መዝገቦችን፣ ጆርናሎችን፣ የፋይናንስ ሥራዎችን እና በድርጅት የተገደቡ ሪፖርቶችን ያስተዳድሩ።',
+    om: 'Galmeewwan dhaabbataa, galmee herregaa, hojiiwwan faayinaansii fi gabaasa daangaa dhaabbataatiin bulchaa.',
+    ti: 'መዝገባት ትካል፣ ጆርናላት፣ ስራሕ ፋይናንስን ሪፖርታት ብትካል ዝተወሰኑን ኣመሓድሩ።',
+    so: 'Maamul buugaagta hay’adda, joornaallada, hawlaha maaliyadeed iyo warbixinnada ku kooban hay’adda.',
+    ar: 'أدر دفاتر الكيانات والقيود اليومية والعمليات المالية والتقارير المقيدة بالكيان.',
+    sw: 'Dhibiti vitabu vya taasisi, majarida, shughuli za fedha na ripoti za taasisi husika.',
+  },
+  'Accounting mini app →': {
+    am: 'ሂሳብ ሚኒ አፕ →', om: 'Mini-appii herregaa →', ti: 'ሚኒ ኣፕ ሒሳብ →', so: 'Barnaamijka yar ee xisaabaadka →', ar: 'تطبيق المحاسبة المصغّر ←', sw: 'Programu ndogo ya uhasibu →',
+  },
+  'No services are assigned to your account yet.': {
+    am: 'እስካሁን ምንም አገልግሎት ለመለያዎ አልተመደበም።',
+    om: 'Hanga ammaatti tajaajilli tokko illee herrega keessaniif hin ramadamne.',
+    ti: 'ክሳብ ሕጂ ንመለያኹም ዝተመደበ ኣገልግሎት የለን።',
+    so: 'Ilaa hadda adeeg laguma qoondeyn akoonkaaga.',
+    ar: 'لم تُخصّص أي خدمات لحسابك حتى الآن.',
+    sw: 'Bado hakuna huduma iliyopangiwa akaunti yako.',
+  },
   'Open an available service directly. Access is based on your role and enabled features.': {
     am: 'ያለውን አገልግሎት በቀጥታ ይክፈቱ። መዳረሻዎ በሚናዎና በነቁ ባህሪያት ይወሰናል።', om: 'Tajaajila jiru kallattiin banaa. Seensaan gahee keessanii fi amaloota hojii irra jiraniin murtaaʼa.', ti: 'ኣብ ዘሎ ኣገልግሎት ብቐጥታ ክፈቱ። መእተዊ ብሚናኹምን ንጡፋት ባህርያትን ይውሰን።', so: 'Si toos ah u fur adeegga la heli karo. Gelitaanku wuxuu ku xiran yahay doorkaaga iyo astaamaha la hawlgeliyey.', ar: 'افتح الخدمة المتاحة مباشرةً. يعتمد الوصول على دورك والميزات المفعّلة.', sw: 'Fungua huduma inayopatikana moja kwa moja. Ufikiaji hutegemea jukumu lako na vipengele vilivyowezeshwa.',
   },
@@ -4075,6 +4100,78 @@ const publicSurfaceTranslations = {
     so: 'Sharax caddeynta wakiilnimada cusub ee la gudbinayo (ugu yaraan 10 xaraf).',
     ar: 'صف مستند التفويض الجديد المقدم (10 أحرف على الأقل).',
     sw: 'Eleza ushahidi mpya wa uwakilishi unaowasilishwa (angalau herufi 10).',
+  },
+  'AfroLife Support': {
+    am: 'የAfroLife ድጋፍ', om: 'Deeggarsa AfroLife', ti: 'ደገፍ AfroLife', so: 'Taageerada AfroLife', ar: 'دعم AfroLife', sw: 'Usaidizi wa AfroLife',
+  },
+  'Role-aware assistant and peer support': {
+    am: 'ከእርስዎ ሚና ጋር የተያያዘ አጋዥና የባልደረባ ድጋፍ', om: 'Gargaaraa gahee keessanii fi deeggarsa ogeessaa', ti: 'ምስ ግደኹም ዝተኣሳሰር ሓጋዚን ደገፍ መሳርሕትን', so: 'Kaaliye ku xiran doorkaaga iyo taageerada shaqaalaha', ar: 'مساعد ودعم من موظفي الدعم وفقاً لدورك', sw: 'Msaidizi na usaidizi wa wafanyakazi kulingana na jukumu lako',
+  },
+  'Your access and support options follow your AfroLife role.': {
+    am: 'የመዳረሻዎና የድጋፍ አማራጮችዎ በAfroLife ሚናዎ መሠረት ይወሰናሉ።', om: 'Seensaa fi filannoowwan deeggarsaa keessan gahee AfroLife keessaniin murtaa’u.', ti: 'መእተዊኹምን ኣማራጺታት ደገፍኩምን ብግደ AfroLife ይውሰኑ።', so: 'Helitaankaaga iyo ikhtiyaarrada taageeradu waxay ku xiran yihiin doorkaaga AfroLife.', ar: 'يتحدد وصولك وخيارات الدعم وفقاً لدورك في AfroLife.', sw: 'Ufikiaji na chaguo zako za usaidizi hutegemea jukumu lako la AfroLife.',
+  },
+  'Online support agents: {{count}}': {
+    am: 'በመስመር ላይ ያሉ የድጋፍ ሰጪዎች፦ {{count}}', om: 'Ogeeyyii deeggarsa toora interneetii irra jiran: {{count}}', ti: 'ኣብ መስመር ዘለዉ ሰራሕተኛታት ደገፍ፦ {{count}}', so: 'Wakiillada taageerada ee khadka jooga: {{count}}', ar: 'موظفو الدعم المتصلون: {{count}}', sw: 'Wahudumu wa usaidizi walio mtandaoni: {{count}}',
+  },
+  'Make me available': {
+    am: 'ለድጋፍ ዝግጁ እንደሆንኩ አሳይ', om: 'Deeggarsaaf qophaa’aa ta’uu koo agarsiisi', ti: 'ንደገፍ ድሉው ምዃነይ ኣርኢ', so: 'Muuji inaan diyaar u ahay taageero', ar: 'إظهار أنني متاح للدعم', sw: 'Onyesha kuwa niko tayari kusaidia',
+  },
+  'Stop offering support': {
+    am: 'ድጋፍ መስጠት አቁም', om: 'Deeggarsa kennuu dhaabi', ti: 'ደገፍ ምሃብ ኣቋርጽ', so: 'Jooji bixinta taageerada', ar: 'إيقاف تقديم الدعم', sw: 'Acha kutoa usaidizi',
+  },
+  'My conversations': {
+    am: 'ውይይቶቼ', om: 'Mariwwan koo', ti: 'ዝርርባተይ', so: 'Wadahadalladayda', ar: 'محادثاتي', sw: 'Mazungumzo yangu',
+  },
+  'Start a new support request': {
+    am: 'አዲስ የድጋፍ ጥያቄ ጀምር', om: 'Gaaffii deeggarsa haaraa jalqabi', ti: 'ሓድሽ ሕቶ ደገፍ ጀምር', so: 'Bilow codsi taageero cusub', ar: 'بدء طلب دعم جديد', sw: 'Anzisha ombi jipya la usaidizi',
+  },
+  'Send request': {
+    am: 'ጥያቄ ላክ', om: 'Gaaffii ergi', ti: 'ሕቶ ስደድ', so: 'Dir codsiga', ar: 'إرسال الطلب', sw: 'Tuma ombi',
+  },
+  'Requests awaiting support': {
+    am: 'ድጋፍ የሚጠብቁ ጥያቄዎች', om: 'Gaaffii deeggarsa eeggatan', ti: 'ሕቶታት ደገፍ ዝጽበዩ', so: 'Codsiyada sugaya taageero', ar: 'الطلبات التي تنتظر الدعم', sw: 'Maombi yanayosubiri usaidizi',
+  },
+  'Awaiting response': {
+    am: 'ምላሽ እየተጠበቀ ነው', om: 'Deebii eegaa jira', ti: 'መልሲ ይጽበ ኣሎ', so: 'Jawaab ayaa la sugayaa', ar: 'بانتظار الرد', sw: 'Inasubiri jibu',
+  },
+  'Assigned to support': {
+    am: 'ለድጋፍ ተመድቧል', om: 'Deeggarsaaf ramadameera', ti: 'ንደገፍ ተመዲቡ', so: 'Taageero ayaa loo xilsaaray', ar: 'أُحيل إلى الدعم', sw: 'Imekabidhiwa kwa usaidizi',
+  },
+  'Claim conversation': {
+    am: 'ውይይቱን ውሰድ', om: 'Mariicha fudhadhu', ti: 'ነቲ ዝርርብ ተረከብ', so: 'La wareeg wada hadalka', ar: 'استلام المحادثة', sw: 'Chukua mazungumzo',
+  },
+  'Conversation': {
+    am: 'ውይይት', om: 'Mari', ti: 'ዝርርብ', so: 'Wadahadal', ar: 'محادثة', sw: 'Mazungumzo',
+  },
+  'Message': {
+    am: 'መልዕክት', om: 'Ergaa', ti: 'መልእኽቲ', so: 'Farriin', ar: 'رسالة', sw: 'Ujumbe',
+  },
+  'Send message': {
+    am: 'መልዕክት ላክ', om: 'Ergaa ergi', ti: 'መልእኽቲ ስደድ', so: 'Dir farriinta', ar: 'إرسال الرسالة', sw: 'Tuma ujumbe',
+  },
+  'Start a conversation by describing what you need.': {
+    am: 'የሚያስፈልግዎትን በመግለጽ ውይይት ይጀምሩ።', om: 'Wanta barbaaddan ibsuun marii jalqabaa.', ti: 'ዘድልየኩም ብምግላጽ ዝርርብ ጀምሩ።', so: 'Ku bilow wada hadalka adigoo sharxaya waxa aad u baahan tahay.', ar: 'ابدأ المحادثة بوصف ما تحتاج إليه.', sw: 'Anza mazungumzo kwa kueleza unachohitaji.',
+  },
+  'You': {
+    am: 'እርስዎ', om: 'Isin', ti: 'ንስኹም', so: 'Adiga', ar: 'أنت', sw: 'Wewe',
+  },
+  'AfroLife support': {
+    am: 'የAfroLife ድጋፍ', om: 'Deeggarsa AfroLife', ti: 'ደገፍ AfroLife', so: 'Taageerada AfroLife', ar: 'دعم AfroLife', sw: 'Usaidizi wa AfroLife',
+  },
+  'Open property services': {
+    am: 'የንብረት አገልግሎቶችን ክፈት', om: 'Tajaajila qabeenyaa bani', ti: 'ኣገልግሎታት ንብረት ክፈት', so: 'Fur adeegyada hantida', ar: 'فتح خدمات العقارات', sw: 'Fungua huduma za mali',
+  },
+  'Open workforce tools': {
+    am: 'የሠራተኛ መሣሪያዎችን ክፈት', om: 'Meeshaalee humna hojii bani', ti: 'መሳርሒታት ሓይሊ ሰራሕተኛ ክፈት', so: 'Fur qalabka shaqaalaha', ar: 'فتح أدوات القوى العاملة', sw: 'Fungua zana za wafanyakazi',
+  },
+  'Open support cases': {
+    am: 'የድጋፍ ጉዳዮችን ክፈት', om: 'Dhimmoota deeggarsaa bani', ti: 'ጉዳያት ደገፍ ክፈት', so: 'Fur kiisaska taageerada', ar: 'فتح طلبات الدعم', sw: 'Fungua kesi za usaidizi',
+  },
+  'Your support request is private to you and the support agent who claims it. Do not send passwords, payment card details, or authentication codes.': {
+    am: 'የድጋፍ ጥያቄዎ ለእርስዎና ጥያቄውን ለወሰደው የድጋፍ ሰጪ ብቻ የግል ነው። የይለፍ ቃል፣ የክፍያ ካርድ ወይም የማረጋገጫ ኮድ አይላኩ።', om: 'Gaaffiin deeggarsaa keessan isinii fi ogeessa deeggarsaa isa fudhate qofaaf iccitiidha. Jecha icciitii, odeeffannoo kaardii kaffaltii ykn koodii mirkaneessaa hin erginaa.', ti: 'ሕቶ ደገፍኩም ንኣኻትኩምን ነቲ ዝተረከቦ ሰራሕተኛ ደገፍን ጥራይ ውልቃዊ እዩ። መሕለፊ ቃል፣ ዝርዝር ካርድ ክፍሊት ወይ ኮድ መረጋገጺ ኣይትስደዱ።', so: 'Codsigaaga taageeradu waa mid adiga iyo wakiilka la wareega oo keliya arki karaan. Ha dirin furaha sirta ah, faahfaahinta kaarka lacag-bixinta ama koodhadhka xaqiijinta.', ar: 'طلب الدعم خاص بك وبموظف الدعم الذي يتولاه فقط. لا ترسل كلمات المرور أو بيانات بطاقات الدفع أو رموز المصادقة.', sw: 'Ombi lako la usaidizi ni la faragha kwako na mhudumu anayelichukua pekee. Usitume nywila, maelezo ya kadi ya malipo au misimbo ya uthibitishaji.',
+  },
+  'Automated answers are not enabled in this support pilot. Existing property, workforce, and support tools remain available.': {
+    am: 'በዚህ የድጋፍ ሙከራ ራስ-ሰር መልሶች አልተነቁም። ነባር የንብረት፣ የሠራተኛ እና የድጋፍ መሣሪያዎች አሁንም ይገኛሉ።', om: 'Deebiin ofumaan kennamu qorannoo deeggarsa kana keessatti hin banamne. Meeshaaleen qabeenyaa, humna hojii fi deeggarsa jiran ni hojjetu.', ti: 'ኣብዚ ፈተነ ደገፍ ብኣውቶማቲክ ዝወሃብ መልሲ ኣይተኣከበን። ዘለዉ ኣገልግሎታት ንብረት፣ ሓይሊ ሰራሕተኛን ደገፍን ኣለዉ።', so: 'Jawaabo otomaatig ah kama hawl galaan tijaabadan taageerada. Qalabka hantida, shaqaalaha iyo taageerada ee jira weli waa la heli karaa.', ar: 'الإجابات الآلية غير مفعلة في هذه النسخة التجريبية للدعم. تظل أدوات العقارات والقوى العاملة والدعم الحالية متاحة.', sw: 'Majibu ya kiotomatiki hayajawezeshwa katika jaribio hili la usaidizi. Zana zilizopo za mali, wafanyakazi na usaidizi zinaendelea kupatikana.',
   },
 };
 for (const [message, translations] of Object.entries(publicSurfaceTranslations)) {

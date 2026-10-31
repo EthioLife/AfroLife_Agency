@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { miniAppByPanel, miniApps } from '../public/mini-apps/registry.js';
+import { normalizeSubscriptionCatalog, subscriptionRequestPayload } from '../public/subscriptions.js';
+import { getPublicSubscriptionCatalog } from '../src/subscriptions.js';
 
 test('each Agency mini-app declares a unique module, panel, and gateway API surface', () => {
   const ids = new Set<string>();
@@ -9,19 +11,12 @@ test('each Agency mini-app declares a unique module, panel, and gateway API surf
   for (const miniApp of miniApps) {
     assert.ok(miniApp.id);
     assert.ok(miniApp.name);
-    assert.ok(miniApp.logo?.startsWith('/mini-apps/') || miniApp.id === 'accounting' && miniApp.logo === '/icon.svg',
+    assert.ok(miniApp.logo?.startsWith('/mini-apps/'),
       `${miniApp.id} must use a branded mini-app logo or the approved AfroLife mark`);
     const logo = readFileSync(new URL(`../public${miniApp.logo}`, import.meta.url), 'utf8');
     assert.match(logo, /<title/);
-    if (miniApp.logo === '/icon.svg') {
-      assert.match(logo, /#00B85A/i);
-      assert.match(logo, /#0066FF/);
-      assert.match(logo, /#FFB000/);
-      assert.doesNotMatch(logo, /<rect\b[^>]*fill="#0B2D4A"/i);
-    } else {
-      assert.match(logo, /#174b3d/);
-      assert.match(logo, /#d7ad59/);
-    }
+    assert.match(logo, /#174b3d/i);
+    assert.match(logo, /#d7ad59/i);
     assert.ok(miniApp.description);
     assert.ok(miniApp.panels.length > 0);
     assert.ok(miniApp.api.length > 0);
@@ -39,8 +34,8 @@ test('each Agency mini-app declares a unique module, panel, and gateway API surf
   assert.deepEqual([...ids].sort(), ['accounting', 'marketplace', 'property-management', 'staffing', 'workforce-management']);
   assert.equal(miniApps.find((miniApp) => miniApp.id === 'workforce-management')?.name, 'Workforce Management');
   assert.equal(miniAppByPanel.accounting?.id, 'accounting');
-  assert.equal(miniAppByPanel.accounting?.name, 'Financial Services');
-  assert.equal(miniAppByPanel.accounting?.logo, '/icon.svg');
+  assert.equal(miniAppByPanel.accounting?.name, 'Accounting & Finance');
+  assert.equal(miniAppByPanel.accounting?.logo, '/mini-apps/accounting/logo.svg');
   assert.deepEqual(miniAppByPanel.accounting?.panels, ['accounting']);
 });
 
@@ -56,6 +51,68 @@ test('integrated agency and community workspaces have branded logo assets', () =
   assert.match(app, /function decoratePublicServiceLogos\(\)/);
   assert.match(app, /service-icon service-icon-image/);
   assert.match(app, /page-mini-app-logo/);
+});
+
+test('Accounting has a central launcher entry and is removed from module views as a cross-app catalog', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.match(html, /data-panel="accounting"[^>]*>[\s\S]*?Accounting &amp; Finance/);
+  assert.match(html, /id="return-super-app"/);
+  assert.match(app, /function renderSuperAppLauncher\(\)/);
+  assert.match(app, /function renderOverview\(\)/);
+  assert.doesNotMatch(app, /function renderOverviewActions\(\)/);
+  assert.match(app, /const accessibleModules = \[\.\.\.document\.querySelectorAll\('\.tab\[data-panel\]:not\(\[hidden\]\)'\)\]/);
+  assert.match(app, /launcher: renderSuperAppLauncher/);
+});
+
+test('Accounting is included in the shared subscription request catalog and entitlement guard', () => {
+  const catalog = getPublicSubscriptionCatalog().services;
+  const accounting = catalog.find((service) => service.key === 'accounting');
+  assert.deepEqual(accounting, {
+    key: 'accounting',
+    name: 'Accounting & Finance',
+    monthly_fee: 1000,
+    currency: 'ETB',
+    payment_method: 'manual',
+  });
+  assert.deepEqual(normalizeSubscriptionCatalog({ services: catalog })?.find((service) => service.key === 'accounting'), {
+    key: 'accounting',
+    name: 'Accounting & Finance',
+    monthlyEtb: 1000,
+    requestKey: 'accounting',
+  });
+  assert.deepEqual(subscriptionRequestPayload(['accounting', 'accounting']), { services: ['accounting'] });
+
+  const subscriptions = readFileSync(new URL('../src/subscriptions.ts', import.meta.url), 'utf8');
+  const server = readFileSync(new URL('../src/server.ts', import.meta.url), 'utf8');
+  const authentication = server.indexOf('api.use(authenticate);');
+  const accountingEntitlement = server.indexOf("api.use('/accounting', (req, _res, next) =>");
+  assert.ok(authentication >= 0 && accountingEntitlement > authentication);
+  assert.match(subscriptions, /'accounting', 'property_management'/);
+  assert.match(subscriptions, /services: z\.array\(z\.enum\(serviceKeys\)\)/);
+  assert.match(server, /hasMiniAppAccess\(req\.user!, 'accounting'\)/);
+  assert.match(server, /service_key='accounting' AND status='active' AND active_until>now\(\)/);
+  assert.match(server, /if \(!subscribed\) allowedModules = allowedModules\.filter\(\(module\) => module !== 'accounting'\)/);
+  assert.match(server, /const internalAccountingGateway = process\.env\.ACCOUNTING_SERVICE_URL/);
+  assert.match(server, /const subscriberAccountingGateway = process\.env\.ACCOUNTING_SUBSCRIBER_SERVICE_URL/);
+  assert.match(server, /const subscriber = \['customer','property_owner'\]\.includes\(req\.user\?\.role \?\? ''\)/);
+});
+
+test('Accounting retains dedicated entity BI and reports on the existing gateway route', () => {
+  const workspace = readFileSync(new URL('../public/accounting.js', import.meta.url), 'utf8');
+  const dashboard = readFileSync(new URL('../public/accounting-dashboard.js', import.meta.url), 'utf8');
+  const router = readFileSync(new URL('../services/accounting/router.ts', import.meta.url), 'utf8');
+  const server = readFileSync(new URL('../src/server.ts', import.meta.url), 'utf8');
+  assert.match(workspace, /createAccountingTrend/);
+  assert.match(workspace, /trial-balance/);
+  assert.match(workspace, /income-statement/);
+  assert.match(workspace, /balance-sheet/);
+  assert.match(workspace, /general-ledger/);
+  assert.match(dashboard, /selected entity/);
+  assert.match(router, /router\.get\('\/entities\/:entityId\/dashboard'/);
+  assert.match(router, /router\.get\('\/entities\/:entityId\/reports\/:report'/);
+  assert.match(server, /api\.use\('\/accounting', \(req, res, next\) => \{\s*const subscriber/);
+  assert.match(server, /return gateway\(req, res, next\)/);
 });
 
 test('existing rent workspace drives the approved lease lifecycle without removing the legacy API route', () => {

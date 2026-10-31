@@ -29,7 +29,7 @@ const EDIR_ORGANIZATION_KEY = 'afrolife.edir-organization';
 const DEFAULT_EDIR_ORGANIZATION = '00000000-0000-4000-8000-000000000002';
 const STAFF = new Set(['global_admin', 'super_admin', 'compliance', 'finance', 'finance_manager']);
 const KNOWN_PANELS = new Set([
-  'overview', 'subscriptions', 'leads', 'workers', 'requests', 'support', 'learning', 'properties', 'marketplace', 'tenant-data-admin',
+  'overview', 'launcher', 'subscriptions', 'leads', 'workers', 'requests', 'support', 'learning', 'properties', 'marketplace', 'tenant-data-admin',
   'contracts', 'commissions', 'agents', 'rent', 'mfi', 'accounting', 'edir',
   'insurance', 'privacy', 'global-bi', 'security', 'admin', 'status', 'password',
 ]);
@@ -45,9 +45,12 @@ state.supportAppealQueue = [];
 state.overviewDataErrors = [];
 state.overviewDataOmitted = [];
 state.overviewLoadedAt = null;
+state.assistant = { conversations: [], queue: [], selectedId: null, messages: [], available: false, onlineCount: 0 };
 let workspaceSearchSequence = 0;
 let deferredInstallPrompt = null;
 let supportAccessExpiryTimer = null;
+let assistantHeartbeatTimer = null;
+let assistantRefreshTimer = null;
 const propertyPhotoUrls = new Set();
 const subscriptionState = { catalog: null, catalogError: false, catalogLoading: true, mine: [], mineError: false, mineLoaded: false, selected: new Set(), requestSubmitted: false, reviews: [], reviewError: false, reviewLoaded: false };
 let sessionIdleTimer = null;
@@ -113,6 +116,151 @@ function showAlert(message, error = false, values = {}) {
   setLocalizedText(box, message, values);
   box.classList.toggle('error', error);
   box.hidden = !message;
+}
+
+const ASSISTANT_SUPPORT_STAFF = new Set(['global_admin', 'super_admin', 'compliance', 'corporate_business_manager']);
+
+function assistantButton(message, action, id) {
+  const control = node('button', undefined, 'button button-outline');
+  control.type = 'button';
+  control.dataset.action = action;
+  if (id) control.dataset.id = id;
+  setLocalizedText(control, message);
+  return control;
+}
+
+function renderAssistant() {
+  const assistant = state.assistant;
+  setLocalizedText($('#assistant-intro'), 'Your access and support options follow your AfroLife role.');
+  setLocalizedText($('#assistant-disclosure'), 'Your support request is private to you and the support agent who claims it. Do not send passwords, payment card details, or authentication codes.');
+  setLocalizedText($('#assistant-availability-status'), 'Online support agents: {{count}}', { count: assistant.onlineCount });
+  const presenceButton = $('#assistant-presence-toggle');
+  presenceButton.hidden = !ASSISTANT_SUPPORT_STAFF.has(state.user?.role);
+  setLocalizedText(presenceButton, assistant.available ? 'Stop offering support' : 'Make me available');
+
+  const actions = $('#assistant-role-actions');
+  actions.replaceChildren();
+  for (const [panel, label] of [
+    ['properties', 'Open property services'],
+    ['workers', 'Open workforce tools'],
+    ['support', 'Open support cases'],
+  ]) {
+    const tab = document.querySelector(`.tab[data-panel="${panel}"]`);
+    if (!tab || tab.hidden) continue;
+    const control = assistantButton(label, 'assistant-navigate');
+    control.dataset.panel = panel;
+    actions.append(control);
+  }
+
+  const mine = $('#assistant-mine');
+  mine.replaceChildren();
+  if (!assistant.conversations.length) {
+    mine.append(node('p', 'Start a conversation by describing what you need.', 'assistant-empty'));
+  } else {
+    for (const conversation of assistant.conversations) {
+      const item = node('div', undefined, 'assistant-conversation-item');
+      const status = conversation.status === 'assigned' ? 'Assigned to support' : 'Awaiting response';
+      const title = node('span', `${t('Conversation')} · ${t(status)}`);
+      const open = assistantButton('Conversation', 'assistant-select', conversation.id);
+      item.append(title, open);
+      mine.append(item);
+    }
+  }
+
+  const queueSection = $('#assistant-staff-queue');
+  queueSection.hidden = !ASSISTANT_SUPPORT_STAFF.has(state.user?.role);
+  const queue = $('#assistant-queue');
+  queue.replaceChildren();
+  if (!queueSection.hidden) {
+    if (!assistant.queue.length) {
+      queue.append(node('p', 'Start a conversation by describing what you need.', 'assistant-empty'));
+    } else {
+      for (const conversation of assistant.queue) {
+        const item = node('div', undefined, 'assistant-queue-item');
+        const details = node('span', `${roleLabel(conversation.owner_role)} · ${t(conversation.status === 'assigned' ? 'Assigned to support' : 'Awaiting response')}`);
+        const open = conversation.assigned_to === state.user.id
+          ? assistantButton('Conversation', 'assistant-select', conversation.id)
+          : assistantButton('Claim conversation', 'assistant-claim', conversation.id);
+        item.append(details, open);
+        queue.append(item);
+      }
+    }
+  }
+
+  const selected = assistant.conversations.find((item) => item.id === assistant.selectedId)
+    ?? assistant.queue.find((item) => item.id === assistant.selectedId && item.assigned_to === state.user?.id);
+  const thread = $('#assistant-thread');
+  thread.hidden = !selected;
+  if (!selected) return;
+  setLocalizedText($('#assistant-thread-title'), 'Conversation');
+  const messages = $('#assistant-messages');
+  messages.replaceChildren();
+  for (const message of assistant.messages) {
+    const item = node('li', undefined, 'assistant-message');
+    item.dataset.sender = message.sender_type;
+    const sender = message.sender_type === 'user'
+      ? (message.sender_id === state.user.id ? 'You' : roleLabel(message.sender_role))
+      : 'AfroLife support';
+    item.append(node('small', sender));
+    const body = document.createElement('p');
+    body.textContent = message.body;
+    item.append(body);
+    const time = new Date(message.created_at);
+    if (Number.isFinite(time.getTime())) {
+      item.append(node('small', new Intl.DateTimeFormat(document.documentElement.lang, {
+        dateStyle: 'medium', timeStyle: 'short',
+      }).format(time)));
+    }
+    messages.append(item);
+  }
+  messages.scrollTop = messages.scrollHeight;
+  $('#assistant-reply-form').dataset.id = selected.id;
+  $('#assistant-reply-form').hidden = selected.status !== 'assigned';
+}
+
+async function refreshAssistant() {
+  if (!state.user) return;
+  const staff = ASSISTANT_SUPPORT_STAFF.has(state.user.role);
+  const [presence, conversations, queue] = await Promise.all([
+    api('/assistant/availability'),
+    api('/assistant/conversations/mine'),
+    staff ? api('/assistant/conversations/queue') : Promise.resolve([]),
+  ]);
+  state.assistant.onlineCount = presence.online_count;
+  state.assistant.available = presence.available;
+  state.assistant.conversations = conversations;
+  state.assistant.queue = queue;
+  const selected = conversations.some((item) => item.id === state.assistant.selectedId)
+    || queue.some((item) => item.id === state.assistant.selectedId && item.assigned_to === state.user.id);
+  if (!selected) {
+    state.assistant.selectedId = null;
+    state.assistant.messages = [];
+  } else {
+    state.assistant.messages = await api(`/assistant/conversations/${encodeURIComponent(state.assistant.selectedId)}/messages`);
+  }
+  renderAssistant();
+}
+
+async function selectAssistantConversation(id) {
+  const messages = await api(`/assistant/conversations/${encodeURIComponent(id)}/messages`);
+  state.assistant.selectedId = id;
+  state.assistant.messages = messages;
+  renderAssistant();
+}
+
+function startAssistantHeartbeat() {
+  if (assistantHeartbeatTimer) clearInterval(assistantHeartbeatTimer);
+  if (!state.user || !ASSISTANT_SUPPORT_STAFF.has(state.user.role) || !state.assistant.available) return;
+  assistantHeartbeatTimer = setInterval(async () => {
+    try {
+      await api('/assistant/availability', { method: 'PUT', body: JSON.stringify({ available: true }) });
+      await refreshAssistant();
+    } catch (error) {
+      clearInterval(assistantHeartbeatTimer);
+      assistantHeartbeatTimer = null;
+      showAlert(error.message, true);
+    }
+  }, 60_000);
 }
 
 const INDUSTRY_NEWS_CATEGORIES = {
@@ -972,6 +1120,13 @@ function signOut({ revoke = true, message = '' } = {}) {
     }
   }
   stopSessionActivity();
+  if (assistantHeartbeatTimer) clearInterval(assistantHeartbeatTimer);
+  if (assistantRefreshTimer) clearInterval(assistantRefreshTimer);
+  assistantHeartbeatTimer = null;
+  assistantRefreshTimer = null;
+  if ($('#assistant-dialog').open) $('#assistant-dialog').close();
+  $('#assistant-launcher').hidden = true;
+  state.assistant = { conversations: [], queue: [], selectedId: null, messages: [], available: false, onlineCount: 0 };
   sessionStorage.removeItem(TOKEN_KEY);
   state.user = null;
   subscriptionState.mine = [];
@@ -1061,6 +1216,7 @@ async function loadWorkspace() {
   $('#login-view').hidden = true;
   $('#public-hub').hidden = true;
   $('#app-view').hidden = false;
+  $('#assistant-launcher').hidden = false;
   $('#mobile-workspace-nav').hidden = false;
   $('#account-tools').hidden = false;
   $('#login-error').textContent = '';
@@ -1156,7 +1312,8 @@ async function loadWorkspace() {
   if (state.panel === 'password' || state.mfaRequired) {
     state.panel = state.user.must_change_password ? 'password' : 'security';
     history.replaceState(null, '', panelUrl(window.location.href, state.panel));
-  } else if (document.querySelector(`.tab[data-panel="${CSS.escape(state.panel)}"]`)?.hidden) {
+  } else if (state.panel !== 'launcher'
+      && document.querySelector(`.tab[data-panel="${CSS.escape(state.panel)}"]`)?.hidden) {
     state.panel = 'overview';
     history.replaceState(null, '', panelUrl(window.location.href, state.panel));
   }
@@ -1655,41 +1812,6 @@ function card(title, details, status) {
   return wrapper;
 }
 
-function renderOverviewActions() {
-  const role = state.user.role;
-  const actionsByRole = {
-    worker: [['Open worker portal', 'workers']],
-    customer: [['Browse marketplace', 'marketplace'], ['Review requests', 'requests'], ['View properties', 'properties']],
-    finance: [['Open accounting', 'accounting'], ['Review commissions', 'commissions'], ['Rent operations', 'rent']],
-    finance_manager: [['Open accounting', 'accounting'], ['Review commissions', 'commissions'], ['Rent operations', 'rent']],
-    compliance: [['Review support cases', 'support'], ['Open privacy requests', 'privacy']],
-    corporate_business_manager: [['Manage workers', 'workers'], ['Review requests', 'requests'], ['Organization controls', 'admin']],
-    master_agent: [['Open lead book', 'leads'], ['Manage workers', 'workers'], ['Review requests', 'requests']],
-    field_agent: [['Open lead book', 'leads'], ['Manage workers', 'workers'], ['Review requests', 'requests']],
-    super_admin: [['Platform administration', 'admin'], ['Open accounting', 'accounting']],
-    global_admin: [['Platform administration', 'admin'], ['Open accounting', 'accounting']],
-  };
-  if (['property_owner'].includes(role) || ['master_agent', 'field_agent'].includes(role)) return null;
-  const actions = (actionsByRole[role] ?? [['Browse marketplace', 'marketplace'], ['View properties', 'properties']])
-    .filter(([, panel]) => {
-      const tab = document.querySelector(`.tab[data-panel="${CSS.escape(panel)}"]`);
-      return tab && !tab.hidden;
-    });
-  if (!actions.length) return null;
-
-  const section = node('section', undefined, 'overview-actions');
-  section.setAttribute('aria-labelledby', 'overview-actions-title');
-  const copy = node('div', undefined, 'overview-actions-copy');
-  copy.append(node('p', 'NEXT STEPS', 'eyebrow'), node('h2', 'Pick up where your role needs you'));
-  copy.querySelector('h2').id = 'overview-actions-title';
-  const buttons = node('div', undefined, 'overview-action-list');
-  for (const [label, panel] of actions) {
-    buttons.append(button(label, 'open-panel', 'button button-outline', { panel }));
-  }
-  section.append(copy, buttons);
-  return section;
-}
-
 function renderOverviewDataContext() {
   const context = node('section', undefined, 'overview-data-context');
   context.setAttribute('aria-label', 'Overview data coverage');
@@ -1723,8 +1845,6 @@ function renderOverview() {
     || ['master_agent', 'field_agent'].includes(state.user.role)
     || (state.user.enterprise_features_enabled && state.summary);
   report.hidden = state.panel !== 'overview' || Boolean(hasDedicatedSummary);
-  const actions = renderOverviewActions();
-  if (actions) wrap.append(actions);
   if (state.user.role === 'property_owner') wrap.append(renderOwnerPortfolio());
   if (['master_agent', 'field_agent'].includes(state.user.role)) wrap.append(renderAgentPortfolio());
   if (['finance_manager','super_admin','global_admin'].includes(state.user.role)) {
@@ -1953,6 +2073,45 @@ function miniAppLogo(panel) {
   return miniAppByPanel[panel]?.logo ?? integratedMiniAppLogos[panel] ?? null;
 }
 
+function renderSuperAppLauncher() {
+  const wrap = node('div');
+  wrap.append(sectionHeading('Your service mini-apps', 'Open an available service directly. Access is based on your role and enabled features.'));
+  const catalog = node('div', undefined, 'service-grid workspace-launcher-grid');
+  const accessibleModules = [...document.querySelectorAll('.tab[data-panel]:not([hidden])')]
+    .filter((tab) => MINI_APP_PANELS.has(tab.dataset.panel));
+  for (const tab of accessibleModules) {
+    const panel = tab.dataset.panel;
+    const name = panel === 'accounting'
+      ? 'Accounting & Finance'
+      : getLocalizedNodeSource(tab.firstChild).trim() || tab.textContent.trim();
+    const card = node('button', undefined, 'service-card workspace-launch-card');
+    card.type = 'button';
+    card.setAttribute('aria-label', `Open ${name}`);
+    const logoSource = miniAppLogo(panel);
+    if (logoSource) {
+      const logo = node('img', undefined, 'service-icon service-icon-image');
+      logo.src = logoSource;
+      logo.alt = '';
+      logo.setAttribute('aria-hidden', 'true');
+      card.append(logo);
+    } else {
+      const icon = node('span', workspaceNavIcons[panel] ?? '•', 'service-icon');
+      icon.setAttribute('aria-hidden', 'true');
+      card.append(icon);
+    }
+    card.append(
+      node('strong', name),
+      node('span', 'Open an available service directly. Access is based on your role and enabled features.'),
+      node('small', 'Open service'),
+    );
+    card.addEventListener('click', () => navigateToPanel(panel));
+    catalog.append(card);
+  }
+  if (!accessibleModules.length) catalog.append(empty('No services are assigned to your account yet.'));
+  wrap.append(catalog);
+  return wrap;
+}
+
 function decoratePublicServiceLogos() {
   const logos = new Map([
     ['Homes & rentals', miniAppLogo('properties')],
@@ -1961,6 +2120,7 @@ function decoratePublicServiceLogos() {
     ['AfroLife Edir', miniAppLogo('edir')],
     ['SACCO / MFI', miniAppLogo('mfi')],
     ['Agent services', '/icon.svg'],
+    ['Accounting & Finance', miniAppLogo('accounting')],
   ]);
   const panels = new Map([
     ['Homes & rentals', 'properties'],
@@ -1969,6 +2129,7 @@ function decoratePublicServiceLogos() {
     ['AfroLife Edir', 'edir'],
     ['SACCO / MFI', 'mfi'],
     ['Agent services', 'agents'],
+    ['Accounting & Finance', 'accounting'],
   ]);
   for (const card of document.querySelectorAll('#public-hub .service-card')) {
     const name = card.querySelector('strong')?.textContent.trim();
@@ -5825,7 +5986,12 @@ function renderPanel() {
   moreButton?.classList.toggle('active', moreIsCurrent);
   if (moreIsCurrent) moreButton?.setAttribute('aria-current', 'page');
   else moreButton?.removeAttribute('aria-current');
+  const launcherButton = $('#return-super-app');
+  launcherButton?.classList.toggle('active', state.panel === 'launcher');
+  if (state.panel === 'launcher') launcherButton?.setAttribute('aria-current', 'page');
+  else launcherButton?.removeAttribute('aria-current');
   const panelTitles = {
+    launcher: 'Super App',
     subscriptions: 'Service subscriptions',
     password: 'Account security',
     security: 'Account security',
@@ -5910,6 +6076,7 @@ function renderPanel() {
     return;
   }
   const renderer = {
+    launcher: renderSuperAppLauncher,
     overview: renderOverview,
     subscriptions: renderSubscriptions,
     insurance: renderInsurance,
@@ -5934,8 +6101,8 @@ function renderPanel() {
 }
 
 function navigateToPanel(panel, { replace = false } = {}) {
-  const tab = document.querySelector(`.tab[data-panel="${CSS.escape(panel)}"]`);
-  if (!tab || tab.hidden || !KNOWN_PANELS.has(panel)) {
+  const tab = panel === 'launcher' ? null : document.querySelector(`.tab[data-panel="${CSS.escape(panel)}"]`);
+  if (!KNOWN_PANELS.has(panel) || (panel === 'launcher' ? !state.user : !tab || tab.hidden)) {
     showAlert('This workspace is unavailable for your account or deployment.', true);
     return;
   }
@@ -5950,6 +6117,27 @@ function navigateToPanel(panel, { replace = false } = {}) {
 
 async function submitForm(form) {
   const values = formData(form);
+  if (form.dataset.form === 'assistant-start') {
+    const conversation = await api('/assistant/conversations', {
+      method: 'POST',
+      body: JSON.stringify({ message: values.message.trim() }),
+    });
+    form.reset();
+    state.assistant.selectedId = conversation.id;
+    await refreshAssistant();
+    showAlert('');
+    return;
+  }
+  if (form.dataset.form === 'assistant-reply') {
+    await api(`/assistant/conversations/${encodeURIComponent(form.dataset.id)}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ message: values.message.trim() }),
+    });
+    form.reset();
+    await refreshAssistant();
+    showAlert('');
+    return;
+  }
   if (form.dataset.form === 'rental-application') {
     const consent = form.elements.namedItem('contact_consent');
     if (!consent?.checked) throw new Error('Confirm how your application details will be shared before submitting.');
@@ -7121,6 +7309,11 @@ document.addEventListener('submit', (event) => {
     });
 });
 
+$('#assistant-dialog').addEventListener('close', () => {
+  if (assistantRefreshTimer) clearInterval(assistantRefreshTimer);
+  assistantRefreshTimer = null;
+});
+
 window.addEventListener('online', () => {
   if (state.user?.role !== 'worker') return;
   void (async () => {
@@ -7130,6 +7323,57 @@ window.addEventListener('online', () => {
 });
 
 document.addEventListener('click', async (event) => {
+  if (event.target.closest('#assistant-presence-toggle')) {
+    try {
+      await api('/assistant/availability', {
+        method: 'PUT',
+        body: JSON.stringify({ available: !state.assistant.available }),
+      });
+      await refreshAssistant();
+      startAssistantHeartbeat();
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  const assistantAction = event.target.closest('[data-action^="assistant-"]');
+  if (assistantAction) {
+    event.stopPropagation();
+    const { action, id } = assistantAction.dataset;
+    try {
+      if (action === 'assistant-select') {
+        await selectAssistantConversation(id);
+      } else if (action === 'assistant-claim') {
+        await api(`/assistant/conversations/${encodeURIComponent(id)}/claim`, { method: 'POST', body: '{}' });
+        await refreshAssistant();
+        await selectAssistantConversation(id);
+      } else if (action === 'assistant-navigate') {
+        $('#assistant-dialog').close();
+        navigateToPanel(assistantAction.dataset.panel);
+      }
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (event.target.closest('#assistant-launcher')) {
+    $('#assistant-dialog').showModal();
+    try {
+      await refreshAssistant();
+      startAssistantHeartbeat();
+      if (assistantRefreshTimer) clearInterval(assistantRefreshTimer);
+      assistantRefreshTimer = setInterval(() => {
+        void refreshAssistant().catch((error) => showAlert(error.message, true));
+      }, 15_000);
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (event.target.closest('#assistant-close')) {
+    $('#assistant-dialog').close();
+    return;
+  }
   if (event.target === $('#workspace-more-dialog')) {
     $('#workspace-more-dialog').close();
     return;
@@ -8528,6 +8772,7 @@ $('#show-login').addEventListener('click', () => {
 });
 $('#save-server').addEventListener('click', saveNativeServer);
 $('#logout').addEventListener('click', () => signOut());
+$('#return-super-app').addEventListener('click', () => navigateToPanel('launcher'));
 $('#retry-session').addEventListener('click', async () => {
   const button = $('#retry-session');
   button.disabled = true;
@@ -8614,6 +8859,7 @@ initializeLocale(() => {
     $('#page-subtitle').textContent = t('Signed in as {{role}}. Your access is limited to your assigned role and territory.', { role: roleLabel(state.user.role) });
     renderStats();
     renderPanel();
+    renderAssistant();
   }
 });
 initializeNativeServer();

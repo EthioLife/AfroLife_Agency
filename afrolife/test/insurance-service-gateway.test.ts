@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash, createHmac } from 'node:crypto';
 import express from 'express';
 import {
+  createAccountingServiceGateway,
   createInsuranceRequestsServiceGateway,
   createInsuranceServiceGateway,
   createMfiServiceGateway,
@@ -218,6 +219,48 @@ test('public Edir gateway forwards binary official documents with the scoped upl
     mime: 'application/pdf',
     bodyLength: file.length,
   });
+});
+
+test('public Edir gateway allows only the explicitly enabled internal HTTP host', () => {
+  const options = {
+    secret,
+    servicePath: '/api/v1/edir',
+    serviceName: 'AfroLife Edir registration',
+    allowInternalHttpHost: 'afrolife-local-edir',
+  };
+
+  assert.doesNotThrow(() => createPublicServiceGateway({
+    ...options,
+    baseUrl: 'http://afrolife-local-edir',
+  }));
+  assert.throws(() => createPublicServiceGateway({
+    ...options,
+    baseUrl: 'http://another-internal-service',
+  }), /Invalid service origin/);
+  assert.throws(() => createPublicServiceGateway({
+    ...options,
+    baseUrl: 'http://afrolife-local-edir',
+    allowInternalHttpHost: 'another-internal-service',
+  }), /Invalid service origin/);
+});
+
+test('Accounting gateway allows only the explicitly enabled internal HTTP host', () => {
+  assert.doesNotThrow(() => createAccountingServiceGateway({
+    secret,
+    baseUrl: 'http://afrolife-local-accounting:3300',
+    allowInternalHttpHost: 'afrolife-local-accounting',
+  }));
+
+  assert.throws(() => createAccountingServiceGateway({
+    secret,
+    baseUrl: 'http://another-internal-service:3300',
+    allowInternalHttpHost: 'afrolife-local-accounting',
+  }), /must use HTTPS outside localhost/);
+
+  assert.throws(() => createAccountingServiceGateway({
+    secret,
+    baseUrl: 'http://afrolife-local-accounting:3300',
+  }), /must use HTTPS outside localhost/);
 });
 
 test('SACCO/MFI gateway signs and forwards requests to the isolated service API', async (context) => {

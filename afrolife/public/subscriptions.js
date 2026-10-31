@@ -1,4 +1,5 @@
 export const PUBLIC_SUBSCRIPTION_SERVICES = Object.freeze([
+  Object.freeze({ key: 'accounting', name: 'Accounting & Finance', monthlyEtb: 1000 }),
   Object.freeze({ key: 'property_management', name: 'Property Management', monthlyEtb: 1000 }),
   Object.freeze({ key: 'workforce_management', name: 'Workforce Management', monthlyEtb: 1000 }),
   Object.freeze({ key: 'super_agent', name: 'Super Agent', monthlyEtb: 1000 }),

@@ -28,6 +28,133 @@ ops.use(workforceOperations);
 const h = (fn: (req: Request, res: Response) => Promise<unknown>): RequestHandler => (req, res, next) => { fn(req, res).catch(next); };
 const AGENT = ['master_agent', 'field_agent'];
 const SUPPORT_STAFF = ['global_admin', 'super_admin', 'compliance', 'corporate_business_manager'] as const;
+const isSupportStaff = (role: string) => SUPPORT_STAFF.some((staffRole) => staffRole === role);
+
+const AssistantMessageInput = z.object({
+  message: z.string().trim().min(1).max(4000),
+}).strict();
+
+ops.get('/assistant/availability', h(async (req, res) => {
+  res.json(await withUser(req.user!, async (client) => {
+    const [online, own] = await Promise.all([
+      client.query(
+        `SELECT count(*)::int AS count FROM assistant_support_presence
+         WHERE available=true AND updated_at>now()-interval '2 minutes'`,
+      ),
+      client.query(
+        `SELECT available AND updated_at>now()-interval '2 minutes' AS available
+         FROM assistant_support_presence WHERE user_id=$1`,
+        [req.user!.id],
+      ),
+    ]);
+    return { online_count: online.rows[0].count, available: own.rows[0]?.available ?? false };
+  }));
+}));
+
+ops.put('/assistant/availability', requireRole(...SUPPORT_STAFF), h(async (req, res) => {
+  const body = z.object({ available: z.boolean() }).strict().parse(req.body);
+  const presence = await withUser(req.user!, async (client) => (await client.query(
+    `INSERT INTO assistant_support_presence (user_id,available,updated_at)
+     VALUES ($1,$2,now())
+     ON CONFLICT (user_id) DO UPDATE SET available=EXCLUDED.available,updated_at=now()
+     RETURNING available`,
+    [req.user!.id,body.available],
+  )).rows[0]);
+  res.json(presence);
+}));
+
+ops.get('/assistant/conversations/mine', h(async (req, res) => {
+  res.json(await withUser(req.user!, async (client) => (await client.query(
+    `SELECT id,owner_role,status,created_at,last_message_at FROM assistant_conversations
+     WHERE owner_id=$1 ORDER BY last_message_at DESC LIMIT 50`,
+    [req.user!.id],
+  )).rows));
+}));
+
+ops.get('/assistant/conversations/queue', requireRole(...SUPPORT_STAFF), h(async (req, res) => {
+  res.json(await withUser(req.user!, async (client) => (await client.query(
+    'SELECT * FROM app_assistant_conversation_queue()',
+  )).rows));
+}));
+
+ops.post('/assistant/conversations', h(async (req, res) => {
+  const { message } = AssistantMessageInput.parse(req.body);
+  const conversation = await withUser(req.user!, async (client) => {
+    const created = (await client.query(
+      `INSERT INTO assistant_conversations (owner_id,owner_role)
+       VALUES ($1,$2) RETURNING id,owner_role,status,created_at,last_message_at`,
+      [req.user!.id,req.user!.role],
+    )).rows[0];
+    await client.query(
+      `INSERT INTO assistant_messages (conversation_id,sender_id,sender_role,sender_type,body)
+       VALUES ($1,$2,$3,'user',$4)`,
+      [created.id,req.user!.id,req.user!.role,message],
+    );
+    await audit(client,req.user!.id,'assistant_conversation_created','assistant_conversation',created.id,null,{
+      owner_role: req.user!.role,
+    });
+    await audit(client,req.user!.id,'assistant_message_sent','assistant_conversation',created.id,null,{
+      sender_type: 'user',
+    });
+    return created;
+  });
+  res.status(201).json(conversation);
+}));
+
+ops.get('/assistant/conversations/:id/messages', h(async (req, res) => {
+  const id = z.string().uuid().parse(req.params.id);
+  const messages = await withUser(req.user!, async (client) => {
+    const conversation = await client.query(
+      'SELECT id FROM assistant_conversations WHERE id=$1',
+      [id],
+    );
+    if (!conversation.rowCount) throw new HttpError(404,'Conversation not found');
+    return (await client.query(
+      `SELECT id,sender_id,sender_role,sender_type,body,created_at
+       FROM assistant_messages WHERE conversation_id=$1 ORDER BY created_at,id LIMIT 500`,
+      [id],
+    )).rows;
+  });
+  res.json(messages);
+}));
+
+ops.post('/assistant/conversations/:id/claim', requireRole(...SUPPORT_STAFF), h(async (req, res) => {
+  const id = z.string().uuid().parse(req.params.id);
+  const claimed = await withUser(req.user!, async (client) => {
+    const result = await client.query('SELECT app_claim_assistant_conversation($1) AS id',[id]);
+    if (!result.rows[0]?.id) throw new HttpError(409,'This conversation is already assigned or unavailable');
+    await audit(client,req.user!.id,'assistant_conversation_claimed','assistant_conversation',id,null,{});
+    return result.rows[0];
+  });
+  res.json(claimed);
+}));
+
+ops.post('/assistant/conversations/:id/messages', h(async (req, res) => {
+  const id = z.string().uuid().parse(req.params.id);
+  const { message } = AssistantMessageInput.parse(req.body);
+  const created = await withUser(req.user!, async (client) => {
+    const conversation = (await client.query(
+      'SELECT owner_id,assigned_to FROM assistant_conversations WHERE id=$1',
+      [id],
+    )).rows[0];
+    if (!conversation) throw new HttpError(404,'Conversation not found');
+    const isOwner = conversation.owner_id === req.user!.id;
+    const isAssignedStaff = conversation.assigned_to === req.user!.id && isSupportStaff(req.user!.role);
+    if (!isOwner && !isAssignedStaff) throw new HttpError(404,'Conversation not found');
+    const senderType = isAssignedStaff ? 'staff' : 'user';
+    const row = (await client.query(
+      `INSERT INTO assistant_messages (conversation_id,sender_id,sender_role,sender_type,body)
+       VALUES ($1,$2,$3,$4,$5)
+       RETURNING id,sender_id,sender_role,sender_type,body,created_at`,
+      [id,req.user!.id,req.user!.role,senderType,message],
+    )).rows[0];
+    await audit(client,req.user!.id,'assistant_message_sent','assistant_conversation',id,null,{
+      sender_type: senderType,
+    });
+    return row;
+  });
+  res.status(201).json(created);
+}));
 
 const SupportCaseInput = z.object({
   category: z.enum(['general','service','agent_complaint','financial','legal','privacy','safety','fraud']),

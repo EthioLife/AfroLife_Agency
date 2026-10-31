@@ -70,6 +70,7 @@ export function createServiceGateway(options: {
   servicePath: string;
   serviceName: string;
   includeBaseUrl?: boolean;
+  allowInternalHttpHost?: string;
 }): RequestHandler {
   if (options.secret.length < 32) {
     throw new Error(`Gateway secret must contain at least 32 characters for ${options.serviceName}`);
@@ -83,7 +84,13 @@ export function createServiceGateway(options: {
     || serviceUrl.username || serviceUrl.password) {
     throw new Error(`Service URL for ${options.serviceName} must be an origin without a path, query, credentials, or fragment`);
   }
-  if (serviceUrl.protocol !== 'https:' && !['localhost', '127.0.0.1', '::1'].includes(serviceUrl.hostname)) {
+  const internalHttpAllowed =
+    options.allowInternalHttpHost === 'afrolife-local-accounting' &&
+    serviceUrl.hostname === 'afrolife-local-accounting' &&
+    serviceUrl.protocol === 'http:';
+  if (serviceUrl.protocol !== 'https:' &&
+    !['localhost', '127.0.0.1', '::1'].includes(serviceUrl.hostname) &&
+    !internalHttpAllowed) {
     throw new Error(`Service URL for ${options.serviceName} must use HTTPS outside localhost`);
   }
 
@@ -152,7 +159,11 @@ export function createInsuranceServiceGateway(options: { baseUrl: string; secret
   });
 }
 
-export function createAccountingServiceGateway(options: { baseUrl: string; secret: string }): RequestHandler {
+export function createAccountingServiceGateway(options: {
+  baseUrl: string;
+  secret: string;
+  allowInternalHttpHost?: string;
+}): RequestHandler {
   return createServiceGateway({
     ...options,
     servicePath: '/api/v1/accounting',
@@ -181,11 +192,16 @@ export function createPublicServiceGateway(options: {
   secret: string;
   servicePath: string;
   serviceName: string;
+  allowInternalHttpHost?: string;
 }): RequestHandler {
   if (options.secret.length < 32) throw new Error(`Gateway secret must contain at least 32 characters for ${options.serviceName}`);
   const serviceUrl = new URL(options.baseUrl);
+  const internalHttpAllowed =
+    options.allowInternalHttpHost === 'afrolife-local-edir' &&
+    serviceUrl.hostname === 'afrolife-local-edir' &&
+    serviceUrl.protocol === 'http:';
   if (serviceUrl.pathname !== '/' || serviceUrl.search || serviceUrl.hash || serviceUrl.username || serviceUrl.password
-    || (serviceUrl.protocol !== 'https:' && !['localhost','127.0.0.1','::1'].includes(serviceUrl.hostname))) {
+    || (serviceUrl.protocol !== 'https:' && !['localhost','127.0.0.1','::1'].includes(serviceUrl.hostname) && !internalHttpAllowed)) {
     throw new Error(`Invalid service origin for ${options.serviceName}`);
   }
   return (req, res, next) => {

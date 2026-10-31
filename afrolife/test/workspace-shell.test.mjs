@@ -53,6 +53,30 @@ function collectPublicUiMessages() {
 
 test('key app workflows are translated in every supported locale', async () => {
   const messages = [
+    'AfroLife Support',
+    'Role-aware assistant and peer support',
+    'Your access and support options follow your AfroLife role.',
+    'Online support agents: {{count}}',
+    'Make me available',
+    'Stop offering support',
+    'My conversations',
+    'Start a new support request',
+    'Send request',
+    'Requests awaiting support',
+    'Claim conversation',
+    'Conversation',
+    'Message',
+    'Send message',
+    'Start a conversation by describing what you need.',
+    'You',
+    'AfroLife support',
+    'Open property services',
+    'Open workforce tools',
+    'Open support cases',
+    'Your support request is private to you and the support agent who claims it. Do not send passwords, payment card details, or authentication codes.',
+    'Automated answers are not enabled in this support pilot. Existing property, workforce, and support tools remain available.',
+    'Awaiting response',
+    'Assigned to support',
     'Document requirements are not available yet. Try again before submitting.',
     'No identity documents are required for this account type.',
     'Your registration is pending review. Check document decisions below and replace any document returned by Compliance.',
@@ -150,6 +174,11 @@ test('key app workflows are translated in every supported locale', async () => {
     'Active Edir membership is required to request a loan assessment.',
     'I accept the interest-free, fee-free principal-only loan and savings-account payout terms.',
     'Your service mini-apps',
+    'Super App',
+    'Accounting & Finance',
+    'Manage entity books, journals, financial operations, and entity-scoped reporting.',
+    'Accounting mini app →',
+    'No services are assigned to your account yet.',
     'Open an available service directly. Access is based on your role and enabled features.',
     'Choose an agent',
     'Audience roles',
@@ -204,8 +233,10 @@ test('key app workflows are translated in every supported locale', async () => {
 
 test('workspace deep links retain the current URL and only resolve visible panels', () => {
   assert.equal(panelFromUrl('https://agency.test/?panel=rent', new Set(['overview', 'rent'])), 'rent');
+  assert.equal(panelFromUrl('https://agency.test/?panel=launcher', new Set(['overview', 'launcher'])), 'launcher');
   assert.equal(panelFromUrl('https://agency.test/?panel=admin', new Set(['overview'])), 'overview');
   assert.equal(panelFromUrl('https://agency.test/?panel=unknown', new Set(['overview', 'rent'])), 'overview');
+  assert.equal(isPanelEnabled('launcher', []), true);
   assert.equal(panelUrl('/agency?campaign=staff#main', 'rent'), '/agency?campaign=staff&panel=rent#main');
   assert.equal(panelUrl('/agency?panel=rent#main', 'overview'), '/agency#main');
   assert.equal(isPanelEnabled('admin', []), true);

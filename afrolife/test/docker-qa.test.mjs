@@ -33,6 +33,12 @@ test('Docker QA migrations run as database owner and the app uses a restricted r
   assert.match(compose, /condition: service_completed_successfully/);
 });
 
+test('Docker QA passes optional Edir gateway configuration to the app', () => {
+  assert.match(compose, /EDIR_SERVICE_URL: \$\{EDIR_SERVICE_URL:-\}/);
+  assert.match(compose, /EDIR_GATEWAY_SECRET: \$\{EDIR_GATEWAY_SECRET:-\}/);
+  assert.match(compose, /EDIR_PUBLIC_GATEWAY_HTTP_HOST: \$\{EDIR_PUBLIC_GATEWAY_HTTP_HOST:-\}/);
+});
+
 test('Docker QA reapplies restricted Insurance ledger ACLs after broad runtime grants', () => {
   const grantRuntime = compose.split('  grant-runtime:')[1]?.split('  app:')[0] ?? '';
   const broadGrant = grantRuntime.indexOf('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES');

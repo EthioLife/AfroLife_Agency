@@ -38,9 +38,9 @@ Same-origin TypeScript/Express API and installable web app for AfroLife agency o
    Remove-Item Env:SEED_ADMIN_PASSWORD
    ```
 
-4. Run `npm run dev`, then open `http://localhost:3000`.
+4. Run `npm run dev`, then open `http://localhost:3010`.
 
-`http://localhost:3000` is the local browser entry point for the PWA and API.
+`http://localhost:3010` is the local browser entry point for the PWA and API.
 The optional local Nginx preview on `http://localhost:8080` only proxies to
 that same app and is not needed for `npm run dev`. Users always open this
 single app URL (or the single public hostname in deployment); they do not open
@@ -186,12 +186,15 @@ workspace can review independent Edir registrations and see consolidated
 summary totals; each organization retains its own members, staff, products,
 groups, and journals.
 
-Inside the signed-in Super App, the role-aware service launcher opens each
-available mini-app directly from Overview. Edir exposes focused shortcuts for
-membership, groups/governance, savings/accounts, credit/servicing, and (for the
-umbrella role) registration and aggregate reporting. These shortcuts only
-navigate to existing workflows; they do not grant permissions or imply that
-planned capabilities are live.
+Inside the signed-in Super App, the role-aware service launcher is a separate
+destination available from the shared header. It lists only modules that are
+enabled and allowed for the current account; mini-app workspaces do not embed
+cross-app launch lists. The Overview remains focused on role-scoped activity
+and current work. Edir exposes focused shortcuts for membership,
+groups/governance, savings/accounts, credit/servicing, and (for the umbrella
+role) registration and aggregate reporting. These shortcuts only navigate to
+existing workflows; they do not grant permissions or imply that planned
+capabilities are live.
 
 Platform Super Admins and Global Admins assign Edir staff from the Edir staff
 workspace. Edir Admins manage member reviews and groups; Member Support can
@@ -238,7 +241,7 @@ deployed, migrated, and reachable.
 
 ## AfroLife Accounting standalone service
 
-Accounting is a separately deployable multi-entity accounting backend and web workspace with its own PostgreSQL database, user mode, entity memberships, chart of accounts, periods, journals, and consolidation totals. See [services/accounting/README.md](./services/accounting/README.md) for standalone and AfroLife-connected deployment, credentials, migrations, and source-event mapping. The Super App exposes Accounting as a finance mini-app when `ACCOUNTING_SERVICE_URL` and the matching gateway secret are configured. Transactional source publishers are wired for property rent/deposit receipts, Agency contract fees, commission accruals and payouts, dispute refunds, approved MFI loan disbursements/write-offs, Edir transactions, and approved Insurance journals. Marketplace has local sandbox checkout only; real payment posting still requires a provider and entity/account mappings. Configure Accounting entity and account mappings before enabling delivery; historical entries are not backfilled. The core catalog service entry can be assigned through service packages; commercial subscription/payment fulfillment remains outstanding.
+Accounting is a separately deployable multi-entity accounting backend and web workspace with its own PostgreSQL database, user mode, entity memberships, chart of accounts, periods, journals, and consolidation totals. See [services/accounting/README.md](./services/accounting/README.md) for standalone and AfroLife-connected deployment, credentials, migrations, and source-event mapping. The Super App exposes Accounting as a dedicated finance mini-app when the subscriber or internal Accounting gateway is configured. Accounting is included in the existing manual service-subscription request and finance payment-review flow; customer and property-owner access requires both the existing mini-app assignment and a confirmed, unexpired Accounting subscription. The service API continues to enforce those checks. Transactional source publishers are wired for property rent/deposit receipts, Agency contract fees, commission accruals and payouts, dispute refunds, approved MFI loan disbursements/write-offs, Edir transactions, and approved Insurance journals. Marketplace has local sandbox checkout only; real payment posting still requires a provider and entity/account mappings. Configure Accounting entity and account mappings before enabling delivery; historical entries are not backfilled.
 
 ## Property listings and secure uploads
 
@@ -267,11 +270,11 @@ The **SACCO / MFI** workspace adds a separate institution-scoped operational are
 
 The workspace now presents a service menu across institution governance, members/KYC, products, savings, shares, credit, IFB, payments, wallets, agent/field operations, collections, accounting, treasury, reconciliation, AML/compliance, risk/fraud, regulatory reporting, CRM, digital channels, analytics, documents, staff, audit/security, exceptions, and cooperative governance. Each service is labelled `Pilot`, `Partial`, or `Not live`; selecting a not-live service shows its baseline scope and explicitly does not accept or post activity. Platform Super Admins can access every institution and all currently implemented institution operations/configuration regardless of institution membership; each institution-scoped request is written to that institution's append-only audit trail. Super Admin access does not make unavailable SRS capabilities live. This menu is a capability map, not a claim that every SRS requirement is implemented.
 
-The signed-in Overview also offers direct, role-filtered mini-app launch cards.
+The separate Super App launcher is the only signed-in cross-mini-app catalog.
 Within SACCO/MFI, choose a service area and then its available submodule action;
-within Edir, use the service shortcuts for the relevant workspace section. This
-keeps common paths to three selections or fewer from Overview while preserving
-server-side role checks and the existing service boundaries.
+within Edir, use the service shortcuts for the relevant workspace section.
+These controls navigate within their service and preserve server-side role
+checks and existing service boundaries.
 
 The pilot supports member registration, lifecycle controls and separate-person review; ordinary savings and share accounts; deposits and withdrawals; loan applications with affordability inputs and explainable credit scores; versioned maker-checker credit and delinquency policies; cash-constrained disbursement; principal-only monthly installment schedules and repayments; assigned collection cases, promises to pay and case resolution; independently approved delinquency/NPL classifications; journal activity, audit history, and full transaction reversals. Each institution has tenant-scoped PostgreSQL row-level security, its own chart of accounts and products, ETB amounts stored to two decimal places, balanced double-entry posting, append-only posted journals/audits, per-institution idempotency keys, cash sufficiency checks, and distinct loan originator/approver/disburser controls.
 
@@ -562,6 +565,7 @@ For manual integration runs, start the API with the restricted `DATABASE_URL` ro
 ## MVP workflows
 
 - Use the authenticated Support & complaints workspace to submit and track cases, including urgent safety/fraud/privacy/legal escalation, independent review of sensitive case access, structured resolutions, and user appeals. Case conversations are not exposed to support staff before a separate authorized reviewer grants a 15-minute access window; financial/legal resolution requires a formal workflow reference. Notifications use the existing in-app/webhook path; SMS delivery remains unimplemented.
+- Use the authenticated AfroLife Support assistant in the PWA or native app to start private, role-tagged two-way support conversations. Only the owner and a support agent who claims the conversation can read its messages; the staff queue exposes limited request metadata until claim. Support agents must opt in to appear online, and availability expires after two minutes without a heartbeat. This pilot routes messages to human support and does not provide AI-generated answers or connect external messaging channels.
 - Sign in with phone/password and complete first-login password changes or optional MFA setup.
 - Review recent signed-in sessions in Account security and revoke sessions that are no longer recognized. The session list records browser user-agent strings (limited to 512 characters) but does not collect client IP addresses.
 - Register attributable leads and prospective workers.
@@ -724,10 +728,11 @@ Their route implementations now live in the corresponding service directories,
 and each service has an independent TypeScript build target. Service processes
 load only their own router after selecting their database. The central API composes those same
 routers to preserve the existing routes and local compatibility behavior.
-The shared workspace launcher reads each mini-app's title, description, panel,
-and same-origin API paths from `public/mini-apps/<service>/manifest.js`; the
-mini-apps continue to use the shared sign-in, shell, responsive navigation, and
-localization.
+Each standalone service manifest declares its identity, panels, and same-origin
+gateway paths under `public/mini-apps/<service>/manifest.js`. The signed-in
+Super App launcher lists only role-visible modules and uses manifest branding
+where available; each mini-app continues to use the shared sign-in, shell,
+responsive navigation, and localization.
 Build one with its corresponding `npm run build:worker-management`,
 `npm run build:staffing`, `npm run build:property-management`, or
 `npm run build:marketplace` command (or build all with
