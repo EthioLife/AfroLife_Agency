@@ -53,47 +53,71 @@ async function provisionRuntimeRole(adminUrl: string, runtimeUrl: string) {
 
     const existingRole = await client.query<{
       rolsuper: boolean;
+      rolcreatedb: boolean;
+      rolcreaterole: boolean;
       rolbypassrls: boolean;
-    }>('SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname=$1', [runtime.role]);
-    const roleName = quoteIdentifier(runtime.role);
-    const password = quoteLiteral(runtime.password);
+    }>('SELECT rolsuper, rolcreatedb, rolcreaterole, rolbypassrls FROM pg_roles WHERE rolname=$1', [runtime.role]);
+    let runtimeRole = runtime.role;
     if (existingRole.rowCount) {
-      if (existingRole.rows[0].rolsuper || existingRole.rows[0].rolbypassrls) {
-        throw new Error('The existing runtime role is privileged; use a new restricted role instead.');
+      const currentRole = existingRole.rows[0];
+      if (currentRole.rolsuper || currentRole.rolcreatedb || currentRole.rolcreaterole || currentRole.rolbypassrls) {
+        runtimeRole = `${runtime.role.slice(0, 47)}_afrolife_runtime`;
       }
-      await client.query(
-        `ALTER ROLE ${roleName} WITH LOGIN PASSWORD ${password}
-         NOCREATEDB NOCREATEROLE NOBYPASSRLS NOINHERIT`,
-      );
+    }
+
+    if (runtimeRole === admin.role) {
+      throw new Error('The application runtime role must be different from the database provisioning role.');
+    }
+    const targetRole = await client.query<{
+      rolsuper: boolean;
+      rolcreatedb: boolean;
+      rolcreaterole: boolean;
+      rolbypassrls: boolean;
+    }>('SELECT rolsuper, rolcreatedb, rolcreaterole, rolbypassrls FROM pg_roles WHERE rolname=$1', [runtimeRole]);
+    const roleName = quoteIdentifier(runtimeRole);
+    if (targetRole.rowCount) {
+      const role = targetRole.rows[0];
+      if (role.rolsuper || role.rolcreatedb || role.rolcreaterole || role.rolbypassrls) {
+        throw new Error('The selected application runtime role has elevated privileges; choose a different DATABASE_URL username.');
+      }
     } else {
       await client.query(
-        `CREATE ROLE ${roleName} WITH LOGIN PASSWORD ${password}
-         NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOINHERIT`,
+        `CREATE ROLE ${roleName} WITH LOGIN PASSWORD ${quoteLiteral(runtime.password)}`,
       );
     }
     await client.query(`GRANT CONNECT ON DATABASE ${quoteIdentifier(runtime.database)} TO ${roleName}`);
     await client.query(`GRANT USAGE ON SCHEMA public TO ${roleName}`);
+    if (runtimeRole !== runtime.role) {
+      const runtimeConnection = new URL(runtimeUrl);
+      runtimeConnection.username = runtimeRole;
+      process.env.DATABASE_URL = runtimeConnection.toString();
+      console.log(`Created restricted database role "${runtimeRole}". Update AletCloud DATABASE_URL to use this role after deployment.`);
+    }
   } finally {
     await client.end();
   }
 
-  const runtimeClient = new pg.Client({ connectionString: runtimeUrl });
+  const effectiveRuntimeUrl = process.env.DATABASE_URL ?? runtimeUrl;
+  const runtimeClient = new pg.Client({ connectionString: effectiveRuntimeUrl });
   await runtimeClient.connect();
   try {
     const result = await runtimeClient.query<{
       rolsuper: boolean;
+      rolcreatedb: boolean;
+      rolcreaterole: boolean;
       rolbypassrls: boolean;
     }>(
-      `SELECT r.rolsuper, r.rolbypassrls
+      `SELECT r.rolsuper, r.rolcreatedb, r.rolcreaterole, r.rolbypassrls
        FROM pg_roles r WHERE r.rolname=current_user`,
     );
     const role = result.rows[0];
-    if (!role || role.rolsuper || role.rolbypassrls) {
+    if (!role || role.rolsuper || role.rolcreatedb || role.rolcreaterole || role.rolbypassrls) {
       throw new Error('The provisioned database runtime role does not meet the restricted-role requirements.');
     }
   } finally {
     await runtimeClient.end();
   }
+  return effectiveRuntimeUrl;
 }
 
 async function seedFirstSuperAdmin(connectionString: string) {
@@ -131,7 +155,8 @@ if (provisioningUrl) {
     throw new Error('Distinct JWT_SECRET and MFA_ENC_KEY values of at least 32 characters are required before provisioning.');
   }
 
-  await provisionRuntimeRole(provisioningUrl, runtimeUrl);
+  const effectiveRuntimeUrl = await provisionRuntimeRole(provisioningUrl, runtimeUrl);
+  process.env.DATABASE_URL = effectiveRuntimeUrl;
   const migrationEnv: NodeJS.ProcessEnv = { ...process.env, MIGRATION_DATABASE_URL: provisioningUrl };
   delete migrationEnv.ALETCLOUD_BOOTSTRAP_DATABASE_URL;
   delete migrationEnv.SEED_ADMIN_NAME;
