@@ -2,9 +2,6 @@ import './env.js';
 import express, { Request, Response, NextFunction, RequestHandler } from 'express';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { access, stat } from 'node:fs/promises';
-import { constants as fsConstants } from 'node:fs';
-import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import helmet from 'helmet';
 import { z } from 'zod';
@@ -30,7 +27,7 @@ import { dispatchOnce } from './dispatch.js';
 import { dispatchMaintenanceSlaEscalations } from './maintenance-sla.js';
 import { dispatchAccountingEvents, enqueueAccountingEvent } from './accounting-outbox.js';
 import { sniff } from './files.js';
-import { getFile, putFile } from './storage.js';
+import { checkPrivateStorage, getFile, putFile } from './storage.js';
 import { correlationIdMiddleware, getCorrelationId } from './request-context.js';
 import { allowedMiniApps, hasMiniAppAccess, requireAnyMiniAppAccess, requireMiniAppAccess } from './mini-app-access.js';
 import { getPublicSubscriptionCatalog, subscriptionRouter } from './subscriptions.js';
@@ -144,12 +141,13 @@ app.get('/readyz', async (_req, res) => {
     ready = false;
   }
   try {
-    const storagePath = resolve(process.env.FILE_STORAGE_DIR ?? './data/private-files');
-    const storageStats = await stat(storagePath);
-    if (!storageStats.isDirectory()) throw new Error('Private file storage path is not a directory');
-    await access(storagePath, fsConstants.W_OK);
+    await checkPrivateStorage();
     checks.private_storage = 'available';
-  } catch {
+  } catch (error) {
+    console.error(
+      'Private storage readiness check failed:',
+      error instanceof Error ? error.message : 'Unknown storage error',
+    );
     ready = false;
   }
   const services = await checkWorkspaceServices(workspaceServiceProbes());
