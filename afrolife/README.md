@@ -334,14 +334,16 @@ Do not pass migration-owner credentials to the running API container.
 The insurance ledger can be deployed independently while the existing AfroLife
 API remains the identity authority and backward-compatible gateway. In
 development only, with `INSURANCE_SERVICE_URL` unset, requests continue to use
-the in-process ledger.
+the in-process ledger. In production, the Insurance workspace and its routes
+remain disabled (503 for API routes) until a separately deployed service is
+approved and configured; the core platform can run without enabling Insurance.
 The service schema migration creates an empty ledger; it does not import or
 reconcile records from the legacy in-process ledger. Do not cut over until a
 separately approved historical-data migration has been completed, opening
 balances and totals have been reconciled, rollback and recovery procedures have
-been rehearsed, and the independent accounting owner has signed off. Production
-startup requires both `INSURANCE_SERVICE_URL` and `INSURANCE_SERVICE_CUTOVER_READY=1`;
-that flag is an operator attestation, not an automated reconciliation check.
+been rehearsed, and the independent accounting owner has signed off. Enabling the production gateway requires both `INSURANCE_SERVICE_URL` and
+`INSURANCE_SERVICE_CUTOVER_READY=1`; that flag is an operator attestation, not
+an automated reconciliation check.
 Only set it after the required migration and reconciliation evidence has been
 reviewed and retained.
 
