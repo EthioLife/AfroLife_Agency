@@ -4,7 +4,7 @@ This runbook describes a staged deployment of the AfroLife Node.js API and web a
 
 ## Deployment shape and release gates
 
-- **Application:** one Node.js 22+ app, built with `npm run build` and started with `npm start` (`node dist/src/server.js`). The server reads `PORT` and listens on all interfaces when `HOST` is unset.
+- **Application:** one Node.js 22+ app, built with `npm run build` and started with `npm start` (`node dist/src/aletcloud-bootstrap.js`). The one-time bootstrap provisions the restricted database role and applies migrations when its temporary owner URL is configured, then starts the API. The server reads `PORT` and listens on all interfaces when `HOST` is unset.
 - **Database:** private managed PostgreSQL. The runtime database identity must remain a restricted, non-owner role without `BYPASSRLS`; migrations use a separate owner identity.
 - **Documents and media:** private S3-compatible object storage. The current app configuration has `FILE_STORAGE_DIR`, which points to local disk. AletCloud app disk is not a durable shared document store. Implement and verify an S3 storage adapter before accepting real user uploads or running production workflows that depend on documents.
 - **Availability and recovery:** AletCloud's published backup and recovery features may not meet AfroLife's proposed RPO <= 15 minutes and RTO <= 4 hours. Get written, service-specific commitments or formally approve revised targets before production.
@@ -63,10 +63,11 @@ The lowest published combination previously reviewed was App Hosting Max (ETB 3,
    - service URLs/secrets only for separately deployed services that have passed their own readiness checks
 
    Keep optional service cutover flags off, including `MFI_PILOT_ENABLED=0`, `INSURANCE_SERVICE_CUTOVER_READY=0`, and `GLOBAL_BI_SERVICE_CUTOVER_READY=0`, until the related integrations are independently deployed and approved. Set all real secrets in the dashboard's secret fields, not plain GitHub files.
-4. Trigger deployment and inspect build logs and runtime logs. Correct build, database, or health errors before adding a public production domain.
-5. Verify the staging app's `/healthz` returns healthy and confirms database connectivity. This endpoint alone is not a complete readiness or recovery check.
-6. Validate sign-in, MFA, role-specific navigation and API authorization, property/listing workflows, matching/search, forms, reports, and upload access. Use synthetic accounts/data only. Confirm denied roles cannot access another role's or tenant's records.
-7. Check logs do not contain passwords, session tokens, national IDs, document contents, or unnecessary personal data. Review resource, connection, storage, and response-time usage under representative load.
+4. For a database without a SQL console, the app's one-time AletCloud bootstrap can provision the restricted role and apply migrations. Set `DATABASE_URL` to the intended restricted runtime role, set `ALETCLOUD_BOOTSTRAP_DATABASE_URL` to a database-owner connection with role-creation privileges, and configure distinct `JWT_SECRET` and `MFA_ENC_KEY` values. If the database has no Super Admin, also set `SEED_ADMIN_NAME`, `SEED_ADMIN_PHONE`, and a unique `SEED_ADMIN_PASSWORD` (12–72 UTF-8 bytes). On startup, the bootstrap creates or hardens the runtime role, runs the checksummed migrations with the owner connection, creates the initial Super Admin only if none exists, then removes the owner and seed credentials from the app process before starting the API. After `/readyz` succeeds, remove `ALETCLOUD_BOOTSTRAP_DATABASE_URL` and all `SEED_ADMIN_*` values from AletCloud and redeploy so the owner credential is no longer present in the deployment configuration. Do not leave an owner/superuser URL in `DATABASE_URL` or as a permanent runtime secret.
+5. Trigger deployment and inspect build logs and runtime logs. Correct build, database, or health errors before adding a public production domain.
+6. Verify the staging app's `/healthz` returns healthy and confirms database connectivity. This endpoint alone is not a complete readiness or recovery check.
+7. Validate sign-in, MFA, role-specific navigation and API authorization, property/listing workflows, matching/search, forms, reports, and upload access. Use synthetic accounts/data only. Confirm denied roles cannot access another role's or tenant's records.
+8. Check logs do not contain passwords, session tokens, national IDs, document contents, or unnecessary personal data. Review resource, connection, storage, and response-time usage under representative load.
 
 ## 6. Complete production readiness checks
 
