@@ -10,6 +10,65 @@ export interface RuntimeConfig {
 
 type Environment = Record<string, string | undefined>;
 
+export interface PrivateObjectStorageConfig {
+  accessKeyId: string;
+  bucket: string;
+  endpoint: string;
+  region: string;
+  secretAccessKey: string;
+  sessionToken?: string;
+}
+
+export function privateObjectStorageConfig(env: Environment): PrivateObjectStorageConfig | undefined {
+  const bucket = env.S3_BUCKET?.trim() || env.AWS_S3_BUCKET?.trim();
+  const endpoint = env.S3_ENDPOINT?.trim()
+    || env.AWS_ENDPOINT_URL_S3?.trim()
+    || env.AWS_ENDPOINT_URL?.trim();
+  const accessKeyId = env.AWS_ACCESS_KEY_ID?.trim() || env.S3_ACCESS_KEY_ID?.trim();
+  const secretAccessKey = env.AWS_SECRET_ACCESS_KEY?.trim() || env.S3_SECRET_ACCESS_KEY?.trim();
+  if (![bucket, endpoint, accessKeyId, secretAccessKey].some(Boolean)) return undefined;
+  if (!bucket || !endpoint || !accessKeyId || !secretAccessKey) {
+    throw new Error('Private object storage requires a bucket, endpoint, access key, and secret key.');
+  }
+  if (!/^(?=.{3,63}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(bucket)) {
+    throw new Error('S3_BUCKET must be a valid lowercase S3 bucket name.');
+  }
+
+  let parsedEndpoint: URL;
+  try {
+    parsedEndpoint = new URL(endpoint);
+  } catch {
+    throw new Error('S3_ENDPOINT must be an absolute HTTP(S) URL.');
+  }
+  if (
+    !['http:', 'https:'].includes(parsedEndpoint.protocol)
+    || parsedEndpoint.username
+    || parsedEndpoint.password
+    || parsedEndpoint.search
+    || parsedEndpoint.hash
+  ) {
+    throw new Error('S3_ENDPOINT must be an absolute HTTP(S) URL without embedded credentials or query values.');
+  }
+  if (env.NODE_ENV === 'production' && parsedEndpoint.protocol !== 'https:') {
+    throw new Error('S3_ENDPOINT must use HTTPS in production.');
+  }
+
+  const region = env.AWS_REGION?.trim()
+    || env.AWS_DEFAULT_REGION?.trim()
+    || env.S3_REGION?.trim()
+    || 'us-east-1';
+  if (!/^[a-zA-Z0-9-]+$/.test(region)) throw new Error('AWS_REGION must be a valid region identifier.');
+
+  return {
+    accessKeyId,
+    bucket,
+    endpoint,
+    region,
+    secretAccessKey,
+    sessionToken: env.AWS_SESSION_TOKEN?.trim() || undefined,
+  };
+}
+
 export const WORKSPACE_MODULES = [
   'leads', 'workers', 'requests', 'learning', 'properties', 'marketplace',
   'contracts', 'commissions', 'agents', 'rent', 'mfi', 'accounting',
@@ -225,15 +284,17 @@ function productionConfig(env: Environment, idleTimeout: number): RuntimeConfig 
     }
   }
 
-  const storage = env.FILE_STORAGE_DIR?.trim();
-  if (!storage || !(isAbsolute(storage) || win32.isAbsolute(storage))) {
-    throw new Error('FILE_STORAGE_DIR must be an absolute, persistent private-storage path in production');
+  if (!privateObjectStorageConfig(env)) {
+    const storage = env.FILE_STORAGE_DIR?.trim();
+    if (!storage || !(isAbsolute(storage) || win32.isAbsolute(storage))) {
+      throw new Error('FILE_STORAGE_DIR must be an absolute, persistent private-storage path in production');
+    }
+    const publicDirectory = resolve('public');
+    const storageDirectory = resolve(storage);
+    const pathToStorage = relative(publicDirectory, storageDirectory);
+    const storageIsPublic = pathToStorage === '' || (!pathToStorage.startsWith(`..${sep}`) && pathToStorage !== '..');
+    if (storageIsPublic) throw new Error('FILE_STORAGE_DIR must not be inside the public web directory');
   }
-  const publicDirectory = resolve('public');
-  const storageDirectory = resolve(storage);
-  const pathToStorage = relative(publicDirectory, storageDirectory);
-  const storageIsPublic = pathToStorage === '' || (!pathToStorage.startsWith(`..${sep}`) && pathToStorage !== '..');
-  if (storageIsPublic) throw new Error('FILE_STORAGE_DIR must not be inside the public web directory');
 
   if (!env.TRUST_PROXY?.trim() || /^(?:true|\*)$/i.test(env.TRUST_PROXY.trim())) {
     throw new Error('TRUST_PROXY must name the actual trusted proxy hop count or subnet in production');

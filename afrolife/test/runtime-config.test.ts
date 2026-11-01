@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { enabledWorkspaceModules, loadRuntimeConfig, sessionIdleTimeoutMinutes, WORKSPACE_MODULES } from '../src/runtime-config.js';
+import { enabledWorkspaceModules, loadRuntimeConfig, privateObjectStorageConfig, sessionIdleTimeoutMinutes, WORKSPACE_MODULES } from '../src/runtime-config.js';
 
 const safeProductionEnvironment = {
   NODE_ENV: 'production',
@@ -165,6 +165,28 @@ test('production configuration requires TLS for remote PostgreSQL and private st
   assert.throws(
     () => loadRuntimeConfig({ ...safeProductionEnvironment, FILE_STORAGE_DIR: resolve('public', 'uploads') }),
     /public web directory/,
+  );
+});
+
+test('production accepts complete private S3 storage and rejects incomplete or insecure configuration', () => {
+  const objectStorageEnvironment = {
+    ...safeProductionEnvironment,
+    FILE_STORAGE_DIR: undefined,
+    S3_BUCKET: 't978-afrolife-private-files',
+    S3_ENDPOINT: 'https://s3.aletcloud.com',
+    AWS_REGION: 'et-addis-1',
+    AWS_ACCESS_KEY_ID: 'test-access-key',
+    AWS_SECRET_ACCESS_KEY: 'test-secret-key',
+  };
+  assert.doesNotThrow(() => loadRuntimeConfig(objectStorageEnvironment));
+  assert.equal(privateObjectStorageConfig(objectStorageEnvironment)?.bucket, 't978-afrolife-private-files');
+  assert.throws(
+    () => loadRuntimeConfig({ ...objectStorageEnvironment, AWS_SECRET_ACCESS_KEY: undefined }),
+    /requires a bucket, endpoint, access key, and secret key/,
+  );
+  assert.throws(
+    () => loadRuntimeConfig({ ...objectStorageEnvironment, S3_ENDPOINT: 'http://s3.aletcloud.com' }),
+    /must use HTTPS in production/,
   );
 });
 

@@ -471,13 +471,12 @@ test('public landing page does not repeat raster artwork across visible image el
   assert.equal(imageSources.filter((source) => source === '/brand/afrolife-campaign-hero.png').length, 1);
 });
 
-test('public subscription catalog has only the eight approved ETB 1,000 services', () => {
+test('public subscription catalog includes the nine approved ETB 1,000 services', () => {
   assert.deepEqual(PUBLIC_SUBSCRIPTION_SERVICES.map(({ key }) => key), [
-    'property_management', 'workforce_management', 'super_agent', 'edir',
-    'insurance_brokerage', 'agent', 'landlord', 'seller',
+    'accounting', 'property_management', 'workforce_management', 'super_agent',
+    'edir', 'insurance_brokerage', 'agent', 'landlord', 'seller',
   ]);
   assert.ok(PUBLIC_SUBSCRIPTION_SERVICES.every(({ monthlyEtb }) => monthlyEtb === 1000));
-  assert.equal(PUBLIC_SUBSCRIPTION_SERVICES.some(({ key }) => key === 'accounting'), false);
   assert.deepEqual(
     normalizeSubscriptionCatalog({ services: PUBLIC_SUBSCRIPTION_SERVICES }).map(({ key }) => key),
     PUBLIC_SUBSCRIPTION_SERVICES.map(({ key }) => key),
