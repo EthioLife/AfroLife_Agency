@@ -101,6 +101,7 @@ test('migration runners persist and enforce immutable SQL checksums', () => {
   assert.match(coreMigrator, /INSERT INTO schema_migrations \(name,checksum\)/);
   assert.match(coreMigrator, /pg_advisory_lock\(71924211,1\)/);
   assert.match(coreMigrator, /set_config\('app\.role', 'global_admin', false\)/);
+  assert.match(coreMigrator, /MIGRATION_DATABASE_URL[\s\S]*ALTER TABLE IF EXISTS public\.support_cases NO FORCE ROW LEVEL SECURITY/);
   assert.match(aletcloudBootstrap, /runtime\.role\.slice\(0, 46\).*_afrolife_runtime/);
   assert.match(accountingMigrator, /ADD COLUMN IF NOT EXISTS checksum text/);
   assert.match(accountingMigrator, /INSERT INTO accounting_service_migrations\(version,checksum\)/);

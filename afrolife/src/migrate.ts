@@ -39,6 +39,9 @@ try {
       }
       continue;
     }
+    if (process.env.MIGRATION_DATABASE_URL && name >= '098_support_case_access_hardening.sql') {
+      await client.query('ALTER TABLE IF EXISTS public.support_cases NO FORCE ROW LEVEL SECURITY');
+    }
     let sql = originalSql;
     if (sql.includes('"{{role}}"')) {
       if (!appRole) throw new Error(`${name} requires DATABASE_URL so migration grants can target the application role.`);
