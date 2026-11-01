@@ -62,6 +62,14 @@ try {
       throw error;
     }
   }
+  if (appRole) {
+    const roleName = `"${appRole}"`;
+    await client.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${roleName}`);
+    await client.query(`REVOKE INSERT, UPDATE, DELETE ON TABLE schema_migrations FROM ${roleName}`);
+    await client.query(`GRANT SELECT ON TABLE schema_migrations TO ${roleName}`);
+    await client.query(`GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO ${roleName}`);
+    console.log(`Granted runtime table and sequence privileges to "${appRole}".`);
+  }
 } finally {
   await client.end();
 }
