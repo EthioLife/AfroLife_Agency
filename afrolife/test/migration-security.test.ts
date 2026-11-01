@@ -58,6 +58,7 @@ const propertyVendorPortal = readFileSync(new URL('../src/property-vendor-portal
 const notificationDispatcher = readFileSync(new URL('../src/dispatch.ts', import.meta.url), 'utf8');
 const workforceOperations = readFileSync(new URL('../src/workforce-operations.ts', import.meta.url), 'utf8');
 const coreMigrator = readFileSync(new URL('../src/migrate.ts', import.meta.url), 'utf8');
+const aletcloudBootstrap = readFileSync(new URL('../src/aletcloud-bootstrap.ts', import.meta.url), 'utf8');
 const accountingMigrator = readFileSync(new URL('../services/accounting/migrate.ts', import.meta.url), 'utf8');
 
 test('migration runners persist and enforce immutable SQL checksums', () => {
@@ -99,6 +100,8 @@ test('migration runners persist and enforce immutable SQL checksums', () => {
   assert.match(coreMigrator, /ADD COLUMN IF NOT EXISTS checksum text/);
   assert.match(coreMigrator, /INSERT INTO schema_migrations \(name,checksum\)/);
   assert.match(coreMigrator, /pg_advisory_lock\(71924211,1\)/);
+  assert.match(coreMigrator, /set_config\('app\.role', 'global_admin', false\)/);
+  assert.match(aletcloudBootstrap, /runtime\.role\.slice\(0, 46\).*_afrolife_runtime/);
   assert.match(accountingMigrator, /ADD COLUMN IF NOT EXISTS checksum text/);
   assert.match(accountingMigrator, /INSERT INTO accounting_service_migrations\(version,checksum\)/);
   assert.match(accountingMigrator, /pg_advisory_lock\(71924211,2\)/);

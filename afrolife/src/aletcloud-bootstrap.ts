@@ -61,7 +61,7 @@ async function provisionRuntimeRole(adminUrl: string, runtimeUrl: string) {
     if (existingRole.rowCount) {
       const currentRole = existingRole.rows[0];
       if (currentRole.rolsuper || currentRole.rolcreatedb || currentRole.rolcreaterole || currentRole.rolbypassrls) {
-        runtimeRole = `${runtime.role.slice(0, 47)}_afrolife_runtime`;
+        runtimeRole = `${runtime.role.slice(0, 46)}_afrolife_runtime`;
       }
     }
 

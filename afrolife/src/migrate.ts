@@ -16,6 +16,7 @@ const folder = join(import.meta.dirname, '..', 'migrations');
 
 await client.connect();
 try {
+  await client.query("SELECT set_config('app.role', 'global_admin', false)");
   await client.query('SELECT pg_advisory_lock(71924211,1)');
   await client.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
     name text PRIMARY KEY,
