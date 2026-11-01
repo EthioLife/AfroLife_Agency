@@ -149,7 +149,7 @@ test('production requires separate financial service gateways and blocks in-proc
   assert.equal(withoutInsurance.isProduction, true);
   assert.equal(withoutInsurance.enabledModules.includes('insurance'), false);
   const server = readFileSync(new URL('../src/server.ts', import.meta.url), 'utf8');
-  assert.match(server, /api\.use\('/insurance/ledger', process\.env\.INSURANCE_SERVICE_URL[\s\S]*?runtimeConfig\.isProduction[\s\S]*?res\.status\(503\)[\s\S]*?createInsuranceLedgerRouter\(withUser\)/);
+  assert.match(server, /api\.use\('\/insurance\/ledger', process\.env\.INSURANCE_SERVICE_URL[\s\S]*?runtimeConfig\.isProduction[\s\S]*?res\.status\(503\)[\s\S]*?createInsuranceLedgerRouter\(withUser\)/);
 });
 
 test('production configuration requires separate strong JWT and MFA secrets', () => {
