@@ -51,13 +51,19 @@ async function provisionRuntimeRole(adminUrl: string, runtimeUrl: string) {
       throw new Error('The database provisioning role cannot create the restricted runtime role.');
     }
 
-    const existingRole = await client.query('SELECT 1 FROM pg_roles WHERE rolname=$1', [runtime.role]);
+    const existingRole = await client.query<{
+      rolsuper: boolean;
+      rolbypassrls: boolean;
+    }>('SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname=$1', [runtime.role]);
     const roleName = quoteIdentifier(runtime.role);
     const password = quoteLiteral(runtime.password);
     if (existingRole.rowCount) {
+      if (existingRole.rows[0].rolsuper || existingRole.rows[0].rolbypassrls) {
+        throw new Error('The existing runtime role is privileged; use a new restricted role instead.');
+      }
       await client.query(
         `ALTER ROLE ${roleName} WITH LOGIN PASSWORD ${password}
-         NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOINHERIT`,
+         NOCREATEDB NOCREATEROLE NOBYPASSRLS NOINHERIT`,
       );
     } else {
       await client.query(
