@@ -313,13 +313,12 @@ function productionConfig(env: Environment, idleTimeout: number): RuntimeConfig 
       throw new Error('MFI_GATEWAY_SECRET must be a unique, non-placeholder secret of at least 32 characters in production');
     }
   }
-  if (!env.INSURANCE_SERVICE_URL?.trim() || env.INSURANCE_SERVICE_CUTOVER_READY !== '1') {
-    throw new Error('Production requires the separate Insurance service and INSURANCE_SERVICE_CUTOVER_READY=1; the in-process ledger is disabled');
-  }
-  validateServiceOrigin(env, 'INSURANCE_SERVICE_URL', 'Insurance');
-  const insuranceSecret = env.INSURANCE_GATEWAY_SECRET?.trim();
-  if (!insuranceSecret || insuranceSecret.length < 32 || isPlaceholder(insuranceSecret)) {
-    throw new Error('INSURANCE_GATEWAY_SECRET must be a unique, non-placeholder secret of at least 32 characters in production');
+  if (env.INSURANCE_SERVICE_URL?.trim()) {
+    validateServiceOrigin(env, 'INSURANCE_SERVICE_URL', 'Insurance');
+    const insuranceSecret = env.INSURANCE_GATEWAY_SECRET?.trim();
+    if (!insuranceSecret || insuranceSecret.length < 32 || isPlaceholder(insuranceSecret)) {
+      throw new Error('INSURANCE_GATEWAY_SECRET must be a unique, non-placeholder secret of at least 32 characters in production');
+    }
   }
   return {
     isProduction: true,
@@ -340,6 +339,8 @@ export function loadRuntimeConfig(env: Environment): RuntimeConfig {
     mfiPilotEnabled: env.MFI_PILOT_ENABLED === undefined ? true : env.MFI_PILOT_ENABLED === '1',
     sessionIdleTimeoutMinutes: idleTimeout,
     legacyImmediateLeasesEnabled: legacyImmediateLeasesEnabled(env),
-    enabledModules: enabledWorkspaceModules(env),
+    enabledModules: enabledWorkspaceModules(env).filter(
+      (module) => module !== 'insurance' || Boolean(env.INSURANCE_SERVICE_URL?.trim()),
+    ),
   };
 }
