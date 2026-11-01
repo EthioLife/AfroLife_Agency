@@ -40,7 +40,7 @@ try {
       continue;
     }
     if (process.env.MIGRATION_DATABASE_URL && name >= '098_support_case_access_hardening.sql') {
-      await client.query('ALTER TABLE IF EXISTS public.support_cases NO FORCE ROW LEVEL SECURITY');
+      await client.query('ALTER TABLE IF EXISTS public.support_cases NO FORCE ROW LEVEL SECURITY');       await client.query('ALTER TABLE IF EXISTS public.support_case_access_requests NO FORCE ROW LEVEL SECURITY');
     }
     let sql = originalSql;
     if (sql.includes('"{{role}}"')) {
