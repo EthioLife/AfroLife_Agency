@@ -325,10 +325,9 @@ function productionConfig(env: Environment, idleTimeout: number): RuntimeConfig 
     mfiPilotEnabled,
     sessionIdleTimeoutMinutes: idleTimeout,
     legacyImmediateLeasesEnabled: allowLegacyImmediateLeases,
-    enabledModules: enabledWorkspaceModules(env),
+    enabledModules: enabledWorkspaceModules(env).filter((module) => module !== 'insurance' || Boolean(env.INSURANCE_SERVICE_URL?.trim())),
   };
 }
-
 export function loadRuntimeConfig(env: Environment): RuntimeConfig {
   validateInsuranceServiceCutover(env);
   validateAgencyServiceCutovers(env);
