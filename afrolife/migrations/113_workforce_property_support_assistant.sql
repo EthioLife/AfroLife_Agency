@@ -32,7 +32,7 @@ CREATE TABLE assistant_support_presence (
 );
 
 ALTER TABLE assistant_conversations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE assistant_conversations FORCE ROW LEVEL SECURITY;
+ALTER TABLE assistant_conversations NO FORCE ROW LEVEL SECURITY;
 CREATE POLICY assistant_conversations_owner_read ON assistant_conversations
   FOR SELECT USING (owner_id=app_user_id());
 CREATE POLICY assistant_conversations_assigned_read ON assistant_conversations
