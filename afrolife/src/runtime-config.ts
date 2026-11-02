@@ -262,8 +262,15 @@ function productionConfig(env: Environment, idleTimeout: number): RuntimeConfig 
     throw new Error('DATABASE_URL must include a database name and runtime credentials in production');
   }
   const isLocalDatabase = ['localhost', '127.0.0.1', '::1'].includes(database.hostname);
-  if (!isLocalDatabase && database.searchParams.get('sslmode') !== 'verify-full') {
-    throw new Error('Remote production PostgreSQL connections must use sslmode=verify-full');
+  const isAletCloudPrivateDatabase = database.hostname.endsWith('.svc.cluster.local');
+  // AletCloud's private database endpoint uses a provider self-signed certificate; keep TLS required and scope its non-verifying mode to cluster-local hosts.
+  const usesAletCloudPrivateTls = isAletCloudPrivateDatabase
+    && database.searchParams.get('sslmode') === 'require'
+    && database.searchParams.get('uselibpqcompat') === 'true';
+  if (!isLocalDatabase && !usesAletCloudPrivateTls && database.searchParams.get('sslmode') !== 'verify-full') {
+    throw new Error(
+      'Remote production PostgreSQL connections must use sslmode=verify-full; AletCloud private endpoints require sslmode=require&uselibpqcompat=true',
+    );
   }
 
   const origins = (env.CORS_ORIGINS ?? '').split(',').map((origin) => origin.trim()).filter(Boolean);
