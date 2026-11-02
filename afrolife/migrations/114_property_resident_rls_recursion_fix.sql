@@ -1,3 +1,5 @@
+ALTER TABLE property_tenant_account_links NO FORCE ROW LEVEL SECURITY;
+
 CREATE OR REPLACE FUNCTION app_resident_has_active_lease_on_property(target_property_id uuid)
 RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER

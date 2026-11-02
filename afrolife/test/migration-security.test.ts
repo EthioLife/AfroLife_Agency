@@ -609,6 +609,7 @@ test('resident lease self-service requires a one-time claim and scopes property,
 });
 
 test('resident property visibility avoids recursive property-unit row security evaluation', () => {
+  assert.match(propertyResidentRlsRecursionFix,/ALTER TABLE property_tenant_account_links NO FORCE ROW LEVEL SECURITY/);
   assert.match(propertyResidentRlsRecursionFix,/CREATE OR REPLACE FUNCTION app_resident_has_active_lease_on_property\(target_property_id uuid\)/);
   assert.match(propertyResidentRlsRecursionFix,/SECURITY DEFINER\s+SET search_path = public, pg_temp\s+SET row_security = off/);
   assert.match(propertyResidentRlsRecursionFix,/JOIN property_units unit ON unit\.id = lease\.unit_id/);
