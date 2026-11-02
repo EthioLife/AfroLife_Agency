@@ -33,7 +33,7 @@ The lowest published combination previously reviewed was App Hosting Max (ETB 3,
 2. Keep network access private and allow only the application to connect. Confirm PostgreSQL version compatibility with the repository and the app's TLS requirements.
 3. Create two database identities: a migration owner used only for schema changes, and an application runtime identity with the restricted grants expected by the app. Never run the API as the database owner or a superuser.
 4. Enable the longest practical automated backup retention for staging. Before production, confirm backup frequency, retention, restore workflow, and restore timing in writing.
-5. Copy the provider connection values into the staging app's secret settings. Set `DATABASE_URL` for the runtime identity and `MIGRATION_DATABASE_URL` for the migration identity. Use the provider's CA/TLS instructions; use `sslmode=verify-full` only when the supplied hostname and certificate chain support it.
+5. Copy the provider connection values into the staging app's secret settings. Set `DATABASE_URL` for the runtime identity and `MIGRATION_DATABASE_URL` for the migration identity. Use the provider's CA/TLS instructions. For AletCloud's private `.svc.cluster.local` database endpoints with a provider self-signed certificate, use `sslmode=require&uselibpqcompat=true`; use `sslmode=verify-full` for other remote database hosts.
 6. Apply migrations once as a controlled release operation from the app directory: `npm run db:migrate`. Do not make every app replica run migrations at startup.
 7. Run the repository's runtime database ACL check (`npm run db:check-runtime-acls`) with the same runtime identity the app will use. Resolve any failure before proceeding.
 

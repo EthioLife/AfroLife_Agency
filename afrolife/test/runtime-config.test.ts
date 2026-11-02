@@ -174,6 +174,28 @@ test('production configuration requires TLS for remote PostgreSQL and private st
   );
 });
 
+test('production permits required TLS on AletCloud private database endpoints only', () => {
+  const privateDatabase = {
+    ...safeProductionEnvironment,
+    DATABASE_URL: 'postgresql://runtime:runtime-password@uat-db-rw.db-978.svc.cluster.local:5432/afrolife?sslmode=require&uselibpqcompat=true',
+  };
+  assert.equal(loadRuntimeConfig(privateDatabase).isProduction, true);
+  assert.throws(
+    () => loadRuntimeConfig({
+      ...privateDatabase,
+      DATABASE_URL: 'postgresql://runtime:runtime-password@db.example.net:5432/afrolife?sslmode=require&uselibpqcompat=true',
+    }),
+    /sslmode=verify-full/,
+  );
+  assert.throws(
+    () => loadRuntimeConfig({
+      ...privateDatabase,
+      DATABASE_URL: 'postgresql://runtime:runtime-password@uat-db-rw.db-978.svc.cluster.local:5432/afrolife?sslmode=require',
+    }),
+    /sslmode=verify-full/,
+  );
+});
+
 test('production accepts complete private S3 storage and rejects incomplete or insecure configuration', () => {
   const objectStorageEnvironment = {
     ...safeProductionEnvironment,
