@@ -104,6 +104,10 @@ Before creating production traffic, record evidence for each item:
 - Review account access, tokens, service keys, MFA, dependency updates, and audit logs on a defined schedule. Revoke unused or exposed credentials immediately.
 - Size up only after measuring peak concurrent users, CPU/memory, database connections/IO, data growth, upload volume, and report/matching durations.
 
+### Emergency Super Admin recovery
+
+When no active Super Admin can sign in, a one-time recovery can be run at app startup by setting `ALETCLOUD_ADMIN_RECOVERY_ENABLED=1`, `ALETCLOUD_ADMIN_RECOVERY_CONFIRM=rotate-super-admin`, `ALETCLOUD_ADMIN_RECOVERY_PHONE`, and `ALETCLOUD_ADMIN_RECOVERY_PASSWORD` in that app's private environment. The password must be 16–72 UTF-8 bytes. Recovery only updates one active Super Admin/Global Admin matching the phone, revokes that account's sessions, and requires a password change at next sign-in; existing MFA settings remain unchanged. After the recovery success message, remove all four variables and redeploy immediately. Never put recovery values in source control or logs.
+
 ## Official provider references
 
 - [AletCloud app deployment](https://aletcloud.com/docs/deploy-an-app)
