@@ -1571,7 +1571,7 @@ async function loadPanelData(panel) {
         safeGet('/territories', []),
         state.user.role === 'global_admin' ? safeGet('/service-identities', []) : [],
         state.user.role === 'global_admin' ? safeGet('/readiness-evidence', []) : [],
-        state.user.role === 'global_admin' ? safeGet('/global-admin-promotions', []) : [],
+        isPlatformAdmin() ? safeGet('/global-admin-promotions', []) : [],
       ]);
       state.businessRules = state.user.role === 'global_admin' ? await safeGet('/business-rules', []) : [];
       state.roleAccess = state.user.role === 'global_admin' ? await safeGet('/role-access', null) : null;
@@ -4884,7 +4884,7 @@ function renderBusinessRules() {
 function renderGlobalAdminPromotions() {
   const section = node('section', undefined, 'panel form-card');
   section.style.marginTop = '20px';
-  section.append(node('h3', 'Global Admin governance'));
+  section.append(node('h3', 'Global Admin role promotion'));
   section.append(node('p', 'Promotion requires two different active, MFA-enabled platform administrators. Global Admin access does not bypass financial maker-checker approvals.'));
   if (isPlatformAdmin()) {
     const candidates = state.users.filter((user) =>
@@ -5563,7 +5563,7 @@ function renderAdmin() {
   if (isGlobalAdmin) wrap.append(renderBusinessRules());
   if (isGlobalAdmin) wrap.append(renderPlatformControlPlane());
   if (isGlobalAdmin) wrap.append(renderTenantDataGovernance());
-  if (isGlobalAdmin) wrap.append(renderGlobalAdminPromotions());
+  if (isAdmin) wrap.append(renderGlobalAdminPromotions());
   if (isGlobalAdmin) wrap.append(renderReadinessEvidence());
   if (isGlobalAdmin) {
     const identities = node('section', undefined, 'panel form-card');
@@ -5655,8 +5655,15 @@ function renderAdmin() {
   }
   if (state.user.role === 'super_admin') wrap.append(renderTenantAdminWorkspace());
   const users = node('div', undefined, 'list');
-  if (!state.users.length) users.append(empty('No accounts to display.'));
-  for (const user of state.users.slice(0, 25)) {
+  const visibleUsers = state.user.role === 'super_admin'
+    ? state.users.filter((user) => user.role === 'super_admin' && !user.active)
+    : state.users;
+  if (!visibleUsers.length) {
+    users.append(empty(state.user.role === 'super_admin'
+      ? 'No pending Super Admin accounts are awaiting activation.'
+      : 'No accounts to display.'));
+  }
+  for (const user of visibleUsers.slice(0, 25)) {
     const signupDetails = user.signup_account_type
       ? t('{{phone}} · {{role}} · {{plan}}', {
         phone: user.phone,
@@ -5681,10 +5688,10 @@ function renderAdmin() {
       item.append(button('Reject', 'user-kyc', 'button button-outline', { id: user.id, decision: 'rejected' }));
     }
     if (isAdmin && !user.active && user.created_by !== state.user.id) item.append(button('Activate', 'user-activate', 'button button-primary', { id: user.id }));
-    if (isAdmin && user.active && user.id !== state.user.id) item.append(button('Deactivate', 'user-deactivate', 'button button-outline', { id: user.id }));
+    if (isGlobalAdmin && user.active && user.id !== state.user.id) item.append(button('Deactivate', 'user-deactivate', 'button button-outline', { id: user.id }));
     users.append(item);
   }
-  if (isGlobalAdmin || isBusinessManager || state.user.role === 'compliance') columns.append(users);
+  if (isAdmin || isBusinessManager || state.user.role === 'compliance') columns.append(users);
   wrap.append(columns);
   if (isAdmin && state.summary) {
     const summary = node('section', undefined, 'panel form-card');
@@ -7422,7 +7429,7 @@ document.addEventListener('click', async (event) => {
   const tab = event.target.closest('.tab[data-panel]');
   if (tab) { navigateToPanel(tab.dataset.panel); return; }
   const action = event.target.closest('button[data-action]');
-  if (!action) return;
+  if (!action || action.type === 'submit') return;
   const { action: name, id } = action.dataset;
   if (name === 'mfa-setup') {
     api('/auth/mfa/setup', { method: 'POST', body: '{}' })
