@@ -1436,6 +1436,7 @@ adminRouter.get('/auth/me', h(async (req, res) => {
   `, [req.user!.id]);
   res.json({
     ...r.rows[0],
+    required_security_step: req.user!.rst ?? null,
     edir_id: req.user!.edir_id,
     session_idle_timeout_minutes: sessionIdleTimeoutMinutes(process.env),
     role_activities: Object.fromEntries(ROLE_ACTIVITIES.map(({ key }) => [

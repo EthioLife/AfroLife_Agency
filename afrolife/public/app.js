@@ -1179,13 +1179,34 @@ function signOut({ revoke = true, message = '' } = {}) {
 async function loadWorkspace() {
   state.user = await api('/auth/me');
   startSessionActivity(state.user.session_idle_timeout_minutes ?? 30);
+  const featureFallback = { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] };
+  const passwordRequired = state.user.must_change_password || state.user.required_security_step === 'password';
+  state.mfaRequired = state.mfaRequired || state.user.required_security_step === 'mfa';
+  if (passwordRequired || state.mfaRequired) {
+    state.panel = passwordRequired ? 'password' : 'security';
+    history.replaceState(null, '', panelUrl(window.location.href, state.panel));
+    state.features = { ...featureFallback, allowedModules: [] };
+    state.myDataCapabilities = [];
+    $('#login-view').hidden = true;
+    $('#public-hub').hidden = true;
+    $('#app-view').hidden = false;
+    $('#assistant-launcher').hidden = true;
+    $('#mobile-workspace-nav').hidden = true;
+    $('#account-tools').hidden = true;
+    $('#account-name').textContent = `${state.user.legal_name} · ${roleLabel(state.user.role)}`;
+    $('#page-subtitle').textContent = t('Signed in as {{role}}. Your access is limited to your assigned role and territory.', { role: roleLabel(state.user.role) });
+    $('#login-error').textContent = '';
+    $('#retry-session').hidden = true;
+    document.querySelectorAll('.tab, .workspace-nav-group').forEach((element) => { element.hidden = true; });
+    renderPanel();
+    return;
+  }
   const selfCapabilities = await getOptional('/platform/my-data-capabilities', []);
   state.myDataCapabilities = Array.isArray(selfCapabilities) ? selfCapabilities : [];
   const assignedDataTenantIds = state.myDataCapabilities.map((entry) => entry.tenant_id);
   if (!assignedDataTenantIds.includes(state.dataAdminTenantId)) {
     state.dataAdminTenantId = assignedDataTenantIds.length === 1 ? assignedDataTenantIds[0] : null;
   }
-  const featureFallback = { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] };
   if (state.user.role === 'super_admin') {
     state.tenantAdminTenants = await api('/platform/my-tenants');
     const activeTenantIds = state.tenantAdminTenants
@@ -6698,12 +6719,16 @@ async function submitForm(form) {
     return;
   }
   if (form.dataset.form === 'password') {
+    const wasRequired = state.user.must_change_password;
     const result = await api('/auth/change-password', { method: 'POST', body: JSON.stringify(values) });
     sessionStorage.setItem(TOKEN_KEY, result.token);
     state.user.must_change_password = false;
     state.mfaRequired = result.restrict === 'mfa';
     if (state.mfaRequired) {
       state.panel = 'security';
+      await loadWorkspace();
+    } else if (wasRequired) {
+      state.panel = 'overview';
       await loadWorkspace();
     } else {
       state.panel = 'overview';
