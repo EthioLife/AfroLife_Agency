@@ -11,11 +11,12 @@ import { miniAppByPanel } from './mini-apps/registry.js';
 import { isMiniAppAllowed, isPanelEnabled, panelFromUrl, panelUrl } from './workspace-navigation.js';
 import { MIN_SEARCH_QUERY_LENGTH, searchWorkspaceRecords } from './workspace-search.js';
 import { EDIR_APPLICATION_DOCUMENTS, canChangeServer, edirApplicationDocumentPath, missingSignupDocuments, nativeApiOrigin, signupRequiredDocuments } from './registration-flows.js';
-import { agentDashboardMetrics, propertyDashboardMetrics, propertyOwnerDashboardMetrics, staffingDashboardMetrics, workforceDashboardMetrics } from './dashboard-metrics.js';
+import { agentDashboardMetrics, marketplaceDashboardMetrics, propertyDashboardMetrics, propertyOwnerDashboardMetrics, staffingDashboardMetrics, workforceDashboardMetrics } from './dashboard-metrics.js';
 import { normalizeMySubscriptions, normalizeSubscriptionCatalog, PUBLIC_SUBSCRIPTION_SERVICES, subscriptionRequestPayload } from './subscriptions.js';
 import { propertyOfferTerms } from './property-offers.js';
 import { marketplaceListingPayload } from './marketplace-form.js';
 import { paginateRows } from './row-pagination.js';
+import { filterWorkerActivityReports, workerActivityReportsCsv } from './worker-activity-reports.js';
 
 const WEB_API_ROOT = '/api/v1';
 let API_ROOT = WEB_API_ROOT;
@@ -29,7 +30,7 @@ const EDIR_ORGANIZATION_KEY = 'afrolife.edir-organization';
 const DEFAULT_EDIR_ORGANIZATION = '00000000-0000-4000-8000-000000000002';
 const STAFF = new Set(['global_admin', 'super_admin', 'compliance', 'finance', 'finance_manager']);
 const KNOWN_PANELS = new Set([
-  'overview', 'subscriptions', 'leads', 'workers', 'requests', 'support', 'learning', 'properties', 'marketplace', 'tenant-data-admin',
+  'overview', 'launcher', 'subscriptions', 'leads', 'workers', 'requests', 'support', 'learning', 'properties', 'marketplace', 'tenant-data-admin',
   'contracts', 'commissions', 'agents', 'rent', 'mfi', 'accounting', 'edir',
   'insurance', 'privacy', 'global-bi', 'security', 'admin', 'status', 'password',
 ]);
@@ -41,7 +42,9 @@ const MINI_APP_PANELS = new Set([
 const $ = (selector) => document.querySelector(selector);
 const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
 const loadedPanels = new Set();
+let accessVisiblePanels = new Set();
 state.supportAppealQueue = [];
+state.workerReportFilters = { startDate: '', endDate: '', status: 'all' };
 state.overviewDataErrors = [];
 state.overviewDataOmitted = [];
 state.overviewLoadedAt = null;
@@ -1147,16 +1150,22 @@ async function loadWorkspace() {
     ? state.features.enabledModules
     : [...KNOWN_PANELS];
   for (const tab of document.querySelectorAll('.tab[data-panel]')) {
+    if (miniAppLogo(tab.dataset.panel)) tab.hidden = false;
     if (!isPanelEnabled(tab.dataset.panel, enabledModules)) tab.hidden = true;
     if (MINI_APP_PANELS.has(tab.dataset.panel)
         && Array.isArray(state.features.allowedModules)
         && !isMiniAppAllowed(tab.dataset.panel, state.features.allowedModules)) tab.hidden = true;
   }
   $('#status-tab').hidden = false;
+  accessVisiblePanels = new Set(
+    [...document.querySelectorAll('.tab[data-panel]:not([hidden])')]
+      .map((tab) => tab.dataset.panel),
+  );
   if (state.panel === 'password' || state.mfaRequired) {
     state.panel = state.user.must_change_password ? 'password' : 'security';
     history.replaceState(null, '', panelUrl(window.location.href, state.panel));
-  } else if (document.querySelector(`.tab[data-panel="${CSS.escape(state.panel)}"]`)?.hidden) {
+  } else if (state.panel !== 'launcher'
+      && document.querySelector(`.tab[data-panel="${CSS.escape(state.panel)}"]`)?.hidden) {
     state.panel = 'overview';
     history.replaceState(null, '', panelUrl(window.location.href, state.panel));
   }
@@ -1655,41 +1664,6 @@ function card(title, details, status) {
   return wrapper;
 }
 
-function renderOverviewActions() {
-  const role = state.user.role;
-  const actionsByRole = {
-    worker: [['Open worker portal', 'workers']],
-    customer: [['Browse marketplace', 'marketplace'], ['Review requests', 'requests'], ['View properties', 'properties']],
-    finance: [['Open accounting', 'accounting'], ['Review commissions', 'commissions'], ['Rent operations', 'rent']],
-    finance_manager: [['Open accounting', 'accounting'], ['Review commissions', 'commissions'], ['Rent operations', 'rent']],
-    compliance: [['Review support cases', 'support'], ['Open privacy requests', 'privacy']],
-    corporate_business_manager: [['Manage workers', 'workers'], ['Review requests', 'requests'], ['Organization controls', 'admin']],
-    master_agent: [['Open lead book', 'leads'], ['Manage workers', 'workers'], ['Review requests', 'requests']],
-    field_agent: [['Open lead book', 'leads'], ['Manage workers', 'workers'], ['Review requests', 'requests']],
-    super_admin: [['Platform administration', 'admin'], ['Open accounting', 'accounting']],
-    global_admin: [['Platform administration', 'admin'], ['Open accounting', 'accounting']],
-  };
-  if (['property_owner'].includes(role) || ['master_agent', 'field_agent'].includes(role)) return null;
-  const actions = (actionsByRole[role] ?? [['Browse marketplace', 'marketplace'], ['View properties', 'properties']])
-    .filter(([, panel]) => {
-      const tab = document.querySelector(`.tab[data-panel="${CSS.escape(panel)}"]`);
-      return tab && !tab.hidden;
-    });
-  if (!actions.length) return null;
-
-  const section = node('section', undefined, 'overview-actions');
-  section.setAttribute('aria-labelledby', 'overview-actions-title');
-  const copy = node('div', undefined, 'overview-actions-copy');
-  copy.append(node('p', 'NEXT STEPS', 'eyebrow'), node('h2', 'Pick up where your role needs you'));
-  copy.querySelector('h2').id = 'overview-actions-title';
-  const buttons = node('div', undefined, 'overview-action-list');
-  for (const [label, panel] of actions) {
-    buttons.append(button(label, 'open-panel', 'button button-outline', { panel }));
-  }
-  section.append(copy, buttons);
-  return section;
-}
-
 function renderOverviewDataContext() {
   const context = node('section', undefined, 'overview-data-context');
   context.setAttribute('aria-label', 'Overview data coverage');
@@ -1723,8 +1697,6 @@ function renderOverview() {
     || ['master_agent', 'field_agent'].includes(state.user.role)
     || (state.user.enterprise_features_enabled && state.summary);
   report.hidden = state.panel !== 'overview' || Boolean(hasDedicatedSummary);
-  const actions = renderOverviewActions();
-  if (actions) wrap.append(actions);
   if (state.user.role === 'property_owner') wrap.append(renderOwnerPortfolio());
   if (['master_agent', 'field_agent'].includes(state.user.role)) wrap.append(renderAgentPortfolio());
   if (['finance_manager','super_admin','global_admin'].includes(state.user.role)) {
@@ -1953,6 +1925,67 @@ function miniAppLogo(panel) {
   return miniAppByPanel[panel]?.logo ?? integratedMiniAppLogos[panel] ?? null;
 }
 
+function currentMiniAppPanels() {
+  return miniAppByPanel[state.panel]?.panels
+    ?? (miniAppLogo(state.panel) ? [state.panel] : []);
+}
+
+function applyMiniAppNavigationScope() {
+  const currentPanels = new Set(currentMiniAppPanels());
+  for (const tab of document.querySelectorAll('.tab[data-panel]')) {
+    const panel = tab.dataset.panel;
+    tab.hidden = !accessVisiblePanels.has(panel)
+      || (Boolean(miniAppLogo(panel))
+        && state.panel !== 'launcher'
+        && !currentPanels.has(panel));
+  }
+}
+
+function isCrossMiniAppPanel(panel) {
+  return Boolean(miniAppLogo(panel))
+    && state.panel !== 'launcher'
+    && !currentMiniAppPanels().includes(panel);
+}
+
+function renderSuperAppLauncher() {
+  const wrap = node('div');
+  wrap.append(sectionHeading('Your service mini-apps', 'Open an available service directly. Access is based on your role and enabled features.'));
+  const catalog = node('div', undefined, 'service-grid workspace-launcher-grid');
+  const accessibleModules = [...document.querySelectorAll('.tab[data-panel]:not([hidden])')]
+    .filter((tab) => MINI_APP_PANELS.has(tab.dataset.panel));
+  for (const tab of accessibleModules) {
+    const panel = tab.dataset.panel;
+    const name = panel === 'accounting'
+      ? 'Accounting & Finance'
+      : getLocalizedNodeSource(tab.firstChild).trim() || tab.textContent.trim();
+    const card = node('button', undefined, 'service-card workspace-launch-card');
+    card.type = 'button';
+    card.setAttribute('aria-label', `Open ${name}`);
+    const logoSource = miniAppLogo(panel);
+    if (logoSource) {
+      const logo = node('img', undefined, 'service-icon service-icon-image service-launcher-logo');
+      logo.src = logoSource;
+      logo.alt = '';
+      logo.setAttribute('aria-hidden', 'true');
+      card.append(logo);
+    } else {
+      const icon = node('span', workspaceNavIcons[panel] ?? '•', 'service-icon');
+      icon.setAttribute('aria-hidden', 'true');
+      card.append(icon);
+    }
+    card.append(
+      node('strong', name),
+      node('span', 'Open an available service directly. Access is based on your role and enabled features.'),
+      node('small', 'Open service'),
+    );
+    card.addEventListener('click', () => navigateToPanel(panel));
+    catalog.append(card);
+  }
+  if (!accessibleModules.length) catalog.append(empty('No services are assigned to your account yet.'));
+  wrap.append(catalog);
+  return wrap;
+}
+
 function decoratePublicServiceLogos() {
   const logos = new Map([
     ['Homes & rentals', miniAppLogo('properties')],
@@ -1961,6 +1994,7 @@ function decoratePublicServiceLogos() {
     ['AfroLife Edir', miniAppLogo('edir')],
     ['SACCO / MFI', miniAppLogo('mfi')],
     ['Agent services', '/icon.svg'],
+    ['Accounting & Finance', miniAppLogo('accounting')],
   ]);
   const panels = new Map([
     ['Homes & rentals', 'properties'],
@@ -1969,6 +2003,7 @@ function decoratePublicServiceLogos() {
     ['AfroLife Edir', 'edir'],
     ['SACCO / MFI', 'mfi'],
     ['Agent services', 'agents'],
+    ['Accounting & Finance', 'accounting'],
   ]);
   for (const card of document.querySelectorAll('#public-hub .service-card')) {
     const name = card.querySelector('strong')?.textContent.trim();
@@ -2397,6 +2432,7 @@ function configureWorkspaceNavigation() {
   };
   orderGroup(coreGroup, profile.core);
   orderGroup(businessGroup, profile.business);
+  applyMiniAppNavigationScope();
 }
 
 function renderMobileWorkspaceNav() {
@@ -2786,9 +2822,37 @@ function renderWorkerPortal() {
 
   const reports = node('section', undefined, 'panel');
   reports.append(sectionHeading('My activity and earnings reports', 'Submitted work is reviewed independently. Approved work value is not confirmation that a payment has been made.'));
+  reports.append(node('p', 'Filters and exports include the 200 most recent reports currently loaded.', 'muted'));
+  const reportFilters = node('form', undefined, 'form-card inline-form');
+  reportFilters.dataset.form = 'worker-report-filters';
+  const reportStatus = field('Status', 'status', 'select', false);
+  for (const [value, label] of [
+    ['all', 'All statuses'],
+    ['submitted', 'Submitted'],
+    ['approved', 'Approved'],
+    ['rejected', 'Returned'],
+  ]) {
+    const option = node('option', label);
+    option.value = value;
+    option.selected = state.workerReportFilters.status === value;
+    reportStatus.input.append(option);
+  }
+  reportFilters.append(
+    field('Period start', 'start_date', 'date', false, { value: state.workerReportFilters.startDate }).label,
+    field('Period end', 'end_date', 'date', false, { value: state.workerReportFilters.endDate }).label,
+    reportStatus.label,
+    button('Filter reports', 'submit', 'button button-outline'),
+    button('Download CSV', 'worker-report-export', 'button button-outline'),
+  );
+  reports.append(reportFilters);
   const reportList = node('div', undefined, 'list');
-  if (!state.workerPortalReports.length) reportList.append(empty('Work reports you submit for an active engagement will appear here.'));
-  for (const report of state.workerPortalReports) {
+  const visibleReports = filterWorkerActivityReports(state.workerPortalReports, state.workerReportFilters);
+  if (!visibleReports.length) {
+    reportList.append(empty(state.workerPortalReports.length
+      ? 'No reports match the selected filters.'
+      : 'Work reports you submit for an active engagement will appear here.'));
+  }
+  for (const report of visibleReports) {
     const item = card(
       `${report.period_start} to ${report.period_end} · ${report.quantity} units`,
       `${report.description} · ETB ${Number(report.worker_amount).toLocaleString(document.documentElement.lang)} worker amount${report.review_reason ? ` · ${report.review_reason}` : ''}`,
@@ -4111,20 +4175,22 @@ function renderMarketplace() {
   if(manager) wrap.append(renderMarketplaceConfig());
   const ownedListings = state.marketplaceListings.filter((listing) =>
     listing.created_by === state.user.id || listing.seller_user_id === state.user.id);
-  const report = node('section', undefined, 'panel form-card');
-  report.append(node('h2', 'Marketplace report dashboard'));
-  const summary = node('div', undefined, 'enterprise-metrics');
-  for (const [label, value] of [
-    ['Published listings available', state.marketplaceListings.filter((listing) => listing.status === 'published').length],
-    ['Your listings', ownedListings.length],
-    ['Marketplace membership', 'Not available'],
-    ['Purchase ledger', 'Not live'],
-  ]) {
-    const metric = node('div', undefined, 'enterprise-metric');
-    metric.append(node('span', label), node('strong', value));
-    summary.append(metric);
-  }
-  report.append(summary, node('p', 'Marketplace listing prices are not payments. Local mock mode supports a sandbox order and simulated payment for published fixed-price sales; it never charges a buyer or posts to Accounting. Real checkout, buyer memberships, wallets, loans, and purchase history remain unavailable.'));
+  const marketplaceMetrics = marketplaceDashboardMetrics(state.marketplaceListings, state.user.id);
+  const report = renderAppDashboard({
+    title: 'Marketplace BI dashboard',
+    description: 'Listing status and ownership metrics from the marketplace records currently loaded for your account.',
+    source: '/marketplace/listings',
+    metrics: marketplaceMetrics,
+    statusTitle: 'Listing status',
+    statuses: marketplaceMetrics.byStatus,
+    emptyMessage: 'No marketplace listings are currently available for this dashboard.',
+    values: (data) => [
+      ['Loaded listings', data.totalListings],
+      ['Published listings', data.publishedListings],
+      ['Your listings', data.ownedListings],
+    ],
+  });
+  report.append(node('p', 'Marketplace listing prices are not payments. Local mock mode supports a sandbox order and simulated payment for published fixed-price sales; it never charges a buyer or posts to Accounting. Real checkout, buyer memberships, wallets, loans, and purchase history remain unavailable.'));
   const activity = node('div', undefined, 'list');
   activity.append(node('h3', 'Your detailed listing activity'));
   if (!ownedListings.length) activity.append(node('p', 'No marketplace listing activity is linked to your account.'));
@@ -5770,7 +5836,12 @@ function renderPanel() {
   moreButton?.classList.toggle('active', moreIsCurrent);
   if (moreIsCurrent) moreButton?.setAttribute('aria-current', 'page');
   else moreButton?.removeAttribute('aria-current');
+  const launcherButton = $('#return-super-app');
+  launcherButton?.classList.toggle('active', state.panel === 'launcher');
+  if (state.panel === 'launcher') launcherButton?.setAttribute('aria-current', 'page');
+  else launcherButton?.removeAttribute('aria-current');
   const panelTitles = {
+    launcher: 'Super App',
     subscriptions: 'Service subscriptions',
     password: 'Account security',
     security: 'Account security',
@@ -5855,6 +5926,7 @@ function renderPanel() {
     return;
   }
   const renderer = {
+    launcher: renderSuperAppLauncher,
     overview: renderOverview,
     subscriptions: renderSubscriptions,
     insurance: renderInsurance,
@@ -5879,8 +5951,12 @@ function renderPanel() {
 }
 
 function navigateToPanel(panel, { replace = false } = {}) {
-  const tab = document.querySelector(`.tab[data-panel="${CSS.escape(panel)}"]`);
-  if (!tab || tab.hidden || !KNOWN_PANELS.has(panel)) {
+  if (isCrossMiniAppPanel(panel)) {
+    navigateToPanel('launcher', { replace });
+    return;
+  }
+  const tab = panel === 'launcher' ? null : document.querySelector(`.tab[data-panel="${CSS.escape(panel)}"]`);
+  if (!KNOWN_PANELS.has(panel) || (panel === 'launcher' ? !state.user : !tab || tab.hidden)) {
     showAlert('This workspace is unavailable for your account or deployment.', true);
     return;
   }
@@ -5889,12 +5965,27 @@ function navigateToPanel(panel, { replace = false } = {}) {
   const url = panelUrl(window.location.href, panel);
   if (replace) history.replaceState(null, '', url);
   else if (url !== `${window.location.pathname}${window.location.search}${window.location.hash}`) history.pushState(null, '', url);
+  configureWorkspaceNavigation();
+  updateWorkspaceNavigationGroups();
+  renderMobileWorkspaceNav();
   renderPanel();
   void refresh(false);
 }
 
 async function submitForm(form) {
   const values = formData(form);
+  if (form.dataset.form === 'worker-report-filters') {
+    if (values.start_date && values.end_date && values.start_date > values.end_date) {
+      throw new Error('The report start date must be on or before its end date.');
+    }
+    state.workerReportFilters = {
+      startDate: values.start_date,
+      endDate: values.end_date,
+      status: values.status || 'all',
+    };
+    renderPanel();
+    return;
+  }
   if (form.dataset.form === 'rental-application') {
     const consent = form.elements.namedItem('contact_consent');
     if (!consent?.checked) throw new Error('Confirm how your application details will be shared before submitting.');
@@ -7093,6 +7184,18 @@ document.addEventListener('click', async (event) => {
   const action = event.target.closest('button[data-action]');
   if (!action) return;
   const { action: name, id } = action.dataset;
+  if (name === 'worker-report-export') {
+    const reports = filterWorkerActivityReports(state.workerPortalReports, state.workerReportFilters);
+    const csv = workerActivityReportsCsv(reports, state.workerPortalEngagements);
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `worker-activity-reports-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    showAlert(reports.length ? 'Worker activity report downloaded.' : 'There are no reports matching these filters to download.');
+    return;
+  }
   if (name === 'tenant-access-invite') {
     try {
       const invitation = await api(`/leases/${encodeURIComponent(id)}/tenant-access-invitations`, {
@@ -8354,6 +8457,7 @@ $('#show-login').addEventListener('click', () => {
 });
 $('#save-server').addEventListener('click', saveNativeServer);
 $('#logout').addEventListener('click', () => signOut());
+$('#return-super-app').addEventListener('click', () => navigateToPanel('launcher'));
 $('#retry-session').addEventListener('click', async () => {
   const button = $('#retry-session');
   button.disabled = true;
@@ -8421,7 +8525,9 @@ $('#workspace-search-form').addEventListener('submit', async (event) => {
 window.addEventListener('popstate', () => {
   if (!state.user) return;
   const requested = panelFromUrl(window.location.href, KNOWN_PANELS);
-  const panel = visiblePanelNames().has(requested) ? requested : 'overview';
+  const panel = visiblePanelNames().has(requested)
+    ? requested
+    : isCrossMiniAppPanel(requested) ? 'launcher' : 'overview';
   if (panel !== requested) history.replaceState(null, '', panelUrl(window.location.href, panel));
   if (panel !== state.panel) navigateToPanel(panel, { replace: true });
 });

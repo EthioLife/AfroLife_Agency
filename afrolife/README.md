@@ -38,9 +38,11 @@ Same-origin TypeScript/Express API and installable web app for AfroLife agency o
    Remove-Item Env:SEED_ADMIN_PASSWORD
    ```
 
-4. Run `npm run dev`, then open `http://localhost:3000`.
+4. Run `npm run dev`, then open `http://localhost:3010`.
 
-`http://localhost:3000` is the local browser entry point for the PWA and API.
+`http://localhost:3010` is the single client-facing local entry point for the
+PWA and API. All configured services, including Accounting, are reached through
+this gateway; their private listener ports are not browser-facing.
 The optional local Nginx preview on `http://localhost:8080` only proxies to
 that same app and is not needed for `npm run dev`. Users always open this
 single app URL (or the single public hostname in deployment); they do not open
@@ -50,7 +52,7 @@ API gateway, which routes each feature internally.
 For a containerized local QA environment, start Docker Desktop and run
 `npm run qa:docker:up` from `afrolife/`. This builds the application, starts an
 isolated PostgreSQL database on loopback port 5433, applies migrations, grants
-the restricted runtime role, and serves the app at `http://localhost:3000`.
+the restricted runtime role, and serves the app at `http://localhost:3010`.
 Database and private uploads use Docker-managed named volumes; host `data/`
 and any prior local database are not deleted or mounted. Locally generated
 secrets are kept in the Git-ignored `.env.docker`. Run
@@ -186,12 +188,15 @@ workspace can review independent Edir registrations and see consolidated
 summary totals; each organization retains its own members, staff, products,
 groups, and journals.
 
-Inside the signed-in Super App, the role-aware service launcher opens each
-available mini-app directly from Overview. Edir exposes focused shortcuts for
-membership, groups/governance, savings/accounts, credit/servicing, and (for the
-umbrella role) registration and aggregate reporting. These shortcuts only
-navigate to existing workflows; they do not grant permissions or imply that
-planned capabilities are live.
+Inside the signed-in Super App, the role-aware service launcher is a separate
+destination available from the shared header. It lists only modules that are
+enabled and allowed for the current account; mini-app workspaces do not embed
+cross-app launch lists. The Overview remains focused on role-scoped activity
+and current work. Edir exposes focused shortcuts for membership,
+groups/governance, savings/accounts, credit/servicing, and (for the umbrella
+role) registration and aggregate reporting. These shortcuts only navigate to
+existing workflows; they do not grant permissions or imply that planned
+capabilities are live.
 
 Platform Super Admins and Global Admins assign Edir staff from the Edir staff
 workspace. Edir Admins manage member reviews and groups; Member Support can
@@ -238,7 +243,9 @@ deployed, migrated, and reachable.
 
 ## AfroLife Accounting standalone service
 
-Accounting is a separately deployable multi-entity accounting backend and web workspace with its own PostgreSQL database, user mode, entity memberships, chart of accounts, periods, journals, and consolidation totals. See [services/accounting/README.md](./services/accounting/README.md) for standalone and AfroLife-connected deployment, credentials, migrations, and source-event mapping. The Super App exposes Accounting as a finance mini-app when `ACCOUNTING_SERVICE_URL` and the matching gateway secret are configured. Transactional source publishers are wired for property rent/deposit receipts, Agency contract fees, commission accruals and payouts, dispute refunds, approved MFI loan disbursements/write-offs, Edir transactions, and approved Insurance journals. Marketplace has local sandbox checkout only; real payment posting still requires a provider and entity/account mappings. Configure Accounting entity and account mappings before enabling delivery; historical entries are not backfilled. The core catalog service entry can be assigned through service packages; commercial subscription/payment fulfillment remains outstanding.
+Accounting is available as a dedicated mini-app from the Super App catalog and the existing manual service-subscription request flow. Subscriber access remains gated by the existing Accounting entitlement and mini-app assignment; internal Accounting and Finance integrations continue to use their existing service route.
+
+Accounting is a separately deployable multi-entity accounting backend and web workspace with its own PostgreSQL database, user mode, entity memberships, chart of accounts, periods, journals, and consolidation totals. See [services/accounting/README.md](./services/accounting/README.md) for standalone and AfroLife-connected deployment, credentials, migrations, and source-event mapping. The Super App exposes Accounting as a finance mini-app through the same client-facing port 3010 when `ACCOUNTING_SERVICE_URL` and the matching gateway secret are configured. The Accounting process listens privately on port 3301; clients must use the main app gateway, never that backend port directly. The Docker QA stack starts Accounting with a separate database and restricted runtime role, and routes requests through the core app on port 3010. Open the PWA at `http://localhost:3010`; Accounting API requests are routed beneath `/api/v1/accounting`. For local integration outside Docker QA, run `npm run db:accounting:local:setup`, start `npm run start:accounting:local`, then restart the core API so it loads the generated gateway configuration. Transactional source publishers are wired for property rent/deposit receipts, Agency contract fees, commission accruals and payouts, dispute refunds, approved MFI loan disbursements/write-offs, Edir transactions, and approved Insurance journals. Marketplace has local sandbox checkout only; real payment posting still requires a provider and entity/account mappings. Configure Accounting entity and account mappings before enabling delivery; historical entries are not backfilled. The core catalog service entry can be assigned through service packages; commercial subscription/payment fulfillment remains outstanding.
 
 ## Property listings and secure uploads
 
@@ -267,11 +274,11 @@ The **SACCO / MFI** workspace adds a separate institution-scoped operational are
 
 The workspace now presents a service menu across institution governance, members/KYC, products, savings, shares, credit, IFB, payments, wallets, agent/field operations, collections, accounting, treasury, reconciliation, AML/compliance, risk/fraud, regulatory reporting, CRM, digital channels, analytics, documents, staff, audit/security, exceptions, and cooperative governance. Each service is labelled `Pilot`, `Partial`, or `Not live`; selecting a not-live service shows its baseline scope and explicitly does not accept or post activity. Platform Super Admins can access every institution and all currently implemented institution operations/configuration regardless of institution membership; each institution-scoped request is written to that institution's append-only audit trail. Super Admin access does not make unavailable SRS capabilities live. This menu is a capability map, not a claim that every SRS requirement is implemented.
 
-The signed-in Overview also offers direct, role-filtered mini-app launch cards.
+The separate Super App launcher is the only signed-in cross-mini-app catalog.
 Within SACCO/MFI, choose a service area and then its available submodule action;
-within Edir, use the service shortcuts for the relevant workspace section. This
-keeps common paths to three selections or fewer from Overview while preserving
-server-side role checks and the existing service boundaries.
+within Edir, use the service shortcuts for the relevant workspace section.
+These controls navigate within their service and preserve server-side role
+checks and existing service boundaries.
 
 The pilot supports member registration, lifecycle controls and separate-person review; ordinary savings and share accounts; deposits and withdrawals; loan applications with affordability inputs and explainable credit scores; versioned maker-checker credit and delinquency policies; cash-constrained disbursement; principal-only monthly installment schedules and repayments; assigned collection cases, promises to pay and case resolution; independently approved delinquency/NPL classifications; journal activity, audit history, and full transaction reversals. Each institution has tenant-scoped PostgreSQL row-level security, its own chart of accounts and products, ETB amounts stored to two decimal places, balanced double-entry posting, append-only posted journals/audits, per-institution idempotency keys, cash sufficiency checks, and distinct loan originator/approver/disburser controls.
 
@@ -316,7 +323,7 @@ boundaries have been verified.
 
 The central AfroLife API image is built from this directory with
 `docker build -t afrolife-api .`. It serves the `public/` application, listens
-on port 3000, and runs as the unprivileged Node user. Configure its production
+on private gateway port 3010, and runs as the unprivileged Node user. Configure its production
 database, authentication, and storage settings through the deployment secret
 manager, and mount persistent private storage at the configured
 `FILE_STORAGE_DIR`, writable by the image's unprivileged `node` user (UID
@@ -641,7 +648,7 @@ The **Rent & deposits** workspace supports tenant and lease creation, rent recei
 ## One public Super App URL (Windows/IIS)
 
 The public hostname serves the PWA and every API through the main AfroLife API
-origin. IIS must proxy the entire hostname to `http://127.0.0.1:3000`; the main
+origin. IIS must proxy the entire hostname to `http://127.0.0.1:3010`; the main
 API serves the PWA and owns `/api/v1` authentication. Its signed internal
 routes expose Edir at `/api/v1/edir` and Insurance at
 `/api/v1/insurance/ledger`. Agency operations and MFI remain under that same
@@ -669,9 +676,11 @@ legacy in-process implementation. The information-request API now runs in the
 Insurance service, but its records still use a second restricted connection to
 the central identity database until their explicit data migration is implemented.
 
-The public browser URL remains `https://afrolife-agency.duckdns.org`; routes
-stay same-origin, so no separate public subdomains or browser CORS origins are
-needed. Nginx is the only public ingress to the central API gateway; the
+The selected canonical public browser URL is `https://www.afrolife.com.et`;
+DNS, public ingress, and TLS must be completed using
+[`deploy/CUSTOM_DOMAIN_LOCAL_SERVER.md`](./deploy/CUSTOM_DOMAIN_LOCAL_SERVER.md)
+before it is live. Routes stay same-origin, so no separate public subdomains
+are needed. Nginx or IIS is the only public ingress to the central API gateway; the
 gateway dispatches signed requests to private Edir, Insurance, and SACCO/MFI
 services. Service-specific Nginx locations must continue to terminate at the
 central gateway rather than bypassing its identity assertions. Keep all
@@ -724,10 +733,11 @@ Their route implementations now live in the corresponding service directories,
 and each service has an independent TypeScript build target. Service processes
 load only their own router after selecting their database. The central API composes those same
 routers to preserve the existing routes and local compatibility behavior.
-The shared workspace launcher reads each mini-app's title, description, panel,
-and same-origin API paths from `public/mini-apps/<service>/manifest.js`; the
-mini-apps continue to use the shared sign-in, shell, responsive navigation, and
-localization.
+Each standalone service manifest declares its identity, panels, and same-origin
+gateway paths under `public/mini-apps/<service>/manifest.js`. The signed-in
+Super App launcher lists only role-visible modules and uses manifest branding
+where available; each mini-app continues to use the shared sign-in, shell,
+responsive navigation, and localization.
 Build one with its corresponding `npm run build:worker-management`,
 `npm run build:staffing`, `npm run build:property-management`, or
 `npm run build:marketplace` command (or build all with

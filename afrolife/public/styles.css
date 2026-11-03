@@ -2018,3 +2018,21 @@ html { scroll-padding-block-start: calc(6rem + env(safe-area-inset-top)); }
 @media (max-width: 380px) {
   .topbar { padding-inline: 10px; column-gap: 7px; }
 }
+
+.workspace-launch-card {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.workspace-launch-card:focus-visible,
+#return-super-app:focus-visible {
+  outline: 3px solid #d7ad59;
+  outline-offset: 3px;
+}
+
+#return-super-app[aria-current="page"] {
+  border-color: #174b3d;
+  color: #174b3d;
+}

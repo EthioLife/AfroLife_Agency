@@ -37,6 +37,7 @@
       <button id="install-app" class="button button-outline install-app" type="button" hidden>Install app</button>
       <div id="account-tools" class="account-tools" hidden>
         <span id="account-name" class="account-name"></span>
+        <button id="return-super-app" class="button button-outline" type="button">Super App</button>
         <button id="logout" class="button button-quiet" type="button">Sign out</button>
       </div>
     </header>
@@ -172,7 +173,7 @@
         <section id="server-setup" class="panel form-card server-setup" hidden>
           <h2>Connect to AfroLife</h2>
           <p class="muted">Enter the HTTPS address of your organization’s AfroLife server.</p>
-          <label>API server address<input id="api-server-url" type="url" inputmode="url" placeholder="https://afrolife-agency.duckdns.org" autocomplete="url" required></label>
+          <label>API server address<input id="api-server-url" type="url" inputmode="url" placeholder="https://www.afrolife.com.et" autocomplete="url" required></label>
           <p id="server-error" class="form-error" role="alert"></p>
           <button id="save-server" class="button button-primary button-wide" type="button">Save server address</button>
         </section>
@@ -231,6 +232,7 @@
             <a class="service-card" data-panel="edir" href="#login-form"><span class="service-icon">◉</span><strong>AfroLife Edir</strong><span>Request community membership after KYC. Available membership products and terms are shown in the Edir workspace.</span><small>Community mini app →</small></a>
             <a class="service-card" data-panel="mfi" href="#login-form"><span class="service-icon">▤</span><strong>SACCO / MFI</strong><span>Financial cooperative tools appear only when the organization enables the pilot for your account.</span><small>Finance mini app →</small></a>
             <a class="service-card" data-panel="agents" href="#login-form"><span class="service-icon">▣</span><strong>Agent services</strong><span>Manage referrals, service requests, contracts, and team activity based on your role.</span><small>Agency mini app →</small></a>
+            <a class="service-card" data-panel="accounting" href="#login-form"><span class="service-icon">▤</span><strong>Accounting &amp; Finance</strong><span>Manage entity books, journals, financial operations, and entity-scoped reporting.</span><small>Accounting mini app →</small></a>
           </div>
         </section>
         <section class="hub-section community-benefits-section" aria-labelledby="member-benefits-title">

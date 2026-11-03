@@ -804,7 +804,7 @@ if (process.env.ACCOUNTING_SERVICE_URL && process.env.ACCOUNTING_INGEST_SECRET) 
 }
 
 const onListening = () => console.log(`API listening; industry news refreshes every ${INDUSTRY_NEWS_REFRESH_INTERVAL_MS / 60_000} minutes`);
-const port = Number(process.env.PORT ?? 3000);
+const port = Number(process.env.PORT ?? 3010);
 if (runtimeConfig.isProduction) await assertRuntimeDatabaseSafety();
 const server = process.env.HOST
   ? app.listen(port, process.env.HOST, onListening)

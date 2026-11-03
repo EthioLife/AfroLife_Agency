@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import {
+  marketplaceDashboardMetrics,
   workforceDashboardMetrics,
   staffingDashboardMetrics,
   propertyDashboardMetrics,
@@ -24,6 +25,7 @@ import {
 } from '../public/subscriptions.js';
 import { propertyOfferTerms } from '../public/property-offers.js';
 import { marketplaceListingPayload } from '../public/marketplace-form.js';
+import { filterWorkerActivityReports, workerActivityReportsCsv } from '../public/worker-activity-reports.js';
 
 test('signup uploads enforce configured KYC documents and limit server changes to super admins', () => {
   const options = { kyc_requirements: { customer: ['national_id'], worker: ['national_id', 'police_clearance'] } };
@@ -51,6 +53,15 @@ test('mini-app dashboards summarize only supplied, authorized panel data', () =>
   assert.deepEqual(staffingDashboardMetrics([{ status: 'open' }, { status: 'open' }]), {
     total: 2,
     byStatus: [{ label: 'open', count: 2 }],
+  });
+  assert.deepEqual(marketplaceDashboardMetrics([
+    { status: 'published', created_by: 'user-1' },
+    { status: 'pending_review', seller_user_id: 'user-2' },
+  ], 'user-1'), {
+    totalListings: 2,
+    publishedListings: 1,
+    ownedListings: 1,
+    byStatus: [{ label: 'published', count: 1 }, { label: 'pending_review', count: 1 }],
   });
   assert.deepEqual(propertyDashboardMetrics([
     { status: 'active', units: [{}, {}] },
@@ -170,6 +181,57 @@ test('worker portal exposes workforce self-service and ordered offline clock syn
   assert.match(migration, /UPDATE workforce_shifts SET status='cancelled'[\s\S]*?UPDATE staffing_engagements SET status='completed'/);
   assert.match(server, /api\.use\('\/workforce', requireMiniAppAccess\('workers'\)\)/);
   assert.match(server, /api\.use\('\/workforce', workerManagementGateway\)/);
+});
+
+test('worker activity reports can be filtered and exported as spreadsheet-safe CSV', () => {
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const reports = [
+    {
+      engagement_id: 'engagement-1',
+      period_start: '2026-03-01',
+      period_end: '2026-03-07',
+      quantity: '5',
+      worker_amount: '2500.00',
+      description: '=HYPERLINK("https://example.invalid")',
+      status: 'submitted',
+      review_reason: null,
+    },
+    {
+      engagement_id: 'engagement-1',
+      period_start: '2026-03-08',
+      period_end: '2026-03-14',
+      quantity: '4',
+      worker_amount: '2000.00',
+      description: 'Completed weekly work',
+      status: 'approved',
+      review_reason: 'Reviewed',
+    },
+  ];
+  const engagements = [{
+    id: 'engagement-1',
+    employer_client: 'Employer, Inc.',
+    worker_type: 'hourly_professional',
+    billing_unit: 'hour',
+  }];
+  const filtered = filterWorkerActivityReports(reports, {
+    startDate: '2026-03-05',
+    endDate: '2026-03-14',
+    status: 'approved',
+  });
+  assert.deepEqual(filtered, [reports[1]]);
+  assert.deepEqual(
+    filterWorkerActivityReports(reports, { startDate: '2026-03-05', endDate: '2026-03-10' }),
+    reports,
+  );
+
+  const csv = workerActivityReportsCsv(reports, engagements);
+  assert.match(csv, /Employer, Inc\./);
+  assert.match(csv, /'=HYPERLINK/);
+  assert.match(csv, /"Employer, Inc\."/);
+  assert.match(csv, /Worker amount ETB/);
+  assert.match(app, /worker-report-filters/);
+  assert.match(app, /worker-report-export/);
+  assert.match(app, /Filters and exports include the 200 most recent reports currently loaded/);
 });
 
 test('maintenance workflow surfaces independent completion review', () => {
@@ -471,13 +533,14 @@ test('public landing page does not repeat raster artwork across visible image el
   assert.equal(imageSources.filter((source) => source === '/brand/afrolife-campaign-hero.png').length, 1);
 });
 
-test('public subscription catalog has only the eight approved ETB 1,000 services', () => {
+test('public subscription catalog has the approved ETB 1,000 services', () => {
   assert.deepEqual(PUBLIC_SUBSCRIPTION_SERVICES.map(({ key }) => key), [
+    'accounting',
     'property_management', 'workforce_management', 'super_agent', 'edir',
     'insurance_brokerage', 'agent', 'landlord', 'seller',
   ]);
   assert.ok(PUBLIC_SUBSCRIPTION_SERVICES.every(({ monthlyEtb }) => monthlyEtb === 1000));
-  assert.equal(PUBLIC_SUBSCRIPTION_SERVICES.some(({ key }) => key === 'accounting'), false);
+  assert.equal(PUBLIC_SUBSCRIPTION_SERVICES.some(({ key }) => key === 'accounting'), true);
   assert.deepEqual(
     normalizeSubscriptionCatalog({ services: PUBLIC_SUBSCRIPTION_SERVICES }).map(({ key }) => key),
     PUBLIC_SUBSCRIPTION_SERVICES.map(({ key }) => key),

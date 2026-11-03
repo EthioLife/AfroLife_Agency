@@ -10,7 +10,7 @@ import pg from 'pg';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-const API = (process.env.API_URL ?? 'http://localhost:3000') + '/api/v1';
+const API = (process.env.API_URL ?? 'http://localhost:3010') + '/api/v1';
 const SECRET = process.env.JWT_SECRET!;
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 if (!testDatabaseUrl) throw new Error('TEST_DATABASE_URL must explicitly point to a disposable integration-test database');
@@ -27,7 +27,7 @@ const PNG = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from('
 type U = { id: string; role: string; phone: string; token: string };
 
 test('health endpoint confirms the database connection', async () => {
-  const response = await fetch((process.env.API_URL ?? 'http://localhost:3000') + '/healthz');
+  const response = await fetch((process.env.API_URL ?? 'http://localhost:3010') + '/healthz');
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { ok: true, database: 'connected' });
 });
@@ -1453,15 +1453,18 @@ test('manual service subscriptions enforce fixed catalog, ownership, and indepen
   const catalog = await call(learningCustomer, 'GET', '/subscriptions/catalog');
   assert.equal(catalog.status, 200);
   assert.deepEqual(catalog.body.services.map((service: any) => service.key), [
+    'accounting',
     'property_management', 'workforce_management', 'super_agent', 'edir',
     'insurance_brokerage', 'agent', 'landlord', 'seller',
   ]);
   assert.equal(catalog.body.services.every((service: any) =>
     service.monthly_fee === 1000 && service.currency === 'ETB' && service.payment_method === 'manual'), true);
   assert.equal((await call(learningCustomer, 'GET', '/subscriptions/review')).status, 403);
-  assert.equal((await call(learningCustomer, 'POST', '/subscriptions/requests', {
+  const accountingRequest = await call(learningCustomer, 'POST', '/subscriptions/requests', {
     services: ['accounting'],
-  })).status, 400);
+  });
+  assert.equal(accountingRequest.status, 201, JSON.stringify(accountingRequest.body));
+  assert.equal(accountingRequest.body.requests[0].service_key, 'accounting');
   assert.equal((await call(learningCustomer, 'POST', '/subscriptions/requests', {
     services: ['edir', 'edir'],
   })).status, 400);

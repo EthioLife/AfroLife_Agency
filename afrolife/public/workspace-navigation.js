@@ -1,4 +1,4 @@
-export const REQUIRED_PANELS = new Set(['overview', 'security', 'admin', 'status', 'tenant-data-admin']);
+export const REQUIRED_PANELS = new Set(['overview', 'launcher', 'security', 'admin', 'status', 'tenant-data-admin']);
 
 export function panelFromUrl(url, visiblePanels) {
   const parsed = new URL(url, 'https://workspace.invalid');

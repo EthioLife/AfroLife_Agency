@@ -107,6 +107,11 @@ test('key app workflows are translated in every supported locale', async () => {
     'Active Edir membership is required to request a loan assessment.',
     'I accept the interest-free, fee-free principal-only loan and savings-account payout terms.',
     'Your service mini-apps',
+    'Super App',
+    'Accounting & Finance',
+    'Manage entity books, journals, financial operations, and entity-scoped reporting.',
+    'Accounting mini app →',
+    'No services are assigned to your account yet.',
     'Open an available service directly. Access is based on your role and enabled features.',
     'Choose an agent',
     'Audience roles',
@@ -160,8 +165,10 @@ test('key app workflows are translated in every supported locale', async () => {
 
 test('workspace deep links retain the current URL and only resolve visible panels', () => {
   assert.equal(panelFromUrl('https://agency.test/?panel=rent', new Set(['overview', 'rent'])), 'rent');
+  assert.equal(panelFromUrl('https://agency.test/?panel=launcher', new Set(['overview', 'launcher'])), 'launcher');
   assert.equal(panelFromUrl('https://agency.test/?panel=admin', new Set(['overview'])), 'overview');
   assert.equal(panelFromUrl('https://agency.test/?panel=unknown', new Set(['overview', 'rent'])), 'overview');
+  assert.equal(isPanelEnabled('launcher', []), true);
   assert.equal(panelUrl('/agency?campaign=staff#main', 'rent'), '/agency?campaign=staff&panel=rent#main');
   assert.equal(panelUrl('/agency?panel=rent#main', 'overview'), '/agency#main');
   assert.equal(isPanelEnabled('admin', []), true);

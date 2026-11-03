@@ -298,6 +298,15 @@ const rows = [
   ['Review note: {{reason}}', 'የግምገማ ማስታወሻ፦ {{reason}}', 'Yaadannoo sakatta’iinsaa: {{reason}}', 'ማስታወሻ ግምገማ፦ {{reason}}'],
   ['Reconciled {{date}}', 'የተረጋገጠበት ቀን {{date}}', 'Guyyaa mirkanaa’e {{date}}', 'ዝተረጋገጸሉ ዕለት {{date}}'],
   ['My shifts and attendance', 'የእኔ ፈረቃዎችና የሥራ ሰዓት መዝገብ', 'Shiftoota koo fi galmee yeroo hojii', 'ሺፍታትን መዝገብ ሰዓታት ስራሕን'],
+  ['All statuses', 'ሁሉም ሁኔታዎች', 'Haala hunda', 'ኩሎም ኩነታት'],
+  ['Approved', 'ጸድቋል', 'Ragga’eera', 'ጸዲቑ'],
+  ['Filter reports', 'ሪፖርቶችን አጣራ', 'Gabaasa calali', 'ጸብጻባት ምረጽ'],
+  ['Download CSV', 'CSV አውርድ', 'CSV buusi', 'CSV ኣውርድ'],
+  ['No reports match the selected filters.', 'ከተመረጡት ማጣሪያዎች ጋር የሚዛመድ ሪፖርት የለም።', 'Gabaasni calallii filatame waliin walsimu hin jiru.', 'ምስ ዝተመርጹ መጻረዪታት ዝሰማማዕ ጸብጻብ የለን።'],
+  ['Worker activity report downloaded.', 'የሠራተኛ እንቅስቃሴ ሪፖርት ወርዷል።', 'Gabaasni sochii hojjetaa buufameera.', 'ጸብጻብ ንጥፈት ሰራሕተኛ ወሪዱ።'],
+  ['There are no reports matching these filters to download.', 'ከእነዚህ ማጣሪያዎች ጋር የሚዛመድ ሪፖርት ለማውረድ የለም።', 'Gabaasni calallii kanaan walsimu buufachuuf hin jiru.', 'ምስዞም መጻረዪታት ዝሰማማዕ ንምውራድ ዝኾነ ጸብጻብ የለን።'],
+  ['The report start date must be on or before its end date.', 'የሪፖርቱ መጀመሪያ ቀን ከመጨረሻው ቀን በፊት ወይም እኩል መሆን አለበት።', 'Guyyaan jalqabaa gabaasaa guyyaa xumuraa dura yookaan walqixa ta’uu qaba.', 'ዕለት መጀመርታ ጸብጻብ ቅድሚ ዕለት መወዳእታ ወይ ማዕረ ክኸውን ኣለዎ።'],
+  ['Filters and exports include the 200 most recent reports currently loaded.', 'ማጣሪያዎችና ወደ ውጭ የሚላኩ ሪፖርቶች አሁን የተጫኑትን 200 የቅርብ ጊዜ ሪፖርቶች ያካትታሉ።', 'Calallii fi gabaasni buufamu gabaasota dhiheenya kana fe’aman 200 of keessatti qaba.', 'መጻረዪታትን ዝወርዱ ጸብጻባትን እቶም ኣብዚ ግዜ ዝተጸዓኑ 200 ናይ ቀረባ ጸብጻባት የጠቓልሉ።'],
   ['Respond to assigned shifts and record your own clock events. Offline events are saved on this device and synced in order when connectivity returns.', 'ለተመደቡ ፈረቃዎች ምላሽ ይስጡና የራስዎን የመግቢያና የመውጫ ሰዓት ይመዝግቡ። ከመስመር ውጭ የተመዘገቡ ክስተቶች በዚህ መሣሪያ ይቀመጣሉ፤ ግንኙነት ሲመለስ በቅደም ተከተል ይላካሉ።', 'Shiftoota siif ramadaman irratti deebii kenni; sa’aatii seensaa fi ba’iinsa kee galmeessi. Galmeen interneetii malee uumame meeshaa kana irratti ni kuufama; walqunnamtiin yommuu deebi’u tartiibaan ni ergame.', 'ኣብ ዝተመደቡልካ ሺፍታት መልሲ ሃብ፣ ሰዓታት ምእታውን ምውጻእን ድማ መዝግብ። ኣብ ዘይተራኸበ ኩነታት ዝተመዝገቡ ፍጻመታት ኣብዚ መሳርሒ ይቕመጡ፣ ርክብ ምስ ተመለሰ ብቅደም ተኸተል ይለኣኹ።'],
   ['No shifts are assigned to your worker account yet.', 'እስካሁን ለሠራተኛ መለያዎ ፈረቃ አልተመደበም።', 'Hanga ammaaf shiftiin herrega hojjetaa keetiif hin ramadamne.', 'ክሳብ ሕጂ ንሕሳብ ሰራሕተኛኻ ሺፍት ኣይተመደበን።'],
   ['Accept shift', 'ፈረቃውን ተቀበል', 'Shiftii fudhadhu', 'ነቲ ሺፍት ተቐበሎ'],
@@ -1331,6 +1340,31 @@ const publicSurfaceTranslations = {
   },
   'Your service mini-apps': {
     am: 'የአገልግሎት ሚኒ-መተግበሪያዎችዎ', om: 'Mini-appoota tajaajilaa keessan', ti: 'ሚኒ-ኣፕሊኬሽናት ኣገልግሎትኩም', so: 'Barnaamijyada yaryar ee adeegyadaada', ar: 'تطبيقات الخدمات المصغّرة الخاصة بك', sw: 'Programu ndogo za huduma zako',
+  },
+  'Super App': {
+    am: 'ሱፐር አፕ', om: 'Appii tajaajila waliigalaa', ti: 'ሱፐር ኣፕ', so: 'App-ka Guud', ar: 'التطبيق الشامل', sw: 'Programu Kuu',
+  },
+  'Accounting & Finance': {
+    am: 'ሂሳብ እና ፋይናንስ', om: 'Herrega fi Faayinaansii', ti: 'ሒሳብን ፋይናንስን', so: 'Xisaabaadka & Maaliyadda', ar: 'المحاسبة والمالية', sw: 'Uhasibu na Fedha',
+  },
+  'Manage entity books, journals, financial operations, and entity-scoped reporting.': {
+    am: 'የድርጅት መዝገቦችን፣ ጆርናሎችን፣ የፋይናንስ ሥራዎችን እና በድርጅት የተገደቡ ሪፖርቶችን ያስተዳድሩ።',
+    om: 'Galmeewwan dhaabbataa, galmee herregaa, hojiiwwan faayinaansii fi gabaasa daangaa dhaabbataatiin bulchaa.',
+    ti: 'መዝገባት ትካል፣ ጆርናላት፣ ስራሕ ፋይናንስን ሪፖርታት ብትካል ዝተወሰኑን ኣመሓድሩ።',
+    so: 'Maamul buugaagta hay’adda, joornaallada, hawlaha maaliyadeed iyo warbixinnada ku kooban hay’adda.',
+    ar: 'أدر دفاتر الكيانات والقيود اليومية والعمليات المالية والتقارير المقيدة بالكيان.',
+    sw: 'Dhibiti vitabu vya taasisi, majarida, shughuli za fedha na ripoti za taasisi husika.',
+  },
+  'Accounting mini app →': {
+    am: 'ሂሳብ ሚኒ አፕ →', om: 'Mini-appii herregaa →', ti: 'ሚኒ ኣፕ ሒሳብ →', so: 'Barnaamijka yar ee xisaabaadka →', ar: 'تطبيق المحاسبة المصغّر ←', sw: 'Programu ndogo ya uhasibu →',
+  },
+  'No services are assigned to your account yet.': {
+    am: 'እስካሁን ምንም አገልግሎት ለመለያዎ አልተመደበም።',
+    om: 'Hanga ammaatti tajaajilli tokko illee herrega keessaniif hin ramadamne.',
+    ti: 'ክሳብ ሕጂ ንመለያኹም ዝተመደበ ኣገልግሎት የለን።',
+    so: 'Ilaa hadda adeeg laguma qoondeyn akoonkaaga.',
+    ar: 'لم تُخصّص أي خدمات لحسابك حتى الآن.',
+    sw: 'Bado hakuna huduma iliyopangiwa akaunti yako.',
   },
   'Open an available service directly. Access is based on your role and enabled features.': {
     am: 'ያለውን አገልግሎት በቀጥታ ይክፈቱ። መዳረሻዎ በሚናዎና በነቁ ባህሪያት ይወሰናል።', om: 'Tajaajila jiru kallattiin banaa. Seensaan gahee keessanii fi amaloota hojii irra jiraniin murtaaʼa.', ti: 'ኣብ ዘሎ ኣገልግሎት ብቐጥታ ክፈቱ። መእተዊ ብሚናኹምን ንጡፋት ባህርያትን ይውሰን።', so: 'Si toos ah u fur adeegga la heli karo. Gelitaanku wuxuu ku xiran yahay doorkaaga iyo astaamaha la hawlgeliyey.', ar: 'افتح الخدمة المتاحة مباشرةً. يعتمد الوصول على دورك والميزات المفعّلة.', sw: 'Fungua huduma inayopatikana moja kwa moja. Ufikiaji hutegemea jukumu lako na vipengele vilivyowezeshwa.',

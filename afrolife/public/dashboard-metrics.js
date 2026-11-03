@@ -26,6 +26,17 @@ export function propertyDashboardMetrics(properties) {
   };
 }
 
+export function marketplaceDashboardMetrics(listings, userId) {
+  const rows = Array.isArray(listings) ? listings : [];
+  return {
+    totalListings: rows.length,
+    publishedListings: rows.filter((listing) => listing.status === 'published').length,
+    ownedListings: rows.filter((listing) =>
+      listing.created_by === userId || listing.seller_user_id === userId).length,
+    byStatus: countBy(rows, 'status'),
+  };
+}
+
 export function propertyOwnerDashboardMetrics(properties, statements, maintenanceRequests) {
   const propertyRows = Array.isArray(properties) ? properties : [];
   const statementRows = Array.isArray(statements) ? statements : [];

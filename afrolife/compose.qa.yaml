@@ -63,6 +63,75 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  accounting-db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: afrolife_accounting
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${AFROLIFE_ACCOUNTING_DB_ADMIN_PASSWORD:?Run npm run qa:docker:up to create .env.docker}
+    volumes:
+      - qa_accounting_database:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d afrolife_accounting"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  accounting-role:
+    image: postgres:18-alpine
+    environment:
+      ACCOUNTING_MIGRATION_DATABASE_URL: postgres://postgres:${AFROLIFE_ACCOUNTING_DB_ADMIN_PASSWORD}@accounting-db:5432/afrolife_accounting
+      ACCOUNTING_RUNTIME_DB_PASSWORD: ${AFROLIFE_ACCOUNTING_DB_RUNTIME_PASSWORD:?Run npm run qa:docker:up to create .env.docker}
+    command:
+      - sh
+      - -ec
+      - |
+        psql "$$ACCOUNTING_MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -v runtime_password="$$ACCOUNTING_RUNTIME_DB_PASSWORD" <<'SQL'
+        SELECT format('CREATE ROLE accounting_runtime LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS', :'runtime_password')
+        WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'accounting_runtime')
+        \gexec
+        ALTER ROLE accounting_runtime LOGIN PASSWORD :'runtime_password' NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+        SQL
+    depends_on:
+      accounting-db:
+        condition: service_healthy
+
+  accounting-migrate:
+    build:
+      context: .
+      dockerfile: services/accounting/Dockerfile
+    environment:
+      ACCOUNTING_MIGRATION_DATABASE_URL: postgres://postgres:${AFROLIFE_ACCOUNTING_DB_ADMIN_PASSWORD}@accounting-db:5432/afrolife_accounting
+      ACCOUNTING_RUNTIME_DB_ROLE: accounting_runtime
+    command: ["node", "dist/services/accounting/migrate.js"]
+    depends_on:
+      accounting-role:
+        condition: service_completed_successfully
+
+  accounting:
+    build:
+      context: .
+      dockerfile: services/accounting/Dockerfile
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3301
+      ACCOUNTING_DATABASE_URL: postgres://accounting_runtime:${AFROLIFE_ACCOUNTING_DB_RUNTIME_PASSWORD}@accounting-db:5432/afrolife_accounting
+      ACCOUNTING_AUTH_MODE: gateway
+      ACCOUNTING_GATEWAY_SECRET: ${ACCOUNTING_GATEWAY_SECRET:?Run npm run qa:docker:up to create .env.docker}
+      ACCOUNTING_INGEST_SECRET: ${ACCOUNTING_INGEST_SECRET:?Run npm run qa:docker:up to create .env.docker}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3301/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      accounting-migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
   app:
     build:
       context: .
@@ -70,19 +139,22 @@ services:
     environment:
       NODE_ENV: development
       HOST: 0.0.0.0
-      PORT: 3000
+      PORT: 3010
       DATABASE_URL: postgres://afrolife_app:${AFROLIFE_DB_APP_PASSWORD}@db:5432/afrolife
       JWT_SECRET: ${JWT_SECRET:?Run npm run qa:docker:up to create .env.docker}
       MFA_ENC_KEY: ${MFA_ENC_KEY:?Run npm run qa:docker:up to create .env.docker}
       FILE_STORAGE_DIR: /app/afrolife/data/private-files
       MFI_PILOT_ENABLED: "1"
       INSURANCE_BROKERAGE_MODE: sandbox
+      ACCOUNTING_SERVICE_URL: http://accounting:3301
+      ACCOUNTING_GATEWAY_SECRET: ${ACCOUNTING_GATEWAY_SECRET:?Run npm run qa:docker:up to create .env.docker}
+      ACCOUNTING_INGEST_SECRET: ${ACCOUNTING_INGEST_SECRET:?Run npm run qa:docker:up to create .env.docker}
     ports:
-      - "127.0.0.1:${AFROLIFE_HTTP_PORT:-3000}:3000"
+      - "127.0.0.1:${AFROLIFE_HTTP_PORT:-3010}:3010"
     volumes:
       - qa_private_files:/app/afrolife/data/private-files
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/readyz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3010/readyz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -92,8 +164,11 @@ services:
         condition: service_healthy
       grant-runtime:
         condition: service_completed_successfully
+      accounting:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
   qa_database:
+  qa_accounting_database:
   qa_private_files:
