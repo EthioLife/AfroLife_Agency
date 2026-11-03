@@ -7424,6 +7424,12 @@ document.addEventListener('click', async (event) => {
   const action = event.target.closest('button[data-action]');
   if (!action) return;
   const { action: name, id } = action.dataset;
+  if (name === 'mfa-setup') {
+    api('/auth/mfa/setup', { method: 'POST', body: '{}' })
+      .then((result) => { state.mfaSetup = result; renderPanel(); })
+      .catch((error) => showAlert(error.message, true));
+    return;
+  }
   if (name === 'workforce-payable-next-batch') {
     try {
       const result = await api('/workforce/payable-time/calculate', {
@@ -8184,12 +8190,6 @@ document.addEventListener('click', async (event) => {
       }
       target.append(details);
     } catch (error) { showAlert(error.message, true); }
-    return;
-  }
-  if (name === 'mfa-setup') {
-    api('/auth/mfa/setup', { method: 'POST', body: '{}' })
-      .then((result) => { state.mfaSetup = result; renderPanel(); })
-      .catch((error) => showAlert(error.message, true));
     return;
   }
   if (name === 'revoke-session') {
