@@ -1609,6 +1609,7 @@ adminRouter.get('/global-admin-promotions', requireSuperAdminPromotionRole, h(as
 adminRouter.post('/global-admin-promotions', requireSuperAdminPromotionRole, h(async (req, res) => {
   const { target_user_id } = z.object({ target_user_id: z.string().uuid() }).strict().parse(req.body);
   const request = await withUser(req.user!, async (c) => {
+    await c.query("SELECT pg_advisory_xact_lock(hashtextextended('afrolife:global-admin-role-change:v1', 0))");
     if (target_user_id === req.user!.id) throw new HttpError(422, 'A different administrator must nominate the target account');
     const eligible = await lockEligibleSuperAdmins(c, [req.user!.id, target_user_id]);
     if (!isEligibleSuperAdmin(eligible.get(req.user!.id))) {
@@ -1638,6 +1639,7 @@ adminRouter.post('/global-admin-promotions', requireSuperAdminPromotionRole, h(a
 async function decideGlobalAdminPromotion(req: Request, decision: 'approved' | 'rejected', reason: string) {
   const requestId = z.string().uuid().parse(req.params.id);
   const result = await withUser(req.user!, async (c) => {
+    await c.query("SELECT pg_advisory_xact_lock(hashtextextended('afrolife:global-admin-role-change:v1', 0))");
     const request = (await c.query(
       'SELECT id, requested_by, target_user_id, status FROM global_admin_role_change_requests WHERE id = $1 FOR UPDATE',
       [requestId],
