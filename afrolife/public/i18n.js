@@ -2046,6 +2046,14 @@ const publicSurfaceTranslations = {
   'Global Admin governance': {
     am: 'የግሎባል አስተዳዳሪ አስተዳደር', om: 'Bulchiinsa Admin Addunyaa', ti: 'ምምሕዳር Global Admin', so: 'Maamulka Global Admin', ar: 'حوكمة المسؤول العام', sw: 'Utawala wa Msimamizi wa Jumla',
   },
+  'Global Admin role promotion': {
+    am: 'የግሎባል አስተዳዳሪ የማሳደግ ሂደት',
+    om: 'Adeemsa ol-ka’iinsa Admin Addunyaa',
+    ti: 'ናይ Global Admin ምዕባለ ስርዓት',
+    so: 'Habka dallacaadda Global Admin',
+    ar: 'عملية ترقية المسؤول العام',
+    sw: 'Mchakato wa kupandisha cheo kwa Msimamizi wa Jumla',
+  },
   'Promotion requires two different active, MFA-enabled platform administrators. Global Admin access does not bypass financial maker-checker approvals.': {
     am: 'ማሳደግ ሁለት የተለያዩ፣ ንቁና MFA የነቃላቸው የመድረክ አስተዳዳሪዎችን ይፈልጋል። የግሎባል አስተዳዳሪ መዳረሻ የፋይናንስ አዘጋጅ-አጽዳቂ ፈቃድን አያልፍም።',
     om: 'Ol kaasuuf bulchitoota waltajjii lama, kanneen adda taʼan, hojii irra jiran fi MFA isaanii baname barbaachisa. Seensaan Admin Addunyaa raggaasisa faayinaansii qopheessaa-raggaasisaa hin bira darbu.',
