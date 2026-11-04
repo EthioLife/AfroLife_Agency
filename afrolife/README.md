@@ -27,8 +27,9 @@ Same-origin TypeScript/Express API and installable web app for AfroLife agency o
    This initializes PostgreSQL 18 in `%LOCALAPPDATA%\AfroLife\postgresql` on port `5433` without changing the separate Windows PostgreSQL service on port `5432`. It creates the `afrolife` database, enables `pgcrypto`, applies all migrations, and grants the API a non-superuser `afrolife_app` role that does not bypass row-level security. Random credentials and application secrets are stored outside the project in `%LOCALAPPDATA%\AfroLife\afrolife.env`; do not share that file. Database files persist between restarts.
 
    To use an existing PostgreSQL instance instead, copy `.env.example` to `.env` and configure `DATABASE_URL` for the runtime role and `MIGRATION_DATABASE_URL` for a migration owner. Use distinct, randomly generated `JWT_SECRET` and `MFA_ENC_KEY` values of at least 32 characters. The runtime role must not own tables or have `BYPASSRLS`; apply schema changes with `npm run db:migrate`.
+   For an AletCloud release that must apply pending core migrations without running initial-administrator seeding, temporarily set `ALETCLOUD_BOOTSTRAP_DATABASE_URL` to the database provisioning URL and `ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY=1`, then deploy through the normal guarded startup. Verify `/readyz` reports all migrations current, then remove both temporary variables and redeploy. Never leave the provisioning URL in the running app configuration.
 
-3. Create the first administrator with environment variables; the password is read from the environment and is never printed:
+4. Create the first administrator with environment variables; the password is read from the environment and is never printed:
 
    ```powershell
    $env:SEED_ADMIN_NAME = "AfroLife Administrator"
@@ -42,7 +43,7 @@ Same-origin TypeScript/Express API and installable web app for AfroLife agency o
 
    For initial UAT recovery only, `npm run bootstrap:uat-global-admin` can establish the first Global Admin when no Global Admin exists and the normal independent promotion workflow is not yet possible. It requires `AFROLIFE_DEPLOYMENT_ENV=uat`, `ALETCLOUD_APP_NAME=afrolife-uat-canary`, `ALLOW_UAT_GLOBAL_ADMIN_BOOTSTRAP=1`, `DATABASE_URL`, `UAT_GLOBAL_ADMIN_TARGET_ID`, and `UAT_GLOBAL_ADMIN_REASON`. The target must already be an active, MFA-enabled Super Admin. The operation uses a serializable transaction and advisory lock, rejects any existing Global Admin or prior bootstrap, writes the role-change history and an audit record, and can succeed only once. Set the environment values only for the confirmed UAT database, run the command once, then immediately remove the opt-in and target/reason values. This is not a production recovery path; normal Global Admin promotions must use the two-person approval workflow.
 
-4. Run `npm run dev`, then open `http://localhost:3010`.
+5. Run `npm run dev`, then open `http://localhost:3010`.
 
 `http://localhost:3010` is the local browser entry point for the PWA and API.
 The optional local Nginx preview on `http://localhost:8080` only proxies to
