@@ -184,4 +184,89 @@ if (provisioningUrl) {
   delete process.env.SEED_ADMIN_PASSWORD;
 }
 
+const recoveryEnabled = process.env.ALETCLOUD_ADMIN_RECOVERY_ENABLED;
+const recoveryPhoneInput = process.env.ALETCLOUD_ADMIN_RECOVERY_PHONE;
+const recoveryName = process.env.ALETCLOUD_ADMIN_RECOVERY_NAME?.trim();
+const recoveryPassword = process.env.ALETCLOUD_ADMIN_RECOVERY_PASSWORD;
+const recoveryConfirm = process.env.ALETCLOUD_ADMIN_RECOVERY_CONFIRM;
+if (
+  recoveryEnabled !== undefined
+  || recoveryPhoneInput !== undefined
+  || recoveryName !== undefined
+  || recoveryPassword !== undefined
+  || recoveryConfirm !== undefined
+) {
+  const phone = normalizePhone(recoveryPhoneInput ?? '');
+  if (
+    recoveryEnabled !== '1'
+    || recoveryConfirm !== 'rotate-super-admin'
+    || !phone
+    || (recoveryName !== undefined && recoveryName.length < 2)
+    || !recoveryPassword
+    || recoveryPassword.length < 16
+    || Buffer.byteLength(recoveryPassword, 'utf8') > 72
+  ) {
+    throw new Error('Valid one-time Super Admin recovery settings are required.');
+  }
+  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for Super Admin recovery.');
+
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+  await client.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query("SELECT set_config('app.role', 'global_admin', true)");
+    const user = recoveryName
+      ? await client.query<{ id: string }>(
+        `SELECT id FROM users
+         WHERE role IN ('super_admin', 'global_admin') AND active = true
+         FOR UPDATE`,
+      )
+      : await client.query<{ id: string }>(
+        `SELECT id FROM users
+         WHERE phone = $1 AND role IN ('super_admin', 'global_admin') AND active = true
+         FOR UPDATE`,
+        [phone],
+      );
+    if (user.rowCount !== 1) {
+      throw new Error('Super Admin recovery requires exactly one active administrator for the selected recovery mode.');
+    }
+
+    const userId = user.rows[0].id;
+    await client.query("SELECT set_config('app.user_id', $1, true)", [userId]);
+    if (recoveryName) {
+      await client.query(
+        `UPDATE users
+         SET legal_name = $2, phone = $3, password_hash = $4, must_change_password = true,
+             failed_logins = 0, locked_until = NULL
+         WHERE id = $1`,
+        [userId, recoveryName, phone, await bcrypt.hash(recoveryPassword, 12)],
+      );
+    } else {
+      await client.query(
+        `UPDATE users
+         SET password_hash = $2, must_change_password = true, failed_logins = 0, locked_until = NULL
+         WHERE id = $1`,
+        [userId, await bcrypt.hash(recoveryPassword, 12)],
+      );
+    }
+    await client.query(
+      'UPDATE auth_sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL',
+      [userId],
+    );
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    await client.end();
+  }
+
+  delete process.env.ALETCLOUD_ADMIN_RECOVERY_ENABLED;
+  delete process.env.ALETCLOUD_ADMIN_RECOVERY_PHONE;
+  delete process.env.ALETCLOUD_ADMIN_RECOVERY_NAME;
+  delete process.env.ALETCLOUD_ADMIN_RECOVERY_PASSWORD;
+  delete process.env.ALETCLOUD_ADMIN_RECOVERY_CONFIRM;
+  console.log('Recovered the configured Super Admin; a password change is required at first sign-in.');
+}
+
 await import('./server.js');

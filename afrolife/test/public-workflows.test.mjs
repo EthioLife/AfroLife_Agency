@@ -25,6 +25,18 @@ import {
 import { propertyOfferTerms } from '../public/property-offers.js';
 import { marketplaceListingPayload } from '../public/marketplace-form.js';
 
+test('submit buttons are handled by the delegated form workflow, not click actions', () => {
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const clickHandler = app.slice(app.indexOf("document.addEventListener('click', async (event) => {"));
+  const actionLookup = clickHandler.indexOf("const action = event.target.closest('button[data-action]');");
+  const mfaAction = clickHandler.indexOf("if (name === 'mfa-setup')");
+
+  assert.ok(actionLookup >= 0);
+  assert.ok(mfaAction > actionLookup);
+  assert.match(clickHandler.slice(actionLookup, mfaAction), /action\.type === 'submit'/);
+  assert.match(app, /document\.addEventListener\('submit', \(event\) => \{/);
+});
+
 test('signup uploads enforce configured KYC documents and limit server changes to super admins', () => {
   const options = { kyc_requirements: { customer: ['national_id'], worker: ['national_id', 'police_clearance'] } };
   assert.deepEqual(signupRequiredDocuments(options, 'worker'), ['national_id', 'police_clearance']);
@@ -336,6 +348,12 @@ test('public signup actions open generic registration and allow returning to sig
   assert.match(app, /#public-create-account'\)\.addEventListener\('click', \(\) => openSignup\(false\)\)/);
   assert.match(app, /#create-account'\)\.addEventListener\('click', \(\) => openSignup\(false\)\)/);
   assert.match(html, /id="show-login"[^>]*>Already have an account\? Sign in<\/button>/);
+});
+
+test('authenticator setup is handled before unrelated form actions', () => {
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const clickHandler = app.slice(app.indexOf("document.addEventListener('click', async (event) => {"));
+  assert.ok(clickHandler.indexOf("if (name === 'mfa-setup')") < clickHandler.indexOf("if (form.dataset.form === 'marketplace')"));
 });
 
 test('agent signup accepts typed territory names and offers seeded Ethiopian regions', () => {

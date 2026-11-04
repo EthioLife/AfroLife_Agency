@@ -2046,6 +2046,30 @@ const publicSurfaceTranslations = {
   'Global Admin governance': {
     am: 'የግሎባል አስተዳዳሪ አስተዳደር', om: 'Bulchiinsa Admin Addunyaa', ti: 'ምምሕዳር Global Admin', so: 'Maamulka Global Admin', ar: 'حوكمة المسؤول العام', sw: 'Utawala wa Msimamizi wa Jumla',
   },
+  'Global Admin role promotion': {
+    am: 'የግሎባል አስተዳዳሪ የማሳደግ ሂደት',
+    om: 'Adeemsa ol-ka’iinsa Admin Addunyaa',
+    ti: 'ናይ Global Admin ምዕባለ ስርዓት',
+    so: 'Habka dallacaadda Global Admin',
+    ar: 'عملية ترقية المسؤول العام',
+    sw: 'Mchakato wa kupandisha cheo kwa Msimamizi wa Jumla',
+  },
+  'Promotion requires two different active, MFA-enabled Super Admins. Global Admin access does not bypass financial maker-checker approvals.': {
+    am: 'ማሳደግ ሁለት የተለያዩ፣ ንቁና MFA የነቃላቸው ሱፐር አስተዳዳሪዎችን ይፈልጋል። የግሎባል አስተዳዳሪ መዳረሻ የፋይናንስ አዘጋጅ-አጽዳቂ ፈቃድን አያልፍም።',
+    om: 'Ol-kaasuuf Super Admin lama adda addaa, hojii irra jiran fi MFA isaanii baname barbaachisu. Seensaan Admin Addunyaa raggaasisa faayinaansii qopheessaa-raggaasisaa hin bira darbu.',
+    ti: 'ምዕባለ ክልተ ዝተፈላለዩ፣ ንጡፋትን MFA ዝተነቕሐሎምን Super Admin ይሓትት። መእተዊ Global Admin ናይ ፋይናንስ ኣዳላው-ኣጽዳቒ ምጽዳቕ ኣይሓልፍን።',
+    so: 'Dallacaaddu waxay u baahan tahay laba Super Admin oo kala duwan, firfircoon, MFA-na u shaqaynayso. Gelitaanka Global Admin kama boodo ansixinta maaliyadeed ee diyaariye iyo hubiye.',
+    ar: 'يتطلب الترفيع وجود مسؤولين فائقين مختلفين ونشطين مع تفعيل MFA. ولا يتجاوز وصول المسؤول العام موافقات الإعداد والمراجعة المالية.',
+    sw: 'Kupandishwa cheo kunahitaji Wasimamizi Wakuu wawili tofauti walio hai na wenye MFA. Ufikiaji wa Msimamizi wa Jumla haupiti idhini za kifedha za mtayarishaji na mkaguzi.',
+  },
+  'No pending Super Admin accounts are awaiting activation.': {
+    am: 'ምንም ማግበርን የሚጠብቅ የሱፐር አስተዳዳሪ መለያ የለም።',
+    om: 'Herregni Super Admin hojii eeggataa ta’ee jiru hin jiru.',
+    ti: 'ንምንቅስቓስ ዝጽበዩ ሕሳባት Super Admin የለዉን።',
+    so: 'Ma jiraan akoonno Super Admin ah oo sugaya in la hawlgeliyo.',
+    ar: 'لا توجد حسابات مسؤول فائق بانتظار التفعيل.',
+    sw: 'Hakuna akaunti za Msimamizi Mkuu zinazosubiri kuwezeshwa.',
+  },
   'Promotion requires two different active, MFA-enabled platform administrators. Global Admin access does not bypass financial maker-checker approvals.': {
     am: 'ማሳደግ ሁለት የተለያዩ፣ ንቁና MFA የነቃላቸው የመድረክ አስተዳዳሪዎችን ይፈልጋል። የግሎባል አስተዳዳሪ መዳረሻ የፋይናንስ አዘጋጅ-አጽዳቂ ፈቃድን አያልፍም።',
     om: 'Ol kaasuuf bulchitoota waltajjii lama, kanneen adda taʼan, hojii irra jiran fi MFA isaanii baname barbaachisa. Seensaan Admin Addunyaa raggaasisa faayinaansii qopheessaa-raggaasisaa hin bira darbu.',

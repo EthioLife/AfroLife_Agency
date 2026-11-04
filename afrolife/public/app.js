@@ -1179,13 +1179,34 @@ function signOut({ revoke = true, message = '' } = {}) {
 async function loadWorkspace() {
   state.user = await api('/auth/me');
   startSessionActivity(state.user.session_idle_timeout_minutes ?? 30);
+  const featureFallback = { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] };
+  const passwordRequired = state.user.must_change_password || state.user.required_security_step === 'password';
+  state.mfaRequired = state.mfaRequired || state.user.required_security_step === 'mfa';
+  if (passwordRequired || state.mfaRequired) {
+    state.panel = passwordRequired ? 'password' : 'security';
+    history.replaceState(null, '', panelUrl(window.location.href, state.panel));
+    state.features = { ...featureFallback, allowedModules: [] };
+    state.myDataCapabilities = [];
+    $('#login-view').hidden = true;
+    $('#public-hub').hidden = true;
+    $('#app-view').hidden = false;
+    $('#assistant-launcher').hidden = true;
+    $('#mobile-workspace-nav').hidden = true;
+    $('#account-tools').hidden = true;
+    $('#account-name').textContent = `${state.user.legal_name} · ${roleLabel(state.user.role)}`;
+    $('#page-subtitle').textContent = t('Signed in as {{role}}. Your access is limited to your assigned role and territory.', { role: roleLabel(state.user.role) });
+    $('#login-error').textContent = '';
+    $('#retry-session').hidden = true;
+    document.querySelectorAll('.tab, .workspace-nav-group').forEach((element) => { element.hidden = true; });
+    renderPanel();
+    return;
+  }
   const selfCapabilities = await getOptional('/platform/my-data-capabilities', []);
   state.myDataCapabilities = Array.isArray(selfCapabilities) ? selfCapabilities : [];
   const assignedDataTenantIds = state.myDataCapabilities.map((entry) => entry.tenant_id);
   if (!assignedDataTenantIds.includes(state.dataAdminTenantId)) {
     state.dataAdminTenantId = assignedDataTenantIds.length === 1 ? assignedDataTenantIds[0] : null;
   }
-  const featureFallback = { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] };
   if (state.user.role === 'super_admin') {
     state.tenantAdminTenants = await api('/platform/my-tenants');
     const activeTenantIds = state.tenantAdminTenants
@@ -1550,7 +1571,7 @@ async function loadPanelData(panel) {
         safeGet('/territories', []),
         state.user.role === 'global_admin' ? safeGet('/service-identities', []) : [],
         state.user.role === 'global_admin' ? safeGet('/readiness-evidence', []) : [],
-        state.user.role === 'global_admin' ? safeGet('/global-admin-promotions', []) : [],
+        state.user.role === 'super_admin' ? safeGet('/global-admin-promotions', []) : [],
       ]);
       state.businessRules = state.user.role === 'global_admin' ? await safeGet('/business-rules', []) : [];
       state.roleAccess = state.user.role === 'global_admin' ? await safeGet('/role-access', null) : null;
@@ -4863,9 +4884,9 @@ function renderBusinessRules() {
 function renderGlobalAdminPromotions() {
   const section = node('section', undefined, 'panel form-card');
   section.style.marginTop = '20px';
-  section.append(node('h3', 'Global Admin governance'));
-  section.append(node('p', 'Promotion requires two different active, MFA-enabled platform administrators. Global Admin access does not bypass financial maker-checker approvals.'));
-  if (isPlatformAdmin()) {
+  section.append(node('h3', 'Global Admin role promotion'));
+  section.append(node('p', 'Promotion requires two different active, MFA-enabled Super Admins. Global Admin access does not bypass financial maker-checker approvals.'));
+  if (state.user.role === 'super_admin') {
     const candidates = state.users.filter((user) =>
       user.id !== state.user.id && user.active && user.mfa_enabled && user.role === 'super_admin');
     if (candidates.length) {
@@ -4894,7 +4915,7 @@ function renderGlobalAdminPromotions() {
     for (const request of state.globalAdminPromotions) {
       const item = card(request.target_name, `${request.status} · Requested by ${request.requester_name} · ${request.created_at}`, request.status);
       if (request.approver_name) item.append(node('p', `Decision by ${request.approver_name}: ${request.decision_reason}`));
-      const canDecide = isPlatformAdmin()
+      const canDecide = state.user.role === 'super_admin'
         && request.status === 'pending'
         && request.requested_by !== state.user.id
         && request.target_user_id !== state.user.id;
@@ -5542,7 +5563,7 @@ function renderAdmin() {
   if (isGlobalAdmin) wrap.append(renderBusinessRules());
   if (isGlobalAdmin) wrap.append(renderPlatformControlPlane());
   if (isGlobalAdmin) wrap.append(renderTenantDataGovernance());
-  if (isGlobalAdmin) wrap.append(renderGlobalAdminPromotions());
+  if (state.user.role === 'super_admin') wrap.append(renderGlobalAdminPromotions());
   if (isGlobalAdmin) wrap.append(renderReadinessEvidence());
   if (isGlobalAdmin) {
     const identities = node('section', undefined, 'panel form-card');
@@ -5634,8 +5655,15 @@ function renderAdmin() {
   }
   if (state.user.role === 'super_admin') wrap.append(renderTenantAdminWorkspace());
   const users = node('div', undefined, 'list');
-  if (!state.users.length) users.append(empty('No accounts to display.'));
-  for (const user of state.users.slice(0, 25)) {
+  const visibleUsers = state.user.role === 'super_admin'
+    ? state.users.filter((user) => user.role === 'super_admin' && !user.active)
+    : state.users;
+  if (!visibleUsers.length) {
+    users.append(empty(state.user.role === 'super_admin'
+      ? 'No pending Super Admin accounts are awaiting activation.'
+      : 'No accounts to display.'));
+  }
+  for (const user of visibleUsers.slice(0, 25)) {
     const signupDetails = user.signup_account_type
       ? t('{{phone}} · {{role}} · {{plan}}', {
         phone: user.phone,
@@ -5660,10 +5688,10 @@ function renderAdmin() {
       item.append(button('Reject', 'user-kyc', 'button button-outline', { id: user.id, decision: 'rejected' }));
     }
     if (isAdmin && !user.active && user.created_by !== state.user.id) item.append(button('Activate', 'user-activate', 'button button-primary', { id: user.id }));
-    if (isAdmin && user.active && user.id !== state.user.id) item.append(button('Deactivate', 'user-deactivate', 'button button-outline', { id: user.id }));
+    if (isGlobalAdmin && user.active && user.id !== state.user.id) item.append(button('Deactivate', 'user-deactivate', 'button button-outline', { id: user.id }));
     users.append(item);
   }
-  if (isGlobalAdmin || isBusinessManager || state.user.role === 'compliance') columns.append(users);
+  if (isAdmin || isBusinessManager || state.user.role === 'compliance') columns.append(users);
   wrap.append(columns);
   if (isAdmin && state.summary) {
     const summary = node('section', undefined, 'panel form-card');
@@ -6698,12 +6726,16 @@ async function submitForm(form) {
     return;
   }
   if (form.dataset.form === 'password') {
+    const wasRequired = state.user.must_change_password;
     const result = await api('/auth/change-password', { method: 'POST', body: JSON.stringify(values) });
     sessionStorage.setItem(TOKEN_KEY, result.token);
     state.user.must_change_password = false;
     state.mfaRequired = result.restrict === 'mfa';
     if (state.mfaRequired) {
       state.panel = 'security';
+      await loadWorkspace();
+    } else if (wasRequired) {
+      state.panel = 'overview';
       await loadWorkspace();
     } else {
       state.panel = 'overview';
@@ -7397,8 +7429,14 @@ document.addEventListener('click', async (event) => {
   const tab = event.target.closest('.tab[data-panel]');
   if (tab) { navigateToPanel(tab.dataset.panel); return; }
   const action = event.target.closest('button[data-action]');
-  if (!action) return;
+  if (!action || action.type === 'submit') return;
   const { action: name, id } = action.dataset;
+  if (name === 'mfa-setup') {
+    api('/auth/mfa/setup', { method: 'POST', body: '{}' })
+      .then((result) => { state.mfaSetup = result; renderPanel(); })
+      .catch((error) => showAlert(error.message, true));
+    return;
+  }
   if (name === 'workforce-payable-next-batch') {
     try {
       const result = await api('/workforce/payable-time/calculate', {
@@ -8159,12 +8197,6 @@ document.addEventListener('click', async (event) => {
       }
       target.append(details);
     } catch (error) { showAlert(error.message, true); }
-    return;
-  }
-  if (name === 'mfa-setup') {
-    api('/auth/mfa/setup', { method: 'POST', body: '{}' })
-      .then((result) => { state.mfaSetup = result; renderPanel(); })
-      .catch((error) => showAlert(error.message, true));
     return;
   }
   if (name === 'revoke-session') {

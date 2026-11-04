@@ -55,7 +55,7 @@ const workspaceServiceProbes = (): ServiceProbe[] => [
   { id: 'accounting-internal', name: 'Internal Accounting & Finance', enabled: Boolean(process.env.ACCOUNTING_SERVICE_URL), url: process.env.ACCOUNTING_SERVICE_URL, withoutUrl: 'disabled' },
   { id: 'accounting-subscriber', name: 'Subscriber Accounting & Finance', enabled: Boolean(process.env.ACCOUNTING_SUBSCRIBER_SERVICE_URL), url: process.env.ACCOUNTING_SUBSCRIBER_SERVICE_URL, withoutUrl: 'disabled' },
   { id: 'global-bi', name: 'Global BI', enabled: Boolean(process.env.GLOBAL_BI_SERVICE_URL), url: process.env.GLOBAL_BI_SERVICE_URL, withoutUrl: 'disabled' },
-  { id: 'insurance', name: 'Insurance ledger', enabled: Boolean(process.env.INSURANCE_SERVICE_URL), url: process.env.INSURANCE_SERVICE_URL, withoutUrl: 'integrated' },
+  { id: 'insurance', name: 'Insurance ledger', enabled: Boolean(process.env.INSURANCE_SERVICE_URL), url: process.env.INSURANCE_SERVICE_URL, withoutUrl: runtimeConfig.isProduction ? 'disabled' : 'integrated' },
   { id: 'mfi', name: 'SACCO / MFI', enabled: runtimeConfig.mfiPilotEnabled, url: process.env.MFI_SERVICE_URL, withoutUrl: 'disabled' },
 ];
 const migrationDirectory = new URL('../migrations/', import.meta.url);
@@ -480,7 +480,9 @@ api.use('/insurance/ledger', process.env.INSURANCE_SERVICE_URL
     baseUrl: process.env.INSURANCE_SERVICE_URL,
     secret: process.env.INSURANCE_GATEWAY_SECRET ?? '',
   })
-  : createInsuranceLedgerRouter(withUser));
+  : runtimeConfig.isProduction
+    ? (_req, res) => res.status(503).json({ error: 'Separate Insurance service is not configured' })
+    : createInsuranceLedgerRouter(withUser));
 if (runtimeConfig.mfiPilotEnabled) {
   if (runtimeConfig.isProduction) console.warn('SACCO/MFI pilot is enabled; do not use for public deposits or regulated lending');
   api.use('/mfi', process.env.MFI_SERVICE_URL

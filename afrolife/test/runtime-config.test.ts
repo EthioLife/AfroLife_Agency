@@ -133,10 +133,6 @@ test('production requires separate financial service gateways and blocks in-proc
     /MFI_GATEWAY_SECRET must be a unique/,
   );
   assert.throws(
-    () => loadRuntimeConfig({ ...safeProductionEnvironment, INSURANCE_SERVICE_URL: undefined }),
-    /INSURANCE_SERVICE_URL is required/,
-  );
-  assert.throws(
     () => loadRuntimeConfig({ ...safeProductionEnvironment, INSURANCE_SERVICE_CUTOVER_READY: '0' }),
     /INSURANCE_SERVICE_CUTOVER_READY=1 is required/,
   );
@@ -144,6 +140,16 @@ test('production requires separate financial service gateways and blocks in-proc
     () => loadRuntimeConfig({ ...safeProductionEnvironment, INSURANCE_GATEWAY_SECRET: undefined }),
     /INSURANCE_GATEWAY_SECRET must be a unique/,
   );
+  const withoutInsurance = loadRuntimeConfig({
+    ...safeProductionEnvironment,
+    INSURANCE_SERVICE_URL: undefined,
+    INSURANCE_GATEWAY_SECRET: undefined,
+    INSURANCE_SERVICE_CUTOVER_READY: '0',
+  });
+  assert.equal(withoutInsurance.isProduction, true);
+  assert.equal(withoutInsurance.enabledModules.includes('insurance'), false);
+  const server = readFileSync(new URL('../src/server.ts', import.meta.url), 'utf8');
+  assert.match(server, /api\.use\('\/insurance\/ledger', process\.env\.INSURANCE_SERVICE_URL[\s\S]*?runtimeConfig\.isProduction[\s\S]*?res\.status\(503\)[\s\S]*?createInsuranceLedgerRouter\(withUser\)/);
 });
 
 test('production configuration requires separate strong JWT and MFA secrets', () => {
@@ -165,6 +171,28 @@ test('production configuration requires TLS for remote PostgreSQL and private st
   assert.throws(
     () => loadRuntimeConfig({ ...safeProductionEnvironment, FILE_STORAGE_DIR: resolve('public', 'uploads') }),
     /public web directory/,
+  );
+});
+
+test('production permits required TLS on AletCloud private database endpoints only', () => {
+  const privateDatabase = {
+    ...safeProductionEnvironment,
+    DATABASE_URL: 'postgresql://runtime:runtime-password@uat-db-rw.db-978.svc.cluster.local:5432/afrolife?sslmode=require&uselibpqcompat=true',
+  };
+  assert.equal(loadRuntimeConfig(privateDatabase).isProduction, true);
+  assert.throws(
+    () => loadRuntimeConfig({
+      ...privateDatabase,
+      DATABASE_URL: 'postgresql://runtime:runtime-password@db.example.net:5432/afrolife?sslmode=require&uselibpqcompat=true',
+    }),
+    /sslmode=verify-full/,
+  );
+  assert.throws(
+    () => loadRuntimeConfig({
+      ...privateDatabase,
+      DATABASE_URL: 'postgresql://runtime:runtime-password@uat-db-rw.db-978.svc.cluster.local:5432/afrolife?sslmode=require',
+    }),
+    /sslmode=verify-full/,
   );
 });
 
@@ -197,7 +225,7 @@ test('production configuration rejects unsafe origins and proxy trust', () => {
   assert.throws(() => loadRuntimeConfig({ ...safeProductionEnvironment, LOGIN_RATE_LIMIT: '0' }), /between 1 and 1000/);
 });
 
-test('Insurance service routing requires an explicit cutover-readiness attestation', () => {
+test('Insurance service routing requires explicit cutover readiness when enabled', () => {
   const serviceUrl = 'https://insurance.internal';
   assert.throws(
     () => loadRuntimeConfig({
@@ -207,10 +235,12 @@ test('Insurance service routing requires an explicit cutover-readiness attestati
     }),
     /INSURANCE_SERVICE_CUTOVER_READY=1/,
   );
-  assert.throws(
-    () => loadRuntimeConfig({ ...safeProductionEnvironment, INSURANCE_SERVICE_URL: undefined }),
-    /INSURANCE_SERVICE_URL is required/,
-  );
+  assert.doesNotThrow(() => loadRuntimeConfig({
+    ...safeProductionEnvironment,
+    INSURANCE_SERVICE_URL: undefined,
+    INSURANCE_GATEWAY_SECRET: undefined,
+    INSURANCE_SERVICE_CUTOVER_READY: '0',
+  }));
   assert.throws(
     () => loadRuntimeConfig({ ...safeProductionEnvironment, INSURANCE_SERVICE_URL: serviceUrl, INSURANCE_SERVICE_CUTOVER_READY: 'yes' }),
     /must be 0 or 1/,
