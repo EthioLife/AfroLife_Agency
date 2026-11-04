@@ -318,7 +318,8 @@ api.use('/subscriptions', subscriptionRouter);
 api.get('/features', h(async (req, res) => {
   let enabledModules = runtimeConfig.enabledModules;
   let platformTenantId: string | null = null;
-  if (req.user!.role === 'super_admin' && req.query.platform_tenant_id === undefined) {
+  if (req.user!.role === 'super_admin' && req.query.platform_tenant_id === undefined
+    && !req.user!.adminRoleAllTenants) {
     enabledModules = [];
   }
   if (req.query.platform_tenant_id !== undefined) {
@@ -330,12 +331,12 @@ api.get('/features', h(async (req, res) => {
       const permitted = await client.query(
         `SELECT t.id,t.status FROM platform_tenants t
          WHERE t.id=$1 AND (
-           $2::text='global_admin' OR EXISTS (
+           $2::text='global_admin' OR $4::boolean OR EXISTS (
              SELECT 1 FROM platform_tenant_admins a
              WHERE a.tenant_id=t.id AND a.user_id=$3
            )
          )`,
-        [platformTenantId, req.user!.role, req.user!.id],
+        [platformTenantId, req.user!.role, req.user!.id, req.user!.adminRoleAllTenants ?? false],
       );
       if (!permitted.rowCount) throw new HttpError(403, 'This platform tenant is not assigned to your account.');
       const services = await client.query(

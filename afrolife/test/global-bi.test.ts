@@ -108,8 +108,8 @@ test('Global BI filters require aligned UTC ranges bounded to 31 days and retent
   assert.throws(() => parseGlobalBiRange({
     from: '2025-01-01T00:00:00.000Z', to: '2025-01-02T00:00:00.000Z',
   }, now), /limited to the retention window/);
-  assert.throws(() => assertGlobalBiAccess('super_admin'), /restricted to Global Admin/);
-  assert.throws(() => assertGlobalBiAccess('analytics_admin'), /restricted to Global Admin/);
+  assert.doesNotThrow(() => assertGlobalBiAccess('super_admin'));
+  assert.throws(() => assertGlobalBiAccess('analytics_admin'), /assigned platform administrators/);
   assert.doesNotThrow(() => assertGlobalBiAccess('global_admin'));
 });
 

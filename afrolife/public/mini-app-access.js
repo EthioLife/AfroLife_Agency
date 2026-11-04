@@ -264,3 +264,165 @@ export function createMiniAppAccessEditor(api, currentUser, users = []) {
   renderUsers(false);
   return section;
 }
+
+export function createAdminRoleAccessEditor(api, currentUser, users = []) {
+  const section = el('section', undefined, 'panel mini-app-access-editor');
+  section.append(
+    el('h2', 'Administrator access'),
+    el('p', 'Assign administrator modes, service access and Super Admin tenant scope. These grants are enforced on the server for each session.', 'muted'),
+  );
+  if (currentUser?.role !== 'global_admin') {
+    section.append(el('p', 'Only a Global Admin can manage administrator access.', 'muted'));
+    return section;
+  }
+  const targets = users.filter((user) => user && typeof user.id === 'string' && user.id !== currentUser.id);
+  const toolbar = el('div', undefined, 'mini-app-access-toolbar');
+  const userLabel = el('label', 'User account');
+  const picker = el('select');
+  picker.setAttribute('aria-label', 'User account to configure');
+  picker.append(new Option('Choose a user', ''));
+  for (const user of targets) {
+    picker.append(new Option(
+      `${user.legal_name ?? user.phone ?? user.id} · ${roleLabel(user.role)}${user.active === false ? ' · inactive' : ''}`,
+      user.id,
+    ));
+  }
+  userLabel.append(picker);
+  toolbar.append(userLabel);
+
+  const status = el('p', 'Select a user to configure administrator access.', 'mini-app-access-status');
+  status.setAttribute('role', 'status');
+  status.setAttribute('aria-live', 'polite');
+  const form = el('form', undefined, 'mini-app-access-form');
+  const roleFields = el('div');
+  const save = el('button', 'Save administrator access', 'button button-primary');
+  save.type = 'submit';
+  const actions = el('div', undefined, 'mini-app-access-actions');
+  actions.append(save);
+  form.append(roleFields, actions);
+  section.append(toolbar, status, form);
+
+  let response = null;
+  let sequence = 0;
+  const roleInputs = new Map();
+
+  function renderGrantFields() {
+    roleFields.replaceChildren();
+    roleInputs.clear();
+    const grants = new Map((response?.grants ?? []).map((grant) => [grant.role_name, grant]));
+    for (const role of ['global_admin', 'super_admin']) {
+      const current = grants.get(role);
+      const isPrimary = response?.primaryRole === role;
+      const roleGrant = current ?? {
+        role_name: role,
+        module_keys: response?.availableModules
+          .filter((module) => role === 'global_admin' || module.id !== 'global-bi')
+          .map((module) => module.id) ?? [],
+        all_tenants: false,
+      };
+      const fieldset = el('fieldset', undefined, 'mini-app-access-modules');
+      const moduleInputs = [];
+      fieldset.append(el('legend', roleLabel(role)));
+      const enabledLabel = el('label', undefined, 'mini-app-access-choice');
+      const enabled = el('input');
+      enabled.type = 'checkbox';
+      enabled.checked = isPrimary || Boolean(current);
+      enabled.disabled = isPrimary || !['global_admin', 'super_admin'].includes(response?.primaryRole);
+      enabledLabel.append(enabled, el('span', isPrimary ? 'Primary role' : 'Allow this access mode'));
+      fieldset.append(enabledLabel);
+      const modules = new Set(roleGrant.module_keys ?? []);
+      for (const module of response?.availableModules ?? []) {
+        const label = el('label', undefined, 'mini-app-access-choice');
+        const checkbox = el('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = module.id;
+        checkbox.checked = modules.has(module.id);
+        checkbox.disabled = !enabled.checked;
+        moduleInputs.push(checkbox);
+        const copy = el('span');
+        copy.append(el('strong', module.label), el('small', module.id));
+        label.append(checkbox, copy);
+        fieldset.append(label);
+      }
+      let allTenants = null;
+      if (role === 'super_admin') {
+        const scopeLabel = el('label', undefined, 'mini-app-access-choice');
+        allTenants = el('input');
+        allTenants.type = 'checkbox';
+        allTenants.checked = roleGrant.all_tenants === true;
+        allTenants.disabled = !enabled.checked;
+        scopeLabel.append(allTenants, el('span', 'Allow access across all platform tenants'));
+        fieldset.append(scopeLabel);
+      }
+      enabled.addEventListener('change', () => {
+        fieldset.querySelectorAll('input').forEach((input) => {
+          if (input !== enabled) input.disabled = !enabled.checked;
+        });
+      });
+      roleInputs.set(role, { enabled, moduleInputs, allTenants });
+      roleFields.append(fieldset);
+    }
+  }
+
+  async function loadUser(userId) {
+    const currentSequence = ++sequence;
+    response = null;
+    roleFields.replaceChildren();
+    status.textContent = 'Loading administrator access…';
+    picker.disabled = true;
+    save.disabled = true;
+    try {
+      const result = await api(`/users/${encodeURIComponent(userId)}/admin-access`);
+      if (currentSequence !== sequence) return;
+      if (!result || typeof result.primaryRole !== 'string'
+          || !Array.isArray(result.grants) || !Array.isArray(result.availableModules)) {
+        throw new Error('The access service returned an unexpected response.');
+      }
+      response = result;
+      renderGrantFields();
+      status.textContent = `Configure administrator modes for ${targets.find((user) => user.id === userId)?.legal_name ?? 'this user'}.`;
+      save.disabled = false;
+    } catch (error) {
+      if (currentSequence !== sequence) return;
+      status.textContent = `Could not load administrator access: ${error?.message ?? 'request failed'}`;
+    } finally {
+      if (currentSequence === sequence) picker.disabled = false;
+    }
+  }
+
+  picker.addEventListener('change', () => {
+    if (picker.value) void loadUser(picker.value);
+    else {
+      response = null;
+      roleFields.replaceChildren();
+      status.textContent = 'Select a user to configure administrator access.';
+      save.disabled = true;
+    }
+  });
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!response || !picker.value) return;
+    save.disabled = true;
+    status.textContent = 'Saving administrator access…';
+    const roles = [...roleInputs.entries()]
+      .filter(([, controls]) => controls.enabled.checked)
+      .map(([role, controls]) => ({
+        role,
+        modules: controls.moduleInputs.filter((input) => input.checked).map((input) => input.value),
+        all_tenants: controls.allTenants?.checked === true,
+      }));
+    try {
+      await api(`/users/${encodeURIComponent(picker.value)}/admin-access`, {
+        method: 'PUT',
+        body: JSON.stringify({ roles }),
+      });
+      await loadUser(picker.value);
+      status.textContent = 'Administrator access saved.';
+    } catch (error) {
+      status.textContent = `Could not save administrator access: ${error?.message ?? 'request failed'}`;
+      save.disabled = false;
+    }
+  });
+  save.disabled = true;
+  return section;
+}

@@ -5,6 +5,7 @@ import { assessMigrationReadiness, assertMigrationChecksum, migrationChecksum } 
 
 const insuranceGrants = readFileSync(new URL('../migrations/039_insurance_ledger_runtime_grants.sql', import.meta.url), 'utf8');
 const authSessions = readFileSync(new URL('../migrations/040_auth_sessions.sql', import.meta.url), 'utf8');
+const adminAccessModes = readFileSync(new URL('../migrations/115_admin_access_modes.sql', import.meta.url), 'utf8');
 const mfiComplaints = readFileSync(new URL('../migrations/043_mfi_customer_complaints.sql', import.meta.url), 'utf8');
 const mfiRiskFlags = readFileSync(new URL('../migrations/044_mfi_member_risk_controls.sql', import.meta.url), 'utf8');
 const mfiDailyLimits = readFileSync(new URL('../migrations/045_mfi_daily_disbursement_limits.sql', import.meta.url), 'utf8');
@@ -150,6 +151,20 @@ test('auth session storage is runtime-role scoped and records idle and absolute 
   assert.match(authSessions, /revoked_at timestamptz/);
   assert.match(authSessions, /REVOKE ALL ON TABLE auth_sessions FROM PUBLIC/);
   assert.match(authSessions, /GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE auth_sessions TO "\{\{role\}\}"/);
+});
+
+test('administrator access modes are session-scoped, Global-Admin-managed, and seeded for Dawit only', () => {
+  assert.match(adminAccessModes, /ALTER TABLE auth_sessions\s+ADD COLUMN active_role text/);
+  assert.match(adminAccessModes, /CREATE TABLE user_admin_role_grants/);
+  assert.match(adminAccessModes, /FORCE ROW LEVEL SECURITY/);
+  assert.match(adminAccessModes, /user_id=app_user_id\(\) OR current_setting\('app\.role',true\)='global_admin'/);
+  assert.match(adminAccessModes, /current_setting\('app\.role',true\)='global_admin'/);
+  assert.match(adminAccessModes, /CHECK \(NOT all_tenants OR role_name='super_admin'\)/);
+  assert.match(adminAccessModes, /7bbe3bee-ca90-490c-818e-0b6bcc75c02a/);
+  assert.match(adminAccessModes, /'global-bi'/);
+  assert.match(adminAccessModes, /INSERT INTO audit_logs/);
+  assert.match(adminAccessModes, /platform_tenant_admins/);
+  assert.match(adminAccessModes, /role_grant_managed boolean NOT NULL DEFAULT false/);
 });
 
 test('effective user access history captures role and activation changes and is append-only', () => {

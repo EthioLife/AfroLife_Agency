@@ -91,7 +91,10 @@ export function roleCanUseMiniApp(user: AuthUser, module: MiniAppKey): boolean {
 }
 
 export function hasMiniAppAccess(user: AuthUser, module: MiniAppKey): boolean {
-  return roleCanUseMiniApp(user, module)
+  const roleAllows = user.adminRoleModules
+    ? user.adminRoleModules.includes(module)
+    : roleCanUseMiniApp(user, module);
+  return roleAllows
     && (user.miniAppAccessMode !== 'custom' || user.miniAppGrants?.includes(module) === true);
 }
 
