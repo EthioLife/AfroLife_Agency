@@ -20,7 +20,7 @@
     "build:property-management": "tsc -p services/property-management/tsconfig.json",
     "build:marketplace": "tsc -p services/marketplace/tsconfig.json",
     "build:agency-domains": "npm run build:workforce-management && npm run build:staffing && npm run build:property-management && npm run build:marketplace",
-    "start": "node dist/src/bootstrap-uat-global-admin.js && node dist/src/aletcloud-bootstrap.js",
+    "start": "node dist/src/aletcloud-bootstrap.js",
     "start:insurance": "node dist/services/insurance-ledger/server.js",
     "start:accounting": "node dist/services/accounting/server.js",
     "start:accounting:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local-accounting.ps1",

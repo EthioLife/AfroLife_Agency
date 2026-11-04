@@ -28,9 +28,11 @@ type EscalationTarget = {
 
 export async function dispatchMaintenanceSlaEscalations(pool: Pool): Promise<number> {
   const systemActorId = (await pool.query<{ id: string }>(
-    `SELECT id FROM users WHERE active=true AND role='super_admin' ORDER BY id LIMIT 1`,
+    `SELECT id FROM users
+     WHERE active=true AND role IN ('super_admin','global_admin')
+     ORDER BY CASE role WHEN 'super_admin' THEN 0 ELSE 1 END,id LIMIT 1`,
   )).rows[0]?.id;
-  if (!systemActorId) throw new Error('Maintenance SLA escalation requires an active Super Admin system actor');
+  if (!systemActorId) throw new Error('Maintenance SLA escalation requires an active platform admin system actor');
 
   const client = await pool.connect();
   try {
@@ -42,7 +44,7 @@ export async function dispatchMaintenanceSlaEscalations(pool: Pool): Promise<num
       [systemActorId],
     );
     const activeActor = await client.query(
-      `SELECT id FROM users WHERE id=$1 AND active=true AND role='super_admin' FOR SHARE`,
+      `SELECT id FROM users WHERE id=$1 AND active=true AND role IN ('super_admin','global_admin') FOR SHARE`,
       [systemActorId],
     );
     if (!activeActor.rowCount) throw new Error('Maintenance SLA escalation system actor is no longer active');
