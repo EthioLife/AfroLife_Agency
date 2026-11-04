@@ -93,10 +93,11 @@ export async function bootstrapInitialUatGlobalAdmin(
 
     await client.query(
       `INSERT INTO audit_logs(actor_id,action,entity,entity_id,old_value,new_value)
-       VALUES($1,$2,'user',$1,$3,$4)`,
+       VALUES($1,$2,'user',$3,$4,$5)`,
       [
         config.targetUserId,
         BOOTSTRAP_ACTION,
+        config.targetUserId,
         JSON.stringify({ role: 'super_admin' }),
         JSON.stringify({
           role: 'global_admin',
