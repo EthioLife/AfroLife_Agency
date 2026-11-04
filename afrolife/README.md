@@ -28,6 +28,8 @@ Same-origin TypeScript/Express API and installable web app for AfroLife agency o
 
    To use an existing PostgreSQL instance instead, copy `.env.example` to `.env` and configure `DATABASE_URL` for the runtime role and `MIGRATION_DATABASE_URL` for a migration owner. Use distinct, randomly generated `JWT_SECRET` and `MFA_ENC_KEY` values of at least 32 characters. The runtime role must not own tables or have `BYPASSRLS`; apply schema changes with `npm run db:migrate`.
 
+   For an AletCloud release that must apply pending core migrations without running initial-administrator seeding, temporarily set `ALETCLOUD_BOOTSTRAP_DATABASE_URL` to the database provisioning URL and `ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY=1`, then deploy through the normal guarded startup. Verify `/readyz` reports all migrations current, then remove both temporary variables and redeploy. Never leave the provisioning URL in the running app configuration.
+
 3. Create the first administrator with environment variables; the password is read from the environment and is never printed:
 
    ```powershell

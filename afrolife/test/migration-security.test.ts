@@ -111,6 +111,10 @@ test('migration runners persist and enforce immutable SQL checksums', () => {
   assert.match(coreMigrator, /GRANT SELECT ON TABLE schema_migrations TO \$\{roleName\}/);
   assert.match(coreMigrator, /GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO \$\{roleName\}/);
   assert.match(aletcloudBootstrap, /async function seedFirstSuperAdmin[\s\S]*?await client\.query\('BEGIN'\)[\s\S]*?set_config\('app\.role', 'global_admin', true\)[\s\S]*?await client\.query\('COMMIT'\)/);
+  assert.match(aletcloudBootstrap, /ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY must be set to 1/);
+  assert.match(aletcloudBootstrap, /ALETCLOUD_BOOTSTRAP_DATABASE_URL is required for a migrations-only bootstrap/);
+  assert.match(aletcloudBootstrap, /migrationsOnly \? false : await seedFirstSuperAdmin/);
+  assert.match(aletcloudBootstrap, /delete migrationEnv\.ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY/);
   assert.match(aletcloudBootstrap, /runtime\.role\.slice\(0, 46\).*_afrolife_runtime/);
   assert.match(accountingMigrator, /ADD COLUMN IF NOT EXISTS checksum text/);
   assert.match(accountingMigrator, /INSERT INTO accounting_service_migrations\(version,checksum\)/);

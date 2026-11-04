@@ -146,6 +146,13 @@ async function seedFirstSuperAdmin(connectionString: string) {
 }
 
 const provisioningUrl = process.env.ALETCLOUD_BOOTSTRAP_DATABASE_URL;
+const migrationsOnly = process.env.ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY === '1';
+if (process.env.ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY !== undefined && !migrationsOnly) {
+  throw new Error('ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY must be set to 1 when provided.');
+}
+if (migrationsOnly && !provisioningUrl) {
+  throw new Error('ALETCLOUD_BOOTSTRAP_DATABASE_URL is required for a migrations-only bootstrap.');
+}
 if (provisioningUrl) {
   const runtimeUrl = process.env.DATABASE_URL;
   if (!runtimeUrl) throw new Error('DATABASE_URL must be set to the restricted runtime role.');
@@ -159,6 +166,7 @@ if (provisioningUrl) {
   process.env.DATABASE_URL = effectiveRuntimeUrl;
   const migrationEnv: NodeJS.ProcessEnv = { ...process.env, MIGRATION_DATABASE_URL: provisioningUrl };
   delete migrationEnv.ALETCLOUD_BOOTSTRAP_DATABASE_URL;
+  delete migrationEnv.ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY;
   delete migrationEnv.SEED_ADMIN_NAME;
   delete migrationEnv.SEED_ADMIN_PHONE;
   delete migrationEnv.SEED_ADMIN_PASSWORD;
@@ -175,9 +183,11 @@ if (provisioningUrl) {
     throw new Error(`Database migrations failed with exit code ${migration.status ?? 'unknown'}.`);
   }
 
-  const adminCreated = await seedFirstSuperAdmin(provisioningUrl);
+  const adminCreated = migrationsOnly ? false : await seedFirstSuperAdmin(provisioningUrl);
   if (adminCreated) console.log('Created the initial Super Admin; a password change is required at first sign-in.');
+  if (migrationsOnly) console.log('Completed AletCloud migrations-only bootstrap; administrator seeding was skipped.');
   delete process.env.ALETCLOUD_BOOTSTRAP_DATABASE_URL;
+  delete process.env.ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY;
   delete process.env.MIGRATION_DATABASE_URL;
   delete process.env.SEED_ADMIN_NAME;
   delete process.env.SEED_ADMIN_PHONE;
