@@ -1571,7 +1571,7 @@ async function loadPanelData(panel) {
         safeGet('/territories', []),
         state.user.role === 'global_admin' ? safeGet('/service-identities', []) : [],
         state.user.role === 'global_admin' ? safeGet('/readiness-evidence', []) : [],
-        isPlatformAdmin() ? safeGet('/global-admin-promotions', []) : [],
+        state.user.role === 'super_admin' ? safeGet('/global-admin-promotions', []) : [],
       ]);
       state.businessRules = state.user.role === 'global_admin' ? await safeGet('/business-rules', []) : [];
       state.roleAccess = state.user.role === 'global_admin' ? await safeGet('/role-access', null) : null;
@@ -4885,8 +4885,8 @@ function renderGlobalAdminPromotions() {
   const section = node('section', undefined, 'panel form-card');
   section.style.marginTop = '20px';
   section.append(node('h3', 'Global Admin role promotion'));
-  section.append(node('p', 'Promotion requires two different active, MFA-enabled platform administrators. Global Admin access does not bypass financial maker-checker approvals.'));
-  if (isPlatformAdmin()) {
+  section.append(node('p', 'Promotion requires two different active, MFA-enabled Super Admins. Global Admin access does not bypass financial maker-checker approvals.'));
+  if (state.user.role === 'super_admin') {
     const candidates = state.users.filter((user) =>
       user.id !== state.user.id && user.active && user.mfa_enabled && user.role === 'super_admin');
     if (candidates.length) {
@@ -4915,7 +4915,7 @@ function renderGlobalAdminPromotions() {
     for (const request of state.globalAdminPromotions) {
       const item = card(request.target_name, `${request.status} · Requested by ${request.requester_name} · ${request.created_at}`, request.status);
       if (request.approver_name) item.append(node('p', `Decision by ${request.approver_name}: ${request.decision_reason}`));
-      const canDecide = isPlatformAdmin()
+      const canDecide = state.user.role === 'super_admin'
         && request.status === 'pending'
         && request.requested_by !== state.user.id
         && request.target_user_id !== state.user.id;
@@ -5563,7 +5563,7 @@ function renderAdmin() {
   if (isGlobalAdmin) wrap.append(renderBusinessRules());
   if (isGlobalAdmin) wrap.append(renderPlatformControlPlane());
   if (isGlobalAdmin) wrap.append(renderTenantDataGovernance());
-  if (isAdmin) wrap.append(renderGlobalAdminPromotions());
+  if (state.user.role === 'super_admin') wrap.append(renderGlobalAdminPromotions());
   if (isGlobalAdmin) wrap.append(renderReadinessEvidence());
   if (isGlobalAdmin) {
     const identities = node('section', undefined, 'panel form-card');

@@ -38,6 +38,8 @@ Same-origin TypeScript/Express API and installable web app for AfroLife agency o
    Remove-Item Env:SEED_ADMIN_PASSWORD
    ```
 
+   To provision one additional platform administrator, use `npm run seed:platform-super-admin` with the runtime `DATABASE_URL` and the `SEED_PLATFORM_ADMIN_*` environment variables. Provide the UUID of an active, MFA-enabled Super Admin or Global Admin as `SEED_PLATFORM_ADMIN_ACTOR_ID`, plus the person's name, phone, a unique temporary password, and a reason. A database advisory lock and audit-event check enforce that this seed can run only once. The command creates an active Super Admin, forces a password change, and records an audit event; it does not grant Global Admin. The new administrator must enroll in MFA before requesting promotion through the existing two-person approval workflow. Never put passwords in source control or share them in chat, and clear the environment variables after use.
+
 4. Run `npm run dev`, then open `http://localhost:3010`.
 
 `http://localhost:3010` is the local browser entry point for the PWA and API.

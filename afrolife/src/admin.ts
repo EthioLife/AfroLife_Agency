@@ -35,6 +35,12 @@ const requirePlatformControlPlaneAdmin: RequestHandler = (req, _res, next) => {
   }
   return next();
 };
+const requireSuperAdminPromotionRole: RequestHandler = (req, _res, next) => {
+  if (req.user?.role !== 'super_admin') {
+    return next(new HttpError(403, 'Global Admin promotions require a Super Admin.'));
+  }
+  return next();
+};
 const PROVISIONABLE_ROLES = ['super_admin', 'corporate_business_manager', 'compliance', 'finance', 'finance_manager', 'master_agent', 'field_agent', 'customer', 'worker', 'property_owner', 'property_vendor'] as const;
 const PLATFORM_SERVICE_KEYS = [
   'agency', 'workforce', 'staffing', 'property', 'marketplace', 'accounting', 'insurance',
@@ -1584,10 +1590,8 @@ async function lockEligibleSuperAdmins(c: import('pg').PoolClient, userIds: stri
 
 const isEligibleSuperAdmin = (user?: { active: boolean; role: string; mfa_enabled: boolean }) =>
   user?.active === true && user.role === 'super_admin' && user.mfa_enabled === true;
-const isEligiblePlatformAdmin = (user?: { active: boolean; role: string; mfa_enabled: boolean }) =>
-  user?.active === true && ['super_admin', 'global_admin'].includes(user.role) && user.mfa_enabled === true;
 
-adminRouter.get('/global-admin-promotions', requireRole('global_admin', 'super_admin'), h(async (_req, res) => {
+adminRouter.get('/global-admin-promotions', requireSuperAdminPromotionRole, h(async (_req, res) => {
   const rows = await withUser(_req.user!, async (c) => (await c.query(
     `SELECT r.id, r.status, r.decision_reason, r.created_at, r.decided_at,
             target.id AS target_user_id, target.legal_name AS target_name, target.phone AS target_phone,
@@ -1602,13 +1606,13 @@ adminRouter.get('/global-admin-promotions', requireRole('global_admin', 'super_a
   res.json(rows);
 }));
 
-adminRouter.post('/global-admin-promotions', requireRole('global_admin', 'super_admin'), h(async (req, res) => {
+adminRouter.post('/global-admin-promotions', requireSuperAdminPromotionRole, h(async (req, res) => {
   const { target_user_id } = z.object({ target_user_id: z.string().uuid() }).strict().parse(req.body);
   const request = await withUser(req.user!, async (c) => {
     if (target_user_id === req.user!.id) throw new HttpError(422, 'A different administrator must nominate the target account');
     const eligible = await lockEligibleSuperAdmins(c, [req.user!.id, target_user_id]);
-    if (!isEligiblePlatformAdmin(eligible.get(req.user!.id))) {
-      throw new HttpError(403, 'Promotion requests require an active, MFA-enabled platform administrator.');
+    if (!isEligibleSuperAdmin(eligible.get(req.user!.id))) {
+      throw new HttpError(403, 'Promotion requests require an active, MFA-enabled Super Admin.');
     }
     const target = eligible.get(target_user_id);
     if (!isEligibleSuperAdmin(target)) {
@@ -1644,11 +1648,11 @@ async function decideGlobalAdminPromotion(req: Request, decision: 'approved' | '
       throw new HttpError(403, 'The requester and target cannot decide this promotion');
     }
     const eligible = await lockEligibleSuperAdmins(c, [req.user!.id, request.requested_by, request.target_user_id]);
-    if (!isEligiblePlatformAdmin(eligible.get(req.user!.id))) {
-      throw new HttpError(403, 'Promotion decisions require an active, MFA-enabled platform administrator.');
+    if (!isEligibleSuperAdmin(eligible.get(req.user!.id))) {
+      throw new HttpError(403, 'Promotion decisions require an active, MFA-enabled Super Admin.');
     }
-    if (!isEligiblePlatformAdmin(eligible.get(request.requested_by))) {
-      throw new HttpError(409, 'The requesting platform administrator is no longer eligible.');
+    if (!isEligibleSuperAdmin(eligible.get(request.requested_by))) {
+      throw new HttpError(409, 'The requesting Super Admin is no longer eligible.');
     }
     const target = eligible.get(request.target_user_id);
     if (!isEligibleSuperAdmin(target)) {
@@ -1672,12 +1676,12 @@ async function decideGlobalAdminPromotion(req: Request, decision: 'approved' | '
   return result;
 }
 
-adminRouter.post('/global-admin-promotions/:id/approve', requireRole('global_admin', 'super_admin'), h(async (req, res) => {
+adminRouter.post('/global-admin-promotions/:id/approve', requireSuperAdminPromotionRole, h(async (req, res) => {
   const { reason } = z.object({ reason: z.string().trim().min(10).max(1000) }).strict().parse(req.body);
   res.json(await decideGlobalAdminPromotion(req, 'approved', reason));
 }));
 
-adminRouter.post('/global-admin-promotions/:id/reject', requireRole('global_admin', 'super_admin'), h(async (req, res) => {
+adminRouter.post('/global-admin-promotions/:id/reject', requireSuperAdminPromotionRole, h(async (req, res) => {
   const { reason } = z.object({ reason: z.string().trim().min(10).max(1000) }).strict().parse(req.body);
   res.json(await decideGlobalAdminPromotion(req, 'rejected', reason));
 }));
