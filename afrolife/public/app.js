@@ -93,6 +93,19 @@ function roleLabel(role) {
   return t(labels[role] ?? role.replaceAll('_', ' '));
 }
 
+const ACCOUNT_ROLE_GROUPS = {
+  staff: ['corporate_business_manager', 'compliance', 'finance', 'finance_manager'],
+  agents: ['master_agent', 'field_agent'],
+  members: ['customer', 'worker', 'property_owner'],
+};
+
+function editableAccountRoles(user, actor) {
+  if (user.id === actor.id) return [];
+  if (actor.role === 'super_admin'
+    && (user.created_by !== actor.id || !ACCOUNT_ROLE_GROUPS.agents.includes(user.role))) return [];
+  return Object.values(ACCOUNT_ROLE_GROUPS).find((roles) => roles.includes(user.role)) ?? [];
+}
+
 function node(tag, text, className) {
   const item = document.createElement(tag);
   if (text !== undefined && text !== null) setLocalizedNodeText(item.appendChild(document.createTextNode('')), String(text));
@@ -5564,7 +5577,7 @@ function renderAdmin() {
   const isAdmin = isPlatformAdmin();
   const isGlobalAdmin = state.user.role === 'global_admin';
   const isBusinessManager=state.user.role==='corporate_business_manager';
-  const canProvisionAgents = isGlobalAdmin || state.user.role === 'super_admin' || isBusinessManager;
+  const canProvisionAgents = isGlobalAdmin || state.user.role === 'super_admin' || state.user.role === 'master_agent' || isBusinessManager;
   wrap.append(sectionHeading(isAdmin ? isGlobalAdmin ? 'Global System Administration' : 'Super Admin · Assigned entity management' : isBusinessManager ? 'Business manager workspace' : 'Compliance review', isAdmin ? isGlobalAdmin ? 'Configure platform services, packages, tenant boundaries, global identity, access, and operations.' : 'Manage only assigned business entities and the modules approved for them by the Global System Admin.' : isBusinessManager ? 'Manage business operations and review marketplace submissions.' : 'Review account verification before activation.'));
   if (isGlobalAdmin) {
     const delivery = node('section', undefined, 'panel form-card');
@@ -5665,12 +5678,14 @@ function renderAdmin() {
   if (canProvisionAgents) {
     const form = node('form', undefined, 'panel form-card inline-form');
     form.dataset.form = 'user';
-    const title = node('h3', isGlobalAdmin ? 'Create a platform account' : 'Onboard an agent'); title.className = 'span-2'; form.append(title);
+    const title = node('h3', isGlobalAdmin ? 'Create a platform account' : state.user.role === 'master_agent' ? 'Onboard a sub-agent' : 'Onboard an agent'); title.className = 'span-2'; form.append(title);
     form.append(field('Legal name', 'legal_name').label, field('Phone', 'phone', 'tel', true, { placeholder: '0911 234 567' }).label);
     const role = field('Role', 'role', 'select');
     const accountRoles = isGlobalAdmin
       ? [['super_admin','Super Admin'],['corporate_business_manager','Business Admin'],['master_agent','Master agent'],['field_agent','Field agent'],['compliance','Compliance'],['finance','Finance'],['finance_manager','Finance manager'],['customer','Customer'],['worker','Worker'],['property_owner','Property owner'],['property_vendor','Property vendor']]
-      : [['master_agent','Master agent'],['field_agent','Field agent']];
+      : state.user.role === 'master_agent'
+        ? [['field_agent','Sub-agent (Field agent)']]
+        : [['master_agent','Master agent'],['field_agent','Field agent']];
     for (const [value, label] of accountRoles) {
       const option = node('option', label); option.value = value; role.input.append(option);
     }
@@ -5695,7 +5710,12 @@ function renderAdmin() {
     form.append(agentPlan.label);
     const parent = field('Master agent (required for field agents)', 'parent_agent_id', 'select', false);
     const parentEmpty = node('option', 'Choose master agent'); parentEmpty.value = ''; parent.input.append(parentEmpty);
-    for (const user of state.users.filter((item) => item.role === 'master_agent' && item.active && (isGlobalAdmin || item.created_by === state.user.id))) { const option = node('option', user.legal_name); option.value = user.id; parent.input.append(option); }
+    if (state.user.role === 'master_agent') {
+      const option = node('option', state.user.legal_name); option.value = state.user.id; parent.input.append(option);
+      parent.input.value = state.user.id;
+    } else {
+      for (const user of state.users.filter((item) => item.role === 'master_agent' && item.active && (isGlobalAdmin || item.created_by === state.user.id))) { const option = node('option', user.legal_name); option.value = user.id; parent.input.append(option); }
+    }
     form.append(parent.label);
     form.append(field('Email', 'email', 'email', false).label);
     form.append(button('Create account', 'submit', 'button button-primary span-2'));
@@ -5721,6 +5741,48 @@ function renderAdmin() {
       user.household_cover_interest && 'Household cover requested',
     ].filter(Boolean).join(' · ');
     const item = card(user.legal_name, [signupDetails, requestedBenefits].filter(Boolean).join(' · '), user.active ? 'active' : user.kyc_status);
+    const editableRoles = editableAccountRoles(user, state.user);
+    if (editableRoles.length && isAdmin) {
+      const roleForm = node('form', undefined, 'inline-form user-role-edit');
+      roleForm.dataset.form = 'user-role';
+      roleForm.dataset.id = user.id;
+      const role = field('Account role', 'role', 'select');
+      for (const value of editableRoles) {
+        const option = node('option', roleLabel(value));
+        option.value = value;
+        role.input.append(option);
+      }
+      role.input.value = user.role;
+      roleForm.append(role.label);
+      if (editableRoles.includes('field_agent')) {
+        const parent = field('Active Master Agent in the same territory', 'parent_agent_id', 'select', false);
+        const emptyParent = node('option', 'Select Master Agent');
+        emptyParent.value = '';
+        parent.input.append(emptyParent);
+        for (const candidate of state.users.filter((candidate) =>
+          candidate.id !== user.id
+          && candidate.role === 'master_agent'
+          && candidate.active
+          && String(candidate.territory_id) === String(user.territory_id)
+          && (state.user.role !== 'super_admin' || candidate.created_by === state.user.id))) {
+          const option = node('option', candidate.legal_name);
+          option.value = candidate.id;
+          parent.input.append(option);
+        }
+        parent.input.value = user.parent_agent_id ?? '';
+        const updateParentVisibility = () => {
+          const needsParent = role.input.value === 'field_agent' && role.input.value !== user.role;
+          parent.label.hidden = !needsParent;
+          parent.input.required = needsParent;
+          parent.input.disabled = !needsParent;
+        };
+        role.input.addEventListener('change', updateParentVisibility);
+        updateParentVisibility();
+        roleForm.append(parent.label);
+      }
+      roleForm.append(button('Save role', 'submit', 'button button-primary span-2'));
+      item.append(roleForm);
+    }
     if (user.signup_account_type && ['global_admin', 'compliance'].includes(state.user.role)) {
       item.append(button(`KYC documents (${user.kyc_document_count ?? 0})`, 'user-documents', 'button button-outline', { id: user.id }));
     }
@@ -5732,7 +5794,7 @@ function renderAdmin() {
     if (isAdmin && user.active && user.id !== state.user.id) item.append(button('Deactivate', 'user-deactivate', 'button button-outline', { id: user.id }));
     users.append(item);
   }
-  if (isGlobalAdmin || isBusinessManager || state.user.role === 'compliance') columns.append(users);
+  if (isAdmin || isBusinessManager || state.user.role === 'compliance') columns.append(users);
   wrap.append(columns);
   if (isAdmin && state.summary) {
     const summary = node('section', undefined, 'panel form-card');
@@ -6549,6 +6611,21 @@ async function submitForm(form) {
     await loadMySubscriptions();
     renderSubscriptionCatalog();
     showAlert('Payment reference submitted for independent Finance review.');
+    return;
+  }
+  if (form.dataset.form === 'user-role') {
+    const body = { role: values.role };
+    if (values.parent_agent_id) body.parent_agent_id = values.parent_agent_id;
+    const result = await api(`/users/${encodeURIComponent(form.dataset.id)}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+    if (!result.changed) {
+      showAlert('The account already has this role.');
+      return;
+    }
+    await refresh();
+    showAlert('Account role saved.');
     return;
   }
   if (form.dataset.form === 'role-access') {
@@ -7484,11 +7561,32 @@ document.addEventListener('submit', (event) => {
   event.preventDefault();
   showAlert('');
   const submit = form.querySelector('button[type="submit"]');
-  if (submit) submit.disabled = true;
+  const saveFeedbackForms = new Set([
+    'user-role', 'role-access', 'business-rules', 'marketplace-config',
+    'platform-service-package', 'platform-service-package-update', 'platform-service',
+    'platform-tenant', 'platform-tenant-admin', 'platform-tenant-update',
+    'platform-catalog-product', 'platform-catalog-product-update',
+    'tenant-module-config', 'tenant-deployment-registration', 'platform-tenant-capabilities',
+  ]);
+  if (submit) {
+    submit.disabled = true;
+    if (saveFeedbackForms.has(form.dataset.form)) {
+      submit.dataset.idleLabel = submit.textContent;
+      submit.textContent = 'Saving…';
+      submit.setAttribute('aria-busy', 'true');
+    }
+  }
   submitForm(form)
     .catch((error) => showAlert(error.message, true))
     .finally(() => {
-      if (submit?.isConnected) submit.disabled = false;
+      if (submit?.isConnected) {
+        submit.disabled = false;
+        if (submit.dataset.idleLabel) {
+          submit.textContent = submit.dataset.idleLabel;
+          delete submit.dataset.idleLabel;
+          submit.removeAttribute('aria-busy');
+        }
+      }
     });
 });
 
