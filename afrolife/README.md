@@ -505,6 +505,15 @@ accurate privacy policy and App Store privacy disclosures for the data the
 deployed services actually collect; do not claim that the local mock data or a
 successful simulator build constitutes production or privacy approval.
 
+The `AfroLife iOS build` GitHub Actions workflow runs on relevant pushes and
+pull requests, or can be started manually from the repository's Actions tab.
+It builds an unsigned iOS Simulator app on a macOS runner and uploads
+`afrolife-ios-simulator` as a seven-day artifact. Download and unzip that
+artifact to use with an iOS Simulator; it cannot be installed on a physical
+iPhone or submitted to TestFlight. Device distribution still requires an Apple
+Developer account, signing certificate, provisioning profile, and a separately
+configured signed release workflow.
+
 For Windows Server self-hosting, see the deployment configuration and release
 gates in [PRODUCTION_HARDENING.md](./PRODUCTION_HARDENING.md). See
 [QUALITY_ASSURANCE.md](./QUALITY_ASSURANCE.md) for automated checks, staging
@@ -541,7 +550,7 @@ scenarios, launch evidence, and pilot operations.
 - `npm run test:ui:e2e:local` — headless Chrome smoke check for Super Admin login, SACCO forms, responsive layouts, and browser errors; requires local QA accounts and Chrome
 - `npm run test:integration` — run API/database tests against a running local instance
 - `npm run check:local-deployment` — check local WSL service state, loopback-only listeners, full `/readyz` status (database, migrations, storage, configured services), and whether the proxy serves the current checkout
-- GitHub Actions runs browser syntax/config checks, service builds, and unit tests on relevant pushes and pull requests. A macOS runner also syncs and builds the iOS app for the simulator without signing; device signing and App Store distribution still require Apple signing credentials and release review.
+- GitHub Actions runs browser syntax/config checks, service builds, and unit tests on relevant pushes and pull requests. Its macOS iOS workflow also uploads a versioned simulator app artifact; device signing and App Store distribution still require Apple signing credentials and release review.
 - `npm run android:add` — generate the Capacitor Android project
 - `npm run android:sync` — copy the web app into Android and sync native plugins
 - `npm run android:open` — open the Android project in Android Studio

@@ -42,6 +42,7 @@ try {
     if (process.env.MIGRATION_DATABASE_URL && name >= '098_support_case_access_hardening.sql') {
       await client.query('ALTER TABLE IF EXISTS public.support_cases NO FORCE ROW LEVEL SECURITY');
       await client.query('ALTER TABLE IF EXISTS public.support_case_access_requests NO FORCE ROW LEVEL SECURITY');
+      await client.query('ALTER TABLE IF EXISTS public.support_case_events NO FORCE ROW LEVEL SECURITY');
     }
     let sql = originalSql;
     if (sql.includes('"{{role}}"')) {
@@ -62,6 +63,14 @@ try {
       }
       throw error;
     }
+  }
+  if (appRole) {
+    const roleName = `"${appRole}"`;
+    await client.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${roleName}`);
+    await client.query(`REVOKE INSERT, UPDATE, DELETE ON TABLE schema_migrations FROM ${roleName}`);
+    await client.query(`GRANT SELECT ON TABLE schema_migrations TO ${roleName}`);
+    await client.query(`GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO ${roleName}`);
+    console.log(`Granted runtime table and sequence privileges to "${appRole}".`);
   }
 } finally {
   await client.end();

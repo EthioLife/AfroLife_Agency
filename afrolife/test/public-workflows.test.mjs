@@ -338,6 +338,35 @@ test('public signup actions open generic registration and allow returning to sig
   assert.match(html, /id="show-login"[^>]*>Already have an account\? Sign in<\/button>/);
 });
 
+test('hidden signup document-replacement controls do not block initial registration', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const followup = html.match(/<div id="signup-followup-form"[\s\S]*?<\/div>/)?.[0];
+  assert.ok(followup, 'the document replacement form should exist');
+  assert.doesNotMatch(followup, /\brequired\b/);
+  assert.match(app, /const needsReplacement = Boolean\(select\.options\.length\);[\s\S]*?select\.required = needsReplacement;[\s\S]*?#signup-followup-form \[name="file"\]'\)\.required = needsReplacement;/);
+  assert.match(app, /#signup-followup-form'\)\.hidden = true;[\s\S]*?select\.required = false;[\s\S]*?#signup-followup-form \[name="file"\]'\)\.required = false;/);
+});
+
+test('marketplace forms submit through the form handler without breaking click actions', () => {
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const submitStart = app.indexOf('async function submitForm(form) {');
+  const submitEnd = app.indexOf('\nasync function showCandidates', submitStart);
+  const clickStart = app.indexOf("document.addEventListener('click', async (event) => {");
+  const clickEnd = app.indexOf("$('#login-form')", clickStart);
+  assert.ok(submitStart >= 0 && submitEnd > submitStart, 'the form submit handler should be present');
+  assert.ok(clickStart >= 0 && clickEnd > clickStart, 'the delegated click handler should be present');
+  const submitHandler = app.slice(submitStart, submitEnd);
+  const clickHandler = app.slice(clickStart, clickEnd);
+  for (const formName of ['marketplace', 'marketplace-existing-media', 'marketplace-config']) {
+    assert.ok(submitHandler.includes(`form.dataset.form === '${formName}'`), `${formName} should be handled on submit`);
+  }
+  assert.match(submitHandler, /sessionStorage\.getItem\(TOKEN_KEY\)/);
+  assert.doesNotMatch(submitHandler, /state\.token/);
+  assert.doesNotMatch(clickHandler, /\bform\./);
+  assert.match(clickHandler, /name === 'user-documents'/);
+});
+
 test('agent signup accepts typed territory names and offers seeded Ethiopian regions', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
@@ -354,29 +383,24 @@ test('agent signup accepts typed territory names and offers seeded Ethiopian reg
   }
 });
 
-test('AfroLife sign-in uses the campaign logo and welcome artwork', () => {
+test('AfroSherik sign-in uses the supplied campaign and brand artwork', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
   const logo = readFileSync(new URL('../public/icon.svg', import.meta.url), 'utf8');
-  const hero = readFileSync(new URL('../public/brand/afrolife-campaign-hero.png', import.meta.url));
+  const lockup = readFileSync(new URL('../public/brand/afrosherik-brand-lockup.png', import.meta.url));
+  const hero = readFileSync(new URL('../public/brand/afrosherik-campaign-hero.png', import.meta.url));
   const pngDimensions = (image) => {
     assert.equal(image.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
     return [image.readUInt32BE(16), image.readUInt32BE(20)];
   };
-  assert.match(html, /<a class="brand" href="\/"[^>]*>\s*<img src="\/brand\/afrolife-brand-lockup\.svg" alt="" width="312" height="120">\s*<\/a>/);
-  assert.match(html, /<img src="\/brand\/afrolife-campaign-hero\.png" alt="A woman in Addis Ababa beside the campaign message: More Opportunities\. Stronger Communities\." width="488" height="232">/);
-  assert.match(logo, /<title[^>]*>AfroLife mark/);
-  assert.doesNotMatch(logo, /<rect\b[^>]*fill="#0B2D4A"/i);
-  const lockup = readFileSync(new URL('../public/brand/afrolife-brand-lockup.svg', import.meta.url), 'utf8');
-  assert.match(lockup, /viewBox="0 0 312 120"/);
-  assert.match(lockup, /#0B2D4A/);
-  assert.match(lockup, /ማህበረሰብ \+ አገልግሎት \+ እድል/);
-  assert.match(lockup, /font-size="17"/);
-  assert.doesNotMatch(lockup, /<rect\b/i);
-  assert.doesNotMatch(lockup, /አደል/);
-  assert.deepEqual(pngDimensions(hero), [488, 232]);
+  assert.match(html, /<a class="brand" href="\/"[^>]*>\s*<img src="\/brand\/afrosherik-brand-lockup\.png" alt="" width="490" height="152">\s*<\/a>/);
+  assert.match(html, /<img src="\/brand\/afrosherik-campaign-hero\.png" alt="AfroSherik campaign artwork showing a woman with a phone and the Addis Ababa skyline beside the message: More Opportunities\. Stronger Communities\." width="427" height="204">/);
+  assert.match(logo, /<title[^>]*>AfroSherik mark/);
+  assert.match(logo, /href="\/icons\/afrosherik-icon-512\.png"/);
+  assert.deepEqual(pngDimensions(lockup), [490, 152]);
+  assert.deepEqual(pngDimensions(hero), [427, 204]);
   assert.equal(existsSync(new URL('../public/brand/afrolife-woven-knot.svg', import.meta.url)), false);
-  assert.match(styles, /\.brand img\s*\{[^}]*width:\s*312px;[^}]*height:\s*120px;[^}]*object-fit:\s*contain/s);
+  assert.match(styles, /\.topbar \.brand img\s*\{[^}]*width:\s*clamp\(220px,\s*22vw,\s*270px\);[^}]*height:\s*auto;[^}]*max-height:\s*84px;/s);
   assert.match(styles, /@media \(max-width: 650px\) \{\s*\.topbar\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;[\s\S]*?\.brand img\s*\{[^}]*width:\s*min\(312px,\s*100%\);[^}]*height:\s*auto;/);
   assert.match(styles, /@media \(max-width: 920px\) and \(min-width: 651px\) \{\s*\.topbar\s*\{[^}]*grid-template-areas:\s*"brand language" "install account";/);
   assert.match(html, /class="welcome-signin-shortcut" href="#login-form">Sign in<\/a>/);
@@ -400,40 +424,53 @@ test('mobile sign-in places the campaign welcome before sign-in and signup forms
   assert.ok(loginView.indexOf('id="signup-form"') < loginView.indexOf('id="server-setup-home"'));
 });
 
-test('AfroLife icon is a textless brand mark with matching PWA icons and mini-app tokens', () => {
+test('AfroSherik icon uses the supplied mark with matching PWA icons and mini-app tokens', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const icon = readFileSync(new URL('../public/icon.svg', import.meta.url), 'utf8');
   const manifest = JSON.parse(readFileSync(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
-  assert.match(icon, /viewBox="0 0 256 256"/);
+  assert.match(icon, /viewBox="0 0 512 512"/);
   assert.doesNotMatch(icon, /<text\b/i);
-  for (const color of ['#0066FF', '#00B85A', '#FFB000']) assert.ok(icon.includes(color));
-  assert.doesNotMatch(icon, /<rect\b/i, 'the app mark must not include a background rectangle');
-  assert.match(html, /<link rel="icon" href="\/icon\.svg\?v=5" type="image\/svg\+xml">/);
-  assert.match(html, /<link rel="apple-touch-icon" href="\/icons\/afrolife-icon-192\.png">/);
+  assert.match(icon, /href="\/icons\/afrosherik-icon-512\.png"/);
+  assert.match(html, /<link rel="icon" href="\/icons\/afrosherik-icon-192\.png" type="image\/png" sizes="192x192">/);
+  assert.match(html, /<link rel="apple-touch-icon" href="\/icons\/afrosherik-icon-192\.png">/);
   assert.match(html, new RegExp(`<meta name="theme-color" content="${manifest.theme_color}">`));
-  assert.equal(manifest.theme_color, '#174b3d');
+  assert.equal(manifest.theme_color, '#0B4D3B');
   assert.deepEqual(manifest.icons.slice(0, 3).map(({ src, sizes }) => [src, sizes]), [
-    ['/icons/afrolife-icon-192.png', '192x192'],
-    ['/icons/afrolife-icon-256.png', '256x256'],
-    ['/icons/afrolife-icon-512.png', '512x512'],
+    ['/icons/afrosherik-icon-192.png', '192x192'],
+    ['/icons/afrosherik-icon-256.png', '256x256'],
+    ['/icons/afrosherik-icon-512.png', '512x512'],
   ]);
-  assert.match(styles, /--platform-blue:\s*#0066ff/i);
-  assert.match(styles, /--brand-green:\s*#174b3d/i);
-  assert.match(styles, /--green:\s*#174b3d/i);
-  assert.match(styles, /--growth-green:\s*#174b3d/i);
-  assert.match(styles, /--opportunity-yellow:\s*#d7ad59/i);
+  assert.match(styles, /:root\s*\{[^}]*--brand-green:\s*#0b4d3b/i);
+  assert.match(styles, /--brand-green:\s*#0b4d3b/i);
+  assert.match(styles, /--growth-green:\s*#16a34a/i);
+  assert.match(styles, /--opportunity-yellow:\s*#f4b400/i);
+  assert.match(styles, /--sunset-orange:\s*#f75c00/i);
+  assert.doesNotMatch(styles, /--(?:platform-blue|agent-purple|surface-blue|surface-purple)\b/i);
+  assert.doesNotMatch(styles, /#(?:0066ff|7c3aed|eff6ff|f5f3ff|e0e7ff|004dcc|5b21b6)\b/i);
+  assert.equal((styles.match(/:root\s*\{/g) ?? []).length, 1, 'shared design tokens should use the initial root declaration');
   assert.match(styles, /\[data-panel="agents"\]/);
+});
+
+test('public and signed-in shell labels use AfroSherik without replacing product-specific Edir wording', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  for (const label of [
+    'AFROSHERIK REGISTRATION',
+    'THE AFROSHERIK BRIEF · ETHIOPIA',
+    'AFROSHERIK OPERATIONS',
+  ]) assert.ok(html.includes(label), `expected visible brand label: ${label}`);
+  assert.doesNotMatch(html, /ETHIOLIFE REGISTRATION|THE AFROLIFE BRIEF · ETHIOPIA|ETHIOLIFE OPERATIONS/);
+  assert.match(html, /AfroLife Edir/);
 });
 
 test('public hub integrates the campaign artwork with the existing public actions', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
   const serviceWorker = readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8');
-  assert.match(html, /<section id="public-hub"[\s\S]*?<div class="hub-heading">[\s\S]*?<p class="eyebrow">PEOPLE · SERVICES · OPPORTUNITY<\/p>[\s\S]*?<h2>Services for work, homes, business, and community\.<\/h2>[\s\S]*?<figure class="hub-campaign">[\s\S]*?<div class="hub-service-network" role="img" aria-label="Work, homes, business, and community services connected through AfroLife">/);
+  assert.match(html, /<section id="public-hub"[\s\S]*?<div class="hub-heading">[\s\S]*?<p class="eyebrow">CONNECT · ACCESS · THRIVE<\/p>[\s\S]*?<h2>One platform for work, homes, business, and community\.<\/h2>[\s\S]*?<figure class="hub-campaign">[\s\S]*?<div class="hub-service-network" role="img" aria-label="Work, homes, business, and community services connected through AfroSherik">/);
   assert.match(html, /<a class="button button-primary" href="#login-form">Sign in<\/a>/);
   assert.match(html, /<button id="public-create-account" class="button button-outline" type="button">Create account<\/button>/);
-  assert.match(html, /<button class="button button-outline" type="button" data-install-pwa>Install AfroLife<\/button>/);
+  assert.match(html, /<button class="button button-outline" type="button" data-install-pwa>Install AfroSherik<\/button>/);
   assert.match(html, /class="hub-network-node hub-network-node--work"[^>]*>Work<\/span>/);
   assert.match(html, /class="hub-network-node hub-network-node--homes"[^>]*>Homes<\/span>/);
   assert.match(html, /class="hub-network-node hub-network-node--business"[^>]*>Business<\/span>/);
@@ -442,15 +479,17 @@ test('public hub integrates the campaign artwork with the existing public action
     assert.match(html, new RegExp(`<a class="service-card" data-panel="${panel}" href="#login-form">`));
   }
   assert.match(styles, /\.hub-heading\s*\{[^}]*linear-gradient\(125deg,\s*var\(--brand-green\)/s);
+  assert.doesNotMatch(styles, /\.hub-heading::before\s*\{[^}]*repeating-linear-gradient/i);
+  assert.doesNotMatch(styles, /\.hub-heading\s*\{[^}]*repeating-linear-gradient/i);
   assert.match(styles, /\.hub-service-network\s*\{[^}]*min-height:\s*232px;[^}]*border-radius:\s*13px;[^}]*background:/s);
   assert.match(styles, /@media \(max-width: 700px\) \{[\s\S]*?\.hub-service-network \{ min-height: 220px; \}/);
   assert.match(styles, /\.hub-heading \{ grid-template-columns: minmax\(0, 1fr\); gap:/);
   assert.match(styles, /#public-hub \.service-card\[data-panel\] \.service-icon\s*\{[^}]*background:\s*var\(--mini-app-tint\);[^}]*color:\s*var\(--mini-app-ink/s);
-  assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v34'/);
+  assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v35'/);
   assert.match(serviceWorker, /'\/tenant-data-admin\.js'/);
   for (const asset of [
-    '/icons/afrolife-icon-192.png', '/icons/afrolife-icon-256.png', '/icons/afrolife-icon-512.png',
-    '/brand/afrolife-brand-lockup.svg', '/brand/afrolife-campaign-hero.png',
+    '/icons/afrosherik-icon-192.png', '/icons/afrosherik-icon-256.png', '/icons/afrosherik-icon-512.png',
+    '/brand/afrosherik-brand-lockup.png', '/brand/afrosherik-campaign-hero.png',
   ]) assert.ok(serviceWorker.includes(`'${asset}'`), `service worker should cache ${asset}`);
 });
 
@@ -468,16 +507,15 @@ test('public landing page does not repeat raster artwork across visible image el
   const repeatedSources = [...new Set(imageSources.filter((source, index) => imageSources.indexOf(source) !== index))];
 
   assert.deepEqual(repeatedSources, []);
-  assert.equal(imageSources.filter((source) => source === '/brand/afrolife-campaign-hero.png').length, 1);
+  assert.equal(imageSources.filter((source) => source === '/brand/afrosherik-campaign-hero.png').length, 1);
 });
 
-test('public subscription catalog has only the eight approved ETB 1,000 services', () => {
+test('public subscription catalog includes the nine approved ETB 1,000 services', () => {
   assert.deepEqual(PUBLIC_SUBSCRIPTION_SERVICES.map(({ key }) => key), [
-    'property_management', 'workforce_management', 'super_agent', 'edir',
-    'insurance_brokerage', 'agent', 'landlord', 'seller',
+    'accounting', 'property_management', 'workforce_management', 'super_agent',
+    'edir', 'insurance_brokerage', 'agent', 'landlord', 'seller',
   ]);
   assert.ok(PUBLIC_SUBSCRIPTION_SERVICES.every(({ monthlyEtb }) => monthlyEtb === 1000));
-  assert.equal(PUBLIC_SUBSCRIPTION_SERVICES.some(({ key }) => key === 'accounting'), false);
   assert.deepEqual(
     normalizeSubscriptionCatalog({ services: PUBLIC_SUBSCRIPTION_SERVICES }).map(({ key }) => key),
     PUBLIC_SUBSCRIPTION_SERVICES.map(({ key }) => key),

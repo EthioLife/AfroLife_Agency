@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { enabledWorkspaceModules, loadRuntimeConfig, sessionIdleTimeoutMinutes, WORKSPACE_MODULES } from '../src/runtime-config.js';
+import { enabledWorkspaceModules, loadRuntimeConfig, privateObjectStorageConfig, sessionIdleTimeoutMinutes, WORKSPACE_MODULES } from '../src/runtime-config.js';
 
 const safeProductionEnvironment = {
   NODE_ENV: 'production',
@@ -123,7 +123,7 @@ test('production blocks legacy immediate lease activation unless explicitly enab
   assert.equal(loadRuntimeConfig({ NODE_ENV: 'test' }).legacyImmediateLeasesEnabled, true);
 });
 
-test('production requires separate financial service gateways and blocks in-process fallbacks', () => {
+test('production requires separate MFI service gateways when its pilot is enabled', () => {
   assert.throws(
     () => loadRuntimeConfig({ ...safeProductionEnvironment, MFI_PILOT_ENABLED: '1', MFI_SERVICE_URL: undefined }),
     /MFI_SERVICE_URL must be configured/,
@@ -133,15 +133,37 @@ test('production requires separate financial service gateways and blocks in-proc
     /MFI_GATEWAY_SECRET must be a unique/,
   );
   assert.throws(
-    () => loadRuntimeConfig({ ...safeProductionEnvironment, INSURANCE_SERVICE_URL: undefined }),
-    /INSURANCE_SERVICE_URL is required/,
-  );
-  assert.throws(
     () => loadRuntimeConfig({ ...safeProductionEnvironment, INSURANCE_SERVICE_CUTOVER_READY: '0' }),
     /INSURANCE_SERVICE_CUTOVER_READY=1 is required/,
   );
   assert.throws(
     () => loadRuntimeConfig({ ...safeProductionEnvironment, INSURANCE_GATEWAY_SECRET: undefined }),
+    /INSURANCE_GATEWAY_SECRET must be a unique/,
+  );
+});
+
+test('production keeps Insurance off until an approved service cutover is configured', () => {
+  const disabled = loadRuntimeConfig({
+    ...safeProductionEnvironment,
+    INSURANCE_SERVICE_URL: undefined,
+    INSURANCE_GATEWAY_SECRET: undefined,
+    INSURANCE_SERVICE_CUTOVER_READY: '0',
+  });
+  assert.equal(disabled.isProduction, true);
+
+  assert.throws(
+    () => loadRuntimeConfig({
+      ...safeProductionEnvironment,
+      INSURANCE_SERVICE_URL: undefined,
+      INSURANCE_SERVICE_CUTOVER_READY: '1',
+    }),
+    /INSURANCE_SERVICE_URL is required/,
+  );
+  assert.throws(
+    () => loadRuntimeConfig({
+      ...safeProductionEnvironment,
+      INSURANCE_GATEWAY_SECRET: undefined,
+    }),
     /INSURANCE_GATEWAY_SECRET must be a unique/,
   );
 });
@@ -168,6 +190,28 @@ test('production configuration requires TLS for remote PostgreSQL and private st
   );
 });
 
+test('production accepts complete private S3 storage and rejects incomplete or insecure configuration', () => {
+  const objectStorageEnvironment = {
+    ...safeProductionEnvironment,
+    FILE_STORAGE_DIR: undefined,
+    S3_BUCKET: 't978-afrolife-private-files',
+    S3_ENDPOINT: 'https://s3.aletcloud.com',
+    AWS_REGION: 'et-addis-1',
+    AWS_ACCESS_KEY_ID: 'test-access-key',
+    AWS_SECRET_ACCESS_KEY: 'test-secret-key',
+  };
+  assert.doesNotThrow(() => loadRuntimeConfig(objectStorageEnvironment));
+  assert.equal(privateObjectStorageConfig(objectStorageEnvironment)?.bucket, 't978-afrolife-private-files');
+  assert.throws(
+    () => loadRuntimeConfig({ ...objectStorageEnvironment, AWS_SECRET_ACCESS_KEY: undefined }),
+    /requires a bucket, endpoint, access key, and secret key/,
+  );
+  assert.throws(
+    () => loadRuntimeConfig({ ...objectStorageEnvironment, S3_ENDPOINT: 'http://s3.aletcloud.com' }),
+    /must use HTTPS in production/,
+  );
+});
+
 test('production configuration rejects unsafe origins and proxy trust', () => {
   assert.throws(() => loadRuntimeConfig({ ...safeProductionEnvironment, CORS_ORIGINS: '*' }), /exact HTTPS origins/);
   assert.throws(() => loadRuntimeConfig({ ...safeProductionEnvironment, CORS_ORIGINS: 'https://agency.example.org' }), /non-placeholder HTTPS origins/);
@@ -185,9 +229,12 @@ test('Insurance service routing requires an explicit cutover-readiness attestati
     }),
     /INSURANCE_SERVICE_CUTOVER_READY=1/,
   );
-  assert.throws(
-    () => loadRuntimeConfig({ ...safeProductionEnvironment, INSURANCE_SERVICE_URL: undefined }),
-    /INSURANCE_SERVICE_URL is required/,
+  assert.doesNotThrow(
+    () => loadRuntimeConfig({
+      ...safeProductionEnvironment,
+      INSURANCE_SERVICE_URL: undefined,
+      INSURANCE_SERVICE_CUTOVER_READY: '0',
+    }),
   );
   assert.throws(
     () => loadRuntimeConfig({ ...safeProductionEnvironment, INSURANCE_SERVICE_URL: serviceUrl, INSURANCE_SERVICE_CUTOVER_READY: 'yes' }),

@@ -737,11 +737,16 @@ async function loadSignupFollowup() {
         select.append(option);
       }
     }
-    $('#signup-followup-form').hidden = !select.options.length;
+    const needsReplacement = Boolean(select.options.length);
+    $('#signup-followup-form').hidden = !needsReplacement;
+    select.required = needsReplacement;
+    $('#signup-followup-form [name="file"]').required = needsReplacement;
     if (!select.options.length) list.append(node('p', 'All required documents are received. Compliance will review them before account activation.', 'muted'));
   } catch (error) {
     list.append(empty(error.message));
     $('#signup-followup-form').hidden = true;
+    select.required = false;
+    $('#signup-followup-form [name="file"]').required = false;
   }
 }
 
@@ -6955,6 +6960,101 @@ async function submitForm(form) {
     showAlert('Global Admin promotion request submitted for independent review.');
     return;
   }
+  if (form.dataset.form === 'marketplace') {
+    const token = sessionStorage.getItem(TOKEN_KEY);
+    if (!token) throw new Error('Your session expired. Sign in again before uploading listing media.');
+    const files = [...form.querySelector('input[name="media"]').files];
+    if (!files.length) throw new Error('Add at least one photo before posting this listing.');
+    const payload = marketplaceListingPayload(values);
+    const listing = await api('/marketplace/listings', { method: 'POST', body: JSON.stringify(payload) });
+    for (const file of files) {
+      const qs = new URLSearchParams();
+      const response = await fetch(`${apiRoot()}/marketplace/listings/${listing.id}/media/upload?${qs}`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': file.type },
+        body: file,
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.error ?? `Media upload failed (${response.status})`);
+    }
+    await api(`/marketplace/listings/${listing.id}/submit`, { method: 'POST', body: '{}' });
+    await refresh();
+    showAlert('Listing submitted. It will appear to buyers after any required review.');
+    return;
+  }
+  if (form.dataset.form === 'marketplace-existing-media') {
+    const token = sessionStorage.getItem(TOKEN_KEY);
+    if (!token) throw new Error('Your session expired. Sign in again before uploading listing media.');
+    const files = [...form.querySelector('input[name="media"]').files];
+    if (!files.length) throw new Error('Choose at least one file.');
+    for (const file of files) {
+      const response = await fetch(`${apiRoot()}/marketplace/listings/${form.dataset.listing}/media/upload`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': file.type },
+        body: file,
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.error ?? `Upload failed (${response.status})`);
+    }
+    await api(`/marketplace/listings/${form.dataset.listing}/submit`, { method: 'POST', body: '{}' });
+    await refresh();
+    showAlert('Listing submitted for publication review.');
+    return;
+  }
+  if (form.dataset.form === 'marketplace-config') {
+    const valuesToSave = [];
+    const enabled = ['products', 'services', 'equipment', 'properties']
+      .filter((key) => form.elements.namedItem(`domain:${key}`)?.checked);
+    if (enabled.length) valuesToSave.push({ scope: 'system', key: 'enabled_domains', value: enabled });
+    const categories = (scope) => form.elements.namedItem(`${scope}_categories`).value
+      .split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
+        const [key, ...rest] = line.split('|');
+        return { key: key.trim().toLowerCase().replaceAll(' ', '_'), label: rest.join('|').trim(), enabled: true };
+      });
+    for (const scope of ['products', 'services']) valuesToSave.push({ scope, key: 'categories', value: categories(scope) });
+    const property_types = form.elements.namedItem('property_types').value
+      .split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
+        const [key, ...rest] = line.split('|');
+        return { key: key.trim(), label: rest.join('|').trim(), enabled: true };
+      });
+    const periods = form.elements.namedItem('rental_periods').value
+      .split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
+        const [key, ...rest] = line.split('|');
+        return { key: key.trim(), label: rest.join('|').trim(), enabled: true };
+      });
+    valuesToSave.push(
+      { scope: 'properties', key: 'property_types', value: property_types },
+      { scope: 'rentals', key: 'periods', value: periods },
+    );
+    if (state.user.role === 'global_admin') {
+      valuesToSave.push({ scope: 'system', key: 'moderation_required', value: form.elements.namedItem('moderation_required').checked });
+      valuesToSave.push({ scope: 'system', key: 'image_max_bytes', value: Math.round(number(form.elements.namedItem('image_max_mb').value) * 1048576) });
+      valuesToSave.push({ scope: 'system', key: 'video_max_bytes', value: Math.round(number(form.elements.namedItem('video_max_mb').value) * 1048576) });
+      valuesToSave.push({ scope: 'system', key: 'max_media_per_listing', value: number(form.elements.namedItem('max_media_per_listing').value) });
+      const account_types = (state.marketplaceConfig.users?.account_types ?? [])
+        .map((account) => ({ ...account, enabled: form.elements.namedItem(`account:${account.key}`).checked }));
+      valuesToSave.push({ scope: 'users', key: 'account_types', value: account_types });
+      const kyc_requirements = {};
+      for (const role of ['worker', 'customer', 'agent', 'property_owner']) {
+        kyc_requirements[role] = ['national_id', 'police_clearance']
+          .filter((doc) => form.elements.namedItem(`kyc:${role}:${doc}`).checked);
+      }
+      kyc_requirements.property_vendor = ['national_id'];
+      valuesToSave.push({ scope: 'users', key: 'kyc_requirements', value: kyc_requirements });
+    }
+    if (!enabled.length) throw new Error('Enable at least one marketplace domain.');
+    if (valuesToSave.some((entry) => entry.scope === 'products' || entry.scope === 'services')
+      && valuesToSave.filter((entry) => ['products', 'services'].includes(entry.scope)).some((entry) => !entry.value.length)) {
+      throw new Error('Keep at least one category in each catalog.');
+    }
+    state.marketplaceConfig = await api('/marketplace/config', {
+      method: 'PATCH',
+      body: JSON.stringify({ values: valuesToSave }),
+    });
+    await refresh();
+    showAlert('Marketplace configuration saved.');
+    return;
+  }
   form.reset();
   await refresh();
   showAlert('Saved successfully.');
@@ -7976,43 +8076,6 @@ document.addEventListener('click', async (event) => {
       await refresh(); showAlert(action.dataset.stage === 'party_signed' ? 'Party-signed contract uploaded for company countersignature.' : 'Company-countersigned contract uploaded. Review it, then complete the signature step.');
     } catch (error) { showAlert(error.message, true); }
     return;
-  }
-  if (form.dataset.form === 'marketplace') {
-    const files=[...form.querySelector('input[name="media"]').files];
-    if(!files.length) throw new Error('Add at least one photo before posting this listing.');
-    const payload=marketplaceListingPayload(values);
-    const listing=await api('/marketplace/listings',{method:'POST',body:JSON.stringify(payload)});
-    for(const file of files){const qs=new URLSearchParams();const response=await fetch(`${apiRoot()}/marketplace/listings/${listing.id}/media/upload?${qs}`,{method:'POST',headers:{authorization:`Bearer ${sessionStorage.getItem(TOKEN_KEY)}`,'content-type':file.type},body:file});const result=await response.json().catch(()=>null);if(!response.ok) throw new Error(result?.error??`Media upload failed (${response.status})`);}
-    await api(`/marketplace/listings/${listing.id}/submit`,{method:'POST',body:'{}'});
-    await refresh();showAlert('Listing submitted. It will appear to buyers after any required review.');return;
-  }
-  if(form.dataset.form==='marketplace-existing-media'){
-    const files=[...form.querySelector('input[name="media"]').files];if(!files.length)throw new Error('Choose at least one file.');
-    for(const file of files){const response=await fetch(`${apiRoot()}/marketplace/listings/${form.dataset.listing}/media/upload`,{method:'POST',headers:{authorization:`Bearer ${sessionStorage.getItem(TOKEN_KEY)}`,'content-type':file.type},body:file});const result=await response.json().catch(()=>null);if(!response.ok)throw new Error(result?.error??`Upload failed (${response.status})`);}
-    await api(`/marketplace/listings/${form.dataset.listing}/submit`,{method:'POST',body:'{}'});await refresh();showAlert('Listing submitted for publication review.');return;
-  }
-  if(form.dataset.form==='marketplace-config'){
-    const valuesToSave=[];const enabled=['products','services','equipment','properties'].filter((key)=>form.elements.namedItem(`domain:${key}`)?.checked);
-    if(enabled.length) valuesToSave.push({scope:'system',key:'enabled_domains',value:enabled});
-    const categories=(scope)=>form.elements.namedItem(`${scope}_categories`).value.split('\n').map((line)=>line.trim()).filter(Boolean).map((line)=>{const [key,...rest]=line.split('|');return {key:key.trim().toLowerCase().replaceAll(' ','_'),label:rest.join('|').trim(),enabled:true};});
-    for(const scope of ['products','services']) valuesToSave.push({scope,key:'categories',value:categories(scope)});
-    const property_types=form.elements.namedItem('property_types').value.split('\n').map((line)=>line.trim()).filter(Boolean).map((line)=>{const [key,...rest]=line.split('|');return {key:key.trim(),label:rest.join('|').trim(),enabled:true};});
-    const periods=form.elements.namedItem('rental_periods').value.split('\n').map((line)=>line.trim()).filter(Boolean).map((line)=>{const [key,...rest]=line.split('|');return {key:key.trim(),label:rest.join('|').trim(),enabled:true};});
-    valuesToSave.push({scope:'properties',key:'property_types',value:property_types},{scope:'rentals',key:'periods',value:periods});
-    if(state.user.role==='global_admin'){
-      valuesToSave.push({scope:'system',key:'moderation_required',value:form.elements.namedItem('moderation_required').checked});
-      valuesToSave.push({scope:'system',key:'image_max_bytes',value:Math.round(number(form.elements.namedItem('image_max_mb').value)*1048576)});
-      valuesToSave.push({scope:'system',key:'video_max_bytes',value:Math.round(number(form.elements.namedItem('video_max_mb').value)*1048576)});
-      valuesToSave.push({scope:'system',key:'max_media_per_listing',value:number(form.elements.namedItem('max_media_per_listing').value)});
-      const account_types=(state.marketplaceConfig.users?.account_types??[]).map((account)=>({...account,enabled:form.elements.namedItem(`account:${account.key}`).checked}));
-      valuesToSave.push({scope:'users',key:'account_types',value:account_types});
-      const kyc_requirements={};for(const role of ['worker','customer','agent','property_owner'])kyc_requirements[role]=['national_id','police_clearance'].filter((doc)=>form.elements.namedItem(`kyc:${role}:${doc}`).checked);kyc_requirements.property_vendor=['national_id'];
-      valuesToSave.push({scope:'users',key:'kyc_requirements',value:kyc_requirements});
-    }
-    if(!enabled.length) throw new Error('Enable at least one marketplace domain.');
-    if(valuesToSave.some((entry)=>entry.scope==='products'||entry.scope==='services')&&valuesToSave.filter((entry)=>['products','services'].includes(entry.scope)).some((entry)=>!entry.value.length)) throw new Error('Keep at least one category in each catalog.');
-    state.marketplaceConfig=await api('/marketplace/config',{method:'PATCH',body:JSON.stringify({values:valuesToSave})});
-    await refresh();showAlert('Marketplace configuration saved.');return;
   }
   if (name === 'contract-document-download') {
     try {

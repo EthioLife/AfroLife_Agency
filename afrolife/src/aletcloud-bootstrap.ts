@@ -124,10 +124,15 @@ async function seedFirstSuperAdmin(connectionString: string) {
   const client = new pg.Client({ connectionString });
   await client.connect();
   try {
+    await client.query('BEGIN');
+    await client.query("SELECT set_config('app.role', 'global_admin', true)");
     const exists = await client.query<{ exists: boolean }>(
       `SELECT EXISTS (SELECT 1 FROM users WHERE role='super_admin') AS exists`,
     );
-    if (exists.rows[0].exists) return false;
+    if (exists.rows[0].exists) {
+      await client.query('COMMIT');
+      return false;
+    }
     const name = process.env.SEED_ADMIN_NAME?.trim();
     const phone = normalizePhone(process.env.SEED_ADMIN_PHONE ?? '');
     const password = process.env.SEED_ADMIN_PASSWORD ?? '';
@@ -139,6 +144,7 @@ async function seedFirstSuperAdmin(connectionString: string) {
        VALUES ($1,$2,'super_admin','verified',true,$3,true)`,
       [name, phone, await bcrypt.hash(password, 12)],
     );
+    await client.query('COMMIT');
     return true;
   } finally {
     await client.end();

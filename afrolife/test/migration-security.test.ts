@@ -52,6 +52,7 @@ const globalAdminPropertyAuthorityReview = readFileSync(new URL('../migrations/1
 const maintenanceSlaEscalationIndex = readFileSync(new URL('../migrations/109_maintenance_sla_escalation_index.sql', import.meta.url), 'utf8');
 const workforceOffboardingSerialization = readFileSync(new URL('../migrations/110_workforce_offboarding_serialization.sql', import.meta.url), 'utf8');
 const workforcePropertySupportAssistant = readFileSync(new URL('../migrations/113_workforce_property_support_assistant.sql', import.meta.url), 'utf8');
+const propertyResidentRlsRecursionFix = readFileSync(new URL('../migrations/114_property_resident_rls_recursion_fix.sql', import.meta.url), 'utf8');
 const marketplaceRouter = readFileSync(new URL('../services/marketplace/router.ts', import.meta.url), 'utf8');
 const propertyManagementRouter = readFileSync(new URL('../services/property-management/router.ts', import.meta.url), 'utf8');
 const propertyVendorPortal = readFileSync(new URL('../src/property-vendor-portal.ts', import.meta.url), 'utf8');
@@ -103,6 +104,12 @@ test('migration runners persist and enforce immutable SQL checksums', () => {
   assert.match(coreMigrator, /set_config\('app\.role', 'global_admin', false\)/);
   assert.match(coreMigrator, /MIGRATION_DATABASE_URL[\s\S]*ALTER TABLE IF EXISTS public\.support_cases NO FORCE ROW LEVEL SECURITY/);
   assert.match(coreMigrator, /ALTER TABLE IF EXISTS public\.support_case_access_requests NO FORCE ROW LEVEL SECURITY/);
+  assert.match(coreMigrator, /ALTER TABLE IF EXISTS public\.support_case_events NO FORCE ROW LEVEL SECURITY/);
+  assert.match(coreMigrator, /GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO \$\{roleName\}/);
+  assert.match(coreMigrator, /REVOKE INSERT, UPDATE, DELETE ON TABLE schema_migrations FROM \$\{roleName\}/);
+  assert.match(coreMigrator, /GRANT SELECT ON TABLE schema_migrations TO \$\{roleName\}/);
+  assert.match(coreMigrator, /GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO \$\{roleName\}/);
+  assert.match(aletcloudBootstrap, /async function seedFirstSuperAdmin[\s\S]*?await client\.query\('BEGIN'\)[\s\S]*?set_config\('app\.role', 'global_admin', true\)[\s\S]*?await client\.query\('COMMIT'\)/);
   assert.match(aletcloudBootstrap, /runtime\.role\.slice\(0, 46\).*_afrolife_runtime/);
   assert.match(accountingMigrator, /ADD COLUMN IF NOT EXISTS checksum text/);
   assert.match(accountingMigrator, /INSERT INTO accounting_service_migrations\(version,checksum\)/);
@@ -455,6 +462,7 @@ test('support cases preserve urgent escalation, independent access approval, and
 test('WPSA conversations isolate transcripts to owners and claimed support agents', () => {
   assert.match(workforcePropertySupportAssistant,/CREATE TABLE assistant_conversations/);
   assert.match(workforcePropertySupportAssistant,/CREATE TABLE assistant_messages/);
+  assert.match(workforcePropertySupportAssistant,/ALTER TABLE assistant_conversations NO FORCE ROW LEVEL SECURITY/);
   assert.match(workforcePropertySupportAssistant,/CREATE POLICY assistant_conversations_owner_read/);
   assert.match(workforcePropertySupportAssistant,/assigned_to=app_user_id\(\)[\s\S]*?app_role\(\) IN \('global_admin','super_admin','compliance','corporate_business_manager'\)/);
   assert.match(workforcePropertySupportAssistant,/CREATE POLICY assistant_messages_authorized_read/);
@@ -598,6 +606,17 @@ test('resident lease self-service requires a one-time claim and scopes property,
   assert.match(publicApp,/resident-access-claim/);
   assert.match(publicApp,/resident-maintenance/);
   assert.match(publicApp,/Issue one-time resident access code/);
+});
+
+test('resident property visibility avoids recursive property-unit row security evaluation', () => {
+  assert.match(propertyResidentRlsRecursionFix,/CREATE OR REPLACE FUNCTION app_resident_has_active_lease_on_property\(target_property_id uuid\)/);
+  assert.match(propertyResidentRlsRecursionFix,/SECURITY DEFINER\s+SET search_path = public, pg_temp\s+SET row_security = off/);
+  assert.match(propertyResidentRlsRecursionFix,/JOIN property_units unit ON unit\.id = lease\.unit_id/);
+  assert.match(propertyResidentRlsRecursionFix,/link\.user_id = app_user_id\(\)[\s\S]*link\.revoked_at IS NULL[\s\S]*lease\.status = 'active'/);
+  assert.match(propertyResidentRlsRecursionFix,/REVOKE ALL ON FUNCTION app_resident_has_active_lease_on_property\(uuid\) FROM PUBLIC/);
+  assert.match(propertyResidentRlsRecursionFix,/GRANT EXECUTE ON FUNCTION app_resident_has_active_lease_on_property\(uuid\) TO "\{\{role\}\}"/);
+  assert.match(propertyResidentRlsRecursionFix,/DROP POLICY properties_linked_resident_read ON properties/);
+  assert.match(propertyResidentRlsRecursionFix,/USING \(app_resident_has_active_lease_on_property\(id\)\)/);
 });
 
 test('property publication requires independent owner-authority review and scanned evidence', () => {

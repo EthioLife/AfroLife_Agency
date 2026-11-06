@@ -1,9 +1,9 @@
-const CACHE = 'afrolife-shell-v34';
-const SHELL = ['/', '/styles.css', '/financial-workspaces.css', '/app.js', '/api-errors.js', '/mfi.js', '/accounting.js', '/accounting-dashboard.js', '/accounting-operations.js', '/global-bi.js', '/tenant-data-admin.js', '/mini-app-access.js', '/edir.js', '/privacy.js', '/i18n.js', '/workspace-navigation.js', '/workspace-search.js', '/manifest.webmanifest', '/icon.svg', '/icons/afrolife-icon-192.png', '/icons/afrolife-icon-256.png', '/icons/afrolife-icon-512.png', '/brand/afrolife-brand-lockup.svg', '/brand/afrolife-campaign-hero.png',
+const CACHE = 'afrolife-shell-v35';
+const SHELL = ['/', '/styles.css', '/financial-workspaces.css', '/app.js', '/api-errors.js', '/mfi.js', '/accounting.js', '/accounting-dashboard.js', '/accounting-operations.js', '/global-bi.js', '/tenant-data-admin.js', '/mini-app-access.js', '/edir.js', '/privacy.js', '/i18n.js', '/workspace-navigation.js', '/workspace-search.js', '/manifest.webmanifest', '/icon.svg', '/icons/afrosherik-icon-192.png', '/icons/afrosherik-icon-256.png', '/icons/afrosherik-icon-512.png', '/brand/afrosherik-brand-lockup.png', '/brand/afrosherik-campaign-hero.png',
   '/mini-apps/registry.js', '/mini-apps/accounting/manifest.js', '/mini-apps/workforce-management/manifest.js', '/mini-apps/staffing/manifest.js', '/mini-apps/property-management/manifest.js', '/mini-apps/marketplace/manifest.js',
   '/mini-apps/marketplace/logo.svg', '/mini-apps/property-management/logo.svg', '/mini-apps/staffing/logo.svg', '/mini-apps/workforce-management/logo.svg',
   '/mini-apps/leads/logo.svg', '/mini-apps/contracts/logo.svg', '/mini-apps/commissions/logo.svg', '/mini-apps/rent/logo.svg', '/mini-apps/agents/logo.svg',
-  '/mini-apps/edir/logo.svg', '/mini-apps/mfi/logo.svg', '/mini-apps/insurance/logo.svg', '/brand/ethiolife-service-network.svg'];
+  '/mini-apps/edir/logo.svg', '/mini-apps/mfi/logo.svg', '/mini-apps/insurance/logo.svg'];
 const SHELL_PATHS = new Set(SHELL);
 
 self.addEventListener('install', (event) => {

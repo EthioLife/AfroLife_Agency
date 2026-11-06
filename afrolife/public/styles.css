@@ -1,28 +1,45 @@
 ﻿:root {
   color-scheme: light;
-  --ink: #18332d;
-  --muted: #64776d;
-  --green: #174b3d;
-  --green-dark: #0d2f2b;
-  --teal: #1f7b68;
-  --gold: #d7ad59;
+  --brand-green: #0b4d3b;
+  --growth-green: #16a34a;
+  --opportunity-yellow: #f4b400;
+  --sunset-orange: #f75c00;
+  --slate: #1f2937;
+  --gray-600: #526157;
+  --gray-400: #9ca3af;
+  --gray-300: #d1d5db;
+  --gray-100: #faf8f1;
+  --surface-green: #e9f4ed;
+  --surface-yellow: #fff7df;
+  --surface-orange: #fff0e8;
+  --ink: var(--slate);
+  --muted: var(--gray-600);
+  --green: var(--brand-green);
+  --green-dark: #08392c;
+  --teal: var(--growth-green);
+  --gold: var(--opportunity-yellow);
   --amber: #f0c772;
-  --paper: #f4f7f1;
-  --line: #dfe9e2;
+  --paper: var(--gray-100);
+  --line: #e7e1d5;
   --white: #fff;
   --red: #a34439;
-  --panel-shadow: 0 22px 64px rgba(16, 43, 39, 0.12);
+  --panel-shadow: 0 2px 8px rgba(11, 77, 59, .08);
+  --surface-shadow: 0 2px 8px rgba(11, 77, 59, .08);
+  --surface-raised: #fff;
+  --focus-ring: #875c08;
   --overview-navy: #17324d;
   --overview-teal: #0f766e;
   --overview-gold: #d9a441;
   --overview-sand: #f4efe6;
   --overview-cloud: #f7fafc;
   --overview-ink: #17202a;
-  font-family: "DM Sans", "Segoe UI", sans-serif;
+  font-family: Inter, "Noto Sans Ethiopic", "Segoe UI", Arial, sans-serif;
   background: var(--paper);
   color: var(--ink);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 * { box-sizing: border-box; }
@@ -89,16 +106,6 @@ main { width: min(1180px, calc(100% - 40px)); min-height: calc(100vh - 134px); m
     radial-gradient(circle at 88% 12%, rgba(215, 173, 89, .19), transparent 19rem),
     linear-gradient(125deg, #0b3029 0%, #104b3b 58%, #0b3932 100%);
   box-shadow: 0 26px 64px rgba(11, 44, 36, .2);
-}
-.hub-heading::before {
-  position: absolute;
-  z-index: 0;
-  inset: 0;
-  background:
-    repeating-linear-gradient(45deg, transparent 0 18px, rgba(240, 199, 114, .045) 18px 19px, transparent 19px 38px),
-    repeating-linear-gradient(-45deg, transparent 0 18px, rgba(240, 199, 114, .035) 18px 19px, transparent 19px 38px);
-  content: "";
-  pointer-events: none;
 }
 .hub-copy, .hub-campaign { position: relative; z-index: 1; min-width: 0; }
 .hub-copy .eyebrow { margin-bottom: 17px; color: #f0c772; }
@@ -498,25 +505,6 @@ footer { display: flex; justify-content: space-between; gap: 20px; padding: 22px
   .language-picker select { min-width: 86px; }
 }
 
-/* Responsive visual refresh: calm contrast, clear hierarchy, and touch-sized controls. */
-:root {
-  --ink: #172b27;
-  --muted: #687a73;
-  --green: #1b5947;
-  --green-dark: #10382e;
-  --gold: #d6ae5e;
-  --paper: #f2f5f1;
-  --line: #e0e8e1;
-  --white: #fff;
-  --red: #a34439;
-  --surface-shadow: 0 18px 50px rgba(23, 43, 39, .08);
-  font-family: Inter, "Segoe UI", Arial, sans-serif;
-  background: var(--paper);
-  color: var(--ink);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
 html { min-width: 320px; scroll-behavior: smooth; }
 body {
   min-height: 100vh;
@@ -862,20 +850,6 @@ footer { padding: 20px max(22px, calc((100vw - 1360px) / 2)); padding-block-end:
 }
 
 
-/* Shared quality layer: calmer surfaces, legible data, and predictable controls. */
-:root {
-  --ink: #172b27;
-  --muted: #5d7068;
-  --green: #174b3d;
-  --green-dark: #102b27;
-  --gold: #d7ad59;
-  --paper: #f4f6f2;
-  --line: #dce4dd;
-  --surface-raised: #fff;
-  --focus-ring: #875c08;
-  --surface-shadow: 0 10px 30px rgba(16, 43, 39, .07);
-}
-
 html { scroll-padding-top: 1rem; }
 body { color: var(--ink); line-height: 1.55; }
 ::selection { background: #dcebdd; color: var(--green-dark); }
@@ -951,23 +925,6 @@ label:not(.benefit-check):not(.subscription-service-option):has(> input[type="ra
 @media (forced-colors: active) {
   :focus-visible { outline: 3px solid Highlight !important; }
   .button, .panel, .list-card, .stat-card, .mfi-record, .mfi-metric { border: 1px solid CanvasText; }
-}
-
-/* EthioLife identity: confident forest green, bright growth green, and Ethiopian gold. */
-:root {
-  --ink: #172b27;
-  --muted: #536c61;
-  --green: #174b3d;
-  --green-dark: #102b27;
-  --gold: #d7ad59;
-  --paper: #f7f6f0;
-  --line: #dce4dd;
-  --white: #fff;
-  --red: #a34439;
-  --surface-shadow: 0 12px 34px rgba(16, 43, 39, .08);
-  font-family: "DM Sans", "Segoe UI", "Noto Sans Ethiopic", Arial, sans-serif;
-  background-color: var(--paper);
-  color: var(--ink);
 }
 
 body {
@@ -1611,34 +1568,6 @@ body {
   .maintenance-metric { padding: 11px; }
 }
 
-/* AfroLife product shell: consistent surfaces and controls across every mini-app. */
-:root {
-  --brand-green: #174b3d;
-  --platform-blue: #0066ff;
-  --growth-green: #174b3d;
-  --opportunity-yellow: #d7ad59;
-  --agent-purple: #7c3aed;
-  --slate: #2e3a47;
-  --gray-600: #687280;
-  --gray-400: #9ca3af;
-  --gray-300: #d1d5db;
-  --gray-100: #f3f4f6;
-  --surface-blue: #eff6ff;
-  --surface-green: #ecfdf5;
-  --surface-yellow: #fffbeb;
-  --surface-purple: #f5f3ff;
-  --ink: var(--brand-green);
-  --muted: var(--gray-600);
-  --green: #174b3d;
-  --green-dark: var(--brand-green);
-  --teal: #1f7b68;
-  --gold: var(--opportunity-yellow);
-  --paper: var(--gray-100);
-  --line: var(--gray-300);
-  --panel-shadow: 0 2px 8px rgba(23, 75, 61, .08);
-  --surface-shadow: 0 2px 8px rgba(23, 75, 61, .08);
-}
-
 .topbar {
   min-height: 76px;
   background: #fff;
@@ -1847,11 +1776,6 @@ body {
     radial-gradient(circle at 88% 12%, rgba(255, 176, 0, .17), transparent 19rem),
     linear-gradient(125deg, var(--brand-green) 0%, #075443 58%, var(--brand-green) 100%);
 }
-.hub-heading::before {
-  background:
-    repeating-linear-gradient(45deg, transparent 0 18px, rgba(255, 176, 0, .04) 18px 19px, transparent 19px 38px),
-    repeating-linear-gradient(-45deg, transparent 0 18px, rgba(0, 184, 90, .045) 18px 19px, transparent 19px 38px);
-}
 .hub-copy .eyebrow { color: var(--opportunity-yellow); }
 .hub-actions .button-primary {
   border-color: var(--opportunity-yellow);
@@ -1867,41 +1791,41 @@ body {
 [data-panel="workers"],
 [data-panel="staffing"],
 [data-panel="requests"] {
-  --mini-app-accent: var(--platform-blue);
-  --mini-app-tint: var(--surface-blue);
-  --mini-app-ink: #004dcc;
+  --mini-app-accent: var(--growth-green);
+  --mini-app-tint: var(--surface-green);
+  --mini-app-ink: var(--brand-green);
 }
 [data-panel="properties"],
 [data-panel="edir"] {
   --mini-app-accent: var(--growth-green);
   --mini-app-tint: var(--surface-green);
-  --mini-app-ink: #00783f;
+  --mini-app-ink: var(--brand-green);
   --mini-app-button-ink: var(--brand-green);
 }
 [data-panel="marketplace"],
 [data-panel="commissions"] {
   --mini-app-accent: var(--opportunity-yellow);
   --mini-app-tint: var(--surface-yellow);
-  --mini-app-ink: #7b5200;
+  --mini-app-ink: var(--brand-green);
   --mini-app-button-ink: var(--brand-green);
 }
 [data-panel="agents"],
 [data-panel="contracts"] {
-  --mini-app-accent: var(--agent-purple);
-  --mini-app-tint: var(--surface-purple);
-  --mini-app-ink: #5b21b6;
+  --mini-app-accent: var(--brand-green);
+  --mini-app-tint: var(--surface-green);
+  --mini-app-ink: var(--brand-green);
 }
 [data-panel="leads"],
 [data-panel="rent"] {
-  --mini-app-accent: #f97316;
-  --mini-app-tint: #fff7ed;
-  --mini-app-ink: #9a3412;
+  --mini-app-accent: var(--sunset-orange);
+  --mini-app-tint: var(--surface-orange);
+  --mini-app-ink: var(--brand-green);
 }
 [data-panel="mfi"],
 [data-panel="accounting"],
 [data-panel="insurance"] {
   --mini-app-accent: var(--brand-green);
-  --mini-app-tint: #e0e7ff;
+  --mini-app-tint: var(--surface-green);
   --mini-app-ink: var(--brand-green);
 }
 
@@ -2083,4 +2007,147 @@ html { scroll-padding-block-start: calc(6rem + env(safe-area-inset-top)); }
   .assistant-header h2 { font-size: 18px; }
   .assistant-presence { align-items: flex-start; flex-direction: column; }
   .assistant-message { max-width: 96%; }
+}
+
+/* AfroSherik visual identity: preserve the existing workspace layout and controls. */
+body {
+  color: var(--ink);
+  background:
+    radial-gradient(ellipse at 4% 5%, rgba(244, 180, 0, .08), transparent 28rem),
+    radial-gradient(ellipse at 96% 18%, rgba(22, 163, 74, .07), transparent 32rem),
+    var(--paper);
+}
+
+h1, h2, h3, .eyebrow {
+  font-family: Manrope, "Noto Sans Ethiopic", Inter, "Segoe UI", sans-serif;
+}
+
+.topbar {
+  min-height: 100px;
+  background-color: var(--brand-green);
+  background-image:
+    repeating-linear-gradient(45deg, transparent 0 34px, rgba(244, 180, 0, .045) 34px 36px, transparent 36px 68px),
+    repeating-linear-gradient(-45deg, transparent 0 34px, rgba(250, 248, 241, .025) 34px 36px, transparent 36px 68px);
+  border-bottom: 2px solid rgba(244, 180, 0, .82);
+  box-shadow: 0 5px 20px rgba(7, 45, 34, .18);
+}
+
+.topbar::before {
+  height: 3px;
+  background: linear-gradient(90deg, #f4b400 0 18%, #16a34a 18% 22%, #f4b400 22% 100%);
+}
+
+.topbar .brand {
+  min-height: 0;
+  max-width: 100%;
+}
+
+.topbar .brand img {
+  width: clamp(220px, 22vw, 270px);
+  height: auto;
+  max-height: 84px;
+  object-fit: contain;
+}
+
+.topbar .language-picker select {
+  border-color: rgba(250, 248, 241, .5);
+  background-color: #08392c;
+  color: #faf8f1;
+}
+
+.topbar .account-name { color: #faf8f1; }
+.topbar .button-outline {
+  border-color: rgba(250, 248, 241, .54);
+  background: rgba(250, 248, 241, .08);
+  color: #faf8f1;
+}
+.topbar .button-outline:hover {
+  border-color: #f4b400;
+  background: rgba(250, 248, 241, .16);
+  color: #fff;
+}
+.topbar .button-quiet {
+  border-color: rgba(250, 248, 241, .45);
+  background: transparent;
+  color: #faf8f1;
+}
+.topbar :focus-visible {
+  outline-color: #f4b400 !important;
+  box-shadow: 0 0 0 2px #08392c !important;
+}
+
+.welcome-panel {
+  border-color: rgba(244, 180, 0, .32);
+  background:
+    repeating-linear-gradient(45deg, transparent 0 40px, rgba(244, 180, 0, .035) 40px 42px, transparent 42px 80px),
+    radial-gradient(ellipse at 90% 5%, rgba(244, 180, 0, .18), transparent 22rem),
+    linear-gradient(145deg, #0b4d3b 0%, #08392c 72%);
+}
+
+.welcome-panel .eyebrow { color: #f4b400; }
+.welcome-panel .welcome-promise {
+  margin-top: -6px;
+  color: #f4b400;
+  font-family: Manrope, "Noto Sans Ethiopic", Inter, sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: .025em;
+}
+.welcome-promise-note {
+  display: block;
+  margin-top: 6px;
+  color: rgba(250, 248, 241, .8);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.brand-illustration img {
+  border-color: rgba(244, 180, 0, .72);
+  box-shadow: 0 14px 34px rgba(7, 31, 24, .24);
+}
+
+.button-primary {
+  border-color: var(--brand-green);
+  background: var(--brand-green);
+}
+.button-primary:hover {
+  border-color: #08392c;
+  background: #08392c;
+}
+
+.hub-network-logo {
+  display: block;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 3px;
+  border-radius: 8px;
+  object-fit: cover;
+  box-shadow: 0 2px 6px rgba(8, 57, 44, .16);
+}
+.hub-network-center strong { color: var(--brand-green); }
+.hub-network-center small {
+  color: #526157;
+  font-size: 6px;
+  letter-spacing: .08em;
+}
+
+@media (max-width: 920px) and (min-width: 651px) {
+  .topbar { min-height: 100px; }
+  .topbar .brand img { width: clamp(210px, 28vw, 260px); }
+}
+
+@media (max-width: 650px) {
+  .topbar {
+    min-height: 0;
+    padding-block: 9px;
+    background-color: #08392c;
+  }
+  .topbar .brand img {
+    width: min(260px, 100%);
+    max-height: 80px;
+  }
+}
+
+@media (max-width: 380px) {
+  .topbar .brand img { width: min(240px, 100%); }
 }
