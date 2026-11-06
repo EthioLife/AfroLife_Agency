@@ -7765,7 +7765,6 @@ document.addEventListener('click', async (event) => {
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
     showAlert(reports.length ? 'Worker activity report downloaded.' : 'There are no reports matching these filters to download.');
-  }
     return;
   }
   if (name === 'tenant-access-invite') {
