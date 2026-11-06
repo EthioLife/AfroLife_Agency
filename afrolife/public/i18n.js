@@ -298,6 +298,15 @@ const rows = [
   ['Review note: {{reason}}', 'የግምገማ ማስታወሻ፦ {{reason}}', 'Yaadannoo sakatta’iinsaa: {{reason}}', 'ማስታወሻ ግምገማ፦ {{reason}}'],
   ['Reconciled {{date}}', 'የተረጋገጠበት ቀን {{date}}', 'Guyyaa mirkanaa’e {{date}}', 'ዝተረጋገጸሉ ዕለት {{date}}'],
   ['My shifts and attendance', 'የእኔ ፈረቃዎችና የሥራ ሰዓት መዝገብ', 'Shiftoota koo fi galmee yeroo hojii', 'ሺፍታትን መዝገብ ሰዓታት ስራሕን'],
+  ['All statuses', 'ሁሉም ሁኔታዎች', 'Haala hunda', 'ኩሎም ኩነታት'],
+  ['Approved', 'ጸድቋል', 'Ragga’eera', 'ጸዲቑ'],
+  ['Filter reports', 'ሪፖርቶችን አጣራ', 'Gabaasa calali', 'ጸብጻባት ምረጽ'],
+  ['Download CSV', 'CSV አውርድ', 'CSV buusi', 'CSV ኣውርድ'],
+  ['No reports match the selected filters.', 'ከተመረጡት ማጣሪያዎች ጋር የሚዛመድ ሪፖርት የለም።', 'Gabaasni calallii filatame waliin walsimu hin jiru.', 'ምስ ዝተመርጹ መጻረዪታት ዝሰማማዕ ጸብጻብ የለን።'],
+  ['Worker activity report downloaded.', 'የሠራተኛ እንቅስቃሴ ሪፖርት ወርዷል።', 'Gabaasni sochii hojjetaa buufameera.', 'ጸብጻብ ንጥፈት ሰራሕተኛ ወሪዱ።'],
+  ['There are no reports matching these filters to download.', 'ከእነዚህ ማጣሪያዎች ጋር የሚዛመድ ሪፖርት ለማውረድ የለም።', 'Gabaasni calallii kanaan walsimu buufachuuf hin jiru.', 'ምስዞም መጻረዪታት ዝሰማማዕ ንምውራድ ዝኾነ ጸብጻብ የለን።'],
+  ['The report start date must be on or before its end date.', 'የሪፖርቱ መጀመሪያ ቀን ከመጨረሻው ቀን በፊት ወይም እኩል መሆን አለበት።', 'Guyyaan jalqabaa gabaasaa guyyaa xumuraa dura yookaan walqixa ta’uu qaba.', 'ዕለት መጀመርታ ጸብጻብ ቅድሚ ዕለት መወዳእታ ወይ ማዕረ ክኸውን ኣለዎ።'],
+  ['Filters and exports include the 200 most recent reports currently loaded.', 'ማጣሪያዎችና ወደ ውጭ የሚላኩ ሪፖርቶች አሁን የተጫኑትን 200 የቅርብ ጊዜ ሪፖርቶች ያካትታሉ።', 'Calallii fi gabaasni buufamu gabaasota dhiheenya kana fe’aman 200 of keessatti qaba.', 'መጻረዪታትን ዝወርዱ ጸብጻባትን እቶም ኣብዚ ግዜ ዝተጸዓኑ 200 ናይ ቀረባ ጸብጻባት የጠቓልሉ።'],
   ['Respond to assigned shifts and record your own clock events. Offline events are saved on this device and synced in order when connectivity returns.', 'ለተመደቡ ፈረቃዎች ምላሽ ይስጡና የራስዎን የመግቢያና የመውጫ ሰዓት ይመዝግቡ። ከመስመር ውጭ የተመዘገቡ ክስተቶች በዚህ መሣሪያ ይቀመጣሉ፤ ግንኙነት ሲመለስ በቅደም ተከተል ይላካሉ።', 'Shiftoota siif ramadaman irratti deebii kenni; sa’aatii seensaa fi ba’iinsa kee galmeessi. Galmeen interneetii malee uumame meeshaa kana irratti ni kuufama; walqunnamtiin yommuu deebi’u tartiibaan ni ergame.', 'ኣብ ዝተመደቡልካ ሺፍታት መልሲ ሃብ፣ ሰዓታት ምእታውን ምውጻእን ድማ መዝግብ። ኣብ ዘይተራኸበ ኩነታት ዝተመዝገቡ ፍጻመታት ኣብዚ መሳርሒ ይቕመጡ፣ ርክብ ምስ ተመለሰ ብቅደም ተኸተል ይለኣኹ።'],
   ['No shifts are assigned to your worker account yet.', 'እስካሁን ለሠራተኛ መለያዎ ፈረቃ አልተመደበም።', 'Hanga ammaaf shiftiin herrega hojjetaa keetiif hin ramadamne.', 'ክሳብ ሕጂ ንሕሳብ ሰራሕተኛኻ ሺፍት ኣይተመደበን።'],
   ['Accept shift', 'ፈረቃውን ተቀበል', 'Shiftii fudhadhu', 'ነቲ ሺፍት ተቐበሎ'],
@@ -642,6 +651,21 @@ const publicSurfaceTranslations = {
   },
   'Language': {
     am: 'ቋንቋ', om: 'Afaan', ti: 'ቋንቋ', so: 'Luqad', ar: 'اللغة', sw: 'Lugha',
+  },
+  'Select Master Agent': {
+    am: 'ዋና ወኪል ይምረጡ', om: 'Bakka bu’aa olaanaa filadhaa', ti: 'ዋና ወኪል ምረጹ', so: 'Dooro wakiilka sare', ar: 'اختر الوكيل الرئيسي', sw: 'Chagua wakala mkuu',
+  },
+  'Choose master agent': {
+    am: 'ዋና ወኪል ይምረጡ', om: 'Bakka bu’aa olaanaa filadhaa', ti: 'ዋና ወኪል ምረጹ', so: 'Dooro wakiilka sare', ar: 'اختر الوكيل الرئيسي', sw: 'Chagua wakala mkuu',
+  },
+  'The account already has this role.': {
+    am: 'መለያው ይህ ሚና አስቀድሞ ተመድቦለታል።', om: 'Herregni gahee kana duraan qaba.', ti: 'እቲ ሕሳብ እዚ ግደ እዚ ድሮ ኣለዎ።', so: 'Akoontigu hore ayuu u leeyahay doorkan.', ar: 'لدى الحساب هذا الدور بالفعل.', sw: 'Akaunti tayari ina jukumu hili.',
+  },
+  'Account role saved.': {
+    am: 'የመለያ ሚና ተቀምጧል።', om: 'Gaheen herregaa olkaa’ameera.', ti: 'ግደ ሕሳብ ተቐሚጡ ኣሎ።', so: 'Doorka akoontiga waa la keydiyay.', ar: 'تم حفظ دور الحساب.', sw: 'Jukumu la akaunti limehifadhiwa.',
+  },
+  'Filters and exports include the 200 most recent reports currently loaded.': {
+    am: 'ማጣሪያዎችና ወደ ፋይል ማውጣት አሁን የተጫኑትን 200 የቅርብ ጊዜ ሪፖርቶች ያካትታሉ።', om: 'Filteerii fi al-ergiin gabaasa 200 yeroo dhihoo kana fe’aman hammatu.', ti: 'ማጣርያታትን ናብ ፋይል ምውጻእን እቶም ኣብዚ ዝተጻዕኑ 200 ናይ ቀረባ ግዜ ጸብጻባት የጠቓልሉ።', so: 'Shaandhaynta iyo dhoofintu waxay ku jiraan 200-ka warbixinood ee ugu dambeeyay ee hadda la raray.', ar: 'تشمل عوامل التصفية والتصدير أحدث 200 تقرير تم تحميله حاليًا.', sw: 'Vichujio na uhamishaji vinajumuisha ripoti 200 za hivi karibuni zilizopakiwa sasa.',
   },
   'Install app': {
     am: 'መተግበሪያውን ይጫኑ', om: 'Appii fe’i', ti: 'መተግበሪ ጽዓን', so: 'Ku rakib abka', ar: 'تثبيت التطبيق', sw: 'Sakinisha programu',

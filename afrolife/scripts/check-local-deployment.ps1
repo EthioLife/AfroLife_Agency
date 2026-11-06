@@ -43,7 +43,7 @@ $guestLines = @($guestResult | ForEach-Object { "$_".Trim() } | Where-Object { $
 $serviceStates = @($guestLines | Select-Object -First 3)
 $listenerLines = @($guestLines | Where-Object { $_ -match '^LISTEN\s' })
 $bindingsSafe = $true
-foreach ($port in 3000, 5432, 8080) {
+foreach ($port in 3010, 5432, 8080) {
   $portBindings = @($listenerLines | ForEach-Object { ($_ -split '\s+')[3] } | Where-Object { $_ -match ":$port$" })
   if ($portBindings.Count -ne 1 -or $portBindings[0] -ne "127.0.0.1:$port") {
     $bindingsSafe = $false
@@ -55,9 +55,9 @@ $guestDetails = "services=$($serviceStates -join ','); bindings=$($listenerLines
 Write-Check -Name "WSL $Distro services and bind addresses" -Passed $guestReady -Details $guestDetails
 
 $healthReady = $false
-$healthDetails = '127.0.0.1:3000/readyz must report the database, migrations, private storage, and configured services ready'
+$healthDetails = '127.0.0.1:3010/readyz must report the database, migrations, private storage, and configured services ready'
 try {
-  $healthResponse = Invoke-WebRequest -Uri 'http://127.0.0.1:3000/readyz' -TimeoutSec 10 -UseBasicParsing -ErrorAction Stop
+  $healthResponse = Invoke-WebRequest -Uri 'http://127.0.0.1:3010/readyz' -TimeoutSec 10 -UseBasicParsing -ErrorAction Stop
   $health = $healthResponse.Content | ConvertFrom-Json -ErrorAction Stop
   $unavailableServices = @($health.checks.services | Where-Object { $_.status -eq 'unavailable' })
   $healthReady = $health.ok -eq $true `

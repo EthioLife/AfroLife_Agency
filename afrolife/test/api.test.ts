@@ -10,7 +10,7 @@ import pg from 'pg';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-const API = (process.env.API_URL ?? 'http://localhost:3000') + '/api/v1';
+const API = (process.env.API_URL ?? 'http://localhost:3010') + '/api/v1';
 const SECRET = process.env.JWT_SECRET!;
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 if (!testDatabaseUrl) throw new Error('TEST_DATABASE_URL must explicitly point to a disposable integration-test database');
@@ -27,7 +27,7 @@ const PNG = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from('
 type U = { id: string; role: string; phone: string; token: string };
 
 test('health endpoint confirms the database connection', async () => {
-  const response = await fetch((process.env.API_URL ?? 'http://localhost:3000') + '/healthz');
+  const response = await fetch((process.env.API_URL ?? 'http://localhost:3010') + '/healthz');
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { ok: true, database: 'connected' });
 });
@@ -44,10 +44,16 @@ async function mkUser(role: string, n: number): Promise<U> {
   return { id, role, phone, token: jwt.sign({ sub: id, role, sid: sessionId }, SECRET, { expiresIn: '8h' }) };
 }
 
-async function call(u: Pick<U, 'token'>, method: string, path: string, body?: unknown) {
+async function call(
+  u: Pick<U, 'token'>,
+  method: string,
+  path: string,
+  body?: unknown,
+  extraHeaders: Record<string, string> = {},
+) {
   const r = await fetch(API + path, {
     method,
-    headers: { 'content-type': 'application/json', authorization: 'Bearer ' + u.token },
+    headers: { 'content-type': 'application/json', authorization: 'Bearer ' + u.token, ...extraHeaders },
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: r.status, body: (await r.json().catch(() => null)) as any };
@@ -364,6 +370,11 @@ test('Global System Admin controls shared platform configuration while Super Adm
     deployment_reference: `super-admin-registration-${run}`,
   });
   assert.equal(registration.status, 200, JSON.stringify(registration.body));
+  const platformTenantContext = { 'x-afrolife-platform-tenant-id': tenantResponse.body.id as string };
+  assert.equal((await call(admin, 'GET', '/leads')).status, 403);
+  assert.equal((await call(admin, 'GET', '/leads', undefined, platformTenantContext)).status, 403);
+  assert.equal((await call(admin, 'GET', '/accounting', undefined, platformTenantContext)).status, 403);
+  assert.equal((await call(unassignedSuperAdmin, 'GET', '/leads', undefined, platformTenantContext)).status, 403);
 
   const activateWithoutVerification = await call(globalAdmin, 'PATCH', `/platform/tenants/${tenantResponse.body.id}`, {
     status: 'active',
@@ -388,6 +399,8 @@ test('Global System Admin controls shared platform configuration while Super Adm
   });
   assert.equal(active.status, 200, JSON.stringify(active.body));
   assert.equal(active.body.status, 'active');
+  assert.equal((await call(admin, 'GET', '/leads')).status, 403);
+  assert.equal((await call(unassignedSuperAdmin, 'GET', '/leads', undefined, platformTenantContext)).status, 403);
 
   const unscopedFeatures = await call(admin, 'GET', '/features');
   const scopedFeatures = await call(admin, 'GET', `/features?platform_tenant_id=${tenantResponse.body.id}`);
@@ -398,10 +411,18 @@ test('Global System Admin controls shared platform configuration while Super Adm
     scopedFeatures.body.enabledModules,
     ['leads', 'workers', 'contracts', 'commissions', 'agents'],
   );
+  assert.equal((await call(admin, 'GET', '/leads', undefined, platformTenantContext)).status, 200);
+  assert.notEqual((await call(admin, 'GET', '/workers', undefined, platformTenantContext)).status, 403);
+  assert.equal((await call(admin, 'GET', '/accounting', undefined, platformTenantContext)).status, 403);
   const narrowed = await call(admin, 'PATCH', `/platform/my-tenants/${tenantResponse.body.id}/modules`, {
     services: ['workforce'],
   });
   assert.equal(narrowed.status, 200, JSON.stringify(narrowed.body));
+  assert.equal((await call(admin, 'GET', '/leads', undefined, platformTenantContext)).status, 403);
+  assert.equal((await call(admin, 'GET', '/contracts', undefined, platformTenantContext)).status, 403);
+  assert.equal((await call(admin, 'GET', '/commissions', undefined, platformTenantContext)).status, 403);
+  assert.equal((await call(admin, 'GET', '/accounting', undefined, platformTenantContext)).status, 403);
+  assert.notEqual((await call(admin, 'GET', '/workers', undefined, platformTenantContext)).status, 403);
   const narrowedFeatures = await call(admin, 'GET', `/features?platform_tenant_id=${tenantResponse.body.id}`);
   assert.deepEqual(narrowedFeatures.body.enabledModules, ['workers']);
   const outOfPackage = await call(admin, 'PATCH', `/platform/my-tenants/${tenantResponse.body.id}/modules`, {
@@ -1453,15 +1474,18 @@ test('manual service subscriptions enforce fixed catalog, ownership, and indepen
   const catalog = await call(learningCustomer, 'GET', '/subscriptions/catalog');
   assert.equal(catalog.status, 200);
   assert.deepEqual(catalog.body.services.map((service: any) => service.key), [
+    'accounting',
     'property_management', 'workforce_management', 'super_agent', 'edir',
     'insurance_brokerage', 'agent', 'landlord', 'seller',
   ]);
   assert.equal(catalog.body.services.every((service: any) =>
     service.monthly_fee === 1000 && service.currency === 'ETB' && service.payment_method === 'manual'), true);
   assert.equal((await call(learningCustomer, 'GET', '/subscriptions/review')).status, 403);
-  assert.equal((await call(learningCustomer, 'POST', '/subscriptions/requests', {
+  const accountingRequest = await call(learningCustomer, 'POST', '/subscriptions/requests', {
     services: ['accounting'],
-  })).status, 400);
+  });
+  assert.equal(accountingRequest.status, 201, JSON.stringify(accountingRequest.body));
+  assert.equal(accountingRequest.body.requests[0].service_key, 'accounting');
   assert.equal((await call(learningCustomer, 'POST', '/subscriptions/requests', {
     services: ['edir', 'edir'],
   })).status, 400);

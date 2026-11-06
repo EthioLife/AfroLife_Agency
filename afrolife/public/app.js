@@ -11,11 +11,12 @@ import { miniAppByPanel } from './mini-apps/registry.js';
 import { isMiniAppAllowed, isPanelEnabled, panelFromUrl, panelUrl } from './workspace-navigation.js';
 import { MIN_SEARCH_QUERY_LENGTH, searchWorkspaceRecords } from './workspace-search.js';
 import { EDIR_APPLICATION_DOCUMENTS, canChangeServer, edirApplicationDocumentPath, missingSignupDocuments, nativeApiOrigin, signupRequiredDocuments } from './registration-flows.js';
-import { agentDashboardMetrics, propertyDashboardMetrics, propertyOwnerDashboardMetrics, staffingDashboardMetrics, workforceDashboardMetrics } from './dashboard-metrics.js';
+import { agentDashboardMetrics, marketplaceDashboardMetrics, propertyDashboardMetrics, propertyOwnerDashboardMetrics, staffingDashboardMetrics, workforceDashboardMetrics } from './dashboard-metrics.js';
 import { normalizeMySubscriptions, normalizeSubscriptionCatalog, PUBLIC_SUBSCRIPTION_SERVICES, subscriptionRequestPayload } from './subscriptions.js';
 import { propertyOfferTerms } from './property-offers.js';
 import { marketplaceListingPayload } from './marketplace-form.js';
 import { paginateRows } from './row-pagination.js';
+import { filterWorkerActivityReports, workerActivityReportsCsv } from './worker-activity-reports.js';
 
 const WEB_API_ROOT = '/api/v1';
 let API_ROOT = WEB_API_ROOT;
@@ -41,7 +42,9 @@ const MINI_APP_PANELS = new Set([
 const $ = (selector) => document.querySelector(selector);
 const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
 const loadedPanels = new Set();
+let accessVisiblePanels = new Set();
 state.supportAppealQueue = [];
+state.workerReportFilters = { startDate: '', endDate: '', status: 'all' };
 state.overviewDataErrors = [];
 state.overviewDataOmitted = [];
 state.overviewLoadedAt = null;
@@ -400,6 +403,9 @@ setInterval(loadPublicIndustryNews, 15 * 60 * 1000);
 async function api(path, options = {}) {
   const headers = new Headers(options.headers ?? {});
   headers.set('x-afrolife-edir-id', state.edirOrganizationId);
+  if (state.user?.role === 'super_admin' && state.platformTenantContextId) {
+    headers.set('x-afrolife-platform-tenant-id', state.platformTenantContextId);
+  }
   const token = sessionStorage.getItem(TOKEN_KEY);
   if (token) headers.set('authorization', `Bearer ${token}`);
   if (options.body && !(options.body instanceof Blob)) headers.set('content-type', 'application/json');
@@ -1308,12 +1314,17 @@ async function loadWorkspace() {
     ? state.features.enabledModules
     : [...KNOWN_PANELS];
   for (const tab of document.querySelectorAll('.tab[data-panel]')) {
+    if (miniAppLogo(tab.dataset.panel)) tab.hidden = false;
     if (!isPanelEnabled(tab.dataset.panel, enabledModules)) tab.hidden = true;
     if (MINI_APP_PANELS.has(tab.dataset.panel)
         && Array.isArray(state.features.allowedModules)
         && !isMiniAppAllowed(tab.dataset.panel, state.features.allowedModules)) tab.hidden = true;
   }
   $('#status-tab').hidden = false;
+  accessVisiblePanels = new Set(
+    [...document.querySelectorAll('.tab[data-panel]:not([hidden])')]
+      .map((tab) => tab.dataset.panel),
+  );
   if (state.panel === 'password' || state.mfaRequired) {
     state.panel = state.user.must_change_password ? 'password' : 'security';
     history.replaceState(null, '', panelUrl(window.location.href, state.panel));
@@ -2078,6 +2089,28 @@ function miniAppLogo(panel) {
   return miniAppByPanel[panel]?.logo ?? integratedMiniAppLogos[panel] ?? null;
 }
 
+function currentMiniAppPanels() {
+  return miniAppByPanel[state.panel]?.panels
+    ?? (miniAppLogo(state.panel) ? [state.panel] : []);
+}
+
+function applyMiniAppNavigationScope() {
+  const currentPanels = new Set(currentMiniAppPanels());
+  for (const tab of document.querySelectorAll('.tab[data-panel]')) {
+    const panel = tab.dataset.panel;
+    tab.hidden = !accessVisiblePanels.has(panel)
+      || (Boolean(miniAppLogo(panel))
+        && state.panel !== 'launcher'
+        && !currentPanels.has(panel));
+  }
+}
+
+function isCrossMiniAppPanel(panel) {
+  return Boolean(miniAppLogo(panel))
+    && state.panel !== 'launcher'
+    && !currentMiniAppPanels().includes(panel);
+}
+
 function renderSuperAppLauncher() {
   const wrap = node('div');
   wrap.append(sectionHeading('Your service mini-apps', 'Open an available service directly. Access is based on your role and enabled features.'));
@@ -2094,7 +2127,7 @@ function renderSuperAppLauncher() {
     card.setAttribute('aria-label', `Open ${name}`);
     const logoSource = miniAppLogo(panel);
     if (logoSource) {
-      const logo = node('img', undefined, 'service-icon service-icon-image');
+      const logo = node('img', undefined, 'service-icon service-icon-image service-launcher-logo');
       logo.src = logoSource;
       logo.alt = '';
       logo.setAttribute('aria-hidden', 'true');
@@ -2563,6 +2596,7 @@ function configureWorkspaceNavigation() {
   };
   orderGroup(coreGroup, profile.core);
   orderGroup(businessGroup, profile.business);
+  applyMiniAppNavigationScope();
 }
 
 function renderMobileWorkspaceNav() {
@@ -2952,9 +2986,37 @@ function renderWorkerPortal() {
 
   const reports = node('section', undefined, 'panel');
   reports.append(sectionHeading('My activity and earnings reports', 'Submitted work is reviewed independently. Approved work value is not confirmation that a payment has been made.'));
+  reports.append(node('p', 'Filters and exports include the 200 most recent reports currently loaded.', 'muted'));
+  const reportFilters = node('form', undefined, 'form-card inline-form');
+  reportFilters.dataset.form = 'worker-report-filters';
+  const reportStatus = field('Status', 'status', 'select', false);
+  for (const [value, label] of [
+    ['all', 'All statuses'],
+    ['submitted', 'Submitted'],
+    ['approved', 'Approved'],
+    ['rejected', 'Returned'],
+  ]) {
+    const option = node('option', label);
+    option.value = value;
+    option.selected = state.workerReportFilters.status === value;
+    reportStatus.input.append(option);
+  }
+  reportFilters.append(
+    field('Period start', 'start_date', 'date', false, { value: state.workerReportFilters.startDate }).label,
+    field('Period end', 'end_date', 'date', false, { value: state.workerReportFilters.endDate }).label,
+    reportStatus.label,
+    button('Filter reports', 'submit', 'button button-outline'),
+    button('Download CSV', 'worker-report-export', 'button button-outline'),
+  );
+  reports.append(reportFilters);
   const reportList = node('div', undefined, 'list');
-  if (!state.workerPortalReports.length) reportList.append(empty('Work reports you submit for an active engagement will appear here.'));
-  for (const report of state.workerPortalReports) {
+  const visibleReports = filterWorkerActivityReports(state.workerPortalReports, state.workerReportFilters);
+  if (!visibleReports.length) {
+    reportList.append(empty(state.workerPortalReports.length
+      ? 'No reports match the selected filters.'
+      : 'Work reports you submit for an active engagement will appear here.'));
+  }
+  for (const report of visibleReports) {
     const item = card(
       `${report.period_start} to ${report.period_end} · ${report.quantity} units`,
       `${report.description} · ETB ${Number(report.worker_amount).toLocaleString(document.documentElement.lang)} worker amount${report.review_reason ? ` · ${report.review_reason}` : ''}`,
@@ -4305,20 +4367,22 @@ function renderMarketplace() {
   if(manager) wrap.append(renderMarketplaceConfig());
   const ownedListings = state.marketplaceListings.filter((listing) =>
     listing.created_by === state.user.id || listing.seller_user_id === state.user.id);
-  const report = node('section', undefined, 'panel form-card');
-  report.append(node('h2', 'Marketplace report dashboard'));
-  const summary = node('div', undefined, 'enterprise-metrics');
-  for (const [label, value] of [
-    ['Published listings available', state.marketplaceListings.filter((listing) => listing.status === 'published').length],
-    ['Your listings', ownedListings.length],
-    ['Marketplace membership', 'Not available'],
-    ['Purchase ledger', 'Not live'],
-  ]) {
-    const metric = node('div', undefined, 'enterprise-metric');
-    metric.append(node('span', label), node('strong', value));
-    summary.append(metric);
-  }
-  report.append(summary, node('p', 'Marketplace listing prices are not payments. Local mock mode supports a sandbox order and simulated payment for published fixed-price sales; it never charges a buyer or posts to Accounting. Real checkout, buyer memberships, wallets, loans, and purchase history remain unavailable.'));
+  const marketplaceMetrics = marketplaceDashboardMetrics(state.marketplaceListings, state.user.id);
+  const report = renderAppDashboard({
+    title: 'Marketplace BI dashboard',
+    description: 'Listing status and ownership metrics from the marketplace records currently loaded for your account.',
+    source: '/marketplace/listings',
+    metrics: marketplaceMetrics,
+    statusTitle: 'Listing status',
+    statuses: marketplaceMetrics.byStatus,
+    emptyMessage: 'No marketplace listings are currently available for this dashboard.',
+    values: (data) => [
+      ['Loaded listings', data.totalListings],
+      ['Published listings', data.publishedListings],
+      ['Your listings', data.ownedListings],
+    ],
+  });
+  report.append(node('p', 'Marketplace listing prices are not payments. Local mock mode supports a sandbox order and simulated payment for published fixed-price sales; it never charges a buyer or posts to Accounting. Real checkout, buyer memberships, wallets, loans, and purchase history remain unavailable.'));
   const activity = node('div', undefined, 'list');
   activity.append(node('h3', 'Your detailed listing activity'));
   if (!ownedListings.length) activity.append(node('p', 'No marketplace listing activity is linked to your account.'));
@@ -6106,6 +6170,10 @@ function renderPanel() {
 }
 
 function navigateToPanel(panel, { replace = false } = {}) {
+  if (isCrossMiniAppPanel(panel)) {
+    navigateToPanel('launcher', { replace });
+    return;
+  }
   const tab = panel === 'launcher' ? null : document.querySelector(`.tab[data-panel="${CSS.escape(panel)}"]`);
   if (!KNOWN_PANELS.has(panel) || (panel === 'launcher' ? !state.user : !tab || tab.hidden)) {
     showAlert('This workspace is unavailable for your account or deployment.', true);
@@ -6116,6 +6184,9 @@ function navigateToPanel(panel, { replace = false } = {}) {
   const url = panelUrl(window.location.href, panel);
   if (replace) history.replaceState(null, '', url);
   else if (url !== `${window.location.pathname}${window.location.search}${window.location.hash}`) history.pushState(null, '', url);
+  configureWorkspaceNavigation();
+  updateWorkspaceNavigationGroups();
+  renderMobileWorkspaceNav();
   renderPanel();
   void refresh(false);
 }
@@ -6141,6 +6212,18 @@ async function submitForm(form) {
     form.reset();
     await refreshAssistant();
     showAlert('');
+    return;
+  }
+  if (form.dataset.form === 'worker-report-filters') {
+    if (values.start_date && values.end_date && values.start_date > values.end_date) {
+      throw new Error('The report start date must be on or before its end date.');
+    }
+    state.workerReportFilters = {
+      startDate: values.start_date,
+      endDate: values.end_date,
+      status: values.status || 'all',
+    };
+    renderPanel();
     return;
   }
   if (form.dataset.form === 'rental-application') {
@@ -7535,6 +7618,18 @@ document.addEventListener('click', async (event) => {
         ? t('More payable rows remain in this period. Continue with the next encrypted export.')
         : t('Encrypted payroll export generated. It has not been filed or paid.'));
     } catch (error) { showAlert(error.message, true); }
+  }
+  if (name === 'worker-report-export') {
+    const reports = filterWorkerActivityReports(state.workerPortalReports, state.workerReportFilters);
+    const csv = workerActivityReportsCsv(reports, state.workerPortalEngagements);
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `worker-activity-reports-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    showAlert(reports.length ? 'Worker activity report downloaded.' : 'There are no reports matching these filters to download.');
+  }
     return;
   }
   if (name === 'tenant-access-invite') {
@@ -8903,7 +8998,9 @@ $('#workspace-search-form').addEventListener('submit', async (event) => {
 window.addEventListener('popstate', () => {
   if (!state.user) return;
   const requested = panelFromUrl(window.location.href, KNOWN_PANELS);
-  const panel = visiblePanelNames().has(requested) ? requested : 'overview';
+  const panel = visiblePanelNames().has(requested)
+    ? requested
+    : isCrossMiniAppPanel(requested) ? 'launcher' : 'overview';
   if (panel !== requested) history.replaceState(null, '', panelUrl(window.location.href, panel));
   if (panel !== state.panel) navigateToPanel(panel, { replace: true });
 });

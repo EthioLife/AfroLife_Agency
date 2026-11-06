@@ -59,13 +59,25 @@ test('Accounting has a central launcher entry and is removed from module views a
   assert.match(html, /data-panel="accounting"[^>]*>[\s\S]*?Accounting &amp; Finance/);
   assert.match(html, /id="return-super-app"/);
   assert.match(app, /function renderSuperAppLauncher\(\)/);
+  assert.match(app, /function applyMiniAppNavigationScope\(\)/);
+  assert.match(app, /function isCrossMiniAppPanel\(panel\)/);
+  assert.match(app, /navigateToPanel\('launcher'/);
   assert.match(app, /function renderOverview\(\)/);
   assert.doesNotMatch(app, /function renderOverviewActions\(\)/);
   assert.match(app, /const accessibleModules = \[\.\.\.document\.querySelectorAll\('\.tab\[data-panel\]:not\(\[hidden\]\)'\)\]/);
   assert.match(app, /launcher: renderSuperAppLauncher/);
 });
 
-test('Accounting is included in the shared subscription request catalog and entitlement guard', () => {
+test('Cross-mini-app navigation scopes are enforced', () => {
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(app, /function renderOverviewActions\(\)/);
+  assert.match(app, /function applyMiniAppNavigationScope\(\)/);
+  assert.match(app, /function isCrossMiniAppPanel\(panel\)/);
+  assert.match(app, /if \(isCrossMiniAppPanel\(panel\)\) \{\s*navigateToPanel\('launcher'/);
+  assert.match(app, /launcher: renderSuperAppLauncher/);
+});
+
+test('Accounting is included in the existing subscription request catalog and entitlement guard', () => {
   const catalog = getPublicSubscriptionCatalog().services;
   const accounting = catalog.find((service) => service.key === 'accounting');
   assert.deepEqual(accounting, {
@@ -86,7 +98,7 @@ test('Accounting is included in the shared subscription request catalog and enti
   const subscriptions = readFileSync(new URL('../src/subscriptions.ts', import.meta.url), 'utf8');
   const server = readFileSync(new URL('../src/server.ts', import.meta.url), 'utf8');
   const authentication = server.indexOf('api.use(authenticate);');
-  const accountingEntitlement = server.indexOf("api.use('/accounting', (req, _res, next) =>");
+  const accountingEntitlement = server.indexOf("api.use('/accounting', requirePlatformTenantService('accounting'), (req, _res, next) =>");
   assert.ok(authentication >= 0 && accountingEntitlement > authentication);
   assert.match(subscriptions, /'accounting', 'property_management'/);
   assert.match(subscriptions, /services: z\.array\(z\.enum\(serviceKeys\)\)/);
@@ -98,7 +110,7 @@ test('Accounting is included in the shared subscription request catalog and enti
   assert.match(server, /const subscriber = \['customer','property_owner'\]\.includes\(req\.user\?\.role \?\? ''\)/);
 });
 
-test('Accounting retains dedicated entity BI and reports on the existing gateway route', () => {
+test('Accounting retains entity-scoped BI and reports on the existing gateway route', () => {
   const workspace = readFileSync(new URL('../public/accounting.js', import.meta.url), 'utf8');
   const dashboard = readFileSync(new URL('../public/accounting-dashboard.js', import.meta.url), 'utf8');
   const router = readFileSync(new URL('../services/accounting/router.ts', import.meta.url), 'utf8');
@@ -155,7 +167,7 @@ test('AfroSherik identity and install artwork stay aligned with the brand shell'
   assert.match(html, /<title>AfroSherik \| አፍሮ-ሸሪክ<\/title>/);
   assert.match(html, /src="\/brand\/afrosherik-brand-lockup\.png"/);
   assert.match(html, /afrosherik-icon-192\.png/);
-  assert.match(html, /placeholder="https:\/\/afrolife-agency\.duckdns\.org"/);
+  assert.match(html, /placeholder="https:\/\/www\.afrolife\.com\.et"/);
   const manifestColor = html.match(/<meta name="theme-color" content="([^"]+)"/);
   assert.equal(manifestColor?.[1], manifest.theme_color);
 });

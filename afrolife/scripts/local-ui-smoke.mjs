@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 
 const chrome = process.env.AFROLIFE_CHROME_PATH
   ?? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-const appUrl = process.env.AFROLIFE_UI_URL ?? 'http://127.0.0.1:3000/';
+const appUrl = process.env.AFROLIFE_UI_URL ?? 'http://127.0.0.1:3010/';
 const credentialFile = process.env.AFROLIFE_UI_USERS_FILE
   ?? join(process.env.LOCALAPPDATA ?? '', 'AfroLife', 'local-test-users.txt');
 const additionalRoles = (process.env.AFROLIFE_UI_ROLES

@@ -7,7 +7,7 @@ import pg from 'pg';
 
 const credentialsFile = process.env.MFI_E2E_USERS_FILE
   ?? join(process.env.LOCALAPPDATA ?? '', 'AfroLife', 'local-test-users.txt');
-const apiBase = new URL(process.env.API_URL ?? 'http://127.0.0.1:3000');
+const apiBase = new URL(process.env.API_URL ?? 'http://127.0.0.1:3010');
 assert.ok(
   apiBase.protocol === 'http:' && ['127.0.0.1', 'localhost', '::1'].includes(apiBase.hostname),
   'Local SACCO E2E refuses non-local API hosts',
