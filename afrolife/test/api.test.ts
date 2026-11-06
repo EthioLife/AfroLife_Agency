@@ -44,10 +44,16 @@ async function mkUser(role: string, n: number): Promise<U> {
   return { id, role, phone, token: jwt.sign({ sub: id, role, sid: sessionId }, SECRET, { expiresIn: '8h' }) };
 }
 
-async function call(u: Pick<U, 'token'>, method: string, path: string, body?: unknown) {
+async function call(
+  u: Pick<U, 'token'>,
+  method: string,
+  path: string,
+  body?: unknown,
+  extraHeaders: Record<string, string> = {},
+) {
   const r = await fetch(API + path, {
     method,
-    headers: { 'content-type': 'application/json', authorization: 'Bearer ' + u.token },
+    headers: { 'content-type': 'application/json', authorization: 'Bearer ' + u.token, ...extraHeaders },
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: r.status, body: (await r.json().catch(() => null)) as any };
@@ -364,6 +370,11 @@ test('Global System Admin controls shared platform configuration while Super Adm
     deployment_reference: `super-admin-registration-${run}`,
   });
   assert.equal(registration.status, 200, JSON.stringify(registration.body));
+  const platformTenantContext = { 'x-afrolife-platform-tenant-id': tenantResponse.body.id as string };
+  assert.equal((await call(admin, 'GET', '/leads')).status, 403);
+  assert.equal((await call(admin, 'GET', '/leads', undefined, platformTenantContext)).status, 403);
+  assert.equal((await call(admin, 'GET', '/accounting', undefined, platformTenantContext)).status, 403);
+  assert.equal((await call(unassignedSuperAdmin, 'GET', '/leads', undefined, platformTenantContext)).status, 403);
 
   const activateWithoutVerification = await call(globalAdmin, 'PATCH', `/platform/tenants/${tenantResponse.body.id}`, {
     status: 'active',
@@ -388,6 +399,8 @@ test('Global System Admin controls shared platform configuration while Super Adm
   });
   assert.equal(active.status, 200, JSON.stringify(active.body));
   assert.equal(active.body.status, 'active');
+  assert.equal((await call(admin, 'GET', '/leads')).status, 403);
+  assert.equal((await call(unassignedSuperAdmin, 'GET', '/leads', undefined, platformTenantContext)).status, 403);
 
   const unscopedFeatures = await call(admin, 'GET', '/features');
   const scopedFeatures = await call(admin, 'GET', `/features?platform_tenant_id=${tenantResponse.body.id}`);
@@ -398,10 +411,18 @@ test('Global System Admin controls shared platform configuration while Super Adm
     scopedFeatures.body.enabledModules,
     ['leads', 'workers', 'contracts', 'commissions', 'agents'],
   );
+  assert.equal((await call(admin, 'GET', '/leads', undefined, platformTenantContext)).status, 200);
+  assert.notEqual((await call(admin, 'GET', '/workers', undefined, platformTenantContext)).status, 403);
+  assert.equal((await call(admin, 'GET', '/accounting', undefined, platformTenantContext)).status, 403);
   const narrowed = await call(admin, 'PATCH', `/platform/my-tenants/${tenantResponse.body.id}/modules`, {
     services: ['workforce'],
   });
   assert.equal(narrowed.status, 200, JSON.stringify(narrowed.body));
+  assert.equal((await call(admin, 'GET', '/leads', undefined, platformTenantContext)).status, 403);
+  assert.equal((await call(admin, 'GET', '/contracts', undefined, platformTenantContext)).status, 403);
+  assert.equal((await call(admin, 'GET', '/commissions', undefined, platformTenantContext)).status, 403);
+  assert.equal((await call(admin, 'GET', '/accounting', undefined, platformTenantContext)).status, 403);
+  assert.notEqual((await call(admin, 'GET', '/workers', undefined, platformTenantContext)).status, 403);
   const narrowedFeatures = await call(admin, 'GET', `/features?platform_tenant_id=${tenantResponse.body.id}`);
   assert.deepEqual(narrowedFeatures.body.enabledModules, ['workers']);
   const outOfPackage = await call(admin, 'PATCH', `/platform/my-tenants/${tenantResponse.body.id}/modules`, {

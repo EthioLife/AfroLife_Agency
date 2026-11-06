@@ -6,6 +6,7 @@ import { access, stat } from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { PoolClient } from 'pg';
 import helmet from 'helmet';
 import { z } from 'zod';
 import { Phone } from './validators.js';
@@ -234,15 +235,61 @@ const workerManagementGateway = agencyDomainGateway(
   'WORKER_MANAGEMENT_GATEWAY_SECRET',
 );
 
+async function getPlatformTenantServices(client: PoolClient, tenantId: string): Promise<string[]> {
+  const services = await client.query(
+    `SELECT DISTINCT s.service_key
+     FROM platform_tenants t
+     JOIN platform_tenant_packages tp ON tp.tenant_id=t.id
+     JOIN platform_service_packages p ON p.id=tp.package_id AND p.active
+     JOIN platform_service_package_items i ON i.package_id=p.id
+     JOIN platform_services s ON s.service_key=i.service_key AND s.available
+     WHERE t.id=$1 AND t.status='active'
+       AND (
+         NOT EXISTS (SELECT 1 FROM platform_tenant_module_config c WHERE c.tenant_id=t.id)
+         OR s.service_key=ANY(COALESCE((
+           SELECT c.enabled_services FROM platform_tenant_module_config c WHERE c.tenant_id=t.id
+         ),ARRAY[]::text[]))
+       )`,
+    [tenantId],
+  );
+  return services.rows.map((row) => row.service_key as string);
+}
+
+const requirePlatformTenantService = (...serviceKeys: string[]): RequestHandler => (req, _res, next) => {
+  if (req.user!.role !== 'super_admin') return next();
+  const tenantId = z.string().uuid().safeParse(req.get('x-afrolife-platform-tenant-id'));
+  if (!tenantId.success) {
+    return next(new HttpError(403, 'Select an assigned, active platform tenant before accessing this service.'));
+  }
+  withUser(req.user!, async (client) => {
+    const permitted = await client.query(
+      `SELECT 1 FROM platform_tenants t
+       WHERE t.id=$1 AND t.status='active'
+         AND EXISTS (
+           SELECT 1 FROM platform_tenant_admins a
+           WHERE a.tenant_id=t.id AND a.user_id=$2
+         )
+       LIMIT 1`,
+      [tenantId.data, req.user!.id],
+    );
+    const enabledServices = permitted.rowCount
+      ? await getPlatformTenantServices(client, tenantId.data)
+      : [];
+    if (!serviceKeys.some((serviceKey) => enabledServices.includes(serviceKey))) {
+      throw new HttpError(403, 'The selected platform tenant is not active, assigned, or entitled to this service.');
+    }
+  }).then(() => next(), next);
+};
+
 api.use(authenticate);
 api.post('/maintenance/:id/evidence', express.raw({ type: () => true, limit: '10mb' }));
 api.post('/maintenance/vendor/:id/evidence', express.raw({ type: () => true, limit: '10mb' }));
 api.post('/maintenance/vendor/:id/invoice', express.raw({ type: () => true, limit: '10mb' }));
-api.use(['/workers', '/documents'], requireMiniAppAccess('workers'));
-api.use('/workforce', requireMiniAppAccess('workers'));
-api.use('/worker-support', requireMiniAppAccess('workers'));
-api.use(['/requests', '/matches'], requireMiniAppAccess('requests'));
-api.use('/staffing-engagements', (req, res, next) => {
+api.use(['/workers', '/documents'], requirePlatformTenantService('workforce'), requireMiniAppAccess('workers'));
+api.use('/workforce', requirePlatformTenantService('workforce'), requireMiniAppAccess('workers'));
+api.use('/worker-support', requirePlatformTenantService('workforce', 'staffing'), requireMiniAppAccess('workers'));
+api.use(['/requests', '/matches'], requirePlatformTenantService('staffing'), requireMiniAppAccess('requests'));
+api.use('/staffing-engagements', requirePlatformTenantService('staffing', 'workforce'), (req, res, next) => {
   const partyAcceptance = req.method === 'POST'
     && /\/staffing-engagements\/[^/]+\/accept(?:\?|$)/.test(req.originalUrl)
     && ['customer', 'worker'].includes(req.user!.role);
@@ -257,11 +304,12 @@ api.use('/staffing-engagements', (req, res, next) => {
 });
 api.use(
   ['/staffing-work-periods', '/staffing-settlements'],
+  requirePlatformTenantService('staffing', 'workforce', 'accounting'),
   requireAnyMiniAppAccess('requests', 'accounting', 'workers'),
 );
-api.use(['/properties'], requireMiniAppAccess('properties'));
-api.use('/marketplace', requireMiniAppAccess('marketplace'));
-api.use('/accounting', (req, _res, next) => {
+api.use(['/properties'], requirePlatformTenantService('property'), requireMiniAppAccess('properties'));
+api.use('/marketplace', requirePlatformTenantService('marketplace'), requireMiniAppAccess('marketplace'));
+api.use('/accounting', requirePlatformTenantService('accounting'), (req, _res, next) => {
   void (async () => {
     if (!hasMiniAppAccess(req.user!, 'accounting')) throw new HttpError(403, 'Accounting & Finance is not assigned to your account');
     if (['global_admin','super_admin','finance','finance_manager','compliance','corporate_business_manager'].includes(req.user!.role)) return;
@@ -273,23 +321,28 @@ api.use('/accounting', (req, _res, next) => {
     if (!subscribed) throw new HttpError(403, 'An active Accounting & Finance subscription is required');
   })().then(() => next(), next);
 });
-api.use('/edir', requireMiniAppAccess('edir'));
-api.use('/insurance', requireMiniAppAccess('insurance'));
-api.use('/mfi', requireMiniAppAccess('mfi'));
+api.use('/edir', requirePlatformTenantService('edir'), requireMiniAppAccess('edir'));
+api.use('/insurance', requirePlatformTenantService('insurance'), requireMiniAppAccess('insurance'));
+api.use('/mfi', requirePlatformTenantService('sacco_mfi'), requireMiniAppAccess('mfi'));
+api.use(
+  ['/leads', '/contracts', '/contract-documents', '/commissions', '/agents', '/invoices'],
+  requirePlatformTenantService('agency'),
+);
 api.use(['/leads'], requireMiniAppAccess('leads'));
 api.use(['/contracts', '/contract-documents'], requireMiniAppAccess('contracts'));
-api.use('/commissions', requireMiniAppAccess('commissions'));
+api.use(['/commissions', '/invoices'], requireMiniAppAccess('commissions'));
 api.use('/agents', requireMiniAppAccess('agents'));
-api.use('/learning', requireMiniAppAccess('learning'));
-api.use('/privacy', requireMiniAppAccess('privacy'));
-api.use('/rent', requireMiniAppAccess('rent'));
-api.use('/global-bi', requireMiniAppAccess('global-bi'));
+api.use('/learning', requirePlatformTenantService('learning'), requireMiniAppAccess('learning'));
+api.use('/privacy', requirePlatformTenantService('privacy'), requireMiniAppAccess('privacy'));
+api.use('/rent', requirePlatformTenantService('property'), requireMiniAppAccess('rent'));
+api.use('/global-bi', requirePlatformTenantService('global_bi'), requireMiniAppAccess('global-bi'));
 api.use(
   ['/tenants', '/leases', '/lease-signature-documents', '/releases', '/rent-transactions'],
+  requirePlatformTenantService('property'),
   requireAnyMiniAppAccess('properties', 'rent'),
 );
-api.use(['/maintenance'], requireAnyMiniAppAccess('properties', 'accounting'));
-api.use(['/resident'], requireMiniAppAccess('properties'));
+api.use(['/maintenance'], requirePlatformTenantService('property', 'accounting'), requireAnyMiniAppAccess('properties', 'accounting'));
+api.use(['/resident'], requirePlatformTenantService('property'), requireMiniAppAccess('properties'));
 api.use((req, _res, next) => {
   const organizationId = req.get('x-afrolife-edir-id');
   if (organizationId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(organizationId)) {
@@ -324,7 +377,8 @@ api.get('/features', h(async (req, res) => {
     if (!['global_admin', 'super_admin'].includes(req.user!.role)) {
       throw new HttpError(403, 'Only Super Admins and Global Admins may select a platform tenant context.');
     }
-    platformTenantId = z.string().uuid().parse(req.query.platform_tenant_id);
+    const selectedPlatformTenantId = z.string().uuid().parse(req.query.platform_tenant_id);
+    platformTenantId = selectedPlatformTenantId;
     const tenant = await withUser(req.user!, async (client) => {
       const permitted = await client.query(
         `SELECT t.id,t.status FROM platform_tenants t
@@ -334,26 +388,13 @@ api.get('/features', h(async (req, res) => {
              WHERE a.tenant_id=t.id AND a.user_id=$3
            )
          )`,
-        [platformTenantId, req.user!.role, req.user!.id],
+        [selectedPlatformTenantId, req.user!.role, req.user!.id],
       );
       if (!permitted.rowCount) throw new HttpError(403, 'This platform tenant is not assigned to your account.');
-      const services = await client.query(
-        `SELECT DISTINCT s.service_key
-         FROM platform_tenants t
-         JOIN platform_tenant_packages tp ON tp.tenant_id=t.id
-         JOIN platform_service_packages p ON p.id=tp.package_id AND p.active
-         JOIN platform_service_package_items i ON i.package_id=p.id
-         JOIN platform_services s ON s.service_key=i.service_key AND s.available
-         WHERE t.id=$1 AND t.status='active'
-           AND (
-             NOT EXISTS (SELECT 1 FROM platform_tenant_module_config c WHERE c.tenant_id=t.id)
-             OR s.service_key=ANY(COALESCE((
-               SELECT c.enabled_services FROM platform_tenant_module_config c WHERE c.tenant_id=t.id
-             ),ARRAY[]::text[]))
-           )`,
-        [platformTenantId],
-      );
-      return { status: permitted.rows[0].status as string, services: services.rows.map((row) => row.service_key as string) };
+      return {
+        status: permitted.rows[0].status as string,
+        services: await getPlatformTenantServices(client, selectedPlatformTenantId),
+      };
     });
     enabledModules = tenant.status === 'active'
       ? workspaceModulesForServices(enabledModules, tenant.services)

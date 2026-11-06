@@ -255,6 +255,9 @@ setInterval(loadPublicIndustryNews, 15 * 60 * 1000);
 async function api(path, options = {}) {
   const headers = new Headers(options.headers ?? {});
   headers.set('x-afrolife-edir-id', state.edirOrganizationId);
+  if (state.user?.role === 'super_admin' && state.platformTenantContextId) {
+    headers.set('x-afrolife-platform-tenant-id', state.platformTenantContextId);
+  }
   const token = sessionStorage.getItem(TOKEN_KEY);
   if (token) headers.set('authorization', `Bearer ${token}`);
   if (options.body && !(options.body instanceof Blob)) headers.set('content-type', 'application/json');
