@@ -106,7 +106,9 @@ Before creating production traffic, record evidence for each item:
 
 ### Emergency Super Admin recovery
 
-When no active Super Admin can sign in, a one-time recovery can be run at app startup by setting `ALETCLOUD_ADMIN_RECOVERY_ENABLED=1`, `ALETCLOUD_ADMIN_RECOVERY_CONFIRM=rotate-super-admin`, `ALETCLOUD_ADMIN_RECOVERY_PHONE`, and `ALETCLOUD_ADMIN_RECOVERY_PASSWORD` in that app's private environment. The password must be 16–72 UTF-8 bytes. Recovery only updates one active Super Admin/Global Admin matching the phone, revokes that account's sessions, and requires a password change at next sign-in; existing MFA settings remain unchanged. After the recovery success message, remove all four variables and redeploy immediately. Never put recovery values in source control or logs.
+When no active Super Admin can sign in, a one-time recovery can be run at app startup by setting `ALETCLOUD_ADMIN_RECOVERY_ENABLED=1`, `ALETCLOUD_ADMIN_RECOVERY_CONFIRM=rotate-super-admin`, `ALETCLOUD_ADMIN_RECOVERY_PHONE`, and `ALETCLOUD_ADMIN_RECOVERY_PASSWORD` in that app's private environment. The password must be 16–72 UTF-8 bytes.
+
+By default, recovery selects the unique active Super Admin/Global Admin matching the phone. To also update an existing admin's identity, optionally set `ALETCLOUD_ADMIN_RECOVERY_NAME` to the desired legal name. This mode proceeds only when exactly one active Super Admin/Global Admin account exists, then updates its name and phone. Both modes revoke the selected account's sessions and require a password change at next sign-in; existing MFA settings remain unchanged. After the recovery success message, remove all recovery variables and redeploy immediately. Never put recovery values in source control or logs.
 
 ## Official provider references
 

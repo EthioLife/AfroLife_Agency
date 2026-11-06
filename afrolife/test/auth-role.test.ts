@@ -28,6 +28,74 @@ test('Global Admin promotion table is accessible to the restricted runtime under
   assert.match(migration, /GRANT SELECT, INSERT, UPDATE ON TABLE global_admin_role_change_requests TO "\{\{role\}\}"/);
 });
 
+test('Global Admin promotions require distinct active MFA-enabled Super Admins', async () => {
+  const routes = adminRouter.stack.flatMap((layer) => layer.route ? [{
+    path: layer.route.path,
+    methods: layer.route.methods,
+    middleware: layer.route.stack.map((entry) => entry.handle),
+  }] : []);
+  const protectedRoutes = [
+    ['/global-admin-promotions', 'get'],
+    ['/global-admin-promotions', 'post'],
+    ['/global-admin-promotions/:id/approve', 'post'],
+    ['/global-admin-promotions/:id/reject', 'post'],
+    ['/users/:id/activate', 'post'],
+  ] as const;
+
+  for (const [path, method] of protectedRoutes) {
+    const route = routes.find((entry) => entry.path === path && entry.methods[method]);
+    assert.ok(route, `missing ${method.toUpperCase()} ${path}`);
+    const promotionRoute = path.startsWith('/global-admin-promotions');
+    for (const role of (promotionRoute ? ['super_admin'] : ['global_admin', 'super_admin'])) {
+      let denied: unknown;
+      route.middleware[0]({ user: { role } }, {}, (error?: unknown) => { denied = error; });
+      assert.equal(denied, undefined, `${role} should be allowed on ${path}`);
+    }
+    for (const role of (promotionRoute
+      ? ['global_admin', 'corporate_business_manager', 'compliance', 'finance', 'customer']
+      : ['corporate_business_manager', 'compliance', 'finance', 'customer'])) {
+      let denied: unknown;
+      route.middleware[0]({ user: { role } }, {}, (error?: unknown) => { denied = error; });
+      assert.equal((denied as { status?: number })?.status, 403, `${role} must be denied on ${path}`);
+    }
+  }
+
+  const source = await readFile(new URL('../src/admin.ts', import.meta.url), 'utf8');
+  assert.match(source, /requested_by === req\.user!\.id \|\| request\.target_user_id === req\.user!\.id/);
+  assert.match(source, /isEligibleSuperAdmin\(eligible\.get\(req\.user!\.id\)\)/);
+  assert.match(source, /isEligibleSuperAdmin\(eligible\.get\(request\.requested_by\)\)/);
+  assert.match(source, /isEligibleSuperAdmin\(target\)/);
+  assert.match(source, /user\?\.active === true && user\.role === 'super_admin' && user\.mfa_enabled === true/);
+  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.match(app, /state\.user\.role === 'super_admin' \? safeGet\('\/global-admin-promotions'/);
+  assert.match(app, /if \(state\.user\.role === 'super_admin'\) wrap\.append\(renderGlobalAdminPromotions\(\)\)/);
+});
+
+test('a Super Admin may activate a different Super Admin but not other roles', async () => {
+  const routes = adminRouter.stack.flatMap((layer) => layer.route ? [{
+    path: layer.route.path,
+    methods: layer.route.methods,
+    middleware: layer.route.stack.map((entry) => entry.handle),
+  }] : []);
+  const route = routes.find((entry) => entry.path === '/users/:id/activate' && entry.methods.post);
+  assert.ok(route, 'missing account activation route');
+  const source = await readFile(new URL('../src/admin.ts', import.meta.url), 'utf8');
+  assert.match(source, /req\.user!\.role === 'super_admin' && target\.role !== 'super_admin'/);
+  assert.match(source, /target\.created_by === req\.user!\.id/);
+  assert.match(source, /\$1::text='super_admin' AND u\.role='super_admin'[\s\S]*?u\.active=false/);
+
+  for (const role of ['global_admin', 'super_admin']) {
+    let denied: unknown;
+    route.middleware[0]({ user: { role } }, {}, (error?: unknown) => { denied = error; });
+    assert.equal(denied, undefined, `${role} should be allowed to reach activation checks`);
+  }
+  for (const role of ['corporate_business_manager', 'compliance', 'finance', 'customer']) {
+    let denied: unknown;
+    route.middleware[0]({ user: { role } }, {}, (error?: unknown) => { denied = error; });
+    assert.equal((denied as { status?: number })?.status, 403, `${role} must be denied`);
+  }
+});
+
 test('role activity catalog grants default access and respects explicit overrides', () => {
   const viewLearning = 'learning.content.view';
   const manageLearning = 'learning.content.manage';

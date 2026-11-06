@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import ts from 'typescript';
+import { readFile } from 'node:fs/promises';
 import { checkWorkspaceServices, createApiMetrics } from '../src/workspace-status.ts';
 import { isMiniAppAllowed, isPanelEnabled, panelFromUrl, panelUrl } from '../public/workspace-navigation.js';
 import { MIN_SEARCH_QUERY_LENGTH, searchWorkspaceRecords } from '../public/workspace-search.js';
@@ -414,4 +415,19 @@ test('row pagination supports page sizes and clamps page boundaries', () => {
   assert.deepEqual(paginateRows(rows, 100, 1), { page: 1, pageSize: 100, pageCount: 1, start: 0, end: 51 });
   assert.deepEqual(paginateRows([], 10, 2), { page: 1, pageSize: 10, pageCount: 1, start: 0, end: 0 });
   assert.equal(paginateRows(rows, 17).pageSize, 10);
+});
+
+test('workspace and financial tables use RTL-aware logical text alignment', async () => {
+  const workspaceStyles = await readFile(new URL('../public/styles.css', import.meta.url), 'utf8');
+  const financialStyles = await readFile(new URL('../public/financial-workspaces.css', import.meta.url), 'utf8');
+
+  assert.match(workspaceStyles, /\.workspace-launch-card\s*\{[^}]*text-align:\s*start;/);
+  assert.match(workspaceStyles, /\.news-feed-meta\s*\{[^}]*text-align:\s*end;/);
+  assert.match(workspaceStyles, /\.maintenance-latest-update\s*\{[^}]*padding-inline-start:/);
+  assert.match(workspaceStyles, /\.workspace \.empty-state\s*\{[^}]*border-inline-start:/);
+  assert.match(financialStyles, /\.finance-data-table,\s*\.bi-data-table\s*\{[^}]*text-align:\s*start;/);
+  assert.match(financialStyles, /\.finance-data-table caption,\s*\.bi-data-table caption\s*\{[^}]*text-align:\s*start;/);
+  assert.match(financialStyles, /\.finance-chart-value,\s*\.bi-series-value\s*\{[^}]*text-align:\s*end;/);
+  assert.match(financialStyles, /\.bi-series-bar\.is-negative\s*\{[^}]*margin-inline-start:/);
+  assert.match(financialStyles, /\.bi-scope-banner\s*\{[^}]*border-inline-start:/);
 });

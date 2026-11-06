@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-const baseUrl = process.env.AFROLIFE_LOAD_BASE_URL ?? 'http://127.0.0.1:3000';
+const baseUrl = process.env.AFROLIFE_LOAD_BASE_URL ?? 'http://127.0.0.1:3010';
 const concurrency = Number(process.env.AFROLIFE_LOAD_CONCURRENCY ?? 25);
 const requests = Number(process.env.AFROLIFE_LOAD_REQUESTS ?? 500);
 const paths = (process.env.AFROLIFE_LOAD_PATHS ?? '/healthz')

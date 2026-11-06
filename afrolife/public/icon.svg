@@ -1,8 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
-  <title id="title">AfroLife mark</title>
-  <desc id="desc">A geometric A formed by green, blue, and yellow shapes on a transparent background.</desc>
-  <circle cx="128" cy="61" r="19" fill="#FFB000"/>
-  <path d="M92 73c13 0 22 11 18 24l-24 79c-5 16-15 23-28 20-13-3-19-15-14-29l27-77c4-11 10-17 21-17Z" fill="#00B85A"/>
-  <path d="M164 73c-13 0-22 11-18 24l24 79c5 16 15 23 28 20 13-3 19-15 14-29l-27-77c-4-11-10-17-21-17Z" fill="#0066FF"/>
-  <path d="M90 181c3-25 19-41 38-41s35 16 38 41c-11 10-24 15-38 15s-27-5-38-15Z" fill="#FFB000"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">AfroSherik mark</title>
+  <desc id="desc">The AfroSherik gold and green mark over a forest-green background.</desc>
+  <image href="/icons/afrosherik-icon-512.png" width="512" height="512"/>
 </svg>

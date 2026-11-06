@@ -263,7 +263,6 @@ function productionConfig(env: Environment, idleTimeout: number): RuntimeConfig 
   }
   const isLocalDatabase = ['localhost', '127.0.0.1', '::1'].includes(database.hostname);
   const isAletCloudPrivateDatabase = database.hostname.endsWith('.svc.cluster.local');
-  // AletCloud's private database endpoint uses a provider self-signed certificate; keep TLS required and scope its non-verifying mode to cluster-local hosts.
   const usesAletCloudPrivateTls = isAletCloudPrivateDatabase
     && database.searchParams.get('sslmode') === 'require'
     && database.searchParams.get('uselibpqcompat') === 'true';
@@ -332,9 +331,12 @@ function productionConfig(env: Environment, idleTimeout: number): RuntimeConfig 
     mfiPilotEnabled,
     sessionIdleTimeoutMinutes: idleTimeout,
     legacyImmediateLeasesEnabled: allowLegacyImmediateLeases,
-    enabledModules: enabledWorkspaceModules(env).filter((module) => module !== 'insurance' || Boolean(env.INSURANCE_SERVICE_URL?.trim())),
+    enabledModules: enabledWorkspaceModules(env).filter(
+      (module) => module !== 'insurance' || Boolean(env.INSURANCE_SERVICE_URL?.trim()),
+    ),
   };
 }
+
 export function loadRuntimeConfig(env: Environment): RuntimeConfig {
   validateInsuranceServiceCutover(env);
   validateAgencyServiceCutovers(env);

@@ -600,7 +600,7 @@ test('resident lease self-service requires a one-time claim and scopes property,
   assert.match(operations,/randomBytes\(32\)\.toString\('hex'\)/);
   assert.match(operations,/createHash\('sha256'\)\.update\(claimCode\.toLowerCase\(\)\)/);
   assert.match(operations,/tenant access invitation is invalid, expired, or already used/i);
-  assert.match(server,/api\.use\(\['\/resident'\], requireMiniAppAccess\('properties'\)\)/);
+  assert.match(server,/api\.use\(\['\/resident'\], requirePlatformTenantService\('property'\), requireMiniAppAccess\('properties'\)\)/);
   assert.match(propertyVendorPortal,/req\.user\?\.role === 'customer'\) return requireMiniAppAccess\('properties'\)/);
   assert.match(publicApp,/Resident self-service/);
   assert.match(publicApp,/resident-access-claim/);

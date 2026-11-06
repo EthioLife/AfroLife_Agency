@@ -23,9 +23,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>EthioLife uses the camera when you choose to capture an identity or supporting document for submission.</string>
+	<string>AfroLife uses the camera when you choose to capture an identity or supporting document for submission.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>EthioLife lets you choose an identity or supporting document from your photo library when you submit an application.</string>
+	<string>AfroLife lets you choose an identity or supporting document from your photo library when you submit an application.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

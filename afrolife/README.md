@@ -38,9 +38,15 @@ Same-origin TypeScript/Express API and installable web app for AfroLife agency o
    Remove-Item Env:SEED_ADMIN_PASSWORD
    ```
 
+   To provision one additional platform administrator, use `npm run seed:platform-super-admin` with the runtime `DATABASE_URL` and the `SEED_PLATFORM_ADMIN_*` environment variables. Provide the UUID of an active, MFA-enabled Super Admin or Global Admin as `SEED_PLATFORM_ADMIN_ACTOR_ID`, plus the person's name, phone, a unique temporary password, and a reason. A database advisory lock and audit-event check enforce that this seed can run only once. The command creates an active Super Admin, forces a password change, and records an audit event; it does not grant Global Admin. The new administrator must enroll in MFA before requesting promotion through the existing two-person approval workflow. Never put passwords in source control or share them in chat, and clear the environment variables after use.
+
+   For initial UAT recovery only, `npm run bootstrap:uat-global-admin` can establish the first Global Admin when no Global Admin exists and the normal independent promotion workflow is not yet possible. It requires `AFROLIFE_DEPLOYMENT_ENV=uat`, `ALETCLOUD_APP_NAME=afrolife-uat-canary`, `ALLOW_UAT_GLOBAL_ADMIN_BOOTSTRAP=1`, `DATABASE_URL`, `UAT_GLOBAL_ADMIN_TARGET_ID`, and `UAT_GLOBAL_ADMIN_REASON`. The target must already be an active, MFA-enabled Super Admin. The operation uses a serializable transaction and advisory lock, rejects any existing Global Admin or prior bootstrap, writes the role-change history and an audit record, and can succeed only once. Set the environment values only for the confirmed UAT database, run the command once, then immediately remove the opt-in and target/reason values. This is not a production recovery path; normal Global Admin promotions must use the two-person approval workflow.
+
 4. Run `npm run dev`, then open `http://localhost:3010`.
 
-`http://localhost:3010` is the local browser entry point for the PWA and API.
+`http://localhost:3010` is the single client-facing local entry point for the
+PWA and API. All configured services, including Accounting, are reached through
+this gateway; their private listener ports are not browser-facing.
 The optional local Nginx preview on `http://localhost:8080` only proxies to
 that same app and is not needed for `npm run dev`. Users always open this
 single app URL (or the single public hostname in deployment); they do not open
@@ -50,7 +56,7 @@ API gateway, which routes each feature internally.
 For a containerized local QA environment, start Docker Desktop and run
 `npm run qa:docker:up` from `afrolife/`. This builds the application, starts an
 isolated PostgreSQL database on loopback port 5433, applies migrations, grants
-the restricted runtime role, and serves the app at `http://localhost:3000`.
+the restricted runtime role, and serves the app at `http://localhost:3010`.
 Database and private uploads use Docker-managed named volumes; host `data/`
 and any prior local database are not deleted or mounted. Locally generated
 secrets are kept in the Git-ignored `.env.docker`. Run
@@ -86,6 +92,8 @@ and `API_URL` set. Remove the temporary credential file afterward.
 Before a shared or production launch, provision at least two Super Admin accounts with distinct names and phone numbers using the seed procedure. Repeat the seed command with the second administrator's details; the phone number must be unique. Account setup is deliberately four-eyes: a Super Admin cannot activate an account they created, and cannot reset their own password or MFA. Keep both sets of seed credentials outside the repository and remove them after use.
 
 Global Admin is the Global System Admin role and is the only role for platform-wide configuration: tenant onboarding, service and package definitions, platform module availability, Super Admin onboarding and assignment, global identity, role templates, and operations controls. A Super Admin can administer only assigned business entities, choose a subset of the modules and services approved for each active entity, register its deployment reference, and onboard Master Agents or Field Agents they created. A Super Admin cannot create tenants, change shared service packages, alter global role templates, assign other Super Admins, or administer another tenant. Without an assigned active entity context, a Super Admin receives no business modules. Business Admin (`corporate_business_manager`) is limited to business-entity operations and agent onboarding; system configuration remains unavailable. Super Admin and Business Admin user lists are limited to accounts they created. An active, MFA-enabled Super Admin can nominate another active, MFA-enabled Super Admin; a second, different eligible Super Admin must approve the request with a reason. Request and decision events are recorded in the audit log. No role bypasses financial maker-checker approvals.
+
+Super Admin business-service APIs independently check the selected tenant's active status, assignment, and service-package entitlement; filtering the launcher alone does not authorize API access.
 
 The initial database migration creates a starter Ethiopia → Addis Ababa → Bole territory path and default pricing/matching rules. Additional territories are managed through the API by a Super Admin.
 `/livez` confirms that the API process is running. `/healthz` checks PostgreSQL connectivity. `/readyz` is the deployment readiness probe: it checks the database, every workspace migration packaged with this release and its stored checksum, writable private-file storage, and all configured private services. It returns HTTP 503 if any required check fails and does not expose connection strings or exception details.
@@ -241,7 +249,9 @@ deployed, migrated, and reachable.
 
 ## AfroLife Accounting standalone service
 
-Accounting is a separately deployable multi-entity accounting backend and web workspace with its own PostgreSQL database, user mode, entity memberships, chart of accounts, periods, journals, and consolidation totals. See [services/accounting/README.md](./services/accounting/README.md) for standalone and AfroLife-connected deployment, credentials, migrations, and source-event mapping. The Super App exposes Accounting as a dedicated finance mini-app when the subscriber or internal Accounting gateway is configured. Accounting is included in the existing manual service-subscription request and finance payment-review flow; customer and property-owner access requires both the existing mini-app assignment and a confirmed, unexpired Accounting subscription. The service API continues to enforce those checks. Transactional source publishers are wired for property rent/deposit receipts, Agency contract fees, commission accruals and payouts, dispute refunds, approved MFI loan disbursements/write-offs, Edir transactions, and approved Insurance journals. Marketplace has local sandbox checkout only; real payment posting still requires a provider and entity/account mappings. Configure Accounting entity and account mappings before enabling delivery; historical entries are not backfilled.
+Accounting is available as a dedicated finance mini-app from the Super App catalog and existing manual service-subscription request and finance payment-review flow. Customer and property-owner access requires both the existing mini-app assignment and a confirmed, unexpired Accounting subscription; the service API enforces those checks. Internal Accounting and Finance integrations use the existing gateway route. Paid commercial subscription and payment fulfillment are not automated.
+
+Accounting is a separately deployable multi-entity backend and web workspace with its own PostgreSQL database, user mode, entity memberships, chart of accounts, periods, journals, and consolidation totals. See [services/accounting/README.md](./services/accounting/README.md) for deployment, credentials, migrations, and source-event mapping. The Super App exposes Accounting through the client-facing port 3010 when `ACCOUNTING_SERVICE_URL` and the matching gateway secret are configured; the Accounting process listens privately on port 3301 and clients must use the main gateway. Docker QA starts Accounting with a separate database and restricted runtime role. For local integration outside Docker QA, run `npm run db:accounting:local:setup`, start `npm run start:accounting:local`, then restart the core API so it loads the generated gateway configuration. Transactional source publishers are wired for property rent/deposit receipts, Agency contract fees, commission accruals and payouts, dispute refunds, approved MFI loan disbursements/write-offs, Edir transactions, and approved Insurance journals. Marketplace has local sandbox checkout only; real payment posting still requires a provider and entity/account mappings. Configure Accounting entity and account mappings before enabling delivery; historical entries are not backfilled. The core catalog service entry can be assigned through service packages.
 
 ## Property listings and secure uploads
 
@@ -319,7 +329,7 @@ boundaries have been verified.
 
 The central AfroLife API image is built from this directory with
 `docker build -t afrolife-api .`. It serves the `public/` application, listens
-on port 3000, and runs as the unprivileged Node user. Configure its production
+on private gateway port 3010, and runs as the unprivileged Node user. Configure its production
 database, authentication, and storage settings through the deployment secret
 manager, and mount persistent private storage at the configured
 `FILE_STORAGE_DIR`, writable by the image's unprivileged `node` user (UID
@@ -507,6 +517,15 @@ accurate privacy policy and App Store privacy disclosures for the data the
 deployed services actually collect; do not claim that the local mock data or a
 successful simulator build constitutes production or privacy approval.
 
+The `AfroLife iOS build` GitHub Actions workflow runs on relevant pushes and
+pull requests, or can be started manually from the repository's Actions tab.
+It builds an unsigned iOS Simulator app on a macOS runner and uploads
+`afrolife-ios-simulator` as a seven-day artifact. Download and unzip that
+artifact to use with an iOS Simulator; it cannot be installed on a physical
+iPhone or submitted to TestFlight. Device distribution still requires an Apple
+Developer account, signing certificate, provisioning profile, and a separately
+configured signed release workflow.
+
 For Windows Server self-hosting, see the deployment configuration and release
 gates in [PRODUCTION_HARDENING.md](./PRODUCTION_HARDENING.md). See
 [QUALITY_ASSURANCE.md](./QUALITY_ASSURANCE.md) for automated checks, staging
@@ -543,7 +562,7 @@ scenarios, launch evidence, and pilot operations.
 - `npm run test:ui:e2e:local` — headless Chrome smoke check for Super Admin login, SACCO forms, responsive layouts, and browser errors; requires local QA accounts and Chrome
 - `npm run test:integration` — run API/database tests against a running local instance
 - `npm run check:local-deployment` — check local WSL service state, loopback-only listeners, full `/readyz` status (database, migrations, storage, configured services), and whether the proxy serves the current checkout
-- GitHub Actions runs browser syntax/config checks, service builds, and unit tests on relevant pushes and pull requests. A macOS runner also syncs and builds the iOS app for the simulator without signing; device signing and App Store distribution still require Apple signing credentials and release review.
+- GitHub Actions runs browser syntax/config checks, service builds, and unit tests on relevant pushes and pull requests. Its macOS iOS workflow also uploads a versioned simulator app artifact; device signing and App Store distribution still require Apple signing credentials and release review.
 - `npm run android:add` — generate the Capacitor Android project
 - `npm run android:sync` — copy the web app into Android and sync native plugins
 - `npm run android:open` — open the Android project in Android Studio
@@ -647,7 +666,7 @@ The **Rent & deposits** workspace supports tenant and lease creation, rent recei
 ## One public Super App URL (Windows/IIS)
 
 The public hostname serves the PWA and every API through the main AfroLife API
-origin. IIS must proxy the entire hostname to `http://127.0.0.1:3000`; the main
+origin. IIS must proxy the entire hostname to `http://127.0.0.1:3010`; the main
 API serves the PWA and owns `/api/v1` authentication. Its signed internal
 routes expose Edir at `/api/v1/edir` and Insurance at
 `/api/v1/insurance/ledger`. Agency operations and MFI remain under that same
@@ -675,9 +694,11 @@ legacy in-process implementation. The information-request API now runs in the
 Insurance service, but its records still use a second restricted connection to
 the central identity database until their explicit data migration is implemented.
 
-The public browser URL remains `https://afrolife-agency.duckdns.org`; routes
-stay same-origin, so no separate public subdomains or browser CORS origins are
-needed. Nginx is the only public ingress to the central API gateway; the
+The selected canonical public browser URL is `https://www.afrolife.com.et`;
+DNS, public ingress, and TLS must be completed using
+[`deploy/CUSTOM_DOMAIN_LOCAL_SERVER.md`](./deploy/CUSTOM_DOMAIN_LOCAL_SERVER.md)
+before it is live. Routes stay same-origin, so no separate public subdomains
+are needed. Nginx or IIS is the only public ingress to the central API gateway; the
 gateway dispatches signed requests to private Edir, Insurance, and SACCO/MFI
 services. Service-specific Nginx locations must continue to terminate at the
 central gateway rather than bypassing its identity assertions. Keep all

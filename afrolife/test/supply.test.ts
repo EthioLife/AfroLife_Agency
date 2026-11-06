@@ -9,7 +9,7 @@ import pg from 'pg';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-const API = (process.env.API_URL ?? 'http://localhost:3000') + '/api/v1';
+const API = (process.env.API_URL ?? 'http://localhost:3010') + '/api/v1';
 const SECRET = process.env.JWT_SECRET!;
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 if (!testDatabaseUrl) throw new Error('TEST_DATABASE_URL must explicitly point to a disposable integration-test database');

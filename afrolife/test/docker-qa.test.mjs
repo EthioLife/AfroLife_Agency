@@ -5,6 +5,8 @@ import { readFileSync } from 'node:fs';
 const compose = readFileSync(new URL('../compose.qa.yaml', import.meta.url), 'utf8');
 const initSql = readFileSync(new URL('../docker/qa-init.sql', import.meta.url), 'utf8');
 const dockerfile = readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8');
+const accountingDockerfile = readFileSync(new URL('../services/accounting/Dockerfile', import.meta.url), 'utf8');
+const apiServer = readFileSync(new URL('../src/server.ts', import.meta.url), 'utf8');
 const dockerIgnore = readFileSync(new URL('../.dockerignore', import.meta.url), 'utf8');
 const gitIgnore = readFileSync(new URL('../.gitignore', import.meta.url), 'utf8');
 const seedUsers = readFileSync(new URL('../scripts/seed-local-test-users.ts', import.meta.url), 'utf8');
@@ -12,7 +14,7 @@ const qaScript = readFileSync(new URL('../scripts/docker-qa.ps1', import.meta.ur
 const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
 
 test('Docker QA exposes one app port and keeps PostgreSQL on loopback', () => {
-  assert.match(compose, /127\.0\.0\.1:\$\{AFROLIFE_HTTP_PORT:-3000\}:3000/);
+  assert.match(compose, /127\.0\.0\.1:\$\{AFROLIFE_HTTP_PORT:-3010\}:3010/);
   assert.match(qaScript, /function Get-HttpPort/);
   assert.match(qaScript, /\$environmentPort = \$env:AFROLIFE_HTTP_PORT/);
   assert.match(qaScript, /AFROLIFE_HTTP_PORT=\(\\d\+\)/);
@@ -24,6 +26,26 @@ test('Docker QA exposes one app port and keeps PostgreSQL on loopback', () => {
   assert.match(compose, /qa_database:\/var\/lib\/postgresql/);
   assert.match(compose, /qa_private_files:\/app\/afrolife\/data\/private-files/);
   assert.doesNotMatch(compose, /(?:\.\/|\.\.\/)data(?:\/|:)/);
+});
+
+test('Accounting stays private behind the single port 3010 application gateway', () => {
+  assert.match(apiServer, /const port = Number\(process\.env\.PORT \?\? 3010\)/);
+  assert.match(apiServer, /api\.use\('\/accounting'/);
+  assert.match(accountingDockerfile, /EXPOSE 3301/);
+  assert.match(accountingDockerfile, /process\.env\.PORT\|\|3301/);
+  assert.doesNotMatch(accountingDockerfile, /EXPOSE 3010/);
+  assert.match(compose, /ACCOUNTING_SERVICE_URL: http:\/\/accounting:3301/);
+  assert.match(compose, /ACCOUNTING_AUTH_MODE: gateway/);
+  assert.match(compose, /ACCOUNTING_DATABASE_URL: postgres:\/\/accounting_runtime:/);
+  assert.match(compose, /ACCOUNTING_RUNTIME_DB_ROLE: accounting_runtime/);
+  assert.match(compose, /qa_accounting_database:\/var\/lib\/postgresql/);
+  assert.match(compose, /accounting:\s+\n[\s\S]*?PORT: 3301[\s\S]*?healthcheck:/);
+  assert.match(compose, /accounting:\s+\n[\s\S]*?ACCOUNTING_GATEWAY_SECRET:[\s\S]*?depends_on:/);
+  assert.match(compose, /accounting:\s*\n\s+condition: service_healthy/);
+  assert.match(qaScript, /AFROLIFE_ACCOUNTING_DB_ADMIN_PASSWORD/);
+  assert.match(qaScript, /AFROLIFE_ACCOUNTING_DB_RUNTIME_PASSWORD/);
+  assert.match(qaScript, /ACCOUNTING_GATEWAY_SECRET/);
+  assert.match(qaScript, /ACCOUNTING_INGEST_SECRET/);
 });
 
 test('Docker QA migrations run as database owner and the app uses a restricted runtime role', () => {
@@ -93,5 +115,5 @@ test('Docker QA stop preserves its named volumes and local app entrypoint is doc
   assert.match(qaScript, /Invoke-Compose -Arguments @\('down'\)/);
   assert.doesNotMatch(qaScript, /Arguments @\('down',\s*'-v'/);
   assert.match(compose, /^name: afrolife-qa$/m);
-  assert.match(readme, /http:\/\/localhost:3000/);
+  assert.match(readme, /http:\/\/localhost:3010/);
 });
