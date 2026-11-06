@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const compose = readFileSync(new URL('../compose.qa.yaml', import.meta.url), 'utf8');
+const accountingService = compose
+  .split(/\r?\n  accounting:\r?\n/)[1]
+  ?.split(/\r?\n  [a-zA-Z0-9_-]+:\s*(?=\r?\n|$)/)[0] ?? '';
 const initSql = readFileSync(new URL('../docker/qa-init.sql', import.meta.url), 'utf8');
 const dockerfile = readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8');
 const accountingDockerfile = readFileSync(new URL('../services/accounting/Dockerfile', import.meta.url), 'utf8');
@@ -39,8 +42,9 @@ test('Accounting stays private behind the single port 3010 application gateway',
   assert.match(compose, /ACCOUNTING_DATABASE_URL: postgres:\/\/accounting_runtime:/);
   assert.match(compose, /ACCOUNTING_RUNTIME_DB_ROLE: accounting_runtime/);
   assert.match(compose, /qa_accounting_database:\/var\/lib\/postgresql/);
-  assert.match(compose, /accounting:\s+\n[\s\S]*?PORT: 3301[\s\S]*?healthcheck:/);
-  assert.match(compose, /accounting:\s+\n[\s\S]*?ACCOUNTING_GATEWAY_SECRET:[\s\S]*?depends_on:/);
+  assert.match(accountingService, /PORT: 3301[\s\S]*?healthcheck:/);
+  assert.match(accountingService, /ACCOUNTING_GATEWAY_SECRET:/);
+  assert.match(accountingService, /depends_on:\s*\n\s+accounting-migrate:\s*\n\s+condition: service_completed_successfully/);
   assert.match(compose, /accounting:\s*\n\s+condition: service_healthy/);
   assert.match(qaScript, /AFROLIFE_ACCOUNTING_DB_ADMIN_PASSWORD/);
   assert.match(qaScript, /AFROLIFE_ACCOUNTING_DB_RUNTIME_PASSWORD/);
