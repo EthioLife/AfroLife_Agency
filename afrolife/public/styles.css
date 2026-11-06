@@ -1273,6 +1273,7 @@ body {
   text-align: start;
   text-overflow: ellipsis;
   white-space: normal;
+  overflow-wrap: anywhere;
 }
 .workspace-layout > .tabs .workspace-nav-core .tab { min-height: 43px; padding-inline: 12px; font-size: 12px; font-weight: 700; }
 .workspace-layout > .tabs .tab:hover { background: #f1f7f1; color: #0b6044; }
@@ -1373,6 +1374,18 @@ body {
 .workspace-launcher-grid {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
   align-items: stretch;
+}
+
+.workspace-launch-card > strong,
+.workspace-launch-card > span:not(.service-icon),
+.workspace-launch-card > small {
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.workspace-launch-card > .service-icon {
+  align-self: flex-start;
 }
 
 .workspace-layout > .tabs .tab {
