@@ -1243,7 +1243,7 @@ body {
 .workspace-nav-group { min-width: 0; }
 .workspace-nav-group h2 {
   margin: 0 0 8px;
-  padding-inline: 9px;
+  padding-inline: 12px;
   color: #8b6a2d;
   font-size: 10px;
   font-weight: 800;
@@ -1368,6 +1368,11 @@ body {
 .workspace-nav-business h2,
 .workspace-nav-configuration h2 {
   grid-column: 1;
+}
+
+.workspace-launcher-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  align-items: stretch;
 }
 
 .workspace-layout > .tabs .tab {
