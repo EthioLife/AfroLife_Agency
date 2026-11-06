@@ -38,6 +38,10 @@ Same-origin TypeScript/Express API and installable web app for AfroLife agency o
    Remove-Item Env:SEED_ADMIN_PASSWORD
    ```
 
+   To provision one additional platform administrator, use `npm run seed:platform-super-admin` with the runtime `DATABASE_URL` and the `SEED_PLATFORM_ADMIN_*` environment variables. Provide the UUID of an active, MFA-enabled Super Admin or Global Admin as `SEED_PLATFORM_ADMIN_ACTOR_ID`, plus the person's name, phone, a unique temporary password, and a reason. A database advisory lock and audit-event check enforce that this seed can run only once. The command creates an active Super Admin, forces a password change, and records an audit event; it does not grant Global Admin. The new administrator must enroll in MFA before requesting promotion through the existing two-person approval workflow. Never put passwords in source control or share them in chat, and clear the environment variables after use.
+
+   For initial UAT recovery only, `npm run bootstrap:uat-global-admin` can establish the first Global Admin when no Global Admin exists and the normal independent promotion workflow is not yet possible. It requires `AFROLIFE_DEPLOYMENT_ENV=uat`, `ALETCLOUD_APP_NAME=afrolife-uat-canary`, `ALLOW_UAT_GLOBAL_ADMIN_BOOTSTRAP=1`, `DATABASE_URL`, `UAT_GLOBAL_ADMIN_TARGET_ID`, and `UAT_GLOBAL_ADMIN_REASON`. The target must already be an active, MFA-enabled Super Admin. The operation uses a serializable transaction and advisory lock, rejects any existing Global Admin or prior bootstrap, writes the role-change history and an audit record, and can succeed only once. Set the environment values only for the confirmed UAT database, run the command once, then immediately remove the opt-in and target/reason values. This is not a production recovery path; normal Global Admin promotions must use the two-person approval workflow.
+
 4. Run `npm run dev`, then open `http://localhost:3010`.
 
 `http://localhost:3010` is the single client-facing local entry point for the
@@ -340,14 +344,16 @@ Do not pass migration-owner credentials to the running API container.
 The insurance ledger can be deployed independently while the existing AfroLife
 API remains the identity authority and backward-compatible gateway. In
 development only, with `INSURANCE_SERVICE_URL` unset, requests continue to use
-the in-process ledger.
+the in-process ledger. In production, the Insurance workspace and its routes
+remain disabled (503 for API routes) until a separately deployed service is
+approved and configured; the core platform can run without enabling Insurance.
 The service schema migration creates an empty ledger; it does not import or
 reconcile records from the legacy in-process ledger. Do not cut over until a
 separately approved historical-data migration has been completed, opening
 balances and totals have been reconciled, rollback and recovery procedures have
-been rehearsed, and the independent accounting owner has signed off. Production
-startup requires both `INSURANCE_SERVICE_URL` and `INSURANCE_SERVICE_CUTOVER_READY=1`;
-that flag is an operator attestation, not an automated reconciliation check.
+been rehearsed, and the independent accounting owner has signed off. Enabling the production gateway requires both `INSURANCE_SERVICE_URL` and
+`INSURANCE_SERVICE_CUTOVER_READY=1`; that flag is an operator attestation, not
+an automated reconciliation check.
 Only set it after the required migration and reconciliation evidence has been
 reviewed and retained.
 

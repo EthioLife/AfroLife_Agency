@@ -262,8 +262,14 @@ function productionConfig(env: Environment, idleTimeout: number): RuntimeConfig 
     throw new Error('DATABASE_URL must include a database name and runtime credentials in production');
   }
   const isLocalDatabase = ['localhost', '127.0.0.1', '::1'].includes(database.hostname);
-  if (!isLocalDatabase && database.searchParams.get('sslmode') !== 'verify-full') {
-    throw new Error('Remote production PostgreSQL connections must use sslmode=verify-full');
+  const isAletCloudPrivateDatabase = database.hostname.endsWith('.svc.cluster.local');
+  const usesAletCloudPrivateTls = isAletCloudPrivateDatabase
+    && database.searchParams.get('sslmode') === 'require'
+    && database.searchParams.get('uselibpqcompat') === 'true';
+  if (!isLocalDatabase && !usesAletCloudPrivateTls && database.searchParams.get('sslmode') !== 'verify-full') {
+    throw new Error(
+      'Remote production PostgreSQL connections must use sslmode=verify-full; AletCloud private endpoints require sslmode=require&uselibpqcompat=true',
+    );
   }
 
   const origins = (env.CORS_ORIGINS ?? '').split(',').map((origin) => origin.trim()).filter(Boolean);
@@ -325,7 +331,9 @@ function productionConfig(env: Environment, idleTimeout: number): RuntimeConfig 
     mfiPilotEnabled,
     sessionIdleTimeoutMinutes: idleTimeout,
     legacyImmediateLeasesEnabled: allowLegacyImmediateLeases,
-    enabledModules: enabledWorkspaceModules(env),
+    enabledModules: enabledWorkspaceModules(env).filter(
+      (module) => module !== 'insurance' || Boolean(env.INSURANCE_SERVICE_URL?.trim()),
+    ),
   };
 }
 
@@ -339,6 +347,8 @@ export function loadRuntimeConfig(env: Environment): RuntimeConfig {
     mfiPilotEnabled: env.MFI_PILOT_ENABLED === undefined ? true : env.MFI_PILOT_ENABLED === '1',
     sessionIdleTimeoutMinutes: idleTimeout,
     legacyImmediateLeasesEnabled: legacyImmediateLeasesEnabled(env),
-    enabledModules: enabledWorkspaceModules(env),
+    enabledModules: enabledWorkspaceModules(env).filter(
+      (module) => module !== 'insurance' || Boolean(env.INSURANCE_SERVICE_URL?.trim()),
+    ),
   };
 }

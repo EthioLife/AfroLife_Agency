@@ -35,6 +35,12 @@ const requirePlatformControlPlaneAdmin: RequestHandler = (req, _res, next) => {
   }
   return next();
 };
+const requireSuperAdminPromotionRole: RequestHandler = (req, _res, next) => {
+  if (req.user?.role !== 'super_admin') {
+    return next(new HttpError(403, 'Global Admin promotions require a Super Admin.'));
+  }
+  return next();
+};
 const PROVISIONABLE_ROLES = ['super_admin', 'corporate_business_manager', 'compliance', 'finance', 'finance_manager', 'master_agent', 'field_agent', 'customer', 'worker', 'property_owner', 'property_vendor'] as const;
 const PLATFORM_SERVICE_KEYS = [
   'agency', 'workforce', 'staffing', 'property', 'marketplace', 'accounting', 'insurance',
@@ -1436,6 +1442,7 @@ adminRouter.get('/auth/me', h(async (req, res) => {
   `, [req.user!.id]);
   res.json({
     ...r.rows[0],
+    required_security_step: req.user!.rst ?? null,
     edir_id: req.user!.edir_id,
     session_idle_timeout_minutes: sessionIdleTimeoutMinutes(process.env),
     role_activities: Object.fromEntries(ROLE_ACTIVITIES.map(({ key }) => [
@@ -1561,7 +1568,10 @@ adminRouter.get('/users', requireRole('global_admin', 'compliance', 'corporate_b
             s.edir_life_interest, s.household_cover_interest, s.parent_agent_id, a.service_specialization,
             (SELECT count(*)::int FROM user_documents d WHERE d.user_id = u.id) AS kyc_document_count
      FROM users u LEFT JOIN user_signups s ON s.user_id = u.id LEFT JOIN agents a ON a.id = u.id
-     WHERE $1::text IN ('global_admin','compliance') OR u.created_by=$2
+     WHERE $1::text IN ('global_admin','compliance')
+        OR u.created_by=$2
+        OR ($1::text='super_admin' AND u.role='super_admin'
+            AND (u.active=false OR (u.active=true AND u.mfa_enabled=true)))
      ORDER BY u.created_at DESC LIMIT 300`,
     [_req.user!.role,_req.user!.id],
   )).rows);
@@ -1682,10 +1692,8 @@ async function lockEligibleSuperAdmins(c: import('pg').PoolClient, userIds: stri
 
 const isEligibleSuperAdmin = (user?: { active: boolean; role: string; mfa_enabled: boolean }) =>
   user?.active === true && user.role === 'super_admin' && user.mfa_enabled === true;
-const isEligiblePlatformAdmin = (user?: { active: boolean; role: string; mfa_enabled: boolean }) =>
-  user?.active === true && ['super_admin', 'global_admin'].includes(user.role) && user.mfa_enabled === true;
 
-adminRouter.get('/global-admin-promotions', requireRole('global_admin'), h(async (_req, res) => {
+adminRouter.get('/global-admin-promotions', requireSuperAdminPromotionRole, h(async (_req, res) => {
   const rows = await withUser(_req.user!, async (c) => (await c.query(
     `SELECT r.id, r.status, r.decision_reason, r.created_at, r.decided_at,
             target.id AS target_user_id, target.legal_name AS target_name, target.phone AS target_phone,
@@ -1700,13 +1708,14 @@ adminRouter.get('/global-admin-promotions', requireRole('global_admin'), h(async
   res.json(rows);
 }));
 
-adminRouter.post('/global-admin-promotions', requireRole('global_admin'), h(async (req, res) => {
+adminRouter.post('/global-admin-promotions', requireSuperAdminPromotionRole, h(async (req, res) => {
   const { target_user_id } = z.object({ target_user_id: z.string().uuid() }).strict().parse(req.body);
   const request = await withUser(req.user!, async (c) => {
+    await c.query("SELECT pg_advisory_xact_lock(hashtextextended('afrolife:global-admin-role-change:v1', 0))");
     if (target_user_id === req.user!.id) throw new HttpError(422, 'A different administrator must nominate the target account');
     const eligible = await lockEligibleSuperAdmins(c, [req.user!.id, target_user_id]);
-    if (!isEligiblePlatformAdmin(eligible.get(req.user!.id))) {
-      throw new HttpError(403, 'Promotion requests require an active, MFA-enabled platform administrator.');
+    if (!isEligibleSuperAdmin(eligible.get(req.user!.id))) {
+      throw new HttpError(403, 'Promotion requests require an active, MFA-enabled Super Admin.');
     }
     const target = eligible.get(target_user_id);
     if (!isEligibleSuperAdmin(target)) {
@@ -1732,6 +1741,7 @@ adminRouter.post('/global-admin-promotions', requireRole('global_admin'), h(asyn
 async function decideGlobalAdminPromotion(req: Request, decision: 'approved' | 'rejected', reason: string) {
   const requestId = z.string().uuid().parse(req.params.id);
   const result = await withUser(req.user!, async (c) => {
+    await c.query("SELECT pg_advisory_xact_lock(hashtextextended('afrolife:global-admin-role-change:v1', 0))");
     const request = (await c.query(
       'SELECT id, requested_by, target_user_id, status FROM global_admin_role_change_requests WHERE id = $1 FOR UPDATE',
       [requestId],
@@ -1742,11 +1752,11 @@ async function decideGlobalAdminPromotion(req: Request, decision: 'approved' | '
       throw new HttpError(403, 'The requester and target cannot decide this promotion');
     }
     const eligible = await lockEligibleSuperAdmins(c, [req.user!.id, request.requested_by, request.target_user_id]);
-    if (!isEligiblePlatformAdmin(eligible.get(req.user!.id))) {
-      throw new HttpError(403, 'Promotion decisions require an active, MFA-enabled platform administrator.');
+    if (!isEligibleSuperAdmin(eligible.get(req.user!.id))) {
+      throw new HttpError(403, 'Promotion decisions require an active, MFA-enabled Super Admin.');
     }
-    if (!isEligiblePlatformAdmin(eligible.get(request.requested_by))) {
-      throw new HttpError(409, 'The requesting platform administrator is no longer eligible.');
+    if (!isEligibleSuperAdmin(eligible.get(request.requested_by))) {
+      throw new HttpError(409, 'The requesting Super Admin is no longer eligible.');
     }
     const target = eligible.get(request.target_user_id);
     if (!isEligibleSuperAdmin(target)) {
@@ -1770,12 +1780,12 @@ async function decideGlobalAdminPromotion(req: Request, decision: 'approved' | '
   return result;
 }
 
-adminRouter.post('/global-admin-promotions/:id/approve', requireRole('global_admin'), h(async (req, res) => {
+adminRouter.post('/global-admin-promotions/:id/approve', requireSuperAdminPromotionRole, h(async (req, res) => {
   const { reason } = z.object({ reason: z.string().trim().min(10).max(1000) }).strict().parse(req.body);
   res.json(await decideGlobalAdminPromotion(req, 'approved', reason));
 }));
 
-adminRouter.post('/global-admin-promotions/:id/reject', requireRole('global_admin'), h(async (req, res) => {
+adminRouter.post('/global-admin-promotions/:id/reject', requireSuperAdminPromotionRole, h(async (req, res) => {
   const { reason } = z.object({ reason: z.string().trim().min(10).max(1000) }).strict().parse(req.body);
   res.json(await decideGlobalAdminPromotion(req, 'rejected', reason));
 }));
@@ -2060,15 +2070,18 @@ adminRouter.post('/users/:id/documents/:documentId/review', requireRole('complia
   res.json(document);
 }));
 
-adminRouter.post('/users/:id/activate', requireRole('global_admin'), h(async (req, res) => {
+adminRouter.post('/users/:id/activate', requireRole('global_admin', 'super_admin'), h(async (req, res) => {
   const { reason } = z.object({ reason: z.string().trim().min(10).max(1000) }).strict().parse(req.body ?? {});
   res.json(await withUser(req.user!, async (c) => {
     const target = (await c.query('SELECT id, role, active, created_by FROM users WHERE id = $1 FOR UPDATE', [req.params.id])).rows[0];
     if (!target) throw new HttpError(404, 'User not found');
+    if (req.user!.role === 'super_admin' && target.role !== 'super_admin') {
+      throw new HttpError(403, 'Super Admins may activate only another Super Admin account');
+    }
     if (target.role === 'global_admin' && req.user!.role !== 'global_admin') {
       throw new HttpError(403, 'Only a different Global Admin can activate a Global Admin account');
     }
-    if (target.created_by === req.user!.id) throw new HttpError(403, 'A different Super Admin must activate an account you created');
+    if (target.created_by === req.user!.id) throw new HttpError(403, 'A different platform administrator must activate an account you created');
     if (target.active) throw new HttpError(409, 'Account is already active');
     // The database refuses activation of non-staff accounts that are not KYC-verified.
     const signup = (await c.query(
@@ -2080,7 +2093,7 @@ adminRouter.post('/users/:id/activate', requireRole('global_admin'), h(async (re
       throw new HttpError(409, 'KYC must be formally reviewed before account activation.');
     }
     if (signup && signup.kyc_reviewed_by === req.user!.id) {
-      throw new HttpError(403, 'A different Super Admin must activate an account after KYC approval.');
+      throw new HttpError(403, 'A different platform administrator must activate an account after KYC approval.');
     }
     if (signup?.account_type === 'agent') {
       await c.query(
