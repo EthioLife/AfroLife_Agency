@@ -41,6 +41,11 @@
       <button id="install-app" class="button button-outline install-app" type="button" hidden>Install app</button>
       <div id="account-tools" class="account-tools" hidden>
         <span id="account-name" class="account-name"></span>
+        <div id="access-mode-tools" hidden>
+          <label class="visually-hidden" for="access-mode-select">Administrator access mode</label>
+          <select id="access-mode-select" aria-label="Administrator access mode"></select>
+          <button id="access-mode-apply" class="button button-outline" type="button">Switch access</button>
+        </div>
         <button id="return-super-app" class="button button-outline" type="button">Super App</button>
         <button id="logout" class="button button-quiet" type="button">Sign out</button>
       </div>
@@ -93,6 +98,13 @@
           </div>
           <p class="fine-print">Access is limited to approved AfroSherik accounts.</p>
         </form>
+        <section id="access-mode-choice" class="panel login-card" hidden>
+          <p class="eyebrow">ADMINISTRATOR ACCESS</p>
+          <h2>Choose how to access AfroLife</h2>
+          <p class="muted">Your credentials are unchanged. Choose the administrator access mode for this session.</p>
+          <div id="access-mode-options" class="login-registration-actions"></div>
+          <p id="access-mode-error" class="form-error" role="alert"></p>
+        </section>
         <form id="signup-form" class="panel signup-card" hidden>
           <p class="eyebrow">AFROSHERIK REGISTRATION</p>
           <h2>Apply to join AfroSherik</h2>

@@ -4,6 +4,7 @@ import type { MiniAppAccessMode, MiniAppKey } from './mini-app-access.js';
 export interface AuthUser {
   id: string;
   role: string;
+  primaryRole?: string;
   sessionId?: string;
   rst?: string;
   legal_name?: string;
@@ -16,6 +17,9 @@ export interface AuthUser {
   miniAppGrants?: MiniAppKey[];
   propertyTenantSystemId?: string;
   propertyTenantPurpose?: string;
+  adminRoleModules?: MiniAppKey[];
+  adminRoleAllTenants?: boolean;
+  accessOptions?: string[];
 }
 
 export function isPlatformAdminRole(role: string): boolean {

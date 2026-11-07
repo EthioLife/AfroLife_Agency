@@ -37,6 +37,18 @@ test('custom mini-app grants narrow but never elevate role access', () => {
   assert.equal(hasMiniAppAccess(user('worker', 'custom', ['workers']), 'workers'), true);
 });
 
+test('administrator service grants expose only the modules authorized for the selected mode', () => {
+  const scopedSuperAdmin = {
+    ...user('super_admin'),
+    adminRoleModules: ['global-bi', 'accounting'] as AuthUser['adminRoleModules'],
+    adminRoleAllTenants: true,
+  };
+  assert.equal(hasMiniAppAccess(user('super_admin'), 'global-bi'), false);
+  assert.equal(hasMiniAppAccess(scopedSuperAdmin, 'global-bi'), true);
+  assert.equal(hasMiniAppAccess(scopedSuperAdmin, 'accounting'), true);
+  assert.equal(hasMiniAppAccess(scopedSuperAdmin, 'workers'), false);
+});
+
 test('lease approvers and executors can reach the property and rent workflow', () => {
   assert.equal(hasMiniAppAccess(user('compliance'), 'rent'), true);
   assert.equal(hasMiniAppAccess(user('corporate_business_manager'), 'rent'), true);
@@ -94,6 +106,9 @@ test('mini-app access administration is exposed only through platform-admin hand
   }] : []);
   assert.ok(routes.some((route) => route.path === '/users/:id/mini-app-access' && route.methods.get));
   assert.ok(routes.some((route) => route.path === '/users/:id/mini-app-access' && route.methods.put));
+  assert.ok(routes.some((route) => route.path === '/users/:id/admin-access' && route.methods.get));
+  assert.ok(routes.some((route) => route.path === '/users/:id/admin-access' && route.methods.put));
+  assert.ok(routes.some((route) => route.path === '/auth/access-role' && route.methods.post));
   const accessHandlers = routes.filter((route) => route.path === '/users/:id/mini-app-access');
   assert.equal(accessHandlers.length, 2);
 });

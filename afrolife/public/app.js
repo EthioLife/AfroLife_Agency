@@ -6,7 +6,7 @@ import { createEdirWorkspace } from './edir.js';
 import { createPrivacyWorkspace } from './privacy.js';
 import { createGlobalBiWorkspace } from './global-bi.js';
 import { createTenantDataAdminWorkspace } from './tenant-data-admin.js';
-import { createMiniAppAccessEditor } from './mini-app-access.js';
+import { createAdminRoleAccessEditor, createMiniAppAccessEditor } from './mini-app-access.js';
 import { miniAppByPanel } from './mini-apps/registry.js';
 import { isMiniAppAllowed, isPanelEnabled, panelFromUrl, panelUrl } from './workspace-navigation.js';
 import { MIN_SEARCH_QUERY_LENGTH, searchWorkspaceRecords } from './workspace-search.js';
@@ -41,7 +41,7 @@ const MINI_APP_PANELS = new Set([
   'insurance', 'privacy', 'global-bi',
 ]);
 const $ = (selector) => document.querySelector(selector);
-const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
+const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
 const loadedPanels = new Set();
 let accessVisiblePanels = new Set();
 state.supportAppealQueue = [];
@@ -541,9 +541,44 @@ async function login(event) {
     state.panel = panelFromUrl(window.location.href, KNOWN_PANELS);
     sessionStorage.setItem(TOKEN_KEY, result.token);
     state.mfaRequired = result.restrict === 'mfa';
+    state.accessOptions = Array.isArray(result.access_options) ? result.access_options : [];
+    if (!state.mfaRequired && state.accessOptions.length > 1) {
+      renderAccessModeChoice(state.accessOptions);
+      return;
+    }
     await loadWorkspace();
   } catch (reason) {
     setLocalizedText(error, reason.message);
+  }
+}
+
+function renderAccessModeChoice(accessOptions) {
+  const chooser = $('#access-mode-choice');
+  const options = $('#access-mode-options');
+  options.replaceChildren();
+  for (const role of accessOptions) {
+    const optionLabel = role === 'super_admin' ? 'Access as Super Admin'
+      : role === 'global_admin' ? 'Access as Global Admin'
+        : `Continue as ${roleLabel(role)}`;
+    const option = button(optionLabel,
+      'access-mode-choice', 'button button-primary button-wide', { role });
+    options.append(option);
+  }
+  $('#access-mode-error').textContent = '';
+  $('#login-form').hidden = true;
+  chooser.hidden = false;
+}
+
+async function switchAccessMode(role) {
+  const error = $('#access-mode-error');
+  if (error) error.textContent = '';
+  try {
+    await api('/auth/access-role', { method: 'POST', body: JSON.stringify({ role }) });
+    if ($('#access-mode-choice')) $('#access-mode-choice').hidden = true;
+    await loadWorkspace();
+  } catch (reason) {
+    if (error) error.textContent = reason.message;
+    else showAlert(reason.message, true);
   }
 }
 
@@ -1212,10 +1247,14 @@ function signOut({ revoke = true, message = '' } = {}) {
   $('#mobile-workspace-nav').hidden = true;
   if ($('#workspace-more-dialog').open) $('#workspace-more-dialog').close();
   $('#account-tools').hidden = true;
+  $('#access-mode-tools').hidden = true;
+  $('#access-mode-choice').hidden = true;
   $('#login-view').hidden = false;
   $('#public-hub').hidden = false;
   renderMySubscriptions();
   $('#login-form').reset();
+  $('#login-form').hidden = false;
+  state.accessOptions = [];
   $('#mfa-field').hidden = true;
   $('#retry-session').hidden = true;
   $('#login-error').textContent = message;
@@ -1224,6 +1263,18 @@ function signOut({ revoke = true, message = '' } = {}) {
 
 async function loadWorkspace() {
   state.user = await api('/auth/me');
+  state.accessOptions = Array.isArray(state.user.access_options)
+    ? state.user.access_options
+    : [state.user.role];
+  const accessModeTools = $('#access-mode-tools');
+  const accessModeSelect = $('#access-mode-select');
+  accessModeSelect.replaceChildren();
+  for (const role of state.accessOptions) {
+    accessModeSelect.append(new Option(role === 'super_admin' ? 'Super Admin' : 'Global Admin', role));
+  }
+  accessModeSelect.value = state.user.role;
+  accessModeTools.hidden = state.accessOptions.length < 2;
+  $('#access-mode-choice').hidden = true;
   startSessionActivity(state.user.session_idle_timeout_minutes ?? 30);
   state.propertyTenantMemberships = await api('/property/tenant-systems/mine');
   if (!state.propertyTenantMemberships.some((tenant) => tenant.id === state.propertyTenantContextId && tenant.status === 'active')) {
@@ -5815,7 +5866,10 @@ function renderAdmin() {
     serverTools.append(changeButton, $('#server-setup'));
     wrap.append(serverTools);
   }
-  if (isGlobalAdmin) wrap.append(createMiniAppAccessEditor(api, state.user, state.users));
+  if (isGlobalAdmin) {
+    wrap.append(createAdminRoleAccessEditor(api, state.user, state.users));
+    wrap.append(createMiniAppAccessEditor(api, state.user, state.users));
+  }
   if (isGlobalAdmin) wrap.append(renderRoleAccess());
   const columns = node('div', undefined, 'columns');
   if (isGlobalAdmin) wrap.append(renderBusinessRules());
@@ -7923,6 +7977,10 @@ document.addEventListener('click', async (event) => {
   const action = event.target.closest('button[data-action]');
   if (!action || action.type === 'submit') return;
   const { action: name, id } = action.dataset;
+  if (name === 'access-mode-choice') {
+    await switchAccessMode(action.dataset.role);
+    return;
+  }
   if (name === 'mfa-setup') {
     api('/auth/mfa/setup', { method: 'POST', body: '{}' })
       .then((result) => { state.mfaSetup = result; renderPanel(); })
@@ -9367,6 +9425,9 @@ document.addEventListener('click', async (event) => {
 });
 
 $('#login-form').addEventListener('submit', login);
+$('#access-mode-apply').addEventListener('click', () => {
+  void switchAccessMode($('#access-mode-select').value);
+});
 $('#signup-form').addEventListener('submit', submitSignup);
 $('#signup-followup-upload').addEventListener('click', () => uploadSignupReplacement()
   .catch((error) => setLocalizedText($('#signup-error'), error.message)));

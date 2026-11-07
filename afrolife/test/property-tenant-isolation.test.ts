@@ -20,8 +20,12 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.doesNotMatch(migration, /ALTER TABLE property_tenant_account_links FORCE ROW LEVEL SECURITY/);
   assert.match(migration, /assign_property_operating_tenant_member/);
   assert.match(migration, /provision_property_operating_tenant/);
+  assert.match(migration, /app_is_property_tenant_admin/);
+  assert.doesNotMatch(migration, /ALTER TABLE property_operating_tenant_members FORCE ROW LEVEL SECURITY/);
   assert.match(migration, /support_grant_approved/);
   assert.match(migration, /requested_expiry>now\(\)\+interval '8 hours'/);
+  assert.match(migration, /properties_tenant_address_territory_unique/);
+  assert.match(migration, /Create an active administrator account before applying property tenant isolation/);
 
   const core = await readFile(new URL('../src/core.ts', import.meta.url), 'utf8');
   assert.match(core, /app\.property_tenant_system_id/);
@@ -29,6 +33,7 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(server, /x-afrolife-property-tenant-id/);
   assert.match(server, /x-afrolife-property-tenant-purpose/);
   assert.match(server, /app_property_tenant_system_id\(\) AS id/);
+  assert.match(server, /api\.get\('\/property\/tenant-systems', requireRole\('global_admin'\)/);
   const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
   assert.match(app, /x-afrolife-property-tenant-id/);
   assert.match(app, /property\/tenant-systems\/mine/);

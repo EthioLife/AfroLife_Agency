@@ -28,6 +28,8 @@ Same-origin TypeScript/Express API and installable web app for AfroLife agency o
 
    To use an existing PostgreSQL instance instead, copy `.env.example` to `.env` and configure `DATABASE_URL` for the runtime role and `MIGRATION_DATABASE_URL` for a migration owner. Use distinct, randomly generated `JWT_SECRET` and `MFA_ENC_KEY` values of at least 32 characters. The runtime role must not own tables or have `BYPASSRLS`; apply schema changes with `npm run db:migrate`.
 
+   For an AletCloud release that must apply pending core migrations without running initial-administrator seeding, temporarily set `ALETCLOUD_BOOTSTRAP_DATABASE_URL` to the database provisioning URL and `ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY=1`, then deploy through the normal guarded startup. Verify `/readyz` reports all migrations current, then remove both temporary variables and redeploy. Never leave the provisioning URL in the running app configuration.
+
 3. Create the first administrator with environment variables; the password is read from the environment and is never printed:
 
    ```powershell
@@ -91,7 +93,7 @@ and `API_URL` set. Remove the temporary credential file afterward.
 
 Before a shared or production launch, provision at least two Super Admin accounts with distinct names and phone numbers using the seed procedure. Repeat the seed command with the second administrator's details; the phone number must be unique. Account setup is deliberately four-eyes: a Super Admin cannot activate an account they created, and cannot reset their own password or MFA. Keep both sets of seed credentials outside the repository and remove them after use.
 
-Global Admin is the Global System Admin role and is the only role for platform-wide configuration: tenant onboarding, service and package definitions, platform module availability, Super Admin onboarding and assignment, global identity, role templates, and operations controls. A Super Admin can administer only assigned business entities, choose a subset of the modules and services approved for each active entity, register its deployment reference, and onboard Master Agents or Field Agents they created. A Super Admin cannot create tenants, change shared service packages, alter global role templates, assign other Super Admins, or administer another tenant. Without an assigned active entity context, a Super Admin receives no business modules. Business Admin (`corporate_business_manager`) is limited to business-entity operations and agent onboarding; system configuration remains unavailable. Super Admin and Business Admin user lists are limited to accounts they created. An active, MFA-enabled Super Admin can nominate another active, MFA-enabled Super Admin; a second, different eligible Super Admin must approve the request with a reason. Request and decision events are recorded in the audit log. No role bypasses financial maker-checker approvals.
+Global Admin is the Global System Admin role and is the only role for platform-wide configuration: tenant onboarding, service and package definitions, platform module availability, Super Admin onboarding and assignment, global identity, role templates, and operations controls. Super Admin access is tenant-assigned by default: it can administer assigned business entities, choose a subset of the modules and services approved for each active entity, register its deployment reference, and onboard Master Agents or Field Agents it created. Without an assigned active entity context, a normal Super Admin receives no business modules. An explicit Global-Admin-managed grant can configure service modules and (for Super Admin only) tenant scope for an existing platform administrator; each authenticated session stores and revalidates its selected mode. Global Admin promotions continue to use the approved role-promotion workflow. Migration 115 grants Dawit's existing account both Global Admin and Super Admin access, with all currently defined workspace modules and cross-tenant platform-tenant scope in Super Admin mode. It does not change the default scope of other Super Admins. Future administrator service and tenant-scope grants are managed in the Administrator access panel; access to a service remains limited by deployment configuration, tenant package availability, and resource-level authorization. Even with cross-tenant scope, a Super Admin cannot create tenants, change shared service packages, alter global role templates, or assign other Super Admins. Business Admin (`corporate_business_manager`) is limited to business-entity operations and agent onboarding; system configuration remains unavailable. Super Admin and Business Admin user lists are limited to accounts they created. An active, MFA-enabled Super Admin can nominate another active, MFA-enabled Super Admin; a second, different eligible Super Admin must approve the request with a reason. Request and decision events are recorded in the audit log. No role bypasses financial maker-checker approvals.
 
 Super Admin business-service APIs independently check the selected tenant's active status, assignment, and service-package entitlement; filtering the launcher alone does not authorize API access.
 
@@ -262,6 +264,22 @@ Lease renewals use a separate, auditable offer workflow: an authorized manager s
 Lease closeout requires a move-out inspection report for the active lease, including the actual vacancy and inspection dates, condition notes, key return, and any proposed deposit deduction. PDF and image evidence is stored privately. A different user with lease-approval authority must approve or reject the report; rejected reports can be resubmitted as a new revision. Ending a lease places its unit into turnover, not vacancy. An authorized property-maintenance user must record completed readiness checks before the unit can return to vacant and re-enter rental workflows. Refund requests are bounded by the reconciled deposit less independently approved deductions, use exact cents, and still require separate reconciliation. Owner statements show approved deductions and refund balances alongside receipts. This records operational evidence only and does not determine legal deposit rights or authorize unlawful deductions.
 
 Set `FILE_STORAGE_DIR` to a persistent, access-controlled directory outside `public/` before accepting real documents or photos. Back up that directory together with the database, and establish retention/deletion procedures for personal identity documents before production use. Property listing and photo management are available in the responsive operations workspace, including on the Capacitor Android WebView.
+
+Property records are scoped to an operating tenant. Migration 118 assigns all
+existing property, resident, lease, maintenance, rent, and vendor records to
+the `legacy-property-operations` tenant; it requires an active user account
+before migration. New tenant records are provisioned by a Global Admin with an
+active initial tenant administrator. Tenant members select their operating
+tenant in the workspace; database row-level security enforces that selection
+for property data. Tenant membership must be explicitly assigned, and tenant
+records cannot be transferred by ordinary updates.
+
+Global Admin support access is not automatic: the administrator requests
+access for a selected tenant with a purpose and expiry of at most eight hours,
+and a different Global Admin must approve it. Access and lifecycle decisions
+are audited. Tenant lifecycle, support-grant, and membership administration
+are exposed through authenticated API workflows; do not grant the runtime
+database role table ownership or `BYPASSRLS`.
 
 ## Configurable business rules
 

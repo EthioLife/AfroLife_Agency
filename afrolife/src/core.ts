@@ -78,6 +78,8 @@ const stateCache = new Map<string, {
   active: boolean;
   role: string;
   role_permissions?: RoleActivityOverrides;
+  role_permissions_by_role: Record<string, RoleActivityOverrides>;
+  admin_role_grants: Record<string, { modules: MiniAppKey[]; all_tenants: boolean }>;
   legal_name?: string;
   phone?: string;
   email?: string | null;
@@ -100,6 +102,15 @@ async function currentState(id: string) {
          WHERE p.role_name = u.role
        ), '{}'::jsonb) AS role_permissions,
        coalesce((
+         SELECT jsonb_object_agg(role_permissions.role_name, role_permissions.permissions)
+         FROM (
+           SELECT p.role_name, jsonb_object_agg(p.activity_key,p.enabled) AS permissions
+           FROM role_activity_permissions p
+           WHERE p.role_name IN (u.role,'global_admin','super_admin')
+           GROUP BY p.role_name
+         ) role_permissions
+       ), '{}'::jsonb) AS role_permissions_by_role,
+       coalesce((
          SELECT p.mode FROM user_app_access_profiles p WHERE p.user_id = u.id
        ), 'role_default') AS mini_app_access_mode,
        coalesce((
@@ -117,6 +128,29 @@ async function currentState(id: string) {
   if (!isMiniAppKeys(miniAppGrants)) {
     throw new Error('Stored mini-app access grants are invalid');
   }
+  const adminRoleRows = r ? await withUser({ id, role: r.role as string }, async (client) => (await client.query(
+    `SELECT role_name,module_keys,all_tenants
+     FROM user_admin_role_grants WHERE user_id=$1`,
+    [id],
+  )).rows) : [];
+  const adminRoleGrants: Record<string, { modules: MiniAppKey[]; all_tenants: boolean }> = {};
+  for (const grant of adminRoleRows) {
+    if (!['global_admin', 'super_admin'].includes(grant.role_name)
+      || !isMiniAppKeys(grant.module_keys)
+      || typeof grant.all_tenants !== 'boolean') {
+      throw new Error('Stored administrator role grant is invalid');
+    }
+    adminRoleGrants[grant.role_name] = { modules: grant.module_keys, all_tenants: grant.all_tenants };
+  }
+  const rolePermissionsByRole = r?.role_permissions_by_role ?? {};
+  if (!rolePermissionsByRole || typeof rolePermissionsByRole !== 'object' || Array.isArray(rolePermissionsByRole)) {
+    throw new Error('Stored role activity permissions are invalid');
+  }
+  for (const permissions of Object.values(rolePermissionsByRole)) {
+    if (!isRoleActivityOverrides(permissions)) {
+      throw new Error('Stored role activity permissions are invalid');
+    }
+  }
   const row = {
     at: Date.now(),
     active: r?.active === true,
@@ -126,6 +160,8 @@ async function currentState(id: string) {
     email: r?.email as string | null | undefined,
     kyc_status: r?.kyc_status as string | undefined,
     role_permissions: r?.role_permissions as RoleActivityOverrides | undefined,
+    role_permissions_by_role: rolePermissionsByRole as Record<string, RoleActivityOverrides>,
+    admin_role_grants: adminRoleGrants,
     mini_app_access_mode: miniAppAccessMode,
     mini_app_grants: miniAppGrants,
   };
@@ -154,26 +190,35 @@ export function authenticate(req: Request, _res: Response, next: NextFunction) {
     `UPDATE auth_sessions SET last_activity_at=now()
      WHERE id=$1 AND user_id=$2 AND revoked_at IS NULL AND expires_at>now()
        AND last_activity_at>now()-make_interval(mins=>$3)
-     RETURNING id`,
+     RETURNING id,active_role`,
     [p.sid, p.sub, SESSION_IDLE_TIMEOUT_MINUTES],
   ).then((session) => {
     if (!session.rowCount) throw new HttpError(401, 'Session expired or is no longer active');
-    return currentState(p.sub);
+    return Promise.all([currentState(p.sub), session.rows[0]]);
   }).then(
-    (s) => {
+    ([s, session]) => {
       if (!s.active) return next(new HttpError(401, 'Account is inactive'));
+      const activeRole = session.active_role ?? s.role;
+      const grant = s.admin_role_grants[activeRole];
+      if (activeRole !== s.role && !grant) {
+        return next(new HttpError(401, 'The access mode for this session is no longer available'));
+      }
       req.user = {
         id: p.sub,
-        role: s.role,
+        role: activeRole,
+        primaryRole: s.role,
         sessionId: p.sid,
         rst: p.rst,
         legal_name: s.legal_name,
         phone: s.phone,
         email: s.email,
         kyc_status: s.kyc_status,
-        rolePermissions: s.role_permissions,
+        rolePermissions: s.role_permissions_by_role[activeRole] ?? (activeRole === s.role ? s.role_permissions : {}),
         miniAppAccessMode: s.mini_app_access_mode,
         miniAppGrants: s.mini_app_grants,
+        adminRoleModules: grant?.modules,
+        adminRoleAllTenants: grant?.all_tenants ?? false,
+        accessOptions: [...new Set([s.role, ...Object.keys(s.admin_role_grants)])],
       }; // Identity fields and role come from the database, not the token.
       next();
     },

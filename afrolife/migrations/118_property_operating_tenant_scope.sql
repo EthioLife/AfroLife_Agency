@@ -63,6 +63,14 @@ CREATE TRIGGER property_operating_tenant_events_immutable
   BEFORE UPDATE OR DELETE ON property_operating_tenant_events
   FOR EACH ROW EXECUTE FUNCTION prevent_platform_control_event_mutation();
 
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM users WHERE active=true) THEN
+    RAISE EXCEPTION 'Create an active administrator account before applying property tenant isolation';
+  END IF;
+END;
+$$;
+
 INSERT INTO property_operating_tenants(tenant_key,legal_name,created_by)
 SELECT 'legacy-property-operations','Legacy Property Operations',id
 FROM users
@@ -149,6 +157,9 @@ ALTER TABLE leases ALTER COLUMN tenant_system_id SET NOT NULL;
 ALTER TABLE maintenance_requests ALTER COLUMN tenant_system_id SET NOT NULL;
 ALTER TABLE rent_transactions ALTER COLUMN tenant_system_id SET NOT NULL;
 ALTER TABLE property_vendors ALTER COLUMN tenant_system_id SET NOT NULL;
+DROP INDEX IF EXISTS properties_address_territory_unique;
+CREATE UNIQUE INDEX properties_tenant_address_territory_unique
+  ON properties(tenant_system_id,lower(address),territory_id);
 CREATE INDEX properties_tenant_system_idx ON properties(tenant_system_id,id);
 CREATE INDEX tenants_tenant_system_idx ON tenants(tenant_system_id,id);
 CREATE INDEX leases_tenant_system_idx ON leases(tenant_system_id,id);
@@ -180,6 +191,18 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,pg_temp AS $$
 $$;
 REVOKE ALL ON FUNCTION app_property_tenant_system_id() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION app_property_tenant_system_id() TO "{{role}}";
+
+CREATE OR REPLACE FUNCTION app_is_property_tenant_admin(target_tenant uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,pg_temp AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM property_operating_tenant_members member
+    WHERE member.tenant_system_id=target_tenant AND member.user_id=app_user_id()
+      AND member.tenant_role='tenant_admin' AND member.status='active'
+  )
+$$;
+REVOKE ALL ON FUNCTION app_is_property_tenant_admin(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION app_is_property_tenant_admin(uuid) TO "{{role}}";
 
 CREATE OR REPLACE FUNCTION guard_property_tenant_system_id()
 RETURNS trigger
@@ -506,7 +529,6 @@ GRANT EXECUTE ON FUNCTION set_property_operating_tenant_status(uuid,text,text) T
 ALTER TABLE property_operating_tenants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE property_operating_tenants FORCE ROW LEVEL SECURITY;
 ALTER TABLE property_operating_tenant_members ENABLE ROW LEVEL SECURITY;
-ALTER TABLE property_operating_tenant_members FORCE ROW LEVEL SECURITY;
 ALTER TABLE property_operating_tenant_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE property_operating_tenant_events FORCE ROW LEVEL SECURITY;
 ALTER TABLE property_operating_tenant_support_grants ENABLE ROW LEVEL SECURITY;
@@ -533,23 +555,8 @@ CREATE POLICY property_operating_tenants_global_admin ON property_operating_tena
   FOR ALL USING (app_role()='global_admin')
   WITH CHECK (app_role()='global_admin');
 CREATE POLICY property_operating_tenant_members_assign ON property_operating_tenant_members
-  FOR ALL USING (
-    app_role()='global_admin'
-    OR EXISTS (
-      SELECT 1 FROM property_operating_tenant_members actor_member
-      WHERE actor_member.tenant_system_id=property_operating_tenant_members.tenant_system_id
-        AND actor_member.user_id=app_user_id() AND actor_member.tenant_role='tenant_admin'
-        AND actor_member.status='active'
-    )
-  )
-  WITH CHECK (
-    app_role()='global_admin'
-    OR EXISTS (
-      SELECT 1 FROM property_operating_tenant_members actor_member
-      WHERE actor_member.tenant_system_id=property_operating_tenant_members.tenant_system_id
-        AND actor_member.user_id=app_user_id() AND actor_member.tenant_role='tenant_admin'
-        AND actor_member.status='active'
-    )
+  FOR INSERT WITH CHECK (
+    app_role()='global_admin' OR app_is_property_tenant_admin(tenant_system_id)
   );
 CREATE POLICY property_operating_tenant_events_write ON property_operating_tenant_events
   FOR INSERT WITH CHECK (

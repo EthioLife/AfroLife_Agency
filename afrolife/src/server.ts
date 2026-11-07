@@ -355,6 +355,13 @@ const requirePropertyTenantContext: RequestHandler = (req, _res, next) => {
 };
 
 api.use(authenticate);
+api.get('/property/tenant-systems', requireRole('global_admin'), h(async (_req, res) => {
+  res.json(await withUser(_req.user!, async (client) => (await client.query(
+    `SELECT id,tenant_key,legal_name,jurisdiction,timezone,currency,status,created_at,updated_at
+     FROM property_operating_tenants
+     ORDER BY legal_name,id`,
+  )).rows));
+}));
 api.get('/property/tenant-systems/mine', h(async (req, res) => {
   res.json(await withUser(req.user!, async (client) => (await client.query(
     `SELECT tenant.id,tenant.tenant_key,tenant.legal_name,tenant.jurisdiction,tenant.timezone,tenant.currency,
@@ -551,7 +558,8 @@ api.use('/subscriptions', subscriptionRouter);
 api.get('/features', h(async (req, res) => {
   let enabledModules = runtimeConfig.enabledModules;
   let platformTenantId: string | null = null;
-  if (req.user!.role === 'super_admin' && req.query.platform_tenant_id === undefined) {
+  if (req.user!.role === 'super_admin' && req.query.platform_tenant_id === undefined
+    && !req.user!.adminRoleAllTenants) {
     enabledModules = [];
   }
   if (req.query.platform_tenant_id !== undefined) {
@@ -564,12 +572,12 @@ api.get('/features', h(async (req, res) => {
       const permitted = await client.query(
         `SELECT t.id,t.status FROM platform_tenants t
          WHERE t.id=$1 AND (
-           $2::text='global_admin' OR EXISTS (
+           $2::text='global_admin' OR $4::boolean OR EXISTS (
              SELECT 1 FROM platform_tenant_admins a
              WHERE a.tenant_id=t.id AND a.user_id=$3
            )
          )`,
-        [selectedPlatformTenantId, req.user!.role, req.user!.id],
+        [selectedPlatformTenantId, req.user!.role, req.user!.id, req.user!.adminRoleAllTenants ?? false],
       );
       if (!permitted.rowCount) throw new HttpError(403, 'This platform tenant is not assigned to your account.');
       return {

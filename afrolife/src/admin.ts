@@ -46,6 +46,24 @@ const PLATFORM_SERVICE_KEYS = [
   'agency', 'workforce', 'staffing', 'property', 'marketplace', 'accounting', 'insurance',
   'sacco_mfi', 'edir', 'learning', 'privacy', 'operations', 'global_bi',
 ] as const;
+const adminRoleAccessUpdate = z.object({
+  roles: z.array(z.object({
+    role: z.enum(['global_admin', 'super_admin']),
+    modules: z.array(z.enum(WORKSPACE_MODULES)).max(WORKSPACE_MODULES.length),
+    all_tenants: z.boolean(),
+  }).strict()).max(2),
+}).strict().superRefine((body, context) => {
+  const roles = body.roles.map((item) => item.role);
+  if (new Set(roles).size !== roles.length) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: 'Administrator roles must not be duplicated' });
+  }
+  if (body.roles.some((item) => item.role !== 'super_admin' && item.all_tenants)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: 'Cross-tenant scope is only available for Super Admin access' });
+  }
+  if (body.roles.some((item) => new Set(item.modules).size !== item.modules.length)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: 'Service modules must not be duplicated' });
+  }
+});
 const requireEnterprisePlan: RequestHandler = (req, _res, next) => {
   pool.query(
     `SELECT 1 FROM user_signups
@@ -69,16 +87,25 @@ async function issue(
   replaceSessionId?: string,
   userAgent?: string,
 ) {
-  const rst = u.must_change_password ? 'password' : process.env.REQUIRE_MFA_FOR_STAFF === '1' && MFA_STAFF.includes(u.role) && !u.mfa_enabled ? 'mfa' : null;
+  const accessOptions = await withUser({ id: u.id, role: u.role }, async (client) => {
+    const grants = await client.query(
+      'SELECT role_name FROM user_admin_role_grants WHERE user_id=$1 ORDER BY role_name',
+      [u.id],
+    );
+    return [...new Set([u.role, ...grants.rows.map((row) => row.role_name as string)])];
+  });
+  const hasStaffAccess = accessOptions.some((role) => MFA_STAFF.includes(role));
+  const rst = u.must_change_password ? 'password'
+    : process.env.REQUIRE_MFA_FOR_STAFF === '1' && hasStaffAccess && !u.mfa_enabled ? 'mfa' : null;
   const sessionId = randomUUID();
   await pool.query(
     `DELETE FROM auth_sessions WHERE expires_at < now() - interval '30 days'
        OR revoked_at < now() - interval '30 days'`,
   );
   await pool.query(
-    `INSERT INTO auth_sessions (id,user_id,expires_at,user_agent)
-     VALUES ($1,$2,now()+interval '8 hours',$3)`,
-    [sessionId, u.id, userAgent?.slice(0, 512) ?? null],
+    `INSERT INTO auth_sessions (id,user_id,active_role,expires_at,user_agent)
+     VALUES ($1,$2,$3,now()+interval '8 hours',$4)`,
+    [sessionId, u.id, u.role, userAgent?.slice(0, 512) ?? null],
   );
   if (replaceSessionId) {
     await pool.query(
@@ -89,6 +116,7 @@ async function issue(
   return {
     token: jwt.sign({ sub: u.id, sid: sessionId, role: u.role, ...(rst ? { rst } : {}) }, JWT_SECRET, { expiresIn: '8h' }),
     restrict: rst,
+    access_options: accessOptions,
   };
 }
 
@@ -391,6 +419,77 @@ loginRouter.get('/auth/signup/documents', h(async (req, res) => {
 
 // ================= Signed-in: own account =================
 export const adminRouter = Router();
+
+adminRouter.get('/users/:id/admin-access', requireRole('global_admin'), h(async (req, res) => {
+  const userId = z.string().uuid().parse(req.params.id);
+  const result = await withUser(req.user!, async (client) => {
+    const target = (await client.query('SELECT id,role FROM users WHERE id=$1', [userId])).rows[0];
+    if (!target) throw new HttpError(404, 'User not found');
+    const grants = (await client.query(
+      `SELECT role_name,module_keys,all_tenants FROM user_admin_role_grants
+       WHERE user_id=$1 ORDER BY role_name`,
+      [userId],
+    )).rows;
+    return { primaryRole: target.role as string, grants };
+  });
+  res.json({
+    ...result,
+    availableModules: WORKSPACE_MODULES.map((id) => ({ id, label: MINI_APP_LABELS[id] })),
+  });
+}));
+
+adminRouter.put('/users/:id/admin-access', requireRole('global_admin'), h(async (req, res) => {
+  const userId = z.string().uuid().parse(req.params.id);
+  if (userId === req.user!.id) {
+    throw new HttpError(409, 'Use another Global Admin to change your own administrator access.');
+  }
+  const body = adminRoleAccessUpdate.parse(req.body);
+  const grants = body.roles.map((grant) => ({ ...grant, modules: [...grant.modules].sort() }));
+  await withUser(req.user!, async (client) => {
+    const target = (await client.query('SELECT id,role FROM users WHERE id=$1 FOR UPDATE', [userId])).rows[0];
+    if (!target) throw new HttpError(404, 'User not found');
+    if (grants.length && !['global_admin', 'super_admin'].includes(target.role)) {
+      throw new HttpError(422, 'Only an existing platform administrator can receive an alternate administrator access mode.');
+    }
+    if (grants.some((grant) => grant.role === 'global_admin' && target.role !== 'global_admin')) {
+      throw new HttpError(422, 'Global Admin access must be established through the approved role-promotion workflow.');
+    }
+    for (const grant of grants) {
+      await client.query(
+        `INSERT INTO user_admin_role_grants(user_id,role_name,module_keys,all_tenants,granted_by)
+         VALUES($1,$2,$3,$4,$5)
+         ON CONFLICT(user_id,role_name) DO UPDATE SET
+           module_keys=EXCLUDED.module_keys,all_tenants=EXCLUDED.all_tenants,
+           granted_by=EXCLUDED.granted_by,updated_at=now()`,
+        [userId, grant.role, grant.modules, grant.all_tenants, req.user!.id],
+      );
+    }
+    const retainedRoles = grants.map((grant) => grant.role);
+    if (retainedRoles.length) {
+      await client.query(
+        'DELETE FROM user_admin_role_grants WHERE user_id=$1 AND NOT (role_name=ANY($2::text[]))',
+        [userId, retainedRoles],
+      );
+    } else {
+      await client.query('DELETE FROM user_admin_role_grants WHERE user_id=$1', [userId]);
+    }
+    await client.query('DELETE FROM platform_tenant_admins WHERE user_id=$1 AND role_grant_managed', [userId]);
+    if (grants.some((grant) => grant.role === 'super_admin' && grant.all_tenants)) {
+      await client.query(
+        `INSERT INTO platform_tenant_admins(tenant_id,user_id,assigned_by,role_grant_managed)
+         SELECT id,$1,$2,true FROM platform_tenants
+         ON CONFLICT(tenant_id,user_id) DO NOTHING`,
+        [userId, req.user!.id],
+      );
+    }
+    await audit(client, req.user!.id, 'administrator_access_updated', 'user', userId, null, {
+      primary_role: target.role,
+      grants,
+    });
+  });
+  invalidateUser(userId);
+  res.sendStatus(204);
+}));
 
 adminRouter.get('/marketplace/config', h(async (req, res) => {
   res.json(await withUser(req.user!, loadMarketplaceConfig));
@@ -1020,6 +1119,13 @@ adminRouter.post('/platform/tenants', requirePlatformControlPlaneAdmin, h(async 
       [created.id, body.package_id, req.user!.id],
     );
     await client.query(
+      `INSERT INTO platform_tenant_admins(tenant_id,user_id,assigned_by,role_grant_managed)
+       SELECT $1,user_id,$2,true FROM user_admin_role_grants
+       WHERE role_name='super_admin' AND all_tenants
+       ON CONFLICT(tenant_id,user_id) DO NOTHING`,
+      [created.id, req.user!.id],
+    );
+    await client.query(
       `INSERT INTO platform_tenant_events (tenant_id,actor_id,event_type,event_data)
        VALUES ($1,$2,'tenant_created',$3)`,
       [created.id, req.user!.id, JSON.stringify({
@@ -1442,6 +1548,10 @@ adminRouter.get('/auth/me', h(async (req, res) => {
   `, [req.user!.id]);
   res.json({
     ...r.rows[0],
+    role: req.user!.role,
+    primary_role: req.user!.primaryRole,
+    access_options: req.user!.accessOptions ?? [req.user!.role],
+    active_role_all_tenants: req.user!.adminRoleAllTenants ?? false,
     required_security_step: req.user!.rst ?? null,
     edir_id: req.user!.edir_id,
     session_idle_timeout_minutes: sessionIdleTimeoutMinutes(process.env),
@@ -1450,6 +1560,31 @@ adminRouter.get('/auth/me', h(async (req, res) => {
       hasRoleActivityAccess(req.user!.role, key, req.user!.rolePermissions),
     ])),
   });
+}));
+
+adminRouter.post('/auth/access-role', h(async (req, res) => {
+  const { role } = z.object({ role: z.enum(['global_admin', 'super_admin']) }).strict().parse(req.body);
+  const primaryRole = req.user!.primaryRole ?? req.user!.role;
+  const allowed = role === primaryRole || (req.user!.accessOptions ?? []).includes(role);
+  if (!allowed) throw new HttpError(403, 'This access mode is not assigned to your account.');
+  if (process.env.REQUIRE_MFA_FOR_STAFF === '1' && MFA_STAFF.includes(role)) {
+    const account = (await pool.query('SELECT mfa_enabled FROM users WHERE id=$1', [req.user!.id])).rows[0];
+    if (!account?.mfa_enabled) throw new HttpError(403, 'Set up multi-factor authentication before using administrator access.');
+  }
+  await withUser(req.user!, async (client) => {
+    const updated = await client.query(
+      `UPDATE auth_sessions SET active_role=$3
+       WHERE id=$1 AND user_id=$2 AND revoked_at IS NULL AND expires_at>now()
+       RETURNING id`,
+      [req.user!.sessionId, req.user!.id, role],
+    );
+    if (!updated.rowCount) throw new HttpError(401, 'Your session is no longer active.');
+    await audit(client, req.user!.id, 'administrator_access_mode_selected', 'auth_session', req.user!.sessionId!, {
+      role: req.user!.role,
+    }, { role });
+  });
+  invalidateUser(req.user!.id);
+  res.json({ role });
 }));
 
 adminRouter.get('/auth/session', (_req, res) => res.sendStatus(204));

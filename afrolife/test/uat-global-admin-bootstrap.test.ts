@@ -55,6 +55,7 @@ test('bootstrap locks, requires no prior Global Admin or bootstrap, verifies tar
   assert.match(source, /target\.role !== 'super_admin' \|\| !target\.active \|\| !target\.mfa_enabled/);
   assert.match(source, /UPDATE users SET role='global_admin'/);
   assert.match(source, /INSERT INTO audit_logs/);
+  assert.match(source, /VALUES\(\$1,\$2,'user',\$3,\$4,\$5\)/);
   assert.match(source, /UAT initial Global Admin bootstrap/);
   const adminSource = await readFile(new URL('../src/admin.ts', import.meta.url), 'utf8');
   assert.equal((adminSource.match(/afrolife:global-admin-role-change:v1/g) ?? []).length, 2);
