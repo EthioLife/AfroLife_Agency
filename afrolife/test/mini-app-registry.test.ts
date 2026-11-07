@@ -49,6 +49,7 @@ test('integrated agency and community workspaces have branded logo assets', () =
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
   assert.match(app, /function miniAppLogo\(panel\)/);
   assert.match(app, /function decoratePublicServiceLogos\(\)/);
+  assert.match(app, /\['Agent services', miniAppLogo\('agents'\)\]/);
   assert.match(app, /service-launcher-logo/);
   assert.match(app, /page-mini-app-logo/);
 });

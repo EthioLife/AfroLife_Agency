@@ -1341,6 +1341,9 @@ const publicSurfaceTranslations = {
   'Your service mini-apps': {
     am: 'የአገልግሎት ሚኒ-መተግበሪያዎችዎ', om: 'Mini-appoota tajaajilaa keessan', ti: 'ሚኒ-ኣፕሊኬሽናት ኣገልግሎትኩም', so: 'Barnaamijyada yaryar ee adeegyadaada', ar: 'تطبيقات الخدمات المصغّرة الخاصة بك', sw: 'Programu ndogo za huduma zako',
   },
+  'Open {{service}}': {
+    am: '{{service}}ን ይክፈቱ', om: '{{service}} bani', ti: '{{service}} ክፈቱ', so: 'Fur {{service}}', ar: 'افتح {{service}}', sw: 'Fungua {{service}}',
+  },
   'Super App': {
     am: 'ሱፐር አፕ', om: 'Appii tajaajila waliigalaa', ti: 'ሱፐር ኣፕ', so: 'App-ka Guud', ar: 'التطبيق الشامل', sw: 'Programu Kuu',
   },
@@ -2753,14 +2756,14 @@ export function getLocalizedNodeSource(textNode) {
   return originalText.get(textNode)?.message ?? textNode?.nodeValue ?? '';
 }
 
-export function setLocalizedAttribute(element, attribute, message) {
+export function setLocalizedAttribute(element, attribute, message, values = {}) {
   let sources = originalAttributes.get(element);
   if (!sources) {
     sources = {};
     originalAttributes.set(element, sources);
   }
-  sources[attribute] = message;
-  element.setAttribute(attribute, t(message));
+  sources[attribute] = { message, values };
+  element.setAttribute(attribute, t(message, values));
 }
 
 function applyStaticTranslations(root = document.body) {
@@ -2788,7 +2791,11 @@ function applyStaticTranslations(root = document.body) {
     for (const attribute of ['placeholder', 'aria-label', 'title']) {
       if (!element.hasAttribute(attribute)) continue;
       if (!(attribute in sources)) sources[attribute] = element.getAttribute(attribute);
-      element.setAttribute(attribute, t(sources[attribute]));
+      const source = sources[attribute];
+      const { message, values } = typeof source === 'string'
+        ? { message: source, values: {} }
+        : source;
+      element.setAttribute(attribute, t(message, values));
     }
   });
 }

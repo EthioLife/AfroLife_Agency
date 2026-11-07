@@ -1012,10 +1012,7 @@ body {
 }
 .welcome-panel {
   align-self: start;
-  background:
-    radial-gradient(ellipse at 92% 7%, rgba(215, 173, 89, .22), transparent 22rem),
-    radial-gradient(ellipse at 0% 100%, rgba(32, 116, 81, .18), transparent 27rem),
-    linear-gradient(145deg, #0e5a43 0%, #0a3d34 72%);
+  background: var(--green);
   box-shadow: 0 28px 68px rgba(8, 57, 43, .2);
 }
 .welcome-panel h1 { max-width: 590px; font-size: clamp(2.35rem, 4.6vw, 4rem); }
@@ -1836,9 +1833,7 @@ body {
 }
 
 body {
-  background:
-    radial-gradient(circle at 0 0, rgba(0, 184, 90, .045), transparent 24rem),
-    linear-gradient(180deg, #fff 0%, var(--gray-100) 100%);
+  background: var(--paper);
 }
 
 .hub-heading {

@@ -1963,7 +1963,7 @@ function renderSuperAppLauncher() {
       : getLocalizedNodeSource(tab.firstChild).trim() || tab.textContent.trim();
     const card = node('button', undefined, 'service-card workspace-launch-card');
     card.type = 'button';
-    card.setAttribute('aria-label', `Open ${name}`);
+    setLocalizedAttribute(card, 'aria-label', 'Open {{service}}', { service: name });
     const logoSource = miniAppLogo(panel);
     if (logoSource) {
       const logo = node('img', undefined, 'service-icon service-icon-image service-launcher-logo');
@@ -1996,7 +1996,7 @@ function decoratePublicServiceLogos() {
     ['Workforce', miniAppLogo('workers')],
     ['AfroLife Edir', miniAppLogo('edir')],
     ['SACCO / MFI', miniAppLogo('mfi')],
-    ['Agent services', '/icon.svg'],
+    ['Agent services', miniAppLogo('agents')],
     ['Accounting & Finance', miniAppLogo('accounting')],
   ]);
   const panels = new Map([

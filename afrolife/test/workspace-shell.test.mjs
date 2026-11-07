@@ -108,12 +108,14 @@ test('key app workflows are translated in every supported locale', async () => {
     'Active Edir membership is required to request a loan assessment.',
     'I accept the interest-free, fee-free principal-only loan and savings-account payout terms.',
     'Your service mini-apps',
+    'Open {{service}}',
     'Super App',
     'Accounting & Finance',
     'Manage entity books, journals, financial operations, and entity-scoped reporting.',
     'Accounting mini app →',
     'No services are assigned to your account yet.',
     'Open an available service directly. Access is based on your role and enabled features.',
+    'Open service',
     'Choose an agent',
     'Audience roles',
     'AfroLife managed listing',
@@ -146,12 +148,18 @@ test('key app workflows are translated in every supported locale', async () => {
   try {
     for (const locale of locales) {
       store.set('afrolife.locale', locale);
-      const { localeNames, t } = await import(`../public/i18n.js?locale-test=${locale}`);
+      const { localeNames, setLocalizedAttribute, t } = await import(`../public/i18n.js?locale-test=${locale}`);
       assert.ok(localeNames[locale], `locale ${locale} is available`);
       for (const message of messages) {
         const translated = t(message);
         assert.ok(translated && translated !== message, `${locale} is missing: ${message}`);
       }
+      let accountingLabel = '';
+      setLocalizedAttribute({
+        setAttribute: (_attribute, value) => { accountingLabel = value; },
+      }, 'aria-label', 'Open {{service}}', { service: t('Accounting & Finance') });
+      assert.ok(accountingLabel.includes(t('Accounting & Finance')));
+      assert.doesNotMatch(accountingLabel, /\{\{\w+\}\}/);
       const signedIn = t('Signed in as {{role}}. Your access is limited to your assigned role and territory.', { role: 'Buyer' });
       assert.ok(signedIn.includes('Buyer'));
       assert.doesNotMatch(signedIn, /\{\{\w+\}\}/);
