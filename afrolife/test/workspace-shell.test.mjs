@@ -78,6 +78,29 @@ test('key app workflows are translated in every supported locale', async () => {
     'Automated answers are not enabled in this support pilot. Existing property, workforce, and support tools remain available.',
     'Awaiting response',
     'Assigned to support',
+    'Sign in with your registered phone number. Ethiopia is selected first; international numbers are supported.',
+    'Country calling code',
+    'National phone number',
+    'Choose from suggestions or type another international calling code.',
+    'Forgot password?',
+    'ACCOUNT RECOVERY',
+    'Password recovery',
+    'Enter the phone number on your account to check available recovery options.',
+    'SMS password recovery is unavailable because delivery is not configured. No code was sent. Contact AfroLife support to recover your account.',
+    'Request recovery help',
+    'Back to sign in',
+    'Fayda verification is unavailable until AfroLife receives approved access. Use secure document review instead; this is not live Fayda verification.',
+    'Authenticator sign-in is required for administrative roles and cannot be disabled.',
+    'Optional: add an authenticator app for an extra sign-in step. You can turn it off later after verifying your password and code.',
+    'Passkeys and device sign-in',
+    'Unavailable until secure WebAuthn support is configured. If enabled later, your device may use biometrics or a PIN; AfroLife will not collect biometric data.',
+    'Device sign-in unavailable',
+    'Secure device credential registration is not available yet.',
+    'To turn off the optional authenticator step, confirm your current password and a valid one-time code.',
+    'Turn off two-step verification',
+    'Two-step verification disabled.',
+    'Enter a valid country calling code and phone number.',
+    'If recovery becomes available, instructions will be provided without confirming whether an account exists.',
     'Document requirements are not available yet. Try again before submitting.',
     'No identity documents are required for this account type.',
     'Your registration is pending review. Check document decisions below and replace any document returned by Compliance.',
@@ -175,12 +198,14 @@ test('key app workflows are translated in every supported locale', async () => {
     'Active Edir membership is required to request a loan assessment.',
     'I accept the interest-free, fee-free principal-only loan and savings-account payout terms.',
     'Your service mini-apps',
+    'Open {{service}}',
     'Super App',
     'Accounting & Finance',
     'Manage entity books, journals, financial operations, and entity-scoped reporting.',
     'Accounting mini app →',
     'No services are assigned to your account yet.',
     'Open an available service directly. Access is based on your role and enabled features.',
+    'Open service',
     'Choose an agent',
     'Audience roles',
     'AfroLife managed listing',
@@ -214,12 +239,18 @@ test('key app workflows are translated in every supported locale', async () => {
   try {
     for (const locale of locales) {
       store.set('afrolife.locale', locale);
-      const { localeNames, t } = await import(`../public/i18n.js?locale-test=${locale}`);
+      const { localeNames, setLocalizedAttribute, t } = await import(`../public/i18n.js?locale-test=${locale}`);
       assert.ok(localeNames[locale], `locale ${locale} is available`);
       for (const message of messages) {
         const translated = t(message);
         assert.ok(translated && translated !== message, `${locale} is missing: ${message}`);
       }
+      let accountingLabel = '';
+      setLocalizedAttribute({
+        setAttribute: (_attribute, value) => { accountingLabel = value; },
+      }, 'aria-label', 'Open {{service}}', { service: t('Accounting & Finance') });
+      assert.ok(accountingLabel.includes(t('Accounting & Finance')));
+      assert.doesNotMatch(accountingLabel, /\{\{\w+\}\}/);
       const signedIn = t('Signed in as {{role}}. Your access is limited to your assigned role and territory.', { role: 'Buyer' });
       assert.ok(signedIn.includes('Buyer'));
       assert.doesNotMatch(signedIn, /\{\{\w+\}\}/);

@@ -54,6 +54,8 @@ test('integrated agency and community workspaces have branded logo assets', () =
   assert.match(app, /function miniAppLogo\(panel\)/);
   assert.match(app, /function decoratePublicServiceLogos\(\)/);
   assert.match(app, /service-icon service-icon-image/);
+  assert.match(app, /\['Agent services', miniAppLogo\('agents'\)\]/);
+  assert.match(app, /service-launcher-logo/);
   assert.match(app, /page-mini-app-logo/);
 });
 

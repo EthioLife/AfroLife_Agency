@@ -71,6 +71,12 @@ test('public signup branding and worker-interest copy stay localized', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const i18n = readFileSync(new URL('../public/i18n.js', import.meta.url), 'utf8');
 
+  let divDepth = 0;
+  for (const tag of html.matchAll(/<\/?div\b[^>]*>/gi)) {
+    divDepth += tag[0][1] === '/' ? -1 : 1;
+    assert.ok(divDepth >= 0, 'public page divs should close only after they open');
+  }
+  assert.equal(divDepth, 0, 'public page should not leave divs unclosed');
   assert.match(html, /<p class="eyebrow">AFROSHERIK REGISTRATION<\/p>/);
   assert.match(html, /<h2>Apply to join AfroSherik<\/h2>/);
   assert.doesNotMatch(html, /ETHIOLIFE REGISTRATION|Apply to join AfroLife/);
@@ -524,6 +530,28 @@ test('AfroSherik sign-in uses the supplied campaign and brand artwork', () => {
   assert.match(styles, /@media \(max-width: 700px\) \{\s*\.welcome-signin-shortcut\s*\{\s*display:\s*inline-flex;[\s\S]*?min-height:\s*46px;/);
 });
 
+test('authentication uses an Ethiopia-first international phone entry and explicit provider availability', async () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const phoneInput = await import('../public/phone-input.js');
+  assert.equal(phoneInput.normalizePhoneParts('+251', '0911 234 567'), '+251911234567');
+  assert.equal(phoneInput.normalizePhoneParts('+1', '(415) 555-0132'), '+14155550132');
+  assert.equal(phoneInput.normalizePhoneParts('+251', '+14155550132'), '+14155550132');
+  assert.equal(phoneInput.normalizePhoneParts('+251', '0611234567'), null);
+  assert.equal(phoneInput.phonePayload({
+    elements: { namedItem: (name) => ({ value: name === 'phone_country_code' ? '+251' : '0911234567' }) },
+  }).phone_national_number, '0911234567');
+  assert.equal(phoneInput.phonePayload({
+    elements: { namedItem: (name) => ({ value: name === 'phone_country_code' ? '+251' : '+14155550132' }) },
+  }).phone, '+14155550132');
+  assert.match(html, /id="login-form"[\s\S]*?name="phone_country_code"[^>]*value="\+251"/);
+  assert.match(html, /id="signup-form"[\s\S]*?name="phone_country_code"[^>]*value="\+251"/);
+  assert.match(html, /id="recovery-form"[\s\S]*?SMS password recovery is unavailable/);
+  assert.match(html, /Fayda verification is unavailable[\s\S]*?not live Fayda verification/);
+  assert.match(app, /canonicalPhonePayload\(form\)/);
+  assert.match(app, /Device sign-in unavailable/);
+});
+
 test('mobile sign-in places the campaign welcome before sign-in and signup forms', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
@@ -643,15 +671,16 @@ test('public subscription catalog includes the approved ETB 1,000 services', () 
   assert.deepEqual(subscriptionRequestPayload(['edir', 'edir', 'agent']), { services: ['edir', 'agent'] });
 });
 
-test('public sign-in flow exposes recovery guidance and reliably navigates to the form', () => {
+test('public sign-in flow opens password recovery and reliably returns to the form', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
   const i18n = readFileSync(new URL('../public/i18n.js', import.meta.url), 'utf8');
 
-  assert.match(html, /id="show-password-recovery"[^>]*aria-expanded="false"[^>]*aria-controls="password-recovery-help"/);
-  assert.match(html, /id="password-recovery-help"[^>]*role="note"[^>]*hidden[^>]*>Contact your organization’s administrator/);
-  assert.match(app, /button\.setAttribute\('aria-expanded', String\(!expanded\)\);[\s\S]*?help\.hidden = expanded;/);
+  assert.equal([...html.matchAll(/id="show-password-recovery"/g)].length, 1);
+  assert.match(html, /id="recovery-form"[^>]*hidden/);
+  assert.match(app, /\$\('#show-password-recovery'\)\.addEventListener\('click',[\s\S]*?\$\('#login-form'\)\.hidden = true;[\s\S]*?\$\('#recovery-form'\)\.hidden = false;/);
+  assert.match(app, /\$\('#back-to-sign-in'\)\.addEventListener\('click',[\s\S]*?\$\('#recovery-form'\)\.hidden = true;[\s\S]*?\$\('#login-form'\)\.hidden = false;/);
   assert.match(app, /document\.querySelectorAll\('a\[href="#login-form"\]'\)/);
   assert.match(app, /loginForm\.scrollIntoView\(\{ behavior: reducedMotion \? 'auto' : 'smooth', block: 'start' \}\)/);
   assert.match(app, /loginForm\.querySelector\('input\[name="phone"\]'\)\.focus\(\{ preventScroll: true \}\)/);

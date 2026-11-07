@@ -26,6 +26,14 @@ export function isPlatformAdminRole(role: string): boolean {
   return role === 'super_admin' || role === 'global_admin';
 }
 
+const MFA_REQUIRED_ROLES = new Set([
+  'global_admin', 'super_admin', 'compliance', 'finance', 'finance_manager', 'corporate_business_manager',
+]);
+
+export function requiresMfaEnrollment(role: string): boolean {
+  return MFA_REQUIRED_ROLES.has(role);
+}
+
 declare global {
   namespace Express {
     interface Request { user?: AuthUser }

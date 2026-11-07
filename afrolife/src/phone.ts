@@ -14,3 +14,12 @@ export function normalizePhone(raw: string): string | null {
   else return null;
   return /^[1-579]/.test(d) ? '+251' + d : null;
 }
+
+/** Combines a selected calling code and national number into canonical E.164 form. */
+export function normalizePhoneParts(countryCallingCode: string, nationalNumber: string): string | null {
+  const code = countryCallingCode.trim().replace(/[\s()-]/g, '');
+  const local = nationalNumber.trim().replace(/[\s\-().]/g, '');
+  if (!/^\+[1-9]\d{0,2}$/.test(code) || !/^\d{6,14}$/.test(local)) return null;
+  const national = code === '+251' && /^0\d{9}$/.test(local) ? local.slice(1) : local;
+  return normalizePhone(`${code}${national}`);
+}

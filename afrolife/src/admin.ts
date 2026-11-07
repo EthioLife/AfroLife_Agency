@@ -5,7 +5,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { pool, withUser, requireRole, HttpError, JWT_SECRET, invalidateUser, invalidateRolePermissions } from './core.js';
-import { normalizePhone } from './phone.js';
+import { normalizePhone, normalizePhoneParts } from './phone.js';
+import { requiresMfaEnrollment } from './auth-types.js';
+import { getFaydaVerificationStatus, getSmsRecoveryStatus } from './auth-integrations.js';
 import { Phone } from './validators.js';
 import { audit, feeSnapshot } from './domain.js';
 import { mfaKeys, openAny, seal, passwordProblem, randomPassword } from './security.js';
@@ -95,8 +97,10 @@ async function issue(
     return [...new Set([u.role, ...grants.rows.map((row) => row.role_name as string)])];
   });
   const hasStaffAccess = accessOptions.some((role) => MFA_STAFF.includes(role));
+  const hasMfaRequiredAccess = accessOptions.some(requiresMfaEnrollment);
   const rst = u.must_change_password ? 'password'
-    : process.env.REQUIRE_MFA_FOR_STAFF === '1' && hasStaffAccess && !u.mfa_enabled ? 'mfa' : null;
+    : (hasMfaRequiredAccess || (process.env.REQUIRE_MFA_FOR_STAFF === '1' && hasStaffAccess))
+      && !u.mfa_enabled ? 'mfa' : null;
   const sessionId = randomUUID();
   await pool.query(
     `DELETE FROM auth_sessions WHERE expires_at < now() - interval '30 days'
@@ -132,9 +136,19 @@ const recordFailure = (id: string) =>
 // ================= Public: login =================
 export const loginRouter = Router();
 loginRouter.post('/auth/login', h(async (req, res) => {
-  const b = z.object({ phone: z.string().min(8), password: z.string().min(1).max(200), code: z.string().optional() }).parse(req.body);
+  const b = z.object({
+    phone: z.string().optional(),
+    phone_country_code: z.string().optional(),
+    phone_national_number: z.string().optional(),
+    password: z.string().min(1).max(200),
+    code: z.string().optional(),
+  }).parse(req.body);
+  const canonicalPhone = b.phone_country_code && b.phone_national_number
+    ? normalizePhoneParts(b.phone_country_code, b.phone_national_number)
+    : b.phone ? normalizePhone(b.phone) : null;
+  if (!canonicalPhone) throw new HttpError(422, 'Enter a valid country calling code and phone number.');
   // Match the canonical form, and the raw text too so accounts saved before normalisation still work.
-  const phones = [...new Set([normalizePhone(b.phone), b.phone.trim()].filter(Boolean))] as string[];
+  const phones = [...new Set([canonicalPhone, b.phone?.trim(), b.phone_national_number?.trim()].filter(Boolean))] as string[];
   const u = (await pool.query('SELECT id, role, active, password_hash, mfa_enabled, mfa_secret, must_change_password, locked_until FROM users WHERE phone = ANY($1::text[]) ORDER BY active DESC LIMIT 1', [phones])).rows[0];
   if (u?.locked_until && new Date(u.locked_until) > new Date()) throw new HttpError(429, 'Too many failed attempts. Try again in 15 minutes.');
   const matches = await bcrypt.compare(b.password, u?.password_hash ?? DUMMY_HASH);
@@ -156,6 +170,14 @@ loginRouter.post('/auth/login', h(async (req, res) => {
   await pool.query('UPDATE users SET failed_logins = 0, locked_until = NULL WHERE id = $1', [u.id]);
   res.json(await issue(u, undefined, req.get('user-agent')));
 }));
+
+const recoveryUnavailable = (_req: Request, res: Response) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.status(503).json({ error: getSmsRecoveryStatus().message });
+};
+
+loginRouter.post('/auth/password-recovery/request', recoveryUnavailable);
+loginRouter.post('/auth/password-recovery/complete', recoveryUnavailable);
 
 loginRouter.get('/auth/signup/options', h(async (_req, res) => {
   const [territories, plans, accountOptions, kycOptions] = await Promise.all([
@@ -184,13 +206,16 @@ loginRouter.get('/auth/signup/options', h(async (_req, res) => {
       { key: 'property_owner', label: 'Seller / property owner', enabled: true }, { key: 'agent', label: 'Agent', enabled: true },
     ],
     kyc_requirements: getKycRequirements(kycOptions.rows[0]?.config_value),
+    identity_verification: { fayda: getFaydaVerificationStatus() },
   });
 }));
 
 loginRouter.post('/auth/signup', h(async (req, res) => {
   const b = z.object({
     legal_name: z.string().trim().min(2).max(160),
-    phone: Phone,
+    phone: Phone.optional(),
+    phone_country_code: z.string().optional(),
+    phone_national_number: z.string().optional(),
     email: z.union([z.string().trim().email().max(254), z.literal('')]).optional(),
     password: z.string().min(12).max(72),
     password_confirmation: z.string(),
@@ -207,6 +232,10 @@ loginRouter.post('/auth/signup', h(async (req, res) => {
     requested_plan: z.enum(['free', 'pro', 'enterprise']).optional(),
     option_a_enterprise_interest: z.boolean().default(false),
   }).strict().parse(req.body);
+  const phone = b.phone_country_code && b.phone_national_number
+    ? normalizePhoneParts(b.phone_country_code, b.phone_national_number)
+    : b.phone ?? null;
+  if (!phone) throw new HttpError(422, 'Enter a valid country calling code and phone number.');
   if (b.account_type === 'worker' && !b.worker_document_consent) {
     throw new HttpError(422, 'Worker applicants must consent to identity and eligibility document review before uploading KYC documents.');
   }
@@ -229,7 +258,7 @@ loginRouter.post('/auth/signup', h(async (req, res) => {
     throw new HttpError(422, 'Date of birth is only collected for worker eligibility review.');
   }
   if (b.password !== b.password_confirmation) throw new HttpError(422, 'Password confirmation does not match.');
-  const passwordIssue = passwordProblem(b.password, b.phone);
+  const passwordIssue = passwordProblem(b.password, phone);
   if (passwordIssue) throw new HttpError(422, passwordIssue);
 
   let parentAgentId: string | null = null;
@@ -294,7 +323,7 @@ loginRouter.post('/auth/signup', h(async (req, res) => {
        RETURNING id`,
       [
         b.legal_name,
-        b.phone,
+        phone,
         b.email || null,
         role,
         b.account_type === 'agent' ? b.territory_id : null,
@@ -1671,7 +1700,7 @@ adminRouter.post('/auth/mfa/disable', h(async (req, res) => {
   const b = z.object({ password: z.string(), code: z.string() }).parse(req.body);
   const u = (await pool.query('SELECT id, role, password_hash, mfa_secret, mfa_enabled FROM users WHERE id = $1', [req.user!.id])).rows[0];
   if (!u.mfa_enabled) throw new HttpError(409, 'Two-factor sign-in is not on');
-  if (MFA_STAFF.includes(u.role) && process.env.REQUIRE_MFA_FOR_STAFF === '1') throw new HttpError(403, 'Two-factor sign-in is required for your role');
+  if (requiresMfaEnrollment(u.role)) throw new HttpError(403, 'Two-factor sign-in is required for your role');
   const step = verifyTotpStep(openSecret(u.mfa_secret), b.code);
   if (!(await bcrypt.compare(b.password, u.password_hash)) || step === null) throw new HttpError(401, 'Password or code is incorrect');
   await withUser(req.user!, async (c) => {
@@ -2285,7 +2314,7 @@ adminRouter.post('/users/:id/deactivate', requireRole('global_admin'), h(async (
   invalidateUser(String(req.params.id)); // takes effect immediately on this server, within AUTH_CACHE_MS elsewhere
 }));
 
-/** Lost phone: clears 2FA so the user can enrol again (staff with REQUIRE_MFA_FOR_STAFF are forced to on next sign-in). */
+/** Lost phone: clears 2FA so the user can enrol again; required roles are restricted at next sign-in. */
 adminRouter.post('/users/:id/mfa/reset', requireRole('global_admin'), h(async (req, res) => {
   if (req.params.id === req.user!.id) throw new HttpError(403, 'Ask another Super Admin to reset your two-factor sign-in');
   const out = await withUser(req.user!, async (c) => {

@@ -17,6 +17,7 @@ import { propertyOfferTerms } from './property-offers.js';
 import { marketplaceListingPayload } from './marketplace-form.js';
 import { paginateRows } from './row-pagination.js';
 import { filterWorkerActivityReports, workerActivityReportsCsv } from './worker-activity-reports.js';
+import { phonePayload as canonicalPhonePayload } from './phone-input.js';
 
 const WEB_API_ROOT = '/api/v1';
 let API_ROOT = WEB_API_ROOT;
@@ -30,6 +31,7 @@ const EDIR_ORGANIZATION_KEY = 'afrolife.edir-organization';
 const PROPERTY_TENANT_KEY = 'afrolife.property-tenant';
 const DEFAULT_EDIR_ORGANIZATION = '00000000-0000-4000-8000-000000000002';
 const STAFF = new Set(['global_admin', 'super_admin', 'compliance', 'finance', 'finance_manager']);
+const REQUIRED_MFA_ROLES = new Set(['global_admin', 'super_admin', 'compliance', 'finance', 'finance_manager', 'corporate_business_manager']);
 const KNOWN_PANELS = new Set([
   'overview', 'launcher', 'subscriptions', 'leads', 'workers', 'requests', 'support', 'learning', 'properties', 'marketplace', 'tenant-data-admin',
   'contracts', 'commissions', 'agents', 'rent', 'mfi', 'accounting', 'edir',
@@ -532,7 +534,10 @@ async function login(event) {
   const error = $('#login-error');
   setLocalizedText(error, '');
   try {
-    const result = await api('/auth/login', { method: 'POST', body: JSON.stringify(values) });
+    const phoneFields = canonicalPhonePayload(form);
+    const payload = { ...values, ...phoneFields };
+    if ('phone_national_number' in phoneFields) delete payload.phone;
+    const result = await api('/auth/login', { method: 'POST', body: JSON.stringify(payload) });
     if (result.mfa_required) {
       $('#mfa-field').hidden = false;
       setLocalizedText(error, 'Enter the six-digit code from your authenticator app.');
@@ -579,6 +584,25 @@ async function switchAccessMode(role) {
   } catch (reason) {
     if (error) error.textContent = reason.message;
     else showAlert(reason.message, true);
+  }
+}
+
+async function requestPasswordRecovery(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submit = form.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  setLocalizedText($('#recovery-status'), '');
+  try {
+    await api('/auth/password-recovery/request', {
+      method: 'POST',
+      body: JSON.stringify(canonicalPhonePayload(form)),
+    });
+    setLocalizedText($('#recovery-status'), 'If recovery becomes available, instructions will be provided without confirming whether an account exists.');
+  } catch (error) {
+    setLocalizedText($('#recovery-status'), error.message);
+  } finally {
+    submit.disabled = false;
   }
 }
 
@@ -751,6 +775,7 @@ function updateSignupFields() {
 
 function openSignup(agentPlans = false, edirMember = false) {
   $('#login-form').hidden = true;
+  $('#recovery-form').hidden = true;
   $('#signup-form').hidden = false;
   $('#signup-success').hidden = true;
   if (sessionStorage.getItem(SIGNUP_UPLOAD_KEY)) {
@@ -887,9 +912,16 @@ async function submitSignup(event) {
     setLocalizedText(error, 'Select each required KYC document before submitting.');
     return;
   }
+  let phoneFields;
+  try {
+    phoneFields = canonicalPhonePayload(form);
+  } catch (reason) {
+    setLocalizedText(error, reason.message);
+    return;
+  }
   const payload = {
     legal_name: values.legal_name,
-    phone: values.phone,
+    ...phoneFields,
     email: values.email,
     password: values.password,
     password_confirmation: values.password_confirmation,
@@ -2259,6 +2291,7 @@ function renderSuperAppLauncher() {
     card.type = 'button';
     card.dataset.panel = panel;
     card.setAttribute('aria-label', `Open ${name}`);
+    setLocalizedAttribute(card, 'aria-label', 'Open {{service}}', { service: name });
     const logoSource = miniAppLogo(panel);
     if (logoSource) {
       const logo = node('img', undefined, 'service-icon service-icon-image service-launcher-logo');
@@ -2291,7 +2324,7 @@ function decoratePublicServiceLogos() {
     ['Workforce', miniAppLogo('workers')],
     ['AfroLife Edir', miniAppLogo('edir')],
     ['SACCO / MFI', miniAppLogo('mfi')],
-    ['Agent services', '/icon.svg'],
+    ['Agent services', miniAppLogo('agents')],
     ['Accounting & Finance', miniAppLogo('accounting')],
   ]);
   const panels = new Map([
@@ -6082,8 +6115,13 @@ function renderSecurity() {
   wrap.append(sectionHeading('Account security', 'Manage two-step verification and signed-in devices.'));
   const panel = node('section', undefined, 'panel form-card');
   panel.style.maxWidth = '620px';
+  const mfaRequired = REQUIRED_MFA_ROLES.has(state.user.role);
   panel.append(node('h3', state.user.mfa_enabled ? 'Two-step verification is enabled' : 'Two-step verification'));
-  panel.append(node('p', state.user.mfa_enabled ? 'Your sign-in uses a password and authenticator code.' : 'Use an authenticator app to generate a one-time sign-in code.'));
+  panel.append(node('p', mfaRequired
+    ? 'Authenticator sign-in is required for administrative roles and cannot be disabled.'
+    : state.user.mfa_enabled
+      ? 'Your sign-in uses a password and authenticator code.'
+      : 'Optional: add an authenticator app for an extra sign-in step. You can turn it off later after verifying your password and code.'));
   if (!state.user.mfa_enabled && !state.mfaSetup) {
     panel.append(button('Set up authenticator', 'mfa-setup', 'button button-primary'));
   } else if (state.mfaSetup && !state.user.mfa_enabled) {
@@ -6103,7 +6141,26 @@ function renderSecurity() {
     const code = field('Six-digit authenticator code', 'code', 'text', true, { inputMode: 'numeric', pattern: '[0-9]{6}', maxLength: 6 });
     form.append(code.label, button('Verify and enable', 'submit', 'button button-primary'));
     panel.append(form);
+  } else if (state.user.mfa_enabled && !mfaRequired) {
+    const form = node('form', undefined, 'inline-form');
+    form.dataset.form = 'mfa-disable';
+    form.append(node('p', 'To turn off the optional authenticator step, confirm your current password and a valid one-time code.', 'muted'));
+    form.append(field('Current password', 'password', 'password').label);
+    form.append(field('Six-digit authenticator code', 'code', 'text', true, { inputMode: 'numeric', pattern: '[0-9]{6}', maxLength: 6 }).label);
+    form.append(button('Turn off two-step verification', 'submit', 'button button-outline'));
+    panel.append(form);
   }
+  panel.append(node('h3', 'Passkeys and device sign-in'));
+  panel.append(node('p', 'Unavailable until secure WebAuthn support is configured. If enabled later, your device may use biometrics or a PIN; AfroLife will not collect biometric data.'));
+  const passkey = node('button', 'Device sign-in unavailable', 'button button-outline passkey-unavailable');
+  passkey.type = 'button';
+  passkey.disabled = true;
+  passkey.setAttribute('aria-describedby', 'passkey-unavailable-note');
+  panel.append(passkey);
+  const passkeyNote = node('span', 'Secure device credential registration is not available yet.');
+  passkeyNote.id = 'passkey-unavailable-note';
+  passkeyNote.className = 'sr-only';
+  panel.append(passkeyNote);
   wrap.append(panel);
   const sessions = node('section', undefined, 'panel');
   sessions.append(node('h3', 'Signed-in sessions'));
@@ -7171,6 +7228,12 @@ async function submitForm(form) {
     state.mfaSetup = null;
     await loadWorkspace();
     showAlert('Two-step verification enabled.');
+    return;
+  }
+  if (form.dataset.form === 'mfa-disable') {
+    await api('/auth/mfa/disable', { method: 'POST', body: JSON.stringify(values) });
+    await loadWorkspace();
+    showAlert('Two-step verification disabled.');
     return;
   }
   if (form.dataset.form === 'tenant') {
@@ -9428,6 +9491,7 @@ $('#login-form').addEventListener('submit', login);
 $('#access-mode-apply').addEventListener('click', () => {
   void switchAccessMode($('#access-mode-select').value);
 });
+$('#recovery-form').addEventListener('submit', requestPasswordRecovery);
 $('#signup-form').addEventListener('submit', submitSignup);
 $('#signup-followup-upload').addEventListener('click', () => uploadSignupReplacement()
   .catch((error) => setLocalizedText($('#signup-error'), error.message)));
@@ -9453,13 +9517,6 @@ $('#signup-agent-type').addEventListener('change', updateSignupFields);
 $('#signup-plan').addEventListener('change', updatePlanLabels);
 $('#signup-territory-search').addEventListener('input', syncSignupTerritory);
 $('#signup-territory-search').addEventListener('change', syncSignupTerritory);
-$('#show-password-recovery').addEventListener('click', () => {
-  const button = $('#show-password-recovery');
-  const help = $('#password-recovery-help');
-  const expanded = button.getAttribute('aria-expanded') === 'true';
-  button.setAttribute('aria-expanded', String(!expanded));
-  help.hidden = expanded;
-});
 document.querySelectorAll('a[href="#login-form"]').forEach((link) => link.addEventListener('click', (event) => {
   if (!$('#app-view').hidden || $('#login-view').hidden) return;
   event.preventDefault();
@@ -9477,6 +9534,24 @@ $('#create-account').addEventListener('click', () => openSignup(false));
 $('#public-create-account').addEventListener('click', () => openSignup(false));
 $('#join-edir').addEventListener('click', () => openSignup(false, true));
 $('#show-agent-plans').addEventListener('click', () => openSignup(true));
+$('#show-password-recovery').addEventListener('click', () => {
+  const button = $('#show-password-recovery');
+  const help = $('#password-recovery-help');
+  const expanded = button.getAttribute('aria-expanded') === 'true';
+  button.setAttribute('aria-expanded', String(!expanded));
+  help.hidden = expanded;
+});
+$('#open-password-recovery').addEventListener('click', () => {
+  $('#login-form').hidden = true;
+  $('#recovery-form').hidden = false;
+  setLocalizedText($('#recovery-status'), '');
+  $('#recovery-form [name="phone"]').focus({ preventScroll: true });
+});
+$('#back-to-sign-in').addEventListener('click', () => {
+  $('#recovery-form').hidden = true;
+  $('#login-form').hidden = false;
+  $('#login-form [name="phone"]').focus({ preventScroll: true });
+});
 document.querySelectorAll('[data-open-edir-registration]').forEach((button) => button.addEventListener('click', () => {
   const form = $('#edir-registration-form');
   form.hidden = false;
@@ -9489,6 +9564,7 @@ document.querySelectorAll('[data-open-edir-registration]').forEach((button) => b
 }));
 $('#show-login').addEventListener('click', () => {
   $('#signup-form').hidden = true;
+  $('#recovery-form').hidden = true;
   $('#login-form').hidden = false;
   setLocalizedText($('#login-error'), '');
 });

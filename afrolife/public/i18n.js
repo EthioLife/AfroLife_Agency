@@ -367,6 +367,13 @@ const rows = [
   ['Require a verified certificate', 'የተረጋገጠ ሰርተፍኬት ይጠይቁ', 'Ragaa mirkanaa’e barbaadi', 'ዝተረጋገጸ ምስክር ወረቐት ሕተት'],
   ['Default rent due day', 'ነባሪ የኪራይ መክፈያ ቀን', 'Guyyaa kaffaltii kiraa durtii', 'ነባሪ መዓልቲ ክፍሊት ኪራይ'],
   ['Maximum lease term (months)', 'ከፍተኛ የኪራይ ውል ጊዜ (ወራት)', 'Yeroo waliigaltee kiraa ol’aanaa (ji’a)', 'ዝለዓለ ግዜ ውዕሊ ኪራይ (ኣዋርሕ)'],
+  ['Prepare renewal terms for independent approval', 'ለገለልተኛ ማጽደቅ የእድሳት ውሎችን ያዘጋጁ', 'Shuruudota haaromsaaf raggaasisa walaba qopheessaa', 'ንገለልተኛ ምጽዳቕ ውዕላት ምሕዳስ ኣዳልዉ'],
+  ['An approved offer is sent to linked resident accounts. Acceptance creates only a new lease draft; it does not extend this lease or post rent.', 'የጸደቀ ቅናሽ ከተገናኙ የነዋሪ መለያዎች ጋር ይላካል። መቀበል አዲስ የኪራይ ውል ረቂቅ ብቻ ይፈጥራል፤ ይህን ውል አያራዝምም ወይም ኪራይ አይመዘግብም።', 'Dhiyeessi ragga’e herrega jiraattota walqabatanitti ergama. Fudhachuun karoora waliigaltee kiraa haaraa qofa uuma; waliigaltee kana hin dheeressu yookaan kiraa hin galmeessu.', 'ዝጸደቐ ቅናሽ ናብ ዝተኣሳሰሩ ሕሳባት ነበርቲ ይለኣኽ። ምቕባል ሓድሽ ረቂቕ ውዕሊ ኪራይ ጥራይ ይፈጥር፤ ነዚ ውዕሊ ኣየናውሖን ወይ ክራይ ኣይምዝግብን።'],
+  ['Property tenant context updated.', 'የንብረት ተከራይ አውድ ተዘምኗል።', 'Haalli kiraa qabeenyaa haaromfameera.', 'ኩነታት ተኻራይ ንብረት ተሓዲሱ።'],
+  ['Enter the independent approval reason (at least 10 characters).', 'የገለልተኛ ማጽደቅ ምክንያትን ያስገቡ (ቢያንስ 10 ቁምፊዎች)።', 'Sababa raggaasisa walabaa galchi (yoo xiqqaate qubee 10).', 'ምኽንያት ናይ ገለልተኛ ምጽዳቕ ኣእትዉ (እንተወሓደ 10 ቁምፊታት)።'],
+  ['Enter the reason for rejecting this renewal offer (at least 10 characters).', 'ይህን የእድሳት ቅናሽ ለመከልከል ምክንያቱን ያስገቡ (ቢያንስ 10 ቁምፊዎች)።', 'Dhiyeessa haaromsaa kana diduuf sababa galchi (yoo xiqqaate qubee 10).', 'ነዚ ናይ ምሕዳስ ቅናሽ ንምንጻግ ምኽንያት ኣእትዉ (እንተወሓደ 10 ቁምፊታት)።'],
+  ['Enter why the accepted offer is being converted into a new lease draft (at least 10 characters).', 'የተቀበለው ቅናሽ ወደ አዲስ የኪራይ ውል ረቂቅ ለምን እንደሚቀየር ያስገቡ (ቢያንስ 10 ቁምፊዎች)።', 'Dhiyeessi fudhatame gara karoora waliigaltee kiraa haaraatti maaliif akka jijjiiramu ibsi (yoo xiqqaate qubee 10).', 'እቲ ዝተቐበሎ ቅናሽ ናብ ሓድሽ ረቂቕ ውዕሊ ኪራይ ስለምንታይ ከም ዝቕየር ኣእትዉ (እንተወሓደ 10 ቁምፊታት)።'],
+  ['Enter a reason for declining (at least 10 characters).', 'ለመቃወም ምክንያት ያስገቡ (ቢያንስ 10 ቁምፊዎች)።', 'Sababa diddaa galchi (yoo xiqqaate qubee 10).', 'ምኽንያት ንምንጻግ ኣእትዉ (እንተወሓደ 10 ቁምፊታት)።'],
   ['Invoice payment period (days)', 'የደረሰኝ ክፍያ ጊዜ (ቀናት)', 'Yeroo kaffaltii nagahee (guyyaa)', 'ግዜ ክፍሊት ደረሰኝ (መዓልታት)'],
   ['Maximum fee refund (% of fees collected)', 'ከተሰበሰበው ክፍያ የሚመለስ ከፍተኛ መጠን (%)', 'Deebii kaffaltii irraa olaanaa (% kaffaltii walitti qabame)', 'ዝለዓለ ምምላስ ካብ ዝተኣከበ ክፍሊት (%)'],
   ['Maximum guarantee refund (% of guarantee held)', 'ከተያዘው ዋስትና የሚመለስ ከፍተኛ መጠን (%)', 'Deebii wabii irraa olaanaa (% wabii qabame)', 'ዝለዓለ ምምላስ ካብ ዝተሓዘ ውሕስነት (%)'],
@@ -702,6 +709,134 @@ const publicSurfaceTranslations = {
   },
   'Filters and exports include the 200 most recent reports currently loaded.': {
     am: 'ማጣሪያዎችና ወደ ፋይል ማውጣት አሁን የተጫኑትን 200 የቅርብ ጊዜ ሪፖርቶች ያካትታሉ።', om: 'Filteerii fi al-ergiin gabaasa 200 yeroo dhihoo kana fe’aman hammatu.', ti: 'ማጣርያታትን ናብ ፋይል ምውጻእን እቶም ኣብዚ ዝተጻዕኑ 200 ናይ ቀረባ ግዜ ጸብጻባት የጠቓልሉ።', so: 'Shaandhaynta iyo dhoofintu waxay ku jiraan 200-ka warbixinood ee ugu dambeeyay ee hadda la raray.', ar: 'تشمل عوامل التصفية والتصدير أحدث 200 تقرير تم تحميله حاليًا.', sw: 'Vichujio na uhamishaji vinajumuisha ripoti 200 za hivi karibuni zilizopakiwa sasa.',
+  },
+  'Prepare renewal terms for independent approval': {
+    am: 'ለገለልተኛ ማጽደቅ የእድሳት ውሎችን ያዘጋጁ', om: 'Shuruudota haaromsaaf raggaasisa walaba qopheessaa', ti: 'ንገለልተኛ ምጽዳቕ ውዕላት ምሕዳስ ኣዳልዉ',
+    so: 'U diyaari shuruudaha cusboonaysiinta oggolaansho madax-bannaan', ar: 'إعداد شروط التجديد للموافقة المستقلة', sw: 'Andaa masharti ya upyaji kwa idhini huru',
+  },
+  'Enter the independent approval reason (at least 10 characters).': {
+    am: 'የገለልተኛ ማጽደቅ ምክንያትን ያስገቡ (ቢያንስ 10 ቁምፊዎች)።', om: 'Sababa raggaasisa walabaa galchi (yoo xiqqaate qubee 10)', ti: 'ምኽንያት ናይ ገለልተኛ ምጽዳቕ ኣእትዉ (እንተወሓደ 10 ቁምፊታት)',
+    so: 'Geli sababta oggolaanshaha madax-bannaan (ugu yaraan 10 xaraf).', ar: 'أدخل سبب الموافقة المستقلة (10 أحرف على الأقل).', sw: 'Weka sababu ya idhini huru (angalau herufi 10).',
+  },
+  'Enter why the accepted offer is being converted into a new lease draft (at least 10 characters).': {
+    am: 'የተቀበለው ቅናሽ ወደ አዲስ የኪራይ ውል ረቂቅ ለምን እንደሚቀየር ያስገቡ (ቢያንስ 10 ቁምፊዎች)።',
+    om: 'Dhiyeessi fudhatame gara karoora waliigaltee kiraa haaraatti maaliif akka jijjiiramu ibsi (yoo xiqqaate qubee 10).',
+    ti: 'እቲ ዝተቐበሎ ቅናሽ ናብ ሓድሽ ረቂቕ ውዕሊ ኪራይ ስለምንታይ ከም ዝቕየር ኣእትዉ (እንተወሓደ 10 ቁምፊታት)።',
+    so: 'Geli sababta soo jeedinta la aqbalay loogu beddelayo qabyo heshiis kiro cusub (ugu yaraan 10 xaraf).',
+    ar: 'أدخل سبب تحويل العرض المقبول إلى مسودة عقد إيجار جديد (10 أحرف على الأقل).',
+    sw: 'Eleza kwa nini ofa iliyokubaliwa inabadilishwa kuwa rasimu mpya ya mkataba wa upangaji (angalau herufi 10).',
+  },
+  'Enter a reason for declining (at least 10 characters).': {
+    am: 'ለመቃወም ምክንያት ያስገቡ (ቢያንስ 10 ቁምፊዎች)።', om: 'Sababa diddaa galchi (yoo xiqqaate qubee 10)', ti: 'ምኽንያት ንምንጻግ ኣእትዉ (እንተወሓደ 10 ቁምፊታት)',
+    so: 'Geli sababta diidmada (ugu yaraan 10 xaraf).', ar: 'أدخل سبب الرفض (10 أحرف على الأقل).', sw: 'Weka sababu ya kukataa (angalau herufi 10).',
+  },
+  'Optional note for the property manager.': {
+    am: 'ለንብረት አስተዳዳሪው አማራጭ ማስታወሻ።', om: 'Yaadannoo filannoo bulchaa qabeenyaaf', ti: 'ንሓላፊ ንብረት ኣማራጺ ማስታወሻ',
+    so: 'Qoraal ikhtiyaari ah oo loogu talagalay maamulaha hantida.', ar: 'ملاحظة اختيارية لمدير العقار.', sw: 'Dokezo la hiari kwa msimamizi wa mali.',
+  },
+  'End this lease using its independently reviewed move-out inspection? Future rent charges will be waived.': {
+    am: 'በገለልተኛ የተገመገመውን የመውጫ ምርመራ ተጠቅመው ይህንን ውል ያቋርጡ? ወደፊት የሚመጡ የኪራይ ክፍያዎች ይሰረዛሉ።',
+    om: 'Sakattaʼinsa baʼumsaa of dandaʼe keessa darbe kanaan waliigaltee kana xumurtuu? Kaffaltiin kiraa gara fuulduraa ni haqama.',
+    ti: 'ብናጻ ዝተገምገመ መርመራ ምውጻእ ተጠቒምኩም ነዚ ውዕሊ ክትውድኡዶ? ናይ መጻኢ ክፍሊት ክራይ ክሰረዝ እዩ።',
+    so: 'Ma ku soo afjaraysaa heshiiskan kormeerka guuritaanka ee si madax-bannaan loo eegay? Kirada mustaqbalka waa la dhaafi doonaa.',
+    ar: 'هل تُنهي عقد الإيجار هذا باستخدام فحص المغادرة الذي خضع لمراجعة مستقلة؟ ستُلغى دفعات الإيجار المستقبلية.',
+    sw: 'Unamaliza mkataba huu kwa kutumia ukaguzi wa kuondoka uliopitiwa kwa uhuru? Malipo ya kodi ya baadaye yataondolewa.',
+  },
+  'Enter the lease closeout reason (at least 10 characters).': {
+    am: 'የኪራይ ውል ለማቋረጥ ምክንያቱን ያስገቡ (ቢያንስ 10 ቁምፊዎች)።',
+    om: 'Sababa waliigaltee kiraa xumuru galchaa (yoo xiqqaate qubee 10).',
+    ti: 'ምኽንያት ምውዳእ ውዕሊ ክራይ ኣእትዉ (ብውሑዱ 10 ፊደላት)።',
+    so: 'Geli sababta xiritaanka heshiiska kirada (ugu yaraan 10 xaraf).',
+    ar: 'أدخل سبب إنهاء عقد الإيجار (10 أحرف على الأقل).',
+    sw: 'Weka sababu ya kufunga mkataba wa upangaji (angalau herufi 10).',
+  },
+  'Lease ended after reviewed move-out; future rent charges were waived.': {
+    am: 'ከመውጫ ግምገማው በኋላ የኪራይ ውሉ ተቋርጧል፤ ወደፊት የሚመጡ የኪራይ ክፍያዎች ተሰርዘዋል።',
+    om: 'Sakattaʼinsa baʼumsaa booda waliigalteen kiraa xumurameera; kaffaltiin kiraa gara fuulduraa haqameera.',
+    ti: 'ድሕሪ ግምገማ ምውጻእ ውዕሊ ክራይ ተወዲኡ፤ ናይ መጻኢ ክፍሊት ክራይ ተሰሪዙ።',
+    so: 'Heshiiska kirada waa la xiray kormeerka guuritaanka ka dib; kirada mustaqbalka waa laga dhaafay.',
+    ar: 'انتهى عقد الإيجار بعد مراجعة المغادرة؛ وأُلغيت دفعات الإيجار المستقبلية.',
+    sw: 'Mkataba wa upangaji umekamilika baada ya ukaguzi wa kuondoka; malipo ya kodi ya baadaye yameondolewa.',
+  },
+  'Enter the actual move-out date (YYYY-MM-DD).': {
+    am: 'የመውጫውን ትክክለኛ ቀን ያስገቡ (YYYY-MM-DD)።', om: 'Guyyaa baʼumsaa dhugaa galchaa (YYYY-MM-DD).', ti: 'ናይ ምውጻእ ትኽክለኛ ዕለት ኣእትዉ (YYYY-MM-DD)።',
+    so: 'Geli taariikhda dhabta ah ee guuritaanka (YYYY-MM-DD).', ar: 'أدخل تاريخ المغادرة الفعلي (YYYY-MM-DD).', sw: 'Weka tarehe halisi ya kuondoka (YYYY-MM-DD).',
+  },
+  'Enter the inspection date (YYYY-MM-DD).': {
+    am: 'የምርመራውን ቀን ያስገቡ (YYYY-MM-DD)።', om: 'Guyyaa sakattaʼinsaa galchaa (YYYY-MM-DD).', ti: 'ዕለት መርመራ ኣእትዉ (YYYY-MM-DD)።',
+    so: 'Geli taariikhda kormeerka (YYYY-MM-DD).', ar: 'أدخل تاريخ الفحص (YYYY-MM-DD).', sw: 'Weka tarehe ya ukaguzi (YYYY-MM-DD).',
+  },
+  'Describe the property condition and any observed damage (at least 10 characters).': {
+    am: 'የንብረቱን ሁኔታና የታየ ጉዳት ይግለጹ (ቢያንስ 10 ቁምፊዎች)።',
+    om: 'Haala qabeenyaa fi miidhaa mulʼate ibsaa (yoo xiqqaate qubee 10).',
+    ti: 'ኩነታት ንብረትን ዝተራእየ ጉድኣትን ግለጹ (ብውሑዱ 10 ፊደላት)።',
+    so: 'Sharax xaaladda hantida iyo wixii dhaawac ah ee la arkay (ugu yaraan 10 xaraf).',
+    ar: 'صِف حالة العقار وأي أضرار ملحوظة (10 أحرف على الأقل).',
+    sw: 'Eleza hali ya mali na uharibifu wowote ulioonekana (angalau herufi 10).',
+  },
+  'Were all keys returned? Enter yes or no.': {
+    am: 'ሁሉም ቁልፎች ተመልሰዋል? አዎ ወይም አይደለም ብለው ያስገቡ።',
+    om: 'Furtuun hundi deebiʼeeraa? Eeyyee yookaan lakki galchaa.',
+    ti: 'ኩሉ መፍትሕ ተመሊሱዶ? እወ ወይ ኣይፋል ኣእትዉ።',
+    so: 'Dhammaan furayaasha ma la soo celiyey? Geli haa ama maya.',
+    ar: 'هل أُعيدت جميع المفاتيح؟ أدخل نعم أو لا.',
+    sw: 'Funguo zote zimerudishwa? Weka ndiyo au hapana.',
+  },
+  'Proposed deposit deduction in ETB (use up to two decimals).': {
+    am: 'የታቀደውን የተቀማጭ ቅናሽ በETB ያስገቡ (እስከ ሁለት የአስርዮሽ ቦታዎች)።',
+    om: 'Hirʼina kuusaa dhiyaate ETBn galchaa (tuqaa kudhan keessaa lamaatti).',
+    ti: 'ዝቐረበ ቅናሽ ተቐማጢ ETB ኣእትዉ (ክሳብ ክልተ ነጥቢ ዓሰርተ)።',
+    so: 'Geli jarista deebaajiga la soo jeediyey ee ETB (ugu badnaan laba jajab tobanle).',
+    ar: 'أدخل خصم التأمين المقترح بالبر الإثيوبي (حتى منزلتين عشريتين).',
+    sw: 'Weka makato ya amana yanayopendekezwa kwa ETB (hadi desimali mbili).',
+  },
+  'Explain the proposed deposit deduction (at least 10 characters).': {
+    am: 'የታቀደውን የተቀማጭ ቅናሽ ያብራሩ (ቢያንስ 10 ቁምፊዎች)።',
+    om: 'Hirʼina kuusaa dhiyaate ibsaa (yoo xiqqaate qubee 10).',
+    ti: 'ነቲ ዝቐረበ ቅናሽ ተቐማጢ ግለጹ (ብውሑዱ 10 ፊደላት)።',
+    so: 'Sharax jarista deebaajiga la soo jeediyey (ugu yaraan 10 xaraf).',
+    ar: 'اشرح خصم التأمين المقترح (10 أحرف على الأقل).',
+    sw: 'Eleza makato ya amana yanayopendekezwa (angalau herufi 10).',
+  },
+  'Move-out inspection submitted for independent review. The lease remains active until reviewed closeout.': {
+    am: 'የመውጫ ምርመራው ለገለልተኛ ግምገማ ቀርቧል። የኪራይ ውሉ የመዝጊያ ግምገማ እስኪጠናቀቅ ንቁ ይቆያል።',
+    om: 'Sakattaʼinsi baʼumsaa gamaaggama walabaaf dhiyaateera. Hanga xumura gamaaggamaa waliigalteen kiraa hojii irra jiraata.',
+    ti: 'መርመራ ምውጻእ ንናጻ ግምገማ ቀሪቡ። ክሳብ ግምገማ ምዝዛም ውዕሊ ክራይ ንጡፍ ይቕጽል።',
+    so: 'Kormeerka guuritaanka waxaa loo gudbiyey dib-u-eegis madax-bannaan. Heshiisku wuu shaqaynayaa ilaa xiritaanka dib loo eego.',
+    ar: 'أُرسل فحص المغادرة للمراجعة المستقلة. يظل عقد الإيجار نشطًا حتى مراجعة الإنهاء.',
+    sw: 'Ukaguzi wa kuondoka umewasilishwa kwa mapitio huru. Mkataba unabaki hai hadi kufungwa kukaguliwe.',
+  },
+  'Enter the independent inspection review reason (at least 10 characters).': {
+    am: 'የገለልተኛ ምርመራ ግምገማ ምክንያት ያስገቡ (ቢያንስ 10 ቁምፊዎች)።',
+    om: 'Sababa gamaaggama sakattaʼinsa walabaa galchaa (yoo xiqqaate qubee 10).',
+    ti: 'ምኽንያት ግምገማ ናጻ መርመራ ኣእትዉ (ብውሑዱ 10 ፊደላት)።',
+    so: 'Geli sababta dib-u-eegista kormeerka madax-bannaan (ugu yaraan 10 xaraf).',
+    ar: 'أدخل سبب مراجعة الفحص المستقل (10 أحرف على الأقل).',
+    sw: 'Weka sababu ya mapitio huru ya ukaguzi (angalau herufi 10).',
+  },
+  'Move-out evidence must be 10 MB or smaller.': {
+    am: 'ማስረጃው 10 MB ወይም ከዚያ በታች መሆን አለበት።', om: 'Ragaan 10 MB yookaan kanaa gadi taʼuu qaba.', ti: 'መርትዖ 10 MB ወይ ካብኡ ንታሕቲ ክኸውን ኣለዎ።',
+    so: 'Caddaynta guuritaanku waa inay ahaataa 10 MB ama ka yar.', ar: 'يجب ألا يتجاوز دليل المغادرة 10 ميغابايت.', sw: 'Ushahidi wa kuondoka lazima uwe MB 10 au chini.',
+  },
+  'Move-out evidence uploaded to private storage.': {
+    am: 'የመውጫ ማስረጃው በግል ማከማቻ ተጭኗል።', om: 'Ragaan baʼumsaa kuusaa dhuunfaa keessatti feʼameera.', ti: 'መርትዖ ምውጻእ ኣብ ውልቃዊ መኽዘን ተጻዒኑ።',
+    so: 'Caddaynta guuritaanka waxaa lagu shubay kayd gaar ah.', ar: 'رُفع دليل المغادرة إلى تخزين خاص.', sw: 'Ushahidi wa kuondoka umepakiwa kwenye hifadhi ya faragha.',
+  },
+  'Describe the completed cleaning, repairs, and readiness checks (at least 10 characters).': {
+    am: 'የተጠናቀቀውን ጽዳት፣ ጥገናና ዝግጁነት ምርመራዎች ይግለጹ (ቢያንስ 10 ቁምፊዎች)።',
+    om: 'Qulqullina, suphaa fi sakattaʼiinsa qophii xumurame ibsaa (yoo xiqqaate qubee 10).',
+    ti: 'እቲ ዝተዛዘመ ጽሬት፣ ጽገናን ምርመራ ድልውነትን ግለጹ (ብውሑዱ 10 ፊደላት)።',
+    so: 'Sharax nadaafadda, dayactirka iyo hubinta diyaar-garowga la dhammeeyey (ugu yaraan 10 xaraf).',
+    ar: 'صِف أعمال التنظيف والإصلاح وفحوصات الجاهزية المكتملة (10 أحرف على الأقل).',
+    sw: 'Eleza usafishaji, matengenezo na ukaguzi wa utayari uliokamilika (angalau herufi 10).',
+  },
+  'Unit turnover completed. The unit is now available for rental workflows.': {
+    am: 'የክፍሉ ዝግጅት ተጠናቋል። ክፍሉ አሁን ለኪራይ ሂደቶች ዝግጁ ነው።',
+    om: 'Qopheessi kutaa xumurameera. Kutaan amma adeemsa kiraaf qophaaʼaadha.',
+    ti: 'ምድላው እቲ ክፍሊ ተዛዚሙ። እቲ ክፍሊ ሕጂ ንመስርሕ ክራይ ድሉው እዩ።',
+    so: 'Diyaarinta qaybta waa la dhammeeyey. Qaybtu hadda waxay diyaar u tahay kirayn.',
+    ar: 'اكتمل تجهيز الوحدة. أصبحت الوحدة متاحة الآن لإجراءات التأجير.',
+    sw: 'Maandalizi ya nyumba yamekamilika. Nyumba sasa inapatikana kwa taratibu za upangaji.',
   },
   'Install app': {
     am: 'መተግበሪያውን ይጫኑ', om: 'Appii fe’i', ti: 'መተግበሪ ጽዓን', so: 'Ku rakib abka', ar: 'تثبيت التطبيق', sw: 'Sakinisha programu',
@@ -1438,6 +1573,9 @@ const publicSurfaceTranslations = {
   'Your service mini-apps': {
     am: 'የአገልግሎት ሚኒ-መተግበሪያዎችዎ', om: 'Mini-appoota tajaajilaa keessan', ti: 'ሚኒ-ኣፕሊኬሽናት ኣገልግሎትኩም', so: 'Barnaamijyada yaryar ee adeegyadaada', ar: 'تطبيقات الخدمات المصغّرة الخاصة بك', sw: 'Programu ndogo za huduma zako',
   },
+  'Open {{service}}': {
+    am: '{{service}}ን ይክፈቱ', om: '{{service}} bani', ti: '{{service}} ክፈቱ', so: 'Fur {{service}}', ar: 'افتح {{service}}', sw: 'Fungua {{service}}',
+  },
   'Super App': {
     am: 'ሱፐር አፕ', om: 'Appii tajaajila waliigalaa', ti: 'ሱፐር ኣፕ', so: 'App-ka Guud', ar: 'التطبيق الشامل', sw: 'Programu Kuu',
   },
@@ -2055,6 +2193,46 @@ const publicSurfaceTranslations = {
   },
   'Create a lease draft': {
     am: 'የኪራይ ውል ረቂቅ ይፍጠሩ', om: 'Wixinee waliigaltee kiraa uumaa', ti: 'ረቂቕ ውዕሊ ክራይ ፍጠሩ', so: 'Abuur qabyo-qoraalka heshiiska kirada', ar: 'أنشئ مسودة عقد إيجار', sw: 'Unda rasimu ya mkataba wa upangaji',
+  },
+  'An approved offer is sent to linked resident accounts. Acceptance creates only a new lease draft; it does not extend this lease or post rent.': {
+    am: 'በጸደቀ ቅናሽ መልዕክት ከተገናኙ የነዋሪ መለያዎች ጋር ይላካል። መቀበል አዲስ የኪራይ ውል ረቂቅ ብቻ ይፈጥራል፤ ይህንን ውል አያራዝምም ወይም የኪራይ ክፍያ አይመዘግብም።',
+    om: 'Dhiyeessi mirkanaaʼe herrega jiraattotaa walitti hidhameef ni ergama. Fudhachuun wixinee waliigaltee kiraa haaraa qofa uuma; waliigaltee kana hin dheeressu yookaan kaffaltii kiraa hin galmeessu.',
+    ti: 'ዝጸደቐ ቅናሽ ናብ ዝተኣሳሰሩ ኣካውንታት ነበርቲ ይለኣኽ። ምቕባል ሓድሽ ረቂቕ ውዕሊ ክራይ ጥራይ ይፈጥር፤ ነዚ ውዕሊ ኣየናውሕን ወይ ክፍሊት ክራይ ኣይምዝግብን።',
+    so: 'Soo jeedin la ansixiyey ayaa loo diraa akoonnada dadka deggan ee ku xiran. Aqbaliddu waxay abuurtaa oo keliya qabyo heshiis kiro cusub; ma kordhiso heshiiskan mana diiwaangeliso kirada.',
+    ar: 'يُرسل العرض المعتمد إلى حسابات السكان المرتبطة. لا ينشئ القبول سوى مسودة عقد إيجار جديدة؛ ولا يمدد هذا العقد أو يسجل دفعة إيجار.',
+    sw: 'Ofa iliyoidhinishwa hutumwa kwa akaunti za wakazi zilizounganishwa. Kukubali hutengeneza rasimu mpya ya mkataba wa upangaji pekee; hakuongezi muda wa mkataba huu wala kurekodi kodi.',
+  },
+  'Renewal terms submitted for independent approval. The existing lease remains unchanged.': {
+    am: 'የውል እድሳት ውሎች ለገለልተኛ ፈቃድ ቀርበዋል። ያለው የኪራይ ውል አልተቀየረም።',
+    om: 'Ulaagaaleen haaromsaaf hayyama walabaaf dhiyaataniiru. Waliigalteen kiraa jiru akkuma jirutti hafa.',
+    ti: 'ናይ ምሕዳስ ቅድመ-ኩነታት ንናጻ ምጽዳቕ ቀሪቦም። እቲ ዘሎ ውዕሊ ክራይ ከም ዘለዎ ይቕጽል።',
+    so: 'Shuruudaha cusboonaysiinta waxaa loo gudbiyey oggolaansho madax-bannaan. Heshiiska kirada ee jira waxba iskama beddelin.',
+    ar: 'قُدّمت شروط التجديد للموافقة المستقلة. يظل عقد الإيجار الحالي دون تغيير.',
+    sw: 'Masharti ya upyaji yamewasilishwa kwa idhini huru. Mkataba wa upangaji uliopo unabaki bila kubadilika.',
+  },
+  'Property tenant context updated.': {
+    am: 'የንብረት ተከራይ አውድ ተዘምኗል።',
+    om: 'Haalli kireeffataa qabeenyaa haaromfameera.',
+    ti: 'ናይ ንብረት ተኻራዪ ኩነታት ተሓዲሱ።',
+    so: 'Macnaha kiraystaha hantida waa la cusboonaysiiyey.',
+    ar: 'تم تحديث سياق مستأجر العقار.',
+    sw: 'Muktadha wa mpangaji wa mali umesasishwa.',
+  },
+  'Enter the reason for rejecting this renewal offer (at least 10 characters).': {
+    am: 'ይህንን የውል እድሳት ቅናሽ ለመከልከል ምክንያቱን ያስገቡ (ቢያንስ 10 ቁምፊዎች)።',
+    om: 'Sababa dhiyeessa haaromsaa kana diddan galchaa (yoo xiqqaate qubee 10).',
+    ti: 'ነዚ ናይ ምሕዳስ ቅናሽ ንምንጻግ ምኽንያት ኣእትዉ (ብውሑዱ 10 ፊደላት)።',
+    so: 'Geli sababta aad u diidayso soo jeedintan cusboonaysiinta (ugu yaraan 10 xaraf).',
+    ar: 'أدخل سبب رفض عرض التجديد هذا (10 أحرف على الأقل).',
+    sw: 'Weka sababu ya kukataa ofa hii ya upyaji (angalau herufi 10).',
+  },
+  'Renewal lease draft created. It must complete the normal approval, signature, and handover steps.': {
+    am: 'የውል እድሳት ረቂቅ የኪራይ ውል ተፈጥሯል። መደበኛውን የፈቃድ፣ የፊርማና የርክክብ ሂደቶች ማጠናቀቅ አለበት።',
+    om: 'Wixinee waliigaltee kiraa haaromsaa uumameera. Adeemsa idilee hayyamaa, mallattoo fi dabarsuu xumuru qaba.',
+    ti: 'ረቂቕ ውዕሊ ክራይ ምሕዳስ ተፈጢሩ። እቲ ንቡር መስርሕ ምጽዳቕ፣ ፊርማን ርክክብን ክዛዝም ኣለዎ።',
+    so: 'Waxaa la sameeyey qabyo heshiis kiro oo cusboonaysiin ah. Waa inuu maro tallaabooyinka caadiga ah ee oggolaanshaha, saxeexa iyo wareejinta.',
+    ar: 'أُنشئت مسودة عقد الإيجار للتجديد. يجب إكمال خطوات الموافقة والتوقيع والتسليم المعتادة.',
+    sw: 'Rasimu ya mkataba wa upangaji wa upyaji imeundwa. Lazima ikamilishe hatua za kawaida za idhini, sahihi na makabidhiano.',
   },
   'A lease stays inactive until independent approval, signature evidence, handover, and move-in inspection are recorded.': {
     am: 'ገለልተኛ ፈቃድ፣ የፊርማ ማስረጃ፣ ርክክብና የመግቢያ ምርመራ እስኪመዘገቡ ድረስ የኪራይ ውሉ ንቁ አይሆንም።',
@@ -4262,6 +4440,152 @@ for (const [message, translations] of Object.entries(publicSurfaceTranslations))
   catalogs.en[message] ??= message;
   for (const [locale, translation] of Object.entries(translations)) catalogs[locale][message] = translation;
 }
+const authRefreshTranslations = {
+  'Sign in with your registered phone number. Ethiopia is selected first; international numbers are supported.': {
+    am: 'በተመዘገበው ስልክ ቁጥርዎ ይግቡ። ኢትዮጵያ በነባሪነት ተመርጣለች፤ ዓለም አቀፍ ቁጥሮችም ይደገፋሉ።',
+    om: 'Lakkoofsa bilbilaa galmeessitaniin seenaa. Itoophiyaan dursee filatamte; lakkoofsi biyya alaa ni deeggarama.',
+    ti: 'ብዝተመዝገበ ቁጽሪ ስልኪኹም እቶ። ኢትዮጵያ ብቐዳምነት ተመሪጻ ኣላ፤ ኣህጉራዊ ቁጽርታት እውን ይድገፉ።',
+    so: 'Ku gal lambarka taleefankaaga diiwaangashan. Itoobiya ayaa marka hore la doortay; lambarrada caalamiga ahna waa la taageeraa.',
+    ar: 'سجّل الدخول برقم هاتفك المسجل. إثيوبيا محددة أولاً، وتُدعم الأرقام الدولية أيضاً.',
+    sw: 'Ingia kwa kutumia nambari ya simu uliyosajili. Ethiopia imechaguliwa kwanza; nambari za kimataifa pia zinaungwa mkono.',
+  },
+  'Country calling code': {
+    am: 'የአገር መደወያ ኮድ', om: 'Koodii bilbila biyya', ti: 'ኮድ መደወሊ ሃገር',
+    so: 'Koodhka wicitaanka dalka', ar: 'رمز الاتصال الدولي', sw: 'Msimbo wa kupiga simu wa nchi',
+  },
+  'National phone number': {
+    am: 'የአገር ውስጥ ስልክ ቁጥር', om: 'Lakkoofsa bilbilaa biyya keessaa', ti: 'ቁጽሪ ስልኪ ውሽጢ ሃገር',
+    so: 'Lambarka taleefanka gudaha', ar: 'رقم الهاتف المحلي', sw: 'Nambari ya simu ya ndani',
+  },
+  'Choose from suggestions or type another international calling code.': {
+    am: 'ከጥቆማዎቹ ይምረጡ ወይም ሌላ ዓለም አቀፍ የመደወያ ኮድ ያስገቡ።',
+    om: 'Yaada keessaa filadhaa yookaan koodii bilbila idil-addunyaa biraa barreessaa.',
+    ti: 'ካብ ምርጫታት ምረጹ ወይ ካልእ ኣህጉራዊ ኮድ መደወሊ ጻሕፉ።',
+    so: 'Ka dooro talooyinka ama qor koodh wicitaan caalami ah oo kale.',
+    ar: 'اختر من الاقتراحات أو اكتب رمز اتصال دولياً آخر.',
+    sw: 'Chagua kwenye mapendekezo au uandike msimbo mwingine wa kimataifa.',
+  },
+  'Forgot password?': {
+    am: 'የይለፍ ቃል ረሱ?', om: 'Jecha icciitii irraanfattanii?', ti: 'መሕለፊ ቃል ረሲዕኩም?',
+    so: 'Ma illowday erayga sirta ah?', ar: 'هل نسيت كلمة المرور؟', sw: 'Umesahau nenosiri?',
+  },
+  'ACCOUNT RECOVERY': {
+    am: 'መለያ መልሶ ማግኘት', om: 'Herrega deebisanii argachuu', ti: 'ምምላስ ሕሳብ',
+    so: 'Soo celinta akoonka', ar: 'استعادة الحساب', sw: 'Urejeshaji wa akaunti',
+  },
+  'Password recovery': {
+    am: 'የይለፍ ቃል መልሶ ማግኘት', om: 'Jecha icciitii deebisanii argachuu', ti: 'ምምላስ መሕለፊ ቃል',
+    so: 'Soo celinta erayga sirta ah', ar: 'استعادة كلمة المرور', sw: 'Urejeshaji wa nenosiri',
+  },
+  'Enter the phone number on your account to check available recovery options.': {
+    am: 'የመለያዎን ስልክ ቁጥር በማስገባት ያሉትን የመልሶ ማግኛ አማራጮች ይመልከቱ።',
+    om: 'Filannoo deebisanii argachuu jiru ilaaluuf lakkoofsa bilbilaa herrega keessanii galchaa.',
+    ti: 'ኣማራጺታት ምምላስ ንምፍላጥ ናይ ሕሳብኩም ቁጽሪ ስልኪ ኣእትዉ።',
+    so: 'Geli lambarka taleefanka akoonkaaga si aad u hubiso hababka soo celinta ee jira.',
+    ar: 'أدخل رقم الهاتف المرتبط بحسابك للتحقق من خيارات الاستعادة المتاحة.',
+    sw: 'Weka nambari ya simu ya akaunti yako ili kuangalia njia za urejeshaji zinazopatikana.',
+  },
+  'SMS password recovery is unavailable because delivery is not configured. No code was sent. Contact AfroLife support to recover your account.': {
+    am: 'የSMS መልሶ ማግኛ አገልግሎት ስላልተዋቀረ አይገኝም። ኮድ አልተላከም። መለያዎን ለማግኘት የAfroLife ድጋፍን ያነጋግሩ።',
+    om: 'Deebisanii argachuun SMS hin qindaa’in. Koodiin hin ergamne. Herrega keessan deebifachuuf deeggarsa AfroLife qunnamaa.',
+    ti: 'ምምላስ ቃል SMS ስለዘይተዋቐረ ኣይርከብን። ኮድ ኣይተላእከን። ሕሳብኩም ንምምላስ ደገፍ AfroLife ርኸቡ።',
+    so: 'Soo celinta SMS lama heli karo maadaama diristu aan la habayn. Koodh lama dirin. La xiriir taageerada AfroLife.',
+    ar: 'استعادة كلمة المرور عبر الرسائل غير متاحة لأن الإرسال غير مُعدّ. لم يُرسل أي رمز. اتصل بدعم AfroLife لاستعادة حسابك.',
+    sw: 'Urejeshaji wa SMS haupatikani kwa kuwa huduma ya kutuma haijasanidiwa. Hakuna msimbo uliotumwa. Wasiliana na usaidizi wa AfroLife.',
+  },
+  'Request recovery help': {
+    am: 'የመልሶ ማግኛ እገዛ ይጠይቁ', om: 'Deeggarsa deebisanii argachuu gaafadhaa', ti: 'ሓገዝ ምምላስ ሕተቱ',
+    so: 'Codso caawimaad soo celin', ar: 'طلب المساعدة في الاستعادة', sw: 'Omba usaidizi wa urejeshaji',
+  },
+  'Back to sign in': {
+    am: 'ወደ መግቢያ ተመለስ', om: 'Gara seensaatti deebi’aa', ti: 'ናብ መእተዊ ተመለሱ',
+    so: 'Ku noqo gelitaanka', ar: 'العودة إلى تسجيل الدخول', sw: 'Rudi kwenye kuingia',
+  },
+  'Fayda verification is unavailable until AfroLife receives approved access. Use secure document review instead; this is not live Fayda verification.': {
+    am: 'AfroLife የተፈቀደ መዳረሻ እስኪያገኝ ድረስ የፋይዳ ማረጋገጫ አይገኝም። በምትኩ ደህንነቱ የተጠበቀውን የሰነድ ግምገማ ይጠቀሙ፤ ይህ ቀጥታ የፋይዳ ማረጋገጫ አይደለም።',
+    om: 'Mirkaneessi Fayda hanga AfroLife hayyama argatutti hin jiru. Bakka isaa gamaaggama sanadaa nageenya qabu fayyadamaa; kun mirkaneessa Fayda kallattii miti.',
+    ti: 'AfroLife ፍቑድ መእተዊ ክሳብ ዝረክብ ምርግጋጽ Fayda ኣይርከብን። ኣብ ክንድኡ ውሑስ ግምገማ ሰነድ ተጠቀሙ፤ እዚ ቀጥታዊ ምርግጋጽ Fayda ኣይኮነን።',
+    so: 'Xaqiijinta Fayda lama heli karo ilaa AfroLife hesho oggolaansho. Isticmaal dib-u-eegista dukumentiyada; tani ma aha xaqiijin Fayda oo toos ah.',
+    ar: 'التحقق من فايدة غير متاح حتى تحصل AfroLife على وصول معتمد. استخدم مراجعة المستندات الآمنة بدلاً منه؛ فهذا ليس تحققاً مباشراً من فايدة.',
+    sw: 'Uthibitishaji wa Fayda haupatikani hadi AfroLife ipate ruhusa iliyoidhinishwa. Tumia ukaguzi salama wa hati badala yake; huu si uthibitishaji wa moja kwa moja wa Fayda.',
+  },
+  'Authenticator sign-in is required for administrative roles and cannot be disabled.': {
+    am: 'ለአስተዳደር ሚናዎች በማረጋገጫ መተግበሪያ መግባት ግዴታ ነው፤ ሊቦዝን አይችልም።',
+    om: 'Gahee bulchiinsaatiif seensa appii mirkaneessaa dirqama; dhaabuu hin danda’amu.',
+    ti: 'ንሚናታት ምምሕዳር ብኣፕ ምርግጋጽ ምእታው ግዴታ እዩ፤ ክስናኽል ኣይከኣልን።',
+    so: 'Doorka maamulka waxaa khasab ku ah gelitaanka xaqiijiyaha, lamana damin karo.',
+    ar: 'تسجيل الدخول باستخدام تطبيق المصادقة إلزامي للأدوار الإدارية ولا يمكن تعطيله.',
+    sw: 'Kuingia kwa kutumia programu ya uthibitishaji ni lazima kwa majukumu ya usimamizi na hakuwezi kuzimwa.',
+  },
+  'Optional: add an authenticator app for an extra sign-in step. You can turn it off later after verifying your password and code.': {
+    am: 'አማራጭ፦ ተጨማሪ የመግቢያ ደረጃ ለማከል የማረጋገጫ መተግበሪያ ይጠቀሙ። የይለፍ ቃልና ኮድ ካረጋገጡ በኋላ ሊያጠፉት ይችላሉ።',
+    om: 'Filannoo: tarkaanfii seensaa dabalataaf appii mirkaneessaa dabalaa. Jecha icciitii fi koodii mirkaneessitanii booda dhaabuu dandeessu.',
+    ti: 'ኣማራጺ፦ ተወሳኺ ደረጃ ምእታው ንምውሳኽ ኣፕ ምርግጋጽ ተጠቀሙ። መሕለፊ ቃልን ኮድን ድሕሪ ምርግጋጽ ከተጥፍእዎ ትኽእሉ።',
+    so: 'Ikhtiyaar: ku dar barnaamij xaqiijiye si gelitaanku u yeesho tallaabo dheeraad ah. Waad damin kartaa kadib markaad xaqiijiso erayga sirta ah iyo koodhka.',
+    ar: 'اختياري: أضف تطبيق مصادقة لخطوة إضافية عند الدخول. يمكنك إيقافه لاحقاً بعد التحقق من كلمة المرور والرمز.',
+    sw: 'Hiari: ongeza programu ya uthibitishaji kwa hatua ya ziada ya kuingia. Unaweza kuizima baadaye baada ya kuthibitisha nenosiri na msimbo.',
+  },
+  'Passkeys and device sign-in': {
+    am: 'Passkey እና በመሣሪያ መግባት', om: 'Passkey fi seensa meeshaa', ti: 'Passkeyን ብመሳርሒ ምእታውን',
+    so: 'Furayaasha passkey iyo gelitaanka qalabka', ar: 'مفاتيح المرور وتسجيل الدخول بالجهاز', sw: 'Passkey na kuingia kwa kifaa',
+  },
+  'Unavailable until secure WebAuthn support is configured. If enabled later, your device may use biometrics or a PIN; AfroLife will not collect biometric data.': {
+    am: 'ደህንነቱ የተጠበቀ WebAuthn እስኪዋቀር ድረስ አይገኝም። በኋላ ከነቃ መሣሪያዎ ባዮሜትሪክስ ወይም PIN ሊጠቀም ይችላል፤ AfroLife የባዮሜትሪክ መረጃ አይሰበስብም።',
+    om: 'Hanga deeggarsi WebAuthn nageenya qabu qindaa’utti hin jiru. Booda yoo baname meeshaan keessan baayomeetiriksii yookaan PIN fayyadamuu danda’a; AfroLife daataa baayomeetiriksii hin kuusu.',
+    ti: 'ውሑስ ደገፍ WebAuthn ክሳብ ዝዋደድ ኣይርከብን። ድሕሪ ምንቃሕ መሳርሒኹም ባዮሜትሪክስ ወይ PIN ክጥቀም ይኽእል፤ AfroLife ዳታ ባዮሜትሪክስ ኣይእክብን።',
+    so: 'Lama heli karo ilaa taageerada WebAuthn ee sugan la habeeyo. Haddii mustaqbalka la furo, qalabkaagu wuxuu isticmaali karaa biometrics ama PIN; AfroLife ma ururinayo xogta biometrics.',
+    ar: 'غير متاح حتى إعداد دعم WebAuthn الآمن. إذا فُعّل لاحقاً، قد يستخدم جهازك القياسات الحيوية أو رمز PIN؛ لن تجمع AfroLife بيانات القياسات الحيوية.',
+    sw: 'Haipatikani hadi usaidizi salama wa WebAuthn usanidiwe. Ukiwezeshwa baadaye, kifaa chako kinaweza kutumia bayometriki au PIN; AfroLife haitakusanya data ya bayometriki.',
+  },
+  'Device sign-in unavailable': {
+    am: 'በመሣሪያ መግባት አይገኝም', om: 'Seensa meeshaa hin jiru', ti: 'ምእታው ብመሳርሒ ኣይርከብን',
+    so: 'Gelitaanka qalabka lama heli karo', ar: 'تسجيل الدخول بالجهاز غير متاح', sw: 'Kuingia kwa kifaa hakupatikani',
+  },
+  'Secure device credential registration is not available yet.': {
+    am: 'ደህንነቱ የተጠበቀ የመሣሪያ ማረጋገጫ ምዝገባ ገና አይገኝም።',
+    om: 'Galmeessi ragaa meeshaa nageenya qabu ammaaf hin jiru.',
+    ti: 'ምዝገባ ውሑስ መረጋገጺ መሳርሒ ገና ኣይርከብን።',
+    so: 'Diiwaangelinta aqoonsiga qalabka ee sugan weli lama heli karo.',
+    ar: 'تسجيل بيانات اعتماد الجهاز الآمنة غير متاح حالياً.',
+    sw: 'Usajili salama wa kitambulisho cha kifaa bado haupatikani.',
+  },
+  'To turn off the optional authenticator step, confirm your current password and a valid one-time code.': {
+    am: 'አማራጭ የማረጋገጫ ደረጃውን ለማጥፋት የአሁኑን የይለፍ ቃልና ትክክለኛ የአንድ ጊዜ ኮድ ያረጋግጡ።',
+    om: 'Tarkaanfii mirkaneessaa filannoo dhaabuuf jecha icciitii ammaa fi koodii yeroo tokkoo sirrii mirkaneessaa.',
+    ti: 'ነቲ ኣማራጺ ምርግጋጽ ንምጥፋእ ናይ ሕጂ መሕለፊ ቃልን ቅኑዕ ኮድ ሓደ ግዜን ኣረጋግጹ።',
+    so: 'Si aad u damiso tallaabada xaqiijiyaha, xaqiiji erayga sirta ah ee hadda iyo koodh hal mar shaqeeya.',
+    ar: 'لإيقاف خطوة المصادقة الاختيارية، أكّد كلمة مرورك الحالية ورمزاً صالحاً لمرة واحدة.',
+    sw: 'Ili kuzima hatua ya hiari ya uthibitishaji, thibitisha nenosiri lako la sasa na msimbo halali wa matumizi moja.',
+  },
+  'Turn off two-step verification': {
+    am: 'የሁለት ደረጃ ማረጋገጫን አጥፋ', om: 'Mirkaneessa tarkaanfii lamaa dhaabi', ti: 'ምርግጋጽ ክልተ ደረጃ ኣጥፍኡ',
+    so: 'Dami xaqiijinta laba-tallaabo', ar: 'إيقاف التحقق بخطوتين', sw: 'Zima uthibitishaji wa hatua mbili',
+  },
+  'Two-step verification disabled.': {
+    am: 'የሁለት ደረጃ ማረጋገጫ ቦዝኗል።', om: 'Mirkaneessi tarkaanfii lamaa dhaabbateera.', ti: 'ምርግጋጽ ክልተ ደረጃ ተሰናኺሉ።',
+    so: 'Xaqiijinta laba-tallaabo waa la damiyay.', ar: 'تم إيقاف التحقق بخطوتين.', sw: 'Uthibitishaji wa hatua mbili umezimwa.',
+  },
+  'Enter a valid country calling code and phone number.': {
+    am: 'ትክክለኛ የአገር መደወያ ኮድና ስልክ ቁጥር ያስገቡ።',
+    om: 'Koodii bilbila biyya fi lakkoofsa bilbilaa sirrii galchaa.',
+    ti: 'ቅኑዕ ኮድ መደወሊ ሃገርን ቁጽሪ ስልክን ኣእትዉ።',
+    so: 'Geli koodh wicitaan dal iyo lambar taleefan oo sax ah.',
+    ar: 'أدخل رمز اتصال دولي ورقم هاتف صحيحين.',
+    sw: 'Weka msimbo sahihi wa nchi na nambari ya simu.',
+  },
+  'If recovery becomes available, instructions will be provided without confirming whether an account exists.': {
+    am: 'መልሶ ማግኛ ሲገኝ መለያ መኖሩን ሳያረጋግጡ መመሪያ ይሰጣል።',
+    om: 'Deebisanii argachuun yoo jiraate, herregni jiraachuu isaa osoo hin mirkaneessin qajeelfamni ni kennama.',
+    ti: 'ምምላስ ምስ ዝርከብ ሕሳብ እንተሎ ከይተረጋገጸ መምርሒ ክወሃብ እዩ።',
+    so: 'Haddii soo celintu suurtowdo, tilmaamo ayaa la bixin doonaa iyadoo aan la xaqiijin jiritaanka akoonka.',
+    ar: 'إذا أصبحت الاستعادة متاحة، فستُقدّم التعليمات دون تأكيد وجود حساب.',
+    sw: 'Urejeshaji ukipatikana, maelekezo yatatolewa bila kuthibitisha kama akaunti ipo.',
+  },
+};
+for (const [message, translations] of Object.entries(authRefreshTranslations)) {
+  catalogs.en[message] = message;
+  for (const [locale, translation] of Object.entries(translations)) catalogs[locale][message] = translation;
+}
 const localeStorageKey = 'afrolife.locale';
 const supportedLocales = Object.keys(localeNames);
 const storedLocale = localStorage.getItem(localeStorageKey);
@@ -4285,14 +4609,14 @@ export function getLocalizedNodeSource(textNode) {
   return originalText.get(textNode)?.message ?? textNode?.nodeValue ?? '';
 }
 
-export function setLocalizedAttribute(element, attribute, message) {
+export function setLocalizedAttribute(element, attribute, message, values = {}) {
   let sources = originalAttributes.get(element);
   if (!sources) {
     sources = {};
     originalAttributes.set(element, sources);
   }
-  sources[attribute] = message;
-  element.setAttribute(attribute, t(message));
+  sources[attribute] = { message, values };
+  element.setAttribute(attribute, t(message, values));
 }
 
 function applyStaticTranslations(root = document.body) {
@@ -4320,7 +4644,11 @@ function applyStaticTranslations(root = document.body) {
     for (const attribute of ['placeholder', 'aria-label', 'title']) {
       if (!element.hasAttribute(attribute)) continue;
       if (!(attribute in sources)) sources[attribute] = element.getAttribute(attribute);
-      element.setAttribute(attribute, t(sources[attribute]));
+      const source = sources[attribute];
+      const { message, values } = typeof source === 'string'
+        ? { message: source, values: {} }
+        : source;
+      element.setAttribute(attribute, t(message, values));
     }
   });
 }

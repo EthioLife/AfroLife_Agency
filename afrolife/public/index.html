@@ -74,16 +74,32 @@
             <span><i></i> Central matching oversight</span>
           </div>
         </div>
+        <datalist id="phone-calling-codes">
+          <option value="+1" label="United States / Canada"></option><option value="+7" label="Russia / Kazakhstan"></option>
+          <option value="+20" label="Egypt"></option><option value="+27" label="South Africa"></option>
+          <option value="+31" label="Netherlands"></option><option value="+32" label="Belgium"></option>
+          <option value="+33" label="France"></option><option value="+34" label="Spain"></option>
+          <option value="+39" label="Italy"></option><option value="+44" label="United Kingdom"></option>
+          <option value="+46" label="Sweden"></option><option value="+49" label="Germany"></option>
+          <option value="+61" label="Australia"></option><option value="+64" label="New Zealand"></option>
+          <option value="+81" label="Japan"></option><option value="+86" label="China"></option>
+          <option value="+91" label="India"></option><option value="+212" label="Morocco"></option>
+          <option value="+233" label="Ghana"></option><option value="+234" label="Nigeria"></option>
+          <option value="+251" label="Ethiopia"></option><option value="+252" label="Somalia"></option>
+          <option value="+254" label="Kenya"></option><option value="+255" label="Tanzania"></option>
+          <option value="+256" label="Uganda"></option><option value="+966" label="Saudi Arabia"></option>
+          <option value="+971" label="United Arab Emirates"></option><option value="+974" label="Qatar"></option>
+        </datalist>
         <form id="login-form" class="panel login-card">
           <p class="eyebrow">SECURE WORKSPACE</p>
           <h2>Welcome back</h2>
-          <p class="muted">Sign in with your registered Ethiopian phone number.</p>
-          <label>Phone number<input name="phone" type="tel" autocomplete="username" placeholder="+251 9…" required minlength="8"></label>
-          <label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="200"></label>
-          <div class="login-links">
-            <button id="show-password-recovery" class="text-button" type="button" aria-expanded="false" aria-controls="password-recovery-help">Forgot your password?</button>
+          <p class="muted">Sign in with your registered phone number. Ethiopia is selected first; international numbers are supported.</p>
+          <div class="phone-input-group">
+            <label>Country calling code<input name="phone_country_code" type="text" inputmode="tel" autocomplete="tel-country-code" list="phone-calling-codes" value="+251" pattern="\+[1-9][0-9]{0,2}" required aria-describedby="phone-code-help"></label>
+            <label>National phone number<input name="phone" type="tel" inputmode="tel" autocomplete="username" placeholder="9…" required maxlength="20"></label>
           </div>
-          <p id="password-recovery-help" class="fine-print" role="note" hidden>Contact your organization’s administrator for help resetting your password. Self-service password reset is not available on this page.</p>
+          <small id="phone-code-help" class="field-hint">Choose from suggestions or type another international calling code.</small>
+          <label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="200"></label>
           <label id="mfa-field" hidden>Authenticator code<input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6"></label>
           <p id="login-error" class="form-error" role="alert"></p>
           <button id="retry-session" class="button button-outline button-wide" type="button" hidden>Retry workspace connection</button>
@@ -94,8 +110,11 @@
             <button class="button button-outline" type="button" data-open-edir-registration>Register an Edir</button>
           </div>
           <div class="login-links">
+            <button id="show-password-recovery" class="text-button" type="button" aria-expanded="false" aria-controls="password-recovery-help">Forgot password?</button>
+            <button id="open-password-recovery" class="text-button" type="button">Request recovery help</button>
             <button id="show-agent-plans" class="text-button" type="button">Agent subscription plans</button>
           </div>
+          <p id="password-recovery-help" class="fine-print" role="note" hidden>Contact your organization’s administrator for help resetting your password. Self-service password reset is not available on this page.</p>
           <p class="fine-print">Access is limited to approved AfroSherik accounts.</p>
         </form>
         <section id="access-mode-choice" class="panel login-card" hidden>
@@ -105,12 +124,30 @@
           <div id="access-mode-options" class="login-registration-actions"></div>
           <p id="access-mode-error" class="form-error" role="alert"></p>
         </section>
+        <form id="recovery-form" class="panel login-card" hidden>
+          <p class="eyebrow">ACCOUNT RECOVERY</p>
+          <h2>Password recovery</h2>
+          <p class="muted">Enter the phone number on your account to check available recovery options.</p>
+          <div class="phone-input-group">
+            <label>Country calling code<input name="phone_country_code" type="text" inputmode="tel" autocomplete="tel-country-code" list="phone-calling-codes" value="+251" pattern="\+[1-9][0-9]{0,2}" required aria-describedby="recovery-code-help"></label>
+            <label>National phone number<input name="phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="9…" required maxlength="20"></label>
+          </div>
+          <small id="recovery-code-help" class="field-hint">Choose from suggestions or type another international calling code.</small>
+          <p class="provider-notice" role="status">SMS password recovery is unavailable because delivery is not configured. No code was sent. Contact AfroLife support to recover your account.</p>
+          <p id="recovery-status" class="form-error" role="status" aria-live="polite"></p>
+          <button class="button button-primary button-wide" type="submit">Request recovery help</button>
+          <button id="back-to-sign-in" class="text-button text-button-wide" type="button">Back to sign in</button>
+        </form>
         <form id="signup-form" class="panel signup-card" hidden>
           <p class="eyebrow">AFROSHERIK REGISTRATION</p>
           <h2>Apply to join AfroSherik</h2>
           <p class="muted">Staff approval is required before sign-in. Your account will remain inactive until compliance review and activation are complete.</p>
           <label>Full name<input name="legal_name" autocomplete="name" required minlength="2" maxlength="160"></label>
-          <label>Phone number<input name="phone" type="tel" autocomplete="tel" placeholder="+251 9…" required minlength="8"></label>
+          <div class="phone-input-group">
+            <label>Country calling code<input name="phone_country_code" type="text" inputmode="tel" autocomplete="tel-country-code" list="phone-calling-codes" value="+251" pattern="\+[1-9][0-9]{0,2}" required aria-describedby="signup-phone-code-help"></label>
+            <label>National phone number<input name="phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="9…" required maxlength="20"></label>
+          </div>
+          <small id="signup-phone-code-help" class="field-hint">Choose from suggestions or type another international calling code.</small>
           <label>Email (optional)<input name="email" type="email" autocomplete="email"></label>
           <label>Password<input name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="72"></label>
           <label>Password confirmation<input name="password_confirmation" type="password" autocomplete="new-password" required minlength="12" maxlength="72"></label>
@@ -125,17 +162,17 @@
           </label>
           <section class="signup-benefits" aria-labelledby="signup-benefits-title">
             <h3 id="signup-benefits-title">Service interests (no charge today)</h3>
-          <label class="benefit-check" id="pension-interest-field" hidden><input type="checkbox" name="pension_match_interest"><span><strong>Ask about worker savings options</strong><small>Request information about currently configured worker savings services. No match or pension contribution is promised.</small></span></label>
+            <label class="benefit-check" id="pension-interest-field" hidden><input type="checkbox" name="pension_match_interest"><span><strong>Ask about worker savings options</strong><small>Request information about currently configured worker savings services. No match or pension contribution is promised.</small></span></label>
             <label class="benefit-check" id="worker-enterprise-field" hidden><input type="checkbox" name="option_a_enterprise_interest"><span><strong>Enterprise Option A staff service</strong><small>For workers seeking an Option A placement with the Enterprise service pathway. Enrollment, employer terms, pension matching and Edir benefits require confirmation before activation.</small></span></label>
             <label class="benefit-check"><input type="checkbox" name="edir_member_interest"><span><strong>Request AfroLife Edir membership</strong><small>After KYC verification, you can review the currently available community and financial products before requesting enrollment.</small></span></label>
             <label class="benefit-check"><input type="checkbox" name="edir_life_interest"><span><strong>Ask about future insurance services</strong><small>Insurance is not active in the current Edir pilot.</small></span></label>
             <label class="benefit-check"><input type="checkbox" name="household_cover_interest"><span><strong>Ask about future household protection</strong><small>Household cover is not active in the current AfroLife service.</small></span></label>
             <p class="benefit-disclaimer">These are non-binding requests for information. Selecting a benefit does not enroll you, collect money or start insurance coverage.</p>
           </section>
-          </div>
           <section class="signup-kyc" aria-labelledby="signup-kyc-title">
             <h3 id="signup-kyc-title">Identity documents</h3>
             <p id="signup-kyc-required-note" class="muted" role="status">Choose an account type to see required documents.</p>
+            <p class="provider-notice" role="status">Fayda verification is unavailable until AfroLife receives approved access. Use secure document review instead; this is not live Fayda verification.</p>
             <label>KYC identity document (PDF, JPEG, PNG · max 10 MB)
               <input id="signup-national-id" name="national_id_file" data-doc-type="national_id" type="file" accept="application/pdf,image/jpeg,image/png" capture="environment">
             </label>
@@ -204,6 +241,7 @@
           <p id="server-error" class="form-error" role="alert"></p>
           <button id="save-server" class="button button-primary button-wide" type="button">Save server address</button>
         </section>
+        </div>
       </section>
 
       <section id="public-hub" class="public-hub" aria-label="AfroSherik services and industry news">

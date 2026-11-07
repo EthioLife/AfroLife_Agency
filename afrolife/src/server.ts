@@ -175,9 +175,11 @@ const AGENT = ['master_agent', 'field_agent'];
 const api = express.Router();
 api.use(apiMetricsMiddleware);
 
-// ---- Auth (login with lockout and optional 2FA lives in admin.ts) ----
+// ---- Auth (lockout, mandatory administrative MFA, and recovery boundary live in admin.ts) ----
 api.post('/auth/login', createApiRateLimiter('login', Number(process.env.LOGIN_RATE_LIMIT ?? 20)));
 api.post('/auth/signup', createApiRateLimiter('signup', 5));
+api.post('/auth/password-recovery/request', createApiRateLimiter('password-recovery', 5));
+api.post('/auth/password-recovery/complete', createApiRateLimiter('password-recovery-complete', 5));
 api.use(loginRouter);
 api.post('/edir/public/registration-applications', createApiRateLimiter('edir-registration', 5));
 api.post('/edir/public/registration-applications', process.env.EDIR_SERVICE_URL
@@ -403,6 +405,21 @@ api.post('/property/tenant-systems/:id/members', requirePropertyTenantContext, h
     await client.query(
       'SELECT assign_property_operating_tenant_member($1,$2,$3)',
       [tenantSystemId,body.user_id,body.tenant_role],
+    );
+  });
+  res.status(204).end();
+}));
+api.post('/property/tenant-systems/:id/members/:userId/status', requirePropertyTenantContext, h(async (req, res) => {
+  const tenantSystemId = z.string().uuid().parse(req.params.id);
+  const targetUserId = z.string().uuid().parse(req.params.userId);
+  const body = z.object({
+    status: z.enum(['active','suspended','ended']),
+    reason: z.string().trim().min(10).max(1000),
+  }).strict().parse(req.body);
+  await withUser(req.user!, async (client) => {
+    await client.query(
+      'SELECT set_property_operating_tenant_member_status($1,$2,$3,$4)',
+      [tenantSystemId,targetUserId,body.status,body.reason],
     );
   });
   res.status(204).end();

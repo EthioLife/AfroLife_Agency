@@ -33,7 +33,8 @@ CREATE TABLE property_operating_tenant_events (
   tenant_system_id uuid NOT NULL REFERENCES property_operating_tenants(id),
   actor_id uuid NOT NULL REFERENCES users(id),
   event_type text NOT NULL CHECK (event_type IN (
-    'legacy_migration','tenant_created','member_assigned','member_suspended','tenant_status_changed',
+    'legacy_migration','tenant_created','member_assigned','member_suspended','member_reactivated',
+    'member_ended','tenant_status_changed',
     'support_grant_requested','support_grant_approved','support_grant_rejected','support_grant_revoked'
   )),
   event_data jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(event_data)='object'),
@@ -96,7 +97,10 @@ SELECT tenant.id,user.id,
 FROM property_operating_tenants tenant
 CROSS JOIN users
 WHERE tenant.tenant_key='legacy-property-operations' AND users.active=true
-  AND users.role<>'global_admin';
+  AND users.role IN (
+    'super_admin','corporate_business_manager','master_agent','field_agent',
+    'property_owner','customer','property_vendor','vendor','finance','finance_manager'
+  );
 
 INSERT INTO property_operating_tenant_events(tenant_system_id,actor_id,event_type,event_data)
 SELECT tenant.id,tenant.created_by,'legacy_migration',
@@ -129,6 +133,8 @@ ALTER TABLE maintenance_requests
   ADD COLUMN IF NOT EXISTS resident_user_id uuid REFERENCES users(id);
 ALTER TABLE rent_transactions ADD COLUMN tenant_system_id uuid REFERENCES property_operating_tenants(id);
 ALTER TABLE property_vendors ADD COLUMN tenant_system_id uuid REFERENCES property_operating_tenants(id);
+ALTER TABLE property_vendor_bills
+  ADD COLUMN tenant_system_id uuid REFERENCES property_operating_tenants(id);
 
 UPDATE properties SET tenant_system_id=(
   SELECT id FROM property_operating_tenants WHERE tenant_key='legacy-property-operations'
@@ -150,6 +156,9 @@ UPDATE rent_transactions SET tenant_system_id=(
 UPDATE property_vendors SET tenant_system_id=(
   SELECT id FROM property_operating_tenants WHERE tenant_key='legacy-property-operations'
 );
+UPDATE property_vendor_bills bill SET tenant_system_id=maintenance.tenant_system_id
+FROM maintenance_requests maintenance
+WHERE maintenance.id=bill.maintenance_request_id;
 
 ALTER TABLE properties ALTER COLUMN tenant_system_id SET NOT NULL;
 ALTER TABLE tenants ALTER COLUMN tenant_system_id SET NOT NULL;
@@ -157,15 +166,35 @@ ALTER TABLE leases ALTER COLUMN tenant_system_id SET NOT NULL;
 ALTER TABLE maintenance_requests ALTER COLUMN tenant_system_id SET NOT NULL;
 ALTER TABLE rent_transactions ALTER COLUMN tenant_system_id SET NOT NULL;
 ALTER TABLE property_vendors ALTER COLUMN tenant_system_id SET NOT NULL;
+ALTER TABLE property_vendor_bills ALTER COLUMN tenant_system_id SET NOT NULL;
+ALTER TABLE tenants DROP CONSTRAINT IF EXISTS tenants_phone_key;
+ALTER TABLE tenants DROP CONSTRAINT IF EXISTS tenants_national_id_key;
+CREATE UNIQUE INDEX tenants_tenant_phone_unique ON tenants(tenant_system_id,phone);
+CREATE UNIQUE INDEX tenants_tenant_national_id_unique
+  ON tenants(tenant_system_id,national_id) WHERE national_id IS NOT NULL;
+ALTER TABLE rent_transactions DROP CONSTRAINT IF EXISTS rent_transactions_reference_key;
+CREATE UNIQUE INDEX rent_transactions_tenant_reference_unique
+  ON rent_transactions(tenant_system_id,reference);
 DROP INDEX IF EXISTS properties_address_territory_unique;
 CREATE UNIQUE INDEX properties_tenant_address_territory_unique
   ON properties(tenant_system_id,lower(address),territory_id);
+DROP INDEX IF EXISTS property_vendors_tax_id_unique;
+DROP INDEX IF EXISTS property_vendors_name_unique;
+CREATE UNIQUE INDEX property_vendors_tenant_tax_id_unique
+  ON property_vendors(tenant_system_id,tax_id) WHERE tax_id IS NOT NULL;
+CREATE UNIQUE INDEX property_vendors_tenant_name_unique
+  ON property_vendors(tenant_system_id,lower(name));
+ALTER TABLE property_vendor_bills
+  DROP CONSTRAINT IF EXISTS property_vendor_bills_payment_reference_key;
+CREATE UNIQUE INDEX property_vendor_bills_tenant_payment_reference_unique
+  ON property_vendor_bills(tenant_system_id,payment_reference) WHERE payment_reference IS NOT NULL;
 CREATE INDEX properties_tenant_system_idx ON properties(tenant_system_id,id);
 CREATE INDEX tenants_tenant_system_idx ON tenants(tenant_system_id,id);
 CREATE INDEX leases_tenant_system_idx ON leases(tenant_system_id,id);
 CREATE INDEX maintenance_requests_tenant_system_idx ON maintenance_requests(tenant_system_id,id);
 CREATE INDEX rent_transactions_tenant_system_idx ON rent_transactions(tenant_system_id,id);
 CREATE INDEX property_vendors_tenant_system_idx ON property_vendors(tenant_system_id,id);
+CREATE INDEX property_vendor_bills_tenant_system_idx ON property_vendor_bills(tenant_system_id,id);
 
 CREATE OR REPLACE FUNCTION app_property_tenant_system_id()
 RETURNS uuid
@@ -320,6 +349,37 @@ CREATE TRIGGER rent_transactions_tenant_relationship_guard
 REVOKE ALL ON FUNCTION guard_property_transaction_tenant_relationship() FROM PUBLIC;
 REVOKE ALL ON FUNCTION guard_property_record_tenant_relationships() FROM PUBLIC;
 
+CREATE OR REPLACE FUNCTION guard_property_vendor_bill_tenant()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp
+AS $$
+DECLARE parent_tenant uuid;
+DECLARE vendor_tenant uuid;
+BEGIN
+  SELECT tenant_system_id INTO parent_tenant
+  FROM maintenance_requests WHERE id=NEW.maintenance_request_id;
+  SELECT tenant_system_id INTO vendor_tenant
+  FROM property_vendors WHERE id=NEW.vendor_id;
+  IF parent_tenant IS NULL OR vendor_tenant IS NULL
+    OR parent_tenant IS DISTINCT FROM vendor_tenant
+    OR parent_tenant IS DISTINCT FROM app_property_tenant_system_id() THEN
+    RAISE EXCEPTION 'Vendor bill, vendor, and maintenance request must belong to the active property tenant'
+      USING ERRCODE='23514';
+  END IF;
+  IF TG_OP='INSERT' THEN
+    NEW.tenant_system_id := parent_tenant;
+  ELSIF NEW.tenant_system_id IS DISTINCT FROM parent_tenant THEN
+    RAISE EXCEPTION 'Vendor bill tenant scope must match its maintenance request'
+      USING ERRCODE='23514';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER property_vendor_bills_tenant_guard
+  BEFORE INSERT OR UPDATE OF maintenance_request_id,vendor_id,tenant_system_id ON property_vendor_bills
+  FOR EACH ROW EXECUTE FUNCTION guard_property_vendor_bill_tenant();
+REVOKE ALL ON FUNCTION guard_property_vendor_bill_tenant() FROM PUBLIC;
+
 CREATE OR REPLACE FUNCTION provision_property_operating_tenant(
   requested_key text,
   requested_legal_name text,
@@ -424,6 +484,52 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION set_property_operating_tenant_member_status(
+  target_tenant uuid,
+  target_user uuid,
+  next_status text,
+  change_reason text
+)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp
+AS $$
+DECLARE actor uuid := app_user_id();
+DECLARE previous_status text;
+BEGIN
+  IF NOT (
+    app_role()='global_admin'
+    OR (
+      app_property_tenant_system_id()=target_tenant
+      AND app_has_permission('property.tenancy.manage')
+      AND app_is_property_tenant_admin(target_tenant)
+    )
+  ) OR actor IS NULL OR actor=target_user
+    OR next_status NOT IN ('active','suspended','ended')
+    OR length(trim(change_reason))<10 THEN
+    RAISE EXCEPTION 'Tenant membership changes require an administrator, a different target user, and a documented reason'
+      USING ERRCODE='42501';
+  END IF;
+  SELECT status INTO previous_status FROM property_operating_tenant_members
+  WHERE tenant_system_id=target_tenant AND user_id=target_user FOR UPDATE;
+  IF previous_status IS NULL OR previous_status=next_status THEN
+    RAISE EXCEPTION 'Tenant member does not exist or is already in the requested status'
+      USING ERRCODE='23514';
+  END IF;
+  UPDATE property_operating_tenant_members
+  SET status=next_status,assigned_by=actor,assigned_at=now()
+  WHERE tenant_system_id=target_tenant AND user_id=target_user;
+  INSERT INTO property_operating_tenant_events(tenant_system_id,actor_id,event_type,event_data)
+  VALUES(target_tenant,actor,
+    CASE next_status
+      WHEN 'ended' THEN 'member_ended'
+      WHEN 'active' THEN 'member_reactivated'
+      ELSE 'member_suspended'
+    END,
+    jsonb_build_object('user_id',target_user,'from_status',previous_status,
+      'to_status',next_status,'reason',change_reason));
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION decide_property_tenant_support_grant(
   target_grant uuid,
   approve boolean,
@@ -496,8 +602,11 @@ BEGIN
   END IF;
   SELECT status INTO previous_status FROM property_operating_tenants
   WHERE id=target_tenant FOR UPDATE;
-  IF previous_status IS NULL OR previous_status='closed'
-    OR (previous_status='offboarding' AND next_status NOT IN ('offboarding','closed')) THEN
+  IF previous_status IS NULL OR NOT (
+    (previous_status='active' AND next_status IN ('suspended','offboarding'))
+    OR (previous_status='suspended' AND next_status IN ('active','offboarding'))
+    OR (previous_status='offboarding' AND next_status='closed')
+  ) THEN
     RAISE EXCEPTION 'Property tenant lifecycle transition is not permitted'
       USING ERRCODE='23514';
   END IF;
@@ -515,12 +624,14 @@ END;
 $$;
 REVOKE ALL ON FUNCTION provision_property_operating_tenant(text,text,uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION assign_property_operating_tenant_member(uuid,uuid,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION set_property_operating_tenant_member_status(uuid,uuid,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION request_property_tenant_support_grant(uuid,uuid,text,timestamptz) FROM PUBLIC;
 REVOKE ALL ON FUNCTION decide_property_tenant_support_grant(uuid,boolean,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION revoke_property_tenant_support_grant(uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION set_property_operating_tenant_status(uuid,text,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION provision_property_operating_tenant(text,text,uuid,text,text,text) TO "{{role}}";
 GRANT EXECUTE ON FUNCTION assign_property_operating_tenant_member(uuid,uuid,text) TO "{{role}}";
+GRANT EXECUTE ON FUNCTION set_property_operating_tenant_member_status(uuid,uuid,text,text) TO "{{role}}";
 GRANT EXECUTE ON FUNCTION request_property_tenant_support_grant(uuid,uuid,text,timestamptz) TO "{{role}}";
 GRANT EXECUTE ON FUNCTION decide_property_tenant_support_grant(uuid,boolean,text) TO "{{role}}";
 GRANT EXECUTE ON FUNCTION revoke_property_tenant_support_grant(uuid,text) TO "{{role}}";
@@ -616,16 +727,8 @@ CREATE POLICY maintenance_evidence_operating_tenant_scope ON maintenance_evidenc
       AND maintenance.tenant_system_id=app_property_tenant_system_id()
   ));
 CREATE POLICY property_vendor_bills_operating_tenant_scope ON property_vendor_bills AS RESTRICTIVE FOR ALL
-  USING (EXISTS (
-    SELECT 1 FROM maintenance_requests maintenance
-    WHERE maintenance.id=maintenance_request_id
-      AND maintenance.tenant_system_id=app_property_tenant_system_id()
-  ))
-  WITH CHECK (EXISTS (
-    SELECT 1 FROM maintenance_requests maintenance
-    WHERE maintenance.id=maintenance_request_id
-      AND maintenance.tenant_system_id=app_property_tenant_system_id()
-  ));
+  USING (tenant_system_id=app_property_tenant_system_id())
+  WITH CHECK (tenant_system_id=app_property_tenant_system_id());
 CREATE POLICY property_vendor_memberships_operating_tenant_scope ON property_vendor_memberships AS RESTRICTIVE FOR ALL
   USING (EXISTS (
     SELECT 1 FROM property_vendors vendor
@@ -671,6 +774,9 @@ CREATE POLICY property_unit_turnover_events_operating_tenant_scope ON property_u
 CREATE POLICY tenants_field_agent_minimum_access ON tenants AS RESTRICTIVE FOR ALL
   USING (app_role()<>'field_agent')
   WITH CHECK (app_role()<>'field_agent');
+CREATE POLICY maintenance_requests_field_agent_assigned_only ON maintenance_requests AS RESTRICTIVE FOR ALL
+  USING (app_role()<>'field_agent' OR assigned_to=app_user_id()::text)
+  WITH CHECK (app_role()<>'field_agent' OR assigned_to=app_user_id()::text);
 CREATE POLICY leases_field_agent_minimum_access ON leases AS RESTRICTIVE FOR ALL
   USING (app_role()<>'field_agent')
   WITH CHECK (app_role()<>'field_agent');
@@ -705,11 +811,27 @@ CREATE POLICY rental_applications_field_agent_minimum_access ON property_rental_
   USING (app_role()<>'field_agent')
   WITH CHECK (app_role()<>'field_agent');
 CREATE POLICY maintenance_request_events_field_agent_minimum_access ON maintenance_request_events AS RESTRICTIVE FOR ALL
-  USING (app_role()<>'field_agent')
-  WITH CHECK (app_role()<>'field_agent');
+  USING (app_role()<>'field_agent' OR EXISTS (
+    SELECT 1 FROM maintenance_requests maintenance
+    WHERE maintenance.id=maintenance_request_id
+      AND maintenance.assigned_to=app_user_id()::text
+  ))
+  WITH CHECK (app_role()<>'field_agent' OR EXISTS (
+    SELECT 1 FROM maintenance_requests maintenance
+    WHERE maintenance.id=maintenance_request_id
+      AND maintenance.assigned_to=app_user_id()::text
+  ));
 CREATE POLICY maintenance_evidence_field_agent_minimum_access ON maintenance_evidence AS RESTRICTIVE FOR ALL
-  USING (app_role()<>'field_agent')
-  WITH CHECK (app_role()<>'field_agent');
+  USING (app_role()<>'field_agent' OR EXISTS (
+    SELECT 1 FROM maintenance_requests maintenance
+    WHERE maintenance.id=maintenance_request_id
+      AND maintenance.assigned_to=app_user_id()::text
+  ))
+  WITH CHECK (app_role()<>'field_agent' OR EXISTS (
+    SELECT 1 FROM maintenance_requests maintenance
+    WHERE maintenance.id=maintenance_request_id
+      AND maintenance.assigned_to=app_user_id()::text
+  ));
 CREATE POLICY property_authority_evidence_operating_tenant_scope ON property_authority_evidence AS RESTRICTIVE FOR ALL
   USING (EXISTS (
     SELECT 1 FROM properties property
