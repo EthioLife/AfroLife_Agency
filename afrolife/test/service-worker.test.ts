@@ -6,7 +6,7 @@ import { runInNewContext } from 'node:vm';
 const workerSource = readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8');
 
 test('changed public shell assets advance the cache version', () => {
-  assert.match(workerSource, /const CACHE = 'afrolife-shell-v37'/);
+  assert.match(workerSource, /const CACHE = 'afrolife-shell-v39'/);
   assert.match(workerSource, /'\/financial-workspaces\.css'/);
   assert.match(workerSource, /'\/accounting-dashboard\.js'/);
   assert.match(workerSource, /'\/global-bi\.js'/);
@@ -17,7 +17,8 @@ test('changed public shell assets advance the cache version', () => {
   assert.match(workerSource, /'\/workspace-search\.js'/);
   assert.match(workerSource, /'\/icon\.svg'/);
   assert.match(workerSource, /'\/icons\/afrosherik-icon-512\.png'/);
-  assert.match(workerSource, /'\/brand\/afrosherik-brand-lockup\.png'/);
+  assert.match(workerSource, /'\/icon\.svg'/);
+  assert.doesNotMatch(workerSource, /'\/brand\/afrosherik-brand-lockup\.png'/);
   assert.match(workerSource, /'\/brand\/afrosherik-campaign-hero\.png'/);
   assert.match(workerSource, /'\/tenant-data-admin\.js'/);
 });
@@ -91,7 +92,7 @@ test('service worker includes each public mini-app logo in the offline shell', a
   const listener = worker.listeners.get('fetch')!;
   const logos = [
     'marketplace', 'property-management', 'staffing', 'workforce-management', 'leads',
-    'contracts', 'commissions', 'rent', 'agents', 'edir', 'mfi', 'insurance',
+    'contracts', 'commissions', 'rent', 'agents', 'edir', 'mfi', 'insurance', 'accounting',
   ].map((module) => `/mini-apps/${module}/logo.svg`);
   for (const path of logos) {
     let response: Promise<Response> | undefined;

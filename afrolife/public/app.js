@@ -705,7 +705,9 @@ function openSignup(agentPlans = false, edirMember = false) {
       void loadSignupFollowup();
     } else {
       $('#signup-form').dataset.signupCreated = 'true';
-      setLocalizedText($('#signup-error'), 'A registration is already pending. Upload the required documents to finish it.');
+      showSignupFollowupMode();
+      setLocalizedText($('#signup-success'), 'A registration is already pending. Upload the required documents to finish it.');
+      void loadSignupFollowup();
     }
   }
   if (agentPlans) {
@@ -2156,8 +2158,9 @@ function renderSuperAppLauncher() {
     const name = panel === 'accounting'
       ? 'Accounting & Finance'
       : getLocalizedNodeSource(tab.firstChild).trim() || tab.textContent.trim();
-    const card = node('button', undefined, 'service-card workspace-launch-card');
+    const card = node('button', undefined, 'service-card workspace-launch-card service-launcher-card');
     card.type = 'button';
+    card.dataset.panel = panel;
     card.setAttribute('aria-label', `Open ${name}`);
     const logoSource = miniAppLogo(panel);
     if (logoSource) {
@@ -3636,7 +3639,7 @@ function renderPropertyListings(canManage, emptyMessage = 'No property listings 
       item.append(evidenceDetails);
     }
     if (property.units?.length) {
-      const unitSummary = node('p', property.units.map((unit) => `${unit.unit_no}${unit.rent == null ? '' : ` · ETB ${Number(unit.rent).toLocaleString(document.documentElement.lang)}`}`).join('  |  '));
+      const unitSummary = node('p', property.units.map((unit) => `${unit.unit_no} · ${unit.occupancy}${unit.rent == null ? '' : ` · ETB ${Number(unit.rent).toLocaleString(document.documentElement.lang)}`}`).join('  |  '));
       unitSummary.className = 'property-unit-summary';
       item.append(unitSummary);
     }
@@ -3680,6 +3683,14 @@ function renderPropertyListings(canManage, emptyMessage = 'No property listings 
       button('Add unit', 'property-units', 'button button-outline', { id: property.id }),
       button('Add media', 'property-upload', 'button button-outline', { id: property.id }),
     );
+    if (hasActivity('property.maintenance.manage')) for (const unit of property.units ?? []) {
+      if (unit.occupancy === 'turnover') actions.append(button(
+        `Complete turnover · ${unit.unit_no}`,
+        'property-turnover-complete',
+        'button button-outline',
+        { id: property.id, unit: unit.id },
+      ));
+    }
     if (authorityStatus === 'pending_review'
       && ['global_admin', 'super_admin', 'corporate_business_manager'].includes(state.user.role)
       && property.created_by !== state.user.id
@@ -3772,6 +3783,16 @@ function renderResidentPropertyPortal() {
       }),
       lease.status);
     item.append(node('p', `Deposit recorded in lease: ETB ${Number(lease.deposit).toLocaleString(document.documentElement.lang)}. Key handover: ${lease.possession_handover_on ?? 'not recorded'}.`, 'muted'));
+    for (const inspection of lease.move_out_inspections ?? []) {
+      item.append(node('p',
+        `Move-out inspection revision ${inspection.revision}: ${inspection.status} · vacated ${inspection.actual_vacated_on} · proposed deposit deduction ETB ${inspection.deposit_deduction}. ${inspection.review_note ?? ''}`,
+        'muted'));
+      for (const evidence of inspection.evidence ?? []) {
+        item.append(button(`Download move-out evidence · ${evidence.mime}`, 'resident-move-out-evidence', 'button button-outline', {
+          id: evidence.id,
+        }));
+      }
+    }
     const leaseCharges = charges.get(lease.id) ?? [];
     const chargeSection = node('div', undefined, 'list');
     chargeSection.append(node('h4', 'Charges'));
@@ -3805,6 +3826,31 @@ function renderResidentPropertyPortal() {
       for (const notice of lease.notices) notices.append(node('p',
         `${notice.notice_type.replaceAll('_', ' ')} · received ${notice.received_on} · proposed ${notice.proposed_effective_on} · ${notice.summary}`));
       item.append(notices);
+    }
+    for (const offer of lease.renewal_offers ?? []) {
+      const offerItem = card(
+        `Renewal offer · ETB ${Number(offer.proposed_rent).toLocaleString(document.documentElement.lang)} monthly`,
+        `${offer.proposed_start_date} to ${offer.proposed_end_date} · expires ${offer.expires_on}`,
+        offer.status,
+      );
+      offerItem.append(node('p', `Proposed deposit: ETB ${Number(offer.proposed_deposit).toLocaleString(document.documentElement.lang)} · ${offer.term_months} months · rent due day ${offer.due_day}.`));
+      if (offer.request_reason) offerItem.append(node('p', `Request: ${offer.request_reason}`));
+      if (offer.review_reason) offerItem.append(node('p', offer.review_reason));
+      if (offer.response_note) offerItem.append(node('p', offer.response_note));
+      for (const event of offer.events ?? []) {
+        offerItem.append(node('p', `${event.event_type.replaceAll('_', ' ')} · ${new Date(event.created_at).toLocaleString(document.documentElement.lang)} · ${event.reason}`, 'muted'));
+      }
+      if (offer.status === 'offered' && offer.expires_on >= new Date().toISOString().slice(0, 10)) {
+        offerItem.append(
+          button('Accept renewal terms', 'renewal-response-accept', 'button button-primary', {
+            id: offer.id, leaseId: lease.id,
+          }),
+          button('Decline renewal', 'renewal-response-decline', 'button button-outline', {
+            id: offer.id, leaseId: lease.id,
+          }),
+        );
+      }
+      item.append(offerItem);
     }
     if (lease.status === 'active') {
       const noticeForm = node('form', undefined, 'inline-form');
@@ -4061,7 +4107,7 @@ function renderProperties() {
       const statement = card(`${item.address} · ${item.unit_no}`, `Lease ${item.start_date} to ${item.end_date} · ${item.status}`);
       statement.append(node('p', t('Rent commencement: {{date}}.', { date: item.rent_start_on })));
       statement.append(node('p',`Rent charged ETB ${item.rent_charged} · reconciled ETB ${item.rent_reconciled} · pending reconciliation ETB ${item.rent_pending_reconciliation}`));
-      statement.append(node('p',`Deposit received ETB ${item.deposit_reconciled} · refunded ETB ${item.deposit_refunded} · agreed deposit ETB ${item.agreed_deposit}`));
+      statement.append(node('p',`Deposit received ETB ${item.deposit_reconciled} · refunded ETB ${item.deposit_refunded} · pending refund ETB ${item.deposit_refund_pending} · approved deduction ETB ${item.approved_deposit_deduction} · reviewed refundable balance ETB ${item.approved_deposit_refund_remaining} · agreed deposit ETB ${item.agreed_deposit}`));
       statements.append(statement);
     }
     wrap.append(statements);
@@ -4885,6 +4931,88 @@ function renderRent() {
       );
       item.append(noticeForm);
     }
+    const openRenewalOffer = (lease.renewal_offers ?? []).some((offer) =>
+      ['pending_approval', 'offered', 'accepted'].includes(offer.status));
+    if (lease.status === 'active' && hasActivity('property.tenancy.manage') && !openRenewalOffer) {
+      const renewalForm = node('form', undefined, 'inline-form');
+      renewalForm.dataset.form = 'lease-renewal-offer';
+      renewalForm.dataset.lease = lease.id;
+      const nextDay = new Date(`${lease.end_date}T00:00:00Z`);
+      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+      const renewalStart = nextDay.toISOString().slice(0, 10);
+      const expires = new Date(`${renewalStart}T00:00:00Z`);
+      expires.setUTCDate(expires.getUTCDate() - 1);
+      renewalForm.append(
+        node('h4', 'Prepare renewal terms for independent approval'),
+        field('Proposed monthly rent (ETB)', 'proposed_rent', 'number', true, { min: '0.01', step: '0.01', value: String(lease.rent) }).label,
+        field('Proposed deposit (ETB)', 'proposed_deposit', 'number', true, { min: '0', step: '0.01', value: String(lease.deposit) }).label,
+        field('Renewal start date', 'proposed_start_date', 'date', true, { min: renewalStart, value: renewalStart }).label,
+        field('Renewal term (months)', 'term_months', 'number', true, { min: '1', max: '120', value: String(lease.term_months ?? 24) }).label,
+        field('Rent due day', 'due_day', 'number', false, { min: '1', max: '28', value: String(lease.due_day ?? 5) }).label,
+        field('Offer expires on', 'expires_on', 'date', true, { min: new Date().toISOString().slice(0, 10), value: expires.toISOString().slice(0, 10) }).label,
+        field('Approval reason', 'reason', 'textarea', true, { minlength: '10', maxlength: '1000' }).label,
+        button('Submit renewal offer for approval', 'submit', 'button button-outline'),
+        node('p', 'An approved offer is sent to linked resident accounts. Acceptance creates only a new lease draft; it does not extend this lease or post rent.', 'muted'),
+      );
+      renewalForm.elements.proposed_start_date.addEventListener('change', () => {
+        const start = new Date(`${renewalForm.elements.proposed_start_date.value}T00:00:00Z`);
+        start.setUTCDate(start.getUTCDate() - 1);
+        renewalForm.elements.expires_on.max = start.toISOString().slice(0, 10);
+        if (renewalForm.elements.expires_on.value >= renewalForm.elements.proposed_start_date.value) {
+          renewalForm.elements.expires_on.value = start.toISOString().slice(0, 10);
+        }
+      });
+      renewalForm.elements.expires_on.max = expires.toISOString().slice(0, 10);
+      item.append(renewalForm);
+    }
+    for (const offer of lease.renewal_offers ?? []) {
+      if (offer.status === 'pending_approval'
+        && hasActivity('property.tenancy.approve') && hasActivity('property.tenancy.manage')) {
+        item.append(
+          button('Approve and send renewal offer', 'lease-renewal-offer', 'button button-primary', { id: offer.id, leaseId: lease.id }),
+          button('Reject renewal offer', 'lease-renewal-reject', 'button button-outline', { id: offer.id, leaseId: lease.id }),
+        );
+      }
+      if (offer.status === 'accepted' && !offer.converted_lease_id && hasActivity('property.tenancy.manage')) {
+        item.append(button('Create renewal lease draft', 'lease-renewal-convert', 'button button-primary', { id: offer.id }));
+      }
+      if (offer.converted_lease_id) {
+        item.append(node('p', `Renewal lease draft ${offer.converted_lease_id} was created and must complete normal approval, signature, and handover steps.`, 'muted'));
+      }
+    }
+    const moveOutInspections = lease.move_out_inspections ?? [];
+    for (const inspection of moveOutInspections) {
+      item.append(node('p',
+        `Move-out inspection revision ${inspection.revision}: ${inspection.status} · vacated ${inspection.actual_vacated_on} · inspected ${inspection.inspected_on} · keys returned ${inspection.keys_returned ? 'yes' : 'no'} · proposed deposit deduction ETB ${inspection.deposit_deduction}${inspection.deduction_reason ? ` (${inspection.deduction_reason})` : ''}${inspection.review_note ? ` · review: ${inspection.review_note}` : ''}`,
+        'muted'));
+      for (const evidence of inspection.evidence ?? []) {
+        item.append(
+          button(`Download move-out evidence · ${evidence.mime}`, 'resident-move-out-evidence', 'button button-outline', { id: evidence.id }),
+        );
+      }
+      if (inspection.status === 'pending_review' && hasActivity('property.tenancy.manage')) {
+        item.append(button('Upload move-out evidence', 'move-out-evidence-upload', 'button button-outline', {
+          id: inspection.id, leaseId: lease.id,
+        }));
+      }
+      if (inspection.status === 'pending_review' && hasActivity('property.tenancy.approve')
+        && inspection.submitted_by !== state.user.id) {
+        item.append(
+          button('Approve move-out inspection', 'move-out-approve', 'button button-primary', {
+            id: inspection.id, leaseId: lease.id,
+          }),
+          button('Reject move-out inspection', 'move-out-reject', 'button button-outline', {
+            id: inspection.id, leaseId: lease.id,
+          }),
+        );
+      }
+    }
+    const approvedMoveOut = moveOutInspections.some((inspection) => inspection.status === 'approved');
+    const pendingMoveOut = moveOutInspections.some((inspection) => inspection.status === 'pending_review');
+    if (lease.status === 'active' && hasActivity('property.tenancy.manage')
+      && !approvedMoveOut && !pendingMoveOut) {
+      item.append(button('Submit move-out inspection', 'move-out-submit', 'button button-outline', { id: lease.id }));
+    }
     if (lease.status === 'draft' && hasActivity('property.tenancy.manage')
       && (lease.created_by === state.user.id || isPlatformAdmin())) {
       item.append(button('Submit for approval', 'lease-submit-approval', 'button button-primary', { id: lease.id }));
@@ -4916,9 +5044,11 @@ function renderRent() {
       }
     }
     item.append(button('View charges & payments', 'lease-payments', 'button button-outline', { id: lease.id }));
-    if (['global_admin', 'super_admin', 'master_agent', 'field_agent'].includes(state.user.role) && lease.status === 'active') item.append(button('End lease', 'lease-end', 'button button-outline', { id: lease.id }));
+    if (hasActivity('property.tenancy.manage') && lease.status === 'active' && approvedMoveOut) {
+      item.append(button('End lease after move-out review', 'lease-end', 'button button-outline', { id: lease.id }));
+    }
     if (['master_agent', 'field_agent', 'finance', 'finance_manager', 'global_admin', 'super_admin'].includes(state.user.role) && lease.status === 'active' && Number(lease.deposit) > 0) item.append(button('Record deposit', 'deposit-pay', 'button button-outline', { id: lease.id }));
-    if (['finance', 'finance_manager', 'global_admin', 'super_admin'].includes(state.user.role) && lease.status === 'ended' && Number(lease.deposit) > 0) item.append(button('Return deposit', 'deposit-refund', 'button button-outline', { id: lease.id }));
+    if (hasActivity('rent.deposit.refund_request') && lease.status === 'ended' && Number(lease.deposit) > 0 && approvedMoveOut) item.append(button('Return deposit', 'deposit-refund', 'button button-outline', { id: lease.id }));
     leases.append(item);
   }
   columns.append(leases); wrap.append(columns); return wrap;
@@ -6954,6 +7084,27 @@ async function submitForm(form) {
     await api('/leases/workflow', { method: 'POST', body: JSON.stringify(payload) });
     await refresh(); showAlert('Lease draft created. Submit it for independent approval before collecting signatures or activating the unit.'); return;
   }
+  if (form.dataset.form === 'lease-renewal-offer') {
+    form.dataset.idempotencyKey ||= crypto.randomUUID();
+    const payload = {
+      proposed_rent: values.proposed_rent,
+      proposed_deposit: values.proposed_deposit,
+      proposed_start_date: values.proposed_start_date,
+      term_months: number(values.term_months),
+      due_day: number(values.due_day || '5'),
+      expires_on: values.expires_on,
+      request_reason: values.reason.trim(),
+      idempotency_key: form.dataset.idempotencyKey,
+    };
+    await api(`/leases/${encodeURIComponent(form.dataset.lease)}/renewal-offers`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    form.dataset.idempotencyKey = crypto.randomUUID();
+    await refresh();
+    showAlert('Renewal terms submitted for independent approval. The existing lease remains unchanged.');
+    return;
+  }
   if (form.dataset.form === 'lease-signature') {
     const file = form.querySelector('input[name="signature_document"]')?.files?.[0];
     if (!file) throw new Error('Choose a signature evidence file.');
@@ -7799,6 +7950,12 @@ document.addEventListener('click', async (event) => {
     } catch (error) { showAlert(error.message, true); }
     return;
   }
+  if (name === 'resident-move-out-evidence') {
+    try {
+      await downloadAuthenticatedFile(`/lease-move-out-evidence/${encodeURIComponent(id)}/file`, `afrolife-move-out-evidence-${id}`);
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
   if (name === 'resident-maintenance-evidence') {
     try {
       await downloadAuthenticatedFile(`/maintenance/evidence/${encodeURIComponent(id)}/file`, `afrolife-maintenance-evidence-${id}`);
@@ -8373,6 +8530,57 @@ document.addEventListener('click', async (event) => {
       .catch((error) => showAlert(error.message, true));
     return;
   }
+  if (name === 'lease-renewal-offer' || name === 'lease-renewal-reject') {
+    const reason = window.prompt(name === 'lease-renewal-offer'
+      ? t('Enter the independent approval reason (at least 10 characters).')
+      : t('Enter the reason for rejecting this renewal offer (at least 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    const decision = name === 'lease-renewal-offer' ? 'offer' : 'reject';
+    api(`/leases/${encodeURIComponent(action.dataset.leaseId)}/renewal-offers/${encodeURIComponent(id)}/decision`, {
+      method: 'POST',
+      body: JSON.stringify({ decision, reason: reason.trim() }),
+    })
+      .then(async () => {
+        await refresh();
+        showAlert(decision === 'offer' ? 'Renewal offer sent to linked resident accounts.' : 'Renewal offer rejected.');
+      })
+      .catch((error) => showAlert(error.message, true));
+    return;
+  }
+  if (name === 'lease-renewal-convert') {
+    const reason = window.prompt(t('Enter why the accepted offer is being converted into a new lease draft (at least 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    api(`/leases/renewal-offers/${encodeURIComponent(id)}/convert`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason.trim() }),
+    })
+      .then(async () => {
+        await refresh();
+        showAlert('Renewal lease draft created. It must complete the normal approval, signature, and handover steps.');
+      })
+      .catch((error) => showAlert(error.message, true));
+    return;
+  }
+  if (name === 'renewal-response-accept' || name === 'renewal-response-decline') {
+    const responseNote = name === 'renewal-response-decline'
+      ? window.prompt(t('Enter a reason for declining (at least 10 characters).'))
+      : window.prompt(t('Optional note for the property manager.'), '');
+    if (name === 'renewal-response-decline' && (!responseNote || responseNote.trim().length < 10)) return;
+    const response = { decision: name === 'renewal-response-accept' ? 'accept' : 'decline' };
+    if (responseNote?.trim()) response.response_note = responseNote.trim();
+    api(`/resident/leases/${encodeURIComponent(action.dataset.leaseId)}/renewal-offers/${encodeURIComponent(id)}/respond`, {
+      method: 'POST',
+      body: JSON.stringify(response),
+    })
+      .then(async (result) => {
+        await refresh();
+        showAlert(result.renewal_lease_draft_required
+          ? 'Renewal accepted. The property manager will prepare a separate lease draft for approval and signature.'
+          : 'Renewal response recorded.');
+      })
+      .catch((error) => showAlert(error.message, true));
+    return;
+  }
   if (name === 'lease-execute') {
     const lease = state.leases.find((item) => item.id === id);
     if (!lease) return;
@@ -8397,10 +8605,81 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (name === 'lease-end') {
-    if (!window.confirm(t('End this lease? Future rent charges will be waived.'))) return;
-    api(`/leases/${id}/end`, { method: 'POST', body: '{}' })
-      .then(async () => { await refresh(); showAlert('Lease ended.'); })
+    if (!window.confirm(t('End this lease using its independently reviewed move-out inspection? Future rent charges will be waived.'))) return;
+    const reason = window.prompt(t('Enter the lease closeout reason (at least 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    api(`/leases/${id}/end`, { method: 'POST', body: JSON.stringify({ reason: reason.trim() }) })
+      .then(async () => { await refresh(); showAlert('Lease ended after reviewed move-out; future rent charges were waived.'); })
       .catch((error) => showAlert(error.message, true));
+    return;
+  }
+  if (name === 'move-out-submit') {
+    const actualVacatedOn = window.prompt(t('Enter the actual move-out date (YYYY-MM-DD).'), new Date().toISOString().slice(0, 10));
+    if (!actualVacatedOn) return;
+    const inspectedOn = window.prompt(t('Enter the inspection date (YYYY-MM-DD).'), new Date().toISOString().slice(0, 10));
+    if (!inspectedOn) return;
+    const conditionNotes = window.prompt(t('Describe the property condition and any observed damage (at least 10 characters).'));
+    if (!conditionNotes || conditionNotes.trim().length < 10) return;
+    const keysReturned = window.prompt(t('Were all keys returned? Enter yes or no.'));
+    if (!keysReturned || !['yes', 'no'].includes(keysReturned.trim().toLowerCase())) return;
+    const deduction = window.prompt(t('Proposed deposit deduction in ETB (use up to two decimals).'), '0');
+    if (deduction === null) return;
+    const deductionReason = Number(deduction) > 0
+      ? window.prompt(t('Explain the proposed deposit deduction (at least 10 characters).'))
+      : undefined;
+    if (Number(deduction) > 0 && (!deductionReason || deductionReason.trim().length < 10)) return;
+    try {
+      await api(`/leases/${encodeURIComponent(id)}/move-out-inspections`, {
+        method: 'POST',
+        body: JSON.stringify({
+          actual_vacated_on: actualVacatedOn,
+          inspected_on: inspectedOn,
+          condition_notes: conditionNotes.trim(),
+          keys_returned: keysReturned.trim().toLowerCase() === 'yes',
+          deposit_deduction: deduction.trim(),
+          ...(deductionReason ? { deduction_reason: deductionReason.trim() } : {}),
+        }),
+      });
+      await refresh();
+      showAlert('Move-out inspection submitted for independent review. The lease remains active until reviewed closeout.');
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
+  if (name === 'move-out-approve' || name === 'move-out-reject') {
+    const reason = window.prompt(t('Enter the independent inspection review reason (at least 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/leases/${encodeURIComponent(action.dataset.leaseId)}/move-out-inspections/${encodeURIComponent(id)}/decision`, {
+        method: 'POST',
+        body: JSON.stringify({ decision: name === 'move-out-approve' ? 'approve' : 'reject', reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(name === 'move-out-approve'
+        ? 'Move-out inspection and deposit disposition approved.'
+        : 'Move-out inspection rejected. The manager may submit a corrected revision.');
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
+  if (name === 'move-out-evidence-upload') {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/pdf,image/jpeg,image/png';
+    input.addEventListener('change', async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (file.size > 10 * 1024 * 1024) {
+        showAlert(t('Move-out evidence must be 10 MB or smaller.'), true);
+        return;
+      }
+      try {
+        await api(`/leases/${encodeURIComponent(action.dataset.leaseId)}/move-out-inspections/${encodeURIComponent(id)}/evidence`, {
+          method: 'POST', headers: { 'content-type': file.type || 'application/octet-stream' }, body: file,
+        });
+        await refresh();
+        showAlert('Move-out evidence uploaded to private storage.');
+      } catch (error) { showAlert(error.message, true); }
+    }, { once: true });
+    input.click();
     return;
   }
   if (name === 'deposit-pay') {
@@ -8418,7 +8697,7 @@ document.addEventListener('click', async (event) => {
     if (!reason || reason.trim().length < 10) return;
     const reference = window.prompt(t('Enter the payout reference.'));
     if (!reference || reference.trim().length < 3) return;
-    api(`/leases/${id}/deposit/refund`, { method: 'POST', body: JSON.stringify({ amount: number(amount), reason: reason.trim(), reference: reference.trim(), channel: 'manual' }) })
+    api(`/leases/${id}/deposit/refund`, { method: 'POST', body: JSON.stringify({ amount: amount.trim(), reason: reason.trim(), reference: reference.trim(), channel: 'manual' }) })
       .then(async () => { await refresh(); showAlert('Deposit return recorded and awaiting independent reconciliation.'); })
       .catch((error) => showAlert(error.message, true));
     return;
@@ -8478,6 +8757,21 @@ document.addEventListener('click', async (event) => {
   if (name === 'worker-documents') { void showWorkerDocuments(id, container); return; }
   if (name === 'property-photos') { void showPropertyPhotos(id, container); return; }
   if (name === 'property-units') { showPropertyUnitForm(id, container); return; }
+  if (name === 'property-turnover-complete') {
+    const completionNote = window.prompt(t('Describe the completed cleaning, repairs, and readiness checks (at least 10 characters).'));
+    if (!completionNote || completionNote.trim().length < 10) return;
+    try {
+      await api(`/properties/${encodeURIComponent(id)}/units/${encodeURIComponent(action.dataset.unit)}/turnover-complete`, {
+        method: 'POST',
+        body: JSON.stringify({ completion_note: completionNote.trim() }),
+      });
+      await refresh();
+      showAlert('Unit turnover completed. The unit is now available for rental workflows.');
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
   if (name === 'property-upload') { showPropertyUpload(id, container); return; }
   if(name==='marketplace-media'){
     try{const response=await fetch(`${apiRoot()}/marketplace/media/${id}/file`,{headers:{authorization:`Bearer ${sessionStorage.getItem(TOKEN_KEY)}`}});if(!response.ok)throw new Error(`Media unavailable (${response.status})`);const blob=await response.blob();const url=URL.createObjectURL(blob);propertyPhotoUrls.add(url);const viewer=node('div',undefined,'marketplace-viewer');let media;if(action.dataset.mime?.startsWith('video/')){media=node('video');media.controls=true;media.autoplay=false;media.playsInline=true;}else{media=node('img');media.alt=t('Marketplace listing photo');}media.src=url;viewer.append(media);container.append(viewer);}catch(error){showAlert(error.message,true);}return;

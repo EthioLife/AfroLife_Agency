@@ -1,6 +1,6 @@
 const rows = [
   ['Sign out', 'ውጣ', 'Ba’i', 'ውፃእ'],
-  ['AfroLife home', 'የAfroLife መነሻ', 'Fuula jalqabaa AfroLife', 'መበገሲ ገጽ AfroLife'],
+  ['AfroSherik home', 'የAfroSherik መነሻ', 'Fuula jalqabaa AfroSherik', 'መበገሲ ገጽ AfroSherik'],
   ['More', 'ተጨማሪ', 'Dabalata', 'ተወሳኺ'],
   ['More workspace sections', 'ተጨማሪ የሥራ ቦታ ክፍሎች', 'Kutaa hojii dabalataa', 'ተወሳኺ ክፍልታት ቦታ ስራሕ'],
   ['YOUR WORKSPACE', 'የእርስዎ የሥራ ቦታ', 'IDDOO HOJII KEESSAN', 'ቦታ ስራሕኩም'],
@@ -20,7 +20,7 @@ const rows = [
   ['Password', 'የይለፍ ቃል', 'Jecha icciitii', 'መሕለፊ ቃል'],
   ['Authenticator code', 'የማረጋገጫ ኮድ', 'Koodii mirkaneessaa', 'ኮድ መረጋገጺ'],
   ['Sign in', 'ግባ', 'Seeni', 'እቶ'],
-  ['Access is limited to approved AfroLife accounts.', 'መዳረሻው ለተፈቀዱ የAfroLife መለያዎች ብቻ ነው።', 'Seensaan herrega AfroLife hayyamame qofaaf daangeffama.', 'መእተዊ ንዝተፈቕደሎም ሕሳባት AfroLife ጥራይ ዝተወሰነ እዩ።'],
+  ['Access is limited to approved AfroSherik accounts.', 'መዳረሻው ለተፈቀዱ የAfroSherik መለያዎች ብቻ ነው።', 'Seensaan herrega AfroSherik hayyamame qofaaf daangeffama.', 'መእተዊ ንዝተፈቕደሎም ሕሳባት AfroSherik ጥራይ ዝተወሰነ እዩ።'],
   ['API server address', 'የAPI አገልጋይ አድራሻ', 'Teessoo sarvarii API', 'ኣድራሻ ሰርቨር API'],
   ['Save server address', 'የአገልጋይ አድራሻ አስቀምጥ', 'Teessoo sarvarii olkaa’i', 'ኣድራሻ ሰርቨር ዓቅብ'],
   ['Change server', 'አገልጋይ ቀይር', 'Sarvarii jijjiiri', 'ሰርቨር ቀይር'],
@@ -181,7 +181,7 @@ const rows = [
   ['Network request failed. Check your connection and server address.', 'የኔትወርክ ጥያቄ አልተሳካም። ግንኙነትዎን እና የአገልጋይ አድራሻውን ያረጋግጡ።', 'Gaaffiin neetworkii hin milkoofne. Walqunnamtii fi teessoo sarvarii keessan mirkaneessaa.', 'ሕቶ ኔትወርክ ኣይተዓወተን። ርክብኩምን ኣድራሻ ሰርቨርን ኣረጋግጹ።'],
   ['Create an account', 'መለያ ይፍጠሩ', 'Herrega uumaa', 'ሕሳብ ፍጠሩ'],
   ['Sign up', 'ይመዝገቡ', 'Galmaa’aa', 'ተመዝገቡ'],
-  ['Apply to join AfroLife', 'ወደ AfroLife ለመቀላቀል ያመልክቱ', 'AfroLife waliin makamuuf iyyadhaa', 'ምስ AfroLife ንምጽንባር ኣመልክቱ'],
+  ['Apply to join AfroSherik', 'ወደ AfroSherik ለመቀላቀል ያመልክቱ', 'AfroSherik waliin makamuuf iyyadhaa', 'ምስ AfroSherik ንምጽንባር ኣመልክቱ'],
   ['Choose account type', 'የመለያ ዓይነት ይምረጡ', 'Gosa herregaa filadhaa', 'ዓይነት ሕሳብ ምረጹ'],
   ['I want to join as a worker', 'እንደ ሠራተኛ መቀላቀል እፈልጋለሁ', 'Hojjetaa ta’ee makamuun barbaada', 'ከም ሰራሕተኛ ክጽንበር እደሊ'],
   ['I want to join as a buyer / customer', 'እንደ ገዢ / ደንበኛ መቀላቀል እፈልጋለሁ', 'Akka bitataa / maamilaatti makamuun barbaada', 'ከም ገዛኢ / ዓሚል ክጽንበር እደሊ'],
@@ -472,7 +472,7 @@ const addedLanguages = {
     'Enterprise team and portfolio insights': 'ሪፖርት ጉጅለን ንብረትን ኢንተርፕራይዝ'
   },
   so: {
-    'Region': 'Gobol', 'City': 'Magaalo', 'Sub-city': 'Xaafad', 'Woreda': 'Woreda', 'Kebele': 'Kebele', 'Territory': 'Deegaan', 'Pro plan — ETB {{amount}} per month': 'Qorshaha Pro — ETB {{amount}} bishii', 'Enterprise plan — ETB {{amount}} per month': 'Qorshaha Enterprise — ETB {{amount}} bishii', 'Sign out': 'Ka bax', 'AfroLife home': 'Bogga hore ee AfroLife', 'Language': 'Luqad', 'Install app': 'Ku rakib abka',
+    'Region': 'Gobol', 'City': 'Magaalo', 'Sub-city': 'Xaafad', 'Woreda': 'Woreda', 'Kebele': 'Kebele', 'Territory': 'Deegaan', 'Pro plan — ETB {{amount}} per month': 'Qorshaha Pro — ETB {{amount}} bishii', 'Enterprise plan — ETB {{amount}} per month': 'Qorshaha Enterprise — ETB {{amount}} bishii', 'Sign out': 'Ka bax', 'AfroSherik home': 'Bogga hore ee AfroSherik', 'Language': 'Luqad', 'Install app': 'Ku rakib abka',
     'One trusted place to get work moving.': 'Hal meel oo la isku halayn karo oo shaqada lagu bilaabo.',
     'Coordinate leads, verified workers and service requests with clear ownership at every step.': 'Isku dubbarid macaamiisha, shaqaalaha la xaqiijiyey iyo codsiyada adeegga adigoo caddeynaya cidda masuulka ka ah tallaabo kasta.',
     'Verified workforce': 'Shaqaale la xaqiijiyey', 'Accountable agent network': 'Shabakad wakiillo lala xisaabtami karo', 'Central matching oversight': 'Kormeer dhexe oo isku-aadinta ah',
@@ -483,7 +483,7 @@ const addedLanguages = {
     'ETB 5,000 annual contribution for proposed ETB 1 million cover for the member or spouse.': 'Lacag-bixin sanadle ah oo ETB 5,000 ah ayaa loogu talagalay caymiska la soo jeediyey ee ETB 1 milyan, xubinta ama lammaanaha.',
     'Tenants and property owners may request household fire, accidental damage and burglary cover for an additional ETB 200 premium.': 'Kiraystayaasha iyo mulkiilayaasha guryuhu waxay codsan karaan caymiska dabka, waxyeellada shilka iyo tuugada, qiime dheeraad ah oo ETB 200 ah halkii guri.',
     'Choose your interests during sign-up. No payment is taken and no match or insurance cover is active until AfroLife confirms eligibility, funding, insurer terms and a start date.': 'Dooro faa’iidooyinka aad xiisaynayso markaad isdiiwaangelinayso. Lacag lagama qaadayo, mana jiro gunno ama caymis shaqaynaya ilaa AfroLife xaqiijiso u-qalmitaanka, maalgelinta, shuruudaha caymis-bixiyaha iyo taariikhda bilowga.',
-    'Apply to join AfroLife': 'Codso inaad ku biirto AfroLife', 'Welcome back': 'Soo dhawoow', 'Sign in': 'Gal', 'Sign up': 'Isdiiwaangeli',
+    'Apply to join AfroSherik': 'Codso inaad ku biirto AfroSherik', 'Welcome back': 'Soo dhawoow', 'Sign in': 'Gal', 'Sign up': 'Isdiiwaangeli',
     'Phone number': 'Lambarka telefoonka', 'Password': 'Furaha sirta ah', 'Full name': 'Magaca oo buuxa', 'Email (optional)': 'Iimayl (ikhtiyaari)',
     'Choose account type': 'Dooro nooca akoonka', 'I want to join as a worker': 'Waxaan doonayaa inaan ku biiro shaqaale ahaan',
     'I want to join as a buyer / customer': 'Waxaan doonayaa inaan ku biiro iibsade/macmiil ahaan',
@@ -512,7 +512,7 @@ const addedLanguages = {
     'Free': 'Bilaash', 'Pro': 'Pro', 'Enterprise': 'Enterprise', 'Properties': 'Guryo', 'Workers': 'Shaqaale', 'Overview': 'Guudmar', 'Security': 'Amniga'
   },
   ar: {
-    'Region': 'إقليم', 'City': 'مدينة', 'Sub-city': 'منطقة فرعية', 'Woreda': 'وردة', 'Kebele': 'كيبيلي', 'Territory': 'منطقة', 'Pro plan — ETB {{amount}} per month': 'خطة Pro — {{amount}} بر إثيوبي شهريًا', 'Enterprise plan — ETB {{amount}} per month': 'خطة Enterprise — {{amount}} بر إثيوبي شهريًا', 'Sign out': 'تسجيل الخروج', 'AfroLife home': 'الصفحة الرئيسية لأفرو لايف', 'Language': 'اللغة', 'Install app': 'تثبيت التطبيق',
+    'Region': 'إقليم', 'City': 'مدينة', 'Sub-city': 'منطقة فرعية', 'Woreda': 'وردة', 'Kebele': 'كيبيلي', 'Territory': 'منطقة', 'Pro plan — ETB {{amount}} per month': 'خطة Pro — {{amount}} بر إثيوبي شهريًا', 'Enterprise plan — ETB {{amount}} per month': 'خطة Enterprise — {{amount}} بر إثيوبي شهريًا', 'Sign out': 'تسجيل الخروج', 'AfroSherik home': 'الصفحة الرئيسية لأفروشريك', 'Language': 'اللغة', 'Install app': 'تثبيت التطبيق',
     'One trusted place to get work moving.': 'مكان موثوق واحد لبدء العمل.',
     'Coordinate leads, verified workers and service requests with clear ownership at every step.': 'نسّق العملاء المحتملين والعمال المعتمدين وطلبات الخدمة مع وضوح المسؤولية في كل خطوة.',
     'Verified workforce': 'قوى عاملة تم التحقق منها', 'Accountable agent network': 'شبكة وكلاء خاضعة للمساءلة', 'Central matching oversight': 'إشراف مركزي على المطابقة',
@@ -523,7 +523,7 @@ const addedLanguages = {
     'ETB 5,000 annual contribution for proposed ETB 1 million cover for the member or spouse.': 'مساهمة سنوية مقترحة قدرها 5,000 بر إثيوبي لتغطية قدرها مليون بر للعضو أو الزوج أو الزوجة.',
     'Tenants and property owners may request household fire, accidental damage and burglary cover for an additional ETB 200 premium.': 'يمكن للمستأجرين ومالكي العقارات طلب تغطية للحريق والأضرار العرضية والسرقة المنزلية مقابل قسط إضافي قدره 200 بر إثيوبي لكل منزل.',
     'Choose your interests during sign-up. No payment is taken and no match or insurance cover is active until AfroLife confirms eligibility, funding, insurer terms and a start date.': 'اختر المزايا التي تهمك عند التسجيل. لن يتم تحصيل أي مبلغ ولن تبدأ المساهمة المطابقة أو التغطية التأمينية حتى تؤكد أفرو لايف الأهلية والتمويل وشروط شركة التأمين وتاريخ البدء.',
-    'Apply to join AfroLife': 'قدّم طلب الانضمام إلى أفرو لايف', 'Welcome back': 'مرحبًا بعودتك', 'Sign in': 'تسجيل الدخول', 'Sign up': 'إنشاء حساب',
+    'Apply to join AfroSherik': 'قدّم طلب الانضمام إلى أفروشريك', 'Welcome back': 'مرحبًا بعودتك', 'Sign in': 'تسجيل الدخول', 'Sign up': 'إنشاء حساب',
     'Phone number': 'رقم الهاتف', 'Password': 'كلمة المرور', 'Full name': 'الاسم الكامل', 'Email (optional)': 'البريد الإلكتروني (اختياري)',
     'Choose account type': 'اختر نوع الحساب', 'I want to join as a worker': 'أرغب في الانضمام كعامل',
     'I want to join as a buyer / customer': 'أرغب في الانضمام كمشترٍ / عميل',
@@ -552,7 +552,7 @@ const addedLanguages = {
     'Free': 'مجاني', 'Pro': 'احترافي', 'Enterprise': 'مؤسسات', 'Properties': 'العقارات', 'Workers': 'العمال', 'Overview': 'نظرة عامة', 'Security': 'الأمان'
   },
   sw: {
-    'Sign out': 'Toka', 'AfroLife home': 'Ukurasa wa mwanzo wa AfroLife', 'Language': 'Lugha', 'Install app': 'Sakinisha programu',
+    'Sign out': 'Toka', 'AfroSherik home': 'Ukurasa wa mwanzo wa AfroSherik', 'Language': 'Lugha', 'Install app': 'Sakinisha programu',
     'One trusted place to get work moving.': 'Mahali pa kuaminika pa kuanzisha kazi.',
     'Coordinate leads, verified workers and service requests with clear ownership at every step.': 'Ratibu wateja watarajiwa, wafanyakazi waliothibitishwa na maombi ya huduma huku wajibu ukiwa wazi katika kila hatua.',
     'Verified workforce': 'Wafanyakazi waliothibitishwa', 'Accountable agent network': 'Mtandao wa mawakala unaowajibika', 'Central matching oversight': 'Usimamizi mkuu wa ulinganishaji',
@@ -563,7 +563,7 @@ const addedLanguages = {
     'ETB 5,000 annual contribution for proposed ETB 1 million cover for the member or spouse.': 'Mchango wa mwaka wa ETB 5,000 unapendekezwa kwa bima ya ETB milioni 1 kwa mwanachama au mwenzi.',
     'Tenants and property owners may request household fire, accidental damage and burglary cover for an additional ETB 200 premium.': 'Wapangaji na wamiliki wa nyumba wanaweza kuomba bima ya moto, uharibifu wa bahati mbaya na wizi kwa ada ya ziada ya ETB 200 kwa kila nyumba.',
     'Choose your interests during sign-up. No payment is taken and no match or insurance cover is active until AfroLife confirms eligibility, funding, insurer terms and a start date.': 'Chagua unachopendelea unapojisajili. Hakuna malipo yanayochukuliwa wala mchango unaolinganishwa au bima inayoanza hadi AfroLife ithibitishe ustahiki, ufadhili, masharti ya bima na tarehe ya kuanza.',
-    'Apply to join AfroLife': 'Omba kujiunga na AfroLife', 'Welcome back': 'Karibu tena', 'Sign in': 'Ingia', 'Sign up': 'Jisajili',
+    'Apply to join AfroSherik': 'Omba kujiunga na AfroSherik', 'Welcome back': 'Karibu tena', 'Sign in': 'Ingia', 'Sign up': 'Jisajili',
     'Phone number': 'Nambari ya simu', 'Password': 'Nenosiri', 'Full name': 'Jina kamili', 'Email (optional)': 'Barua pepe (si lazima)',
     'Choose account type': 'Chagua aina ya akaunti', 'I want to join as a worker': 'Ninataka kujiunga kama mfanyakazi',
     'I want to join as a buyer / customer': 'Ninataka kujiunga kama mnunuzi / mteja',
@@ -646,6 +646,33 @@ addedLanguages.sw['Region'] = 'Mkoa'; addedLanguages.sw['City'] = 'Jiji'; addedL
 addedLanguages.sw['Pro plan — ETB {{amount}} per month'] = 'Mpango wa Pro — ETB {{amount}} kwa mwezi';
 addedLanguages.sw['Enterprise plan — ETB {{amount}} per month'] = 'Mpango wa Enterprise — ETB {{amount}} kwa mwezi';for (const [locale, messages] of Object.entries(addedLanguages)) Object.assign(catalogs[locale], messages);
 const publicSurfaceTranslations = {
+  'AFROSHERIK REGISTRATION': {
+    am: 'የAfroSherik ምዝገባ',
+  },
+  'Ask about worker savings options': {
+    am: 'ስለ የሠራተኞች ቁጠባ አማራጮች ይጠይቁ',
+  },
+  'Request information about currently configured worker savings services. No match or pension contribution is promised.': {
+    am: 'ስለ አሁን ስለተዘጋጁ የሠራተኞች ቁጠባ አገልግሎቶች መረጃ ይጠይቁ። ተዛማጅ መዋጮ ወይም የጡረታ ክፍያ ቃል አይገባም።',
+  },
+  'For workers seeking an Option A placement with the Enterprise service pathway. Enrollment, employer terms, pension matching and Edir benefits require confirmation before activation.': {
+    am: 'በEnterprise አገልግሎት መንገድ የOption A የሥራ ምደባ ለሚፈልጉ ሠራተኞች ነው። ከመንቃቱ በፊት ምዝገባ፣ የአሠሪ ውሎች፣ የጡረታ ተዛማጅ መዋጮ እና የእድር ጥቅሞች መረጋገጥ አለባቸው።',
+  },
+  'Ask about future insurance services': {
+    am: 'ስለ ወደፊት የመድን አገልግሎቶች ይጠይቁ',
+  },
+  'Insurance is not active in the current Edir pilot.': {
+    am: 'በአሁኑ የእድር ሙከራ ውስጥ የመድን አገልግሎት ንቁ አይደለም።',
+  },
+  'Ask about future household protection': {
+    am: 'ስለ ወደፊት የቤተሰብ ጥበቃ ይጠይቁ',
+  },
+  'Household cover is not active in the current AfroLife service.': {
+    am: 'በአሁኑ የAfroLife አገልግሎት ውስጥ የቤተሰብ ሽፋን ንቁ አይደለም።',
+  },
+  'These are non-binding requests for information. Selecting a benefit does not enroll you, collect money or start insurance coverage.': {
+    am: 'እነዚህ አስገዳጅ ያልሆኑ የመረጃ ጥያቄዎች ናቸው። ጥቅም መምረጥ ምዝገባ አያደርግም፣ ገንዘብ አያስከፍልም ወይም የመድን ሽፋን አይጀምርም።',
+  },
   'One Platform. Endless Possibilities.': {
     am: 'አንድ መድረክ። ወሰን የሌላቸው እድሎች።',
   },
@@ -1191,8 +1218,8 @@ const publicSurfaceTranslations = {
   'Agent subscription plans': {
     am: 'የወኪል ምዝገባ ዕቅዶች', om: 'Karoorawwan galmee bakka bu’aa', ti: 'መደባት ምዝገባ ወኪል', so: 'Qorshayaasha rukumashada wakiilka', ar: 'خطط اشتراك الوكلاء', sw: 'Mipango ya usajili wa wakala',
   },
-  'Apply to join AfroLife': {
-    am: 'ወደ AfroLife ለመቀላቀል ያመልክቱ', om: 'AfroLife waliin makamuuf iyyadhaa', ti: 'ምስ AfroLife ንምጽንባር ኣመልክቱ', so: 'Codso inaad ku biirto AfroLife', ar: 'قدّم طلبًا للانضمام إلى AfroLife', sw: 'Omba kujiunga na AfroLife',
+  'Apply to join AfroSherik': {
+    am: 'ወደ AfroSherik ለመቀላቀል ያመልክቱ', om: 'AfroSherik waliin makamuuf iyyadhaa', ti: 'ምስ AfroSherik ንምጽንባር ኣመልክቱ', so: 'Codso inaad ku biirto AfroSherik', ar: 'قدّم طلبًا للانضمام إلى AfroSherik', sw: 'Omba kujiunga na AfroSherik',
   },
   'Request community membership after KYC. Available membership products and terms are shown in the Edir workspace.': {
     am: 'ከKYC በኋላ የማህበረሰብ አባልነት ይጠይቁ። ያሉ የአባልነት ምርቶችና ውሎች በእድር የሥራ ቦታ ይታያሉ።', om: 'KYC booda miseensummaa hawaasaa gaafadhaa. Oomishaa fi ulaagaaleen Edir keessatti mul’atu.', ti: 'ድሕሪ KYC ኣባልነት ማሕበረሰብ ሕተቱ። ዘለዉ ፍርያትን ውዕላትን ኣብ ቦታ Edir ይርከቡ።', so: 'Codso xubinnimada bulshada kadib KYC. Adeegyada iyo shuruudaha xubinnimada waxaa lagu muujiyaa goobta Edir.', ar: 'اطلب عضوية المجتمع بعد KYC. تظهر منتجات العضوية وشروطها المتاحة في مساحة عمل إدير.', sw: 'Omba uanachama wa jamii baada ya KYC. Bidhaa na masharti ya uanachama yanaonyeshwa kwenye nafasi ya Edir.',

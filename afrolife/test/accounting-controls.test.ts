@@ -10,6 +10,21 @@ import {
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
+test('standalone accounting workspace shares AfroLife surface and focus tokens', () => {
+  const styles = source('services/accounting/web/accounting.css');
+
+  assert.match(styles, /--ink:\s*#202a27/i);
+  assert.match(styles, /--green:\s*#174b3d/i);
+  assert.match(styles, /--green-dark:\s*#10382e/i);
+  assert.match(styles, /--gold:\s*#d7ad59/i);
+  assert.match(styles, /--surface-shadow:\s*0 2px 8px rgba\(23, 75, 61, \.08\)/i);
+  assert.match(styles, /header\s*\{[^}]*border-top:\s*3px solid var\(--green\);[^}]*background:\s*var\(--surface\);/s);
+  assert.match(styles, /\.card\s*\{[^}]*border-radius:\s*12px;[^}]*box-shadow:\s*var\(--surface-shadow\);/s);
+  assert.match(styles, /\.metric\s*\{[^}]*border-top:\s*3px solid var\(--green\);[^}]*background:\s*var\(--surface\);/s);
+  assert.match(styles, /button:focus-visible,\s*a:focus-visible,\s*input:focus-visible/);
+  assert.match(styles, /th\s*\{\s*background:\s*var\(--surface-soft\);/);
+});
+
 test('journal validation balances exact cents and rejects invalid or oversized entries', () => {
   assert.equal(toCents('9999999999999999.99'), MAX_JOURNAL_AMOUNT_CENTS);
   assert.equal(validateBalancedJournal([

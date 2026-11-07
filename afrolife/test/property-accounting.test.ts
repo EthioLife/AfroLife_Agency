@@ -53,12 +53,17 @@ test('property period close is ready only when all report-only checks are clear'
   }).ready_for_finance_review, false);
 });
 
-test('owner statement CSV protects text values and exports reconciliation columns', () => {
+test('owner statement CSV protects text values and exports deposit disposition columns', async () => {
   const csv = toCsv([{
     address: '=HYPERLINK("https://example.invalid")',
     rent_reconciled: '1250.00',
     deposit_refunded: '0.00',
-  }], ['address', 'rent_reconciled', 'deposit_refunded']);
+    approved_deposit_deduction: '0.00',
+    approved_deposit_refund_remaining: '1250.00',
+  }], ['address', 'rent_reconciled', 'deposit_refunded', 'approved_deposit_deduction', 'approved_deposit_refund_remaining']);
   assert.match(csv, /'=/);
-  assert.match(csv, /rent_reconciled,deposit_refunded/);
+  assert.match(csv, /deposit_refunded,approved_deposit_deduction,approved_deposit_refund_remaining/);
+  const ops = await readFile(new URL('../src/ops.ts', import.meta.url), 'utf8');
+  assert.match(ops, /AS approved_deposit_deduction/);
+  assert.match(ops, /AS approved_deposit_refund_remaining/);
 });

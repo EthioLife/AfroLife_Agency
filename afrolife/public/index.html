@@ -3,12 +3,13 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#0B4D3B">
+    <meta name="theme-color" content="#174b3d">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="description" content="AfroSherik connects people with opportunities and services across work, homes, business, and community.">
     <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <link rel="icon" href="/icons/afrosherik-icon-192.png" type="image/png" sizes="192x192">
     <link rel="apple-touch-icon" href="/icons/afrosherik-icon-192.png">
     <link rel="stylesheet" href="/styles.css">
@@ -19,7 +20,11 @@
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="topbar">
       <a class="brand" href="/" aria-label="AfroSherik | አፍሮ-ሸሪክ">
-        <img src="/brand/afrosherik-brand-lockup.png" alt="" width="490" height="152">
+        <img src="/icon.svg" alt="" width="512" height="512">
+        <span class="brand-copy">
+          <span class="brand-name">AfroSherik</span>
+          <span class="brand-detail"><span lang="am">አፍሮ-ሸሪክ</span><span class="brand-parent">An EthioLife service</span></span>
+        </span>
       </a>
       <label class="language-picker">
         <span class="visually-hidden">Language</span>
@@ -48,6 +53,12 @@
           <a class="welcome-signin-shortcut" href="#login-form">Sign in</a>
           <h1>One Platform. Endless Possibilities.</h1>
           <p>Explore connected services and opportunities across work, homes, marketplace, agents, payments, protection, and support.</p>
+          <ul class="service-preview" aria-label="Service categories">
+            <li>Work</li>
+            <li>Homes</li>
+            <li>Marketplace</li>
+            <li>Community</li>
+          </ul>
           <p class="welcome-promise">Connect <span aria-hidden="true">•</span> Access <span aria-hidden="true">•</span> Thrive <span class="welcome-promise-note">Building a Prosperous Africa Together.</span></p>
           <figure class="brand-illustration">
             <img src="/brand/afrosherik-campaign-hero.png" alt="AfroSherik campaign artwork showing a woman with a phone and the Addis Ababa skyline beside the message: More Opportunities. Stronger Communities." width="427" height="204">
@@ -80,11 +91,11 @@
           <div class="login-links">
             <button id="show-agent-plans" class="text-button" type="button">Agent subscription plans</button>
           </div>
-          <p class="fine-print">Access is limited to approved AfroLife accounts.</p>
+          <p class="fine-print">Access is limited to approved AfroSherik accounts.</p>
         </form>
         <form id="signup-form" class="panel signup-card" hidden>
           <p class="eyebrow">AFROSHERIK REGISTRATION</p>
-          <h2>Apply to join AfroLife</h2>
+          <h2>Apply to join AfroSherik</h2>
           <p class="muted">Staff approval is required before sign-in. Your account will remain inactive until compliance review and activation are complete.</p>
           <label>Full name<input name="legal_name" autocomplete="name" required minlength="2" maxlength="160"></label>
           <label>Phone number<input name="phone" type="tel" autocomplete="tel" placeholder="+251 9…" required minlength="8"></label>
@@ -207,6 +218,18 @@
             </div>
           </figure>
         </div>
+        <section class="hub-section" aria-labelledby="services-title">
+          <div class="hub-section-heading"><div><p class="eyebrow">SERVICE MENU</p><h2 id="services-title">One app, useful services</h2></div><span class="hub-caption">Choose a service to continue</span></div>
+          <div class="service-grid">
+            <a class="service-card" data-panel="properties" href="#login-form"><span class="service-icon">⌂</span><strong>Homes &amp; rentals</strong><span>Browse property listings, connect landlords and tenants, and manage rent workflows where enabled.</span><small>Property mini app →</small></a>
+            <a class="service-card" data-panel="marketplace" href="#login-form"><span class="service-icon">◎</span><strong>Marketplace</strong><span>Discover products and services from registered sellers and local businesses.</span><small>Market mini app →</small></a>
+            <a class="service-card" data-panel="workers" href="#login-form"><span class="service-icon">✳</span><strong>Workforce</strong><span>Find work opportunities, verified worker profiles, and employer service requests.</span><small>Jobs mini app →</small></a>
+            <a class="service-card" data-panel="edir" href="#login-form"><span class="service-icon">◉</span><strong>AfroLife Edir</strong><span>Request community membership after KYC. Available membership products and terms are shown in the Edir workspace.</span><small>Community mini app →</small></a>
+            <a class="service-card" data-panel="mfi" href="#login-form"><span class="service-icon">▤</span><strong>SACCO / MFI</strong><span>Financial cooperative tools appear only when the organization enables the pilot for your account.</span><small>Finance mini app →</small></a>
+            <a class="service-card" data-panel="agents" href="#login-form"><span class="service-icon">▣</span><strong>Agent services</strong><span>Manage referrals, service requests, contracts, and team activity based on your role.</span><small>Agency mini app →</small></a>
+            <a class="service-card" data-panel="accounting" href="#login-form"><span class="service-icon">▤</span><strong>Accounting &amp; Finance</strong><span>Manage entity books, journals, financial operations, and entity-scoped reporting.</span><small>Accounting mini app →</small></a>
+          </div>
+        </section>
         <div id="subscription-home-host">
         <section id="subscription-catalog" class="hub-section subscription-catalog" aria-labelledby="subscription-catalog-title">
           <div class="hub-section-heading">
@@ -227,18 +250,6 @@
           </section>
         </section>
         </div>
-        <section class="hub-section" aria-labelledby="services-title">
-          <div class="hub-section-heading"><div><p class="eyebrow">SERVICE MENU</p><h2 id="services-title">One app, useful services</h2></div><span class="hub-caption">Choose a service to continue</span></div>
-          <div class="service-grid">
-            <a class="service-card" data-panel="properties" href="#login-form"><span class="service-icon">⌂</span><strong>Homes &amp; rentals</strong><span>Browse property listings, connect landlords and tenants, and manage rent workflows where enabled.</span><small>Property mini app →</small></a>
-            <a class="service-card" data-panel="marketplace" href="#login-form"><span class="service-icon">◎</span><strong>Marketplace</strong><span>Discover products and services from registered sellers and local businesses.</span><small>Market mini app →</small></a>
-            <a class="service-card" data-panel="workers" href="#login-form"><span class="service-icon">✳</span><strong>Workforce</strong><span>Find work opportunities, verified worker profiles, and employer service requests.</span><small>Jobs mini app →</small></a>
-            <a class="service-card" data-panel="edir" href="#login-form"><span class="service-icon">◉</span><strong>AfroLife Edir</strong><span>Request community membership after KYC. Available membership products and terms are shown in the Edir workspace.</span><small>Community mini app →</small></a>
-            <a class="service-card" data-panel="mfi" href="#login-form"><span class="service-icon">▤</span><strong>SACCO / MFI</strong><span>Financial cooperative tools appear only when the organization enables the pilot for your account.</span><small>Finance mini app →</small></a>
-            <a class="service-card" data-panel="agents" href="#login-form"><span class="service-icon">▣</span><strong>Agent services</strong><span>Manage referrals, service requests, contracts, and team activity based on your role.</span><small>Agency mini app →</small></a>
-            <a class="service-card" data-panel="accounting" href="#login-form"><span class="service-icon">▤</span><strong>Accounting &amp; Finance</strong><span>Manage entity books, journals, financial operations, and entity-scoped reporting.</span><small>Accounting mini app →</small></a>
-          </div>
-        </section>
         <section class="hub-section community-benefits-section" aria-labelledby="member-benefits-title">
           <section class="member-benefits" aria-labelledby="member-benefits-title">
             <div class="member-benefits-intro">

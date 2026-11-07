@@ -19,6 +19,7 @@ import { propertyVendorPortal } from './property-vendor-portal.js';
 import { staffingAccounting } from './staffing-accounting.js';
 import { workforceOperations } from './workforce-operations.js';
 import { canTransitionMaintenance, requiresMaintenanceReview } from './maintenance-workflow.js';
+import { leaseMoneyToCents, normalizeLeaseMoney, validateLeaseRenewalTerm } from './lease-renewals.js';
 
 export const ops = Router();
 ops.use(propertyVendorAccounting);
@@ -529,6 +530,15 @@ ops.get('/owner/statements', requireRole('property_owner'), h(async (req, res) =
        COALESCE((SELECT sum(t.amount) FROM rent_transactions t WHERE t.lease_id=l.id AND t.kind='rent' AND t.status='pending'),0)::text AS rent_pending_reconciliation,
        COALESCE((SELECT sum(t.amount) FROM rent_transactions t WHERE t.lease_id=l.id AND t.kind='deposit' AND t.status='reconciled'),0)::text AS deposit_reconciled,
        COALESCE((SELECT sum(t.amount) FROM rent_transactions t WHERE t.lease_id=l.id AND t.kind='deposit_refund' AND t.status='reconciled'),0)::text AS deposit_refunded,
+       COALESCE((SELECT sum(t.amount) FROM rent_transactions t WHERE t.lease_id=l.id AND t.kind='deposit_refund' AND t.status='pending'),0)::text AS deposit_refund_pending,
+       COALESCE((SELECT inspection.deposit_deduction FROM lease_move_out_inspections inspection
+         WHERE inspection.lease_id=l.id AND inspection.status='approved'),0)::text AS approved_deposit_deduction,
+       GREATEST(0,
+         COALESCE((SELECT sum(t.amount) FROM rent_transactions t WHERE t.lease_id=l.id AND t.kind='deposit' AND t.status='reconciled'),0)
+         - COALESCE((SELECT inspection.deposit_deduction FROM lease_move_out_inspections inspection
+           WHERE inspection.lease_id=l.id AND inspection.status='approved'),0)
+         - COALESCE((SELECT sum(t.amount) FROM rent_transactions t WHERE t.lease_id=l.id AND t.kind='deposit_refund' AND t.status<>'void'),0)
+       )::text AS approved_deposit_refund_remaining,
        (SELECT max(t.reconciled_at) FROM rent_transactions t WHERE t.lease_id=l.id AND t.status='reconciled') AS last_reconciled_at
      FROM leases l JOIN property_units u ON u.id=l.unit_id JOIN properties p ON p.id=u.property_id
      WHERE p.owner_user_id=$1 ORDER BY l.created_at DESC LIMIT 500`,
@@ -539,7 +549,9 @@ ops.get('/owner/statements', requireRole('property_owner'), h(async (req, res) =
     const columns = [
       'lease_id', 'property_id', 'address', 'unit_no', 'start_date', 'end_date', 'status',
       'monthly_rent', 'agreed_deposit', 'rent_charged', 'rent_reconciled',
-      'rent_pending_reconciliation', 'deposit_reconciled', 'deposit_refunded', 'last_reconciled_at',
+      'rent_pending_reconciliation', 'deposit_reconciled', 'deposit_refunded',
+      'deposit_refund_pending', 'approved_deposit_deduction',
+      'approved_deposit_refund_remaining', 'last_reconciled_at',
     ] as const;
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="owner-rent-statement.csv"');
@@ -769,6 +781,57 @@ ops.get('/resident/property-workspace', requireRole('customer'), h(async (req, r
            'proposed_effective_on',n.proposed_effective_on,'summary',n.summary,
            'created_at',n.created_at
          ) ORDER BY n.created_at DESC) FROM lease_notices n WHERE n.lease_id=l.id),'[]'::json) AS notices
+         ,COALESCE((SELECT json_agg(json_build_object(
+           'id',offer.id,'status',offer.status,'proposed_rent',offer.proposed_rent::text,
+           'proposed_deposit',offer.proposed_deposit::text,'proposed_start_date',offer.proposed_start_date,
+           'proposed_end_date',offer.proposed_end_date,'term_months',offer.term_months,
+           'due_day',offer.due_day,'expires_on',offer.expires_on,'review_reason',offer.review_reason,
+           'response_note',offer.response_note,'request_reason',offer.request_reason,
+           'events',(SELECT json_agg(json_build_object(
+             'event_type',event.event_type,'from_status',event.from_status,'to_status',event.to_status,
+             'reason',event.reason,'created_at',event.created_at
+           ) ORDER BY event.created_at,event.id)
+             FROM lease_renewal_offer_events event WHERE event.offer_id=offer.id),
+           'created_by',offer.created_by,
+           'converted_lease_id',(SELECT renewal.id FROM leases renewal WHERE renewal.renewal_offer_id=offer.id)
+         ) ORDER BY offer.created_at DESC,offer.id)
+             FROM lease_renewal_offers offer WHERE offer.lease_id=l.id),'[]'::json) AS renewal_offers,
+           COALESCE((SELECT json_agg(json_build_object(
+             'id',inspection.id,'revision',inspection.revision,'actual_vacated_on',inspection.actual_vacated_on,
+             'inspected_on',inspection.inspected_on,'condition_notes',inspection.condition_notes,
+             'keys_returned',inspection.keys_returned,'deposit_deduction',inspection.deposit_deduction::text,
+             'deduction_reason',inspection.deduction_reason,'status',inspection.status,
+             'submitted_by',inspection.submitted_by,'reviewed_by',inspection.reviewed_by,
+             'review_note',inspection.review_note,'submitted_at',inspection.submitted_at,
+             'reviewed_at',inspection.reviewed_at,
+             'evidence',(SELECT COALESCE(json_agg(json_build_object(
+               'id',evidence.id,'mime',evidence.mime,'size_bytes',evidence.size_bytes,
+               'created_at',evidence.created_at
+             ) ORDER BY evidence.created_at,evidence.id),'[]'::json)
+               FROM lease_move_out_inspection_evidence evidence WHERE evidence.inspection_id=inspection.id)
+           ) ORDER BY inspection.revision DESC)
+             FROM lease_move_out_inspections inspection WHERE inspection.lease_id=l.id),'[]'::json)
+             AS move_out_inspections
+         ,COALESCE((SELECT json_agg(json_build_object(
+           'id',inspection.id,'revision',inspection.revision,'actual_vacated_on',inspection.actual_vacated_on,
+           'inspected_on',inspection.inspected_on,'condition_notes',inspection.condition_notes,
+           'keys_returned',inspection.keys_returned,'deposit_deduction',inspection.deposit_deduction::text,
+           'deduction_reason',inspection.deduction_reason,'status',inspection.status,
+           'submitted_by',inspection.submitted_by,'reviewed_by',inspection.reviewed_by,
+           'review_note',inspection.review_note,'submitted_at',inspection.submitted_at,
+           'reviewed_at',inspection.reviewed_at,
+           'evidence',(SELECT COALESCE(json_agg(json_build_object(
+             'id',evidence.id,'mime',evidence.mime,'size_bytes',evidence.size_bytes,
+             'created_at',evidence.created_at
+           ) ORDER BY evidence.created_at,evidence.id),'[]'::json)
+             FROM lease_move_out_inspection_evidence evidence WHERE evidence.inspection_id=inspection.id),
+           'events',(SELECT COALESCE(json_agg(json_build_object(
+             'event_type',event.event_type,'reason',event.reason,'created_at',event.created_at
+           ) ORDER BY event.created_at,event.id),'[]'::json)
+             FROM lease_move_out_inspection_events event WHERE event.inspection_id=inspection.id)
+         ) ORDER BY inspection.revision DESC)
+           FROM lease_move_out_inspections inspection WHERE inspection.lease_id=l.id),'[]'::json)
+           AS move_out_inspections
        FROM leases l
        JOIN property_tenant_account_links link ON link.tenant_id=l.tenant_id
        JOIN tenants t ON t.id=l.tenant_id
@@ -951,6 +1014,35 @@ const LeaseIn = z.object({
 
 const LifecycleReason = z.string().trim().min(10).max(1000);
 
+const LeaseMoveOutInspectionIn = z.object({
+  actual_vacated_on: z.string().date(),
+  inspected_on: z.string().date(),
+  condition_notes: z.string().trim().min(10).max(4000),
+  keys_returned: z.boolean(),
+  deposit_deduction: z.string().regex(/^\d{1,12}(?:\.\d{1,2})?$/).default('0'),
+  deduction_reason: z.string().trim().min(10).max(1000).optional(),
+}).strict();
+
+const LeaseRenewalOfferIn = z.object({
+  proposed_rent: z.string().regex(/^\d{1,12}(?:\.\d{1,2})?$/),
+  proposed_deposit: z.string().regex(/^\d{1,12}(?:\.\d{1,2})?$/),
+  proposed_start_date: z.string().date(),
+  term_months: z.number().int().min(1).max(120),
+  due_day: z.number().int().min(1).max(28).optional(),
+  expires_on: z.string().date(),
+  request_reason: LifecycleReason,
+  idempotency_key: z.string().uuid(),
+}).strict();
+
+function renewalMoney(value: string, allowZero = false): string {
+  try {
+    return normalizeLeaseMoney(value, allowZero);
+  } catch (error) {
+    if (error instanceof RangeError) throw new HttpError(422, error.message);
+    throw error;
+  }
+}
+
 const LeaseNoticeIn = z.object({
   idempotency_key: z.string().uuid(),
   notice_type: z.enum(['tenant_to_owner', 'owner_to_tenant', 'mutual_agreement', 'other']),
@@ -1086,6 +1178,291 @@ ops.post('/leases/workflow', requireActivity('property.tenancy.manage'), h(async
     return lease;
   });
   res.status(201).json(row);
+}));
+
+ops.post('/leases/:id/renewal-offers', requireActivity('property.tenancy.manage'), h(async (req, res) => {
+  const body = LeaseRenewalOfferIn.parse(req.body);
+  const proposedRent = renewalMoney(body.proposed_rent);
+  const proposedDeposit = renewalMoney(body.proposed_deposit, true);
+  const payloadHash = createHash('sha256').update(JSON.stringify({
+    proposed_rent: proposedRent,
+    proposed_deposit: proposedDeposit,
+    proposed_start_date: body.proposed_start_date,
+    term_months: body.term_months,
+    due_day: body.due_day ?? null,
+    expires_on: body.expires_on,
+    request_reason: body.request_reason,
+  })).digest('hex');
+  const result = await withUser(req.user!, async (client) => {
+    const lease = (await client.query(
+      `SELECT id,tenant_id,unit_id,source_agent_id,status,end_date,due_day,current_date::text AS today
+       FROM leases WHERE id=$1 FOR UPDATE`,
+      [req.params.id],
+    )).rows[0];
+    if (!lease) throw new HttpError(404, 'Lease not found');
+    const prior = (await client.query(
+      `SELECT * FROM lease_renewal_offers
+       WHERE lease_id=$1 AND created_by=$2 AND idempotency_key=$3`,
+      [lease.id, req.user!.id, body.idempotency_key],
+    )).rows[0];
+    if (prior) {
+      if (prior.payload_hash !== payloadHash) {
+        throw new HttpError(409, 'Idempotency key was already used for a different renewal offer');
+      }
+      return { offer: prior, replayed: true };
+    }
+    if (lease.status !== 'active') throw new HttpError(409, 'Only an active lease can receive a renewal offer');
+    const rules = await loadRules(client);
+    const minMonths = rules.lease_min_term_months ?? 24;
+    const maxMonths = rules.lease_max_months ?? 24;
+    if (body.term_months < minMonths || body.term_months > maxMonths) {
+      throw new HttpError(422, `Renewal term must be between ${minMonths} and ${maxMonths} months.`);
+    }
+    const term = validateLeaseRenewalTerm({
+      currentEndDate: String(lease.end_date).slice(0, 10),
+      proposedStartDate: body.proposed_start_date,
+      months: body.term_months,
+      today: lease.today,
+    });
+    if (body.expires_on < lease.today || body.expires_on >= term.startDate) {
+      throw new HttpError(422, 'The offer expiration must be today or later and before the proposed renewal starts.');
+    }
+    const expiredOffers = await client.query<{ id: string }>(
+      `UPDATE lease_renewal_offers
+       SET status='expired',updated_at=now()
+       WHERE lease_id=$1 AND status='offered' AND expires_on<current_date
+       RETURNING id`,
+      [lease.id],
+    );
+    for (const expired of expiredOffers.rows) {
+      await client.query(
+        `INSERT INTO lease_renewal_offer_events(offer_id,actor_id,event_type,from_status,to_status,reason)
+         VALUES($1,$2,'expired','offered','expired','Renewal offer expired before a replacement was created')`,
+        [expired.id, req.user!.id],
+      );
+      await audit(client, req.user!.id, 'lease_renewal_offer_expired', 'lease', lease.id, null, {
+        offer_id: expired.id,
+      });
+    }
+    const dueDay = body.due_day ?? lease.due_day ?? rules.lease_default_due_day ?? 5;
+    const offer = (await client.query(
+      `INSERT INTO lease_renewal_offers(
+         lease_id,proposed_rent,proposed_deposit,proposed_start_date,proposed_end_date,
+         term_months,due_day,expires_on,idempotency_key,payload_hash,request_reason,created_by
+       ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+       ON CONFLICT DO NOTHING RETURNING *`,
+      [lease.id, proposedRent, proposedDeposit, term.startDate, term.endDate,
+        body.term_months, dueDay, body.expires_on, body.idempotency_key, payloadHash, body.request_reason, req.user!.id],
+    )).rows[0];
+    if (!offer) {
+      const replay = (await client.query(
+        `SELECT * FROM lease_renewal_offers
+         WHERE lease_id=$1 AND created_by=$2 AND idempotency_key=$3`,
+        [lease.id, req.user!.id, body.idempotency_key],
+      )).rows[0];
+      if (replay) {
+        if (replay.payload_hash !== payloadHash) {
+          throw new HttpError(409, 'Idempotency key was already used for a different renewal offer');
+        }
+        return { offer: replay, replayed: true };
+      }
+      throw new HttpError(409, 'This lease already has a renewal offer awaiting a decision.');
+    }
+    await client.query(
+      `INSERT INTO lease_renewal_offer_events(offer_id,actor_id,event_type,from_status,to_status,reason)
+       VALUES($1,$2,'created',NULL,'pending_approval',$3)`,
+      [offer.id, req.user!.id, body.request_reason],
+    );
+    await client.query(
+      `INSERT INTO lease_lifecycle_events(lease_id,from_status,to_status,action,actor_id,reason,metadata)
+       VALUES($1,'active','active','renewal_offer_created',$2,$3,
+        jsonb_build_object('offer_id',$4::uuid,'proposed_start_date',$5::date,'proposed_end_date',$6::date))`,
+      [lease.id, req.user!.id, body.request_reason, offer.id, term.startDate, term.endDate],
+    );
+    await audit(client, req.user!.id, 'lease_renewal_offer_created', 'lease', lease.id, null, {
+      offer_id: offer.id, term_months: body.term_months, proposed_rent: proposedRent, request_reason: body.request_reason,
+    });
+    return { offer, replayed: false };
+  });
+  res.status(result.replayed ? 200 : 201).json({ ...result.offer, replayed: result.replayed });
+}));
+
+ops.post('/leases/:id/renewal-offers/:offerId/decision',
+  requireActivity('property.tenancy.approve'), requireActivity('property.tenancy.manage'), h(async (req, res) => {
+  const body = z.object({
+    decision: z.enum(['offer','reject']),
+    reason: LifecycleReason,
+  }).strict().parse(req.body);
+  const result = await withUser(req.user!, async (client) => {
+    const current = (await client.query(
+      `SELECT offer.*,lease.status AS lease_status
+       FROM lease_renewal_offers offer JOIN leases lease ON lease.id=offer.lease_id
+       WHERE offer.id=$1 AND offer.lease_id=$2 FOR UPDATE OF offer,lease`,
+      [req.params.offerId, req.params.id],
+    )).rows[0];
+    if (!current) throw new HttpError(404, 'Lease renewal offer not found');
+    if (current.status !== 'pending_approval') throw new HttpError(409, 'Renewal offer is not awaiting approval');
+    if (current.created_by === req.user!.id) throw new HttpError(403, 'The offer creator cannot approve their own renewal offer');
+    if (body.decision === 'offer') {
+      if (current.lease_status !== 'active') throw new HttpError(409, 'The current lease is no longer active');
+      const resident = await client.query(
+        `SELECT account.id FROM property_tenant_account_links link
+         JOIN users account ON account.id=link.user_id AND account.active
+         WHERE link.tenant_id=(SELECT tenant_id FROM leases WHERE id=$1)
+           AND link.revoked_at IS NULL ORDER BY account.id`,
+        [current.lease_id],
+      );
+      if (!resident.rowCount) throw new HttpError(409, 'Link a verified resident account before issuing a renewal offer.');
+      if (current.expires_on < new Date().toISOString().slice(0, 10)) {
+        throw new HttpError(409, 'The renewal offer has expired and cannot be issued.');
+      }
+    }
+    const status = body.decision === 'offer' ? 'offered' : 'rejected';
+    const offer = (await client.query(
+      `UPDATE lease_renewal_offers SET status=$2,approved_by=$3,approved_at=now(),
+         review_reason=$4,updated_at=now()
+       WHERE id=$1 RETURNING *`,
+      [current.id, status, req.user!.id, body.decision === 'reject' ? body.reason : null],
+    )).rows[0];
+    await client.query(
+      `INSERT INTO lease_renewal_offer_events(offer_id,actor_id,event_type,from_status,to_status,reason)
+       VALUES($1,$2,$3,'pending_approval',$4,$5)`,
+      [offer.id, req.user!.id, status, status, body.reason],
+    );
+    await client.query(
+      `INSERT INTO lease_lifecycle_events(lease_id,from_status,to_status,action,actor_id,reason,metadata)
+       VALUES($1,'active','active',$2,$3,$4,jsonb_build_object('offer_id',$5::uuid))`,
+      [offer.lease_id, `renewal_offer_${status}`, req.user!.id, body.reason, offer.id],
+    );
+    if (status === 'offered') {
+      const residents = await client.query<{ user_id: string }>(
+        `SELECT user_id FROM property_tenant_account_links
+         WHERE tenant_id=(SELECT tenant_id FROM leases WHERE id=$1) AND revoked_at IS NULL`,
+        [offer.lease_id],
+      );
+      for (const resident of residents.rows) {
+        await notify(client, resident.user_id, 'lease_renewal_offer', {
+          lease_id: offer.lease_id, offer_id: offer.id, expires_on: offer.expires_on,
+        });
+      }
+    }
+    await audit(client, req.user!.id, `lease_renewal_offer_${status}`, 'lease', offer.lease_id,
+      { offer_status: current.status }, { offer_status: status, offer_id: offer.id, reason: body.reason });
+    return offer;
+  });
+  res.json(result);
+}));
+
+ops.post('/resident/leases/:leaseId/renewal-offers/:offerId/respond', requireRole('customer'), h(async (req, res) => {
+  const body = z.object({
+    decision: z.enum(['accept','decline']),
+    response_note: z.string().trim().min(5).max(1000).optional(),
+  }).strict().superRefine((value, context) => {
+    if (value.decision === 'decline' && (!value.response_note || value.response_note.length < 10)) {
+      context.addIssue({ code: 'custom', path: ['response_note'], message: 'A decline reason of at least 10 characters is required.' });
+    }
+  }).parse(req.body);
+  const result = await withUser(req.user!, async (client) => {
+    const current = (await client.query(
+      `SELECT offer.*,lease.tenant_id,lease.status AS lease_status
+       FROM lease_renewal_offers offer JOIN leases lease ON lease.id=offer.lease_id
+       JOIN property_tenant_account_links link ON link.tenant_id=lease.tenant_id
+       WHERE offer.id=$1 AND offer.lease_id=$2 AND link.user_id=$3 AND link.revoked_at IS NULL
+       FOR UPDATE OF offer`,
+      [req.params.offerId, req.params.leaseId, req.user!.id],
+    )).rows[0];
+    if (!current) throw new HttpError(404, 'Renewal offer not found for this resident account');
+    if (current.status !== 'offered' || current.lease_status !== 'active') {
+      throw new HttpError(409, 'This renewal offer is no longer available for a response.');
+    }
+    if (current.expires_on < new Date().toISOString().slice(0, 10)) {
+      throw new HttpError(409, 'This renewal offer has expired.');
+    }
+    const status = body.decision === 'accept' ? 'accepted' : 'declined';
+    const offer = (await client.query(
+      `UPDATE lease_renewal_offers SET status=$2,responded_by=$3,responded_at=now(),
+         response_note=$4,updated_at=now() WHERE id=$1 RETURNING *`,
+      [current.id, status, req.user!.id, body.response_note ?? null],
+    )).rows[0];
+    await client.query(
+      `INSERT INTO lease_renewal_offer_events(offer_id,actor_id,event_type,from_status,to_status,reason)
+       VALUES($1,$2,$3,'offered',$4,$5)`,
+      [offer.id, req.user!.id, status,
+        status, body.response_note ?? 'Resident accepted the proposed renewal terms'],
+    );
+    await client.query(
+      `INSERT INTO lease_lifecycle_events(lease_id,from_status,to_status,action,actor_id,reason,metadata)
+       VALUES($1,'active','active',$2,$3,$4,jsonb_build_object('offer_id',$5::uuid))`,
+      [offer.lease_id, `renewal_offer_${status}`, req.user!.id,
+        body.response_note ?? 'Resident accepted the proposed renewal terms', offer.id],
+    );
+    await notify(client, offer.created_by, `lease_renewal_offer_${status}`, {
+      lease_id: offer.lease_id, offer_id: offer.id,
+    });
+    await audit(client, req.user!.id, `lease_renewal_offer_${status}`, 'lease', offer.lease_id,
+      { offer_status: current.status }, { offer_status: status, offer_id: offer.id });
+    return { ...offer, renewal_lease_draft_required: status === 'accepted' };
+  });
+  res.json(result);
+}));
+
+ops.post('/leases/renewal-offers/:offerId/convert', requireActivity('property.tenancy.manage'), h(async (req, res) => {
+  const { reason } = z.object({ reason: LifecycleReason }).strict().parse(req.body);
+  const result = await withUser(req.user!, async (client) => {
+    const offer = (await client.query(
+      `SELECT offer.*,lease.tenant_id,lease.unit_id,lease.source_agent_id,lease.status AS lease_status,
+          lease.end_date AS current_end_date
+       FROM lease_renewal_offers offer JOIN leases lease ON lease.id=offer.lease_id
+       WHERE offer.id=$1 FOR UPDATE OF offer,lease`,
+      [req.params.offerId],
+    )).rows[0];
+    if (!offer) throw new HttpError(404, 'Lease renewal offer not found');
+    const existingDraft = (await client.query(
+      `SELECT id FROM leases WHERE renewal_offer_id=$1`,
+      [offer.id],
+    )).rows[0];
+    if (existingDraft) return { lease: existingDraft, replayed: true };
+    if (offer.status !== 'accepted') throw new HttpError(409, 'Only an accepted renewal offer can create a lease draft');
+    if (offer.lease_status !== 'active') throw new HttpError(409, 'The current lease is no longer active');
+    if (String(offer.proposed_start_date).slice(0, 10) <= String(offer.current_end_date).slice(0, 10)) {
+      throw new HttpError(409, 'The renewal dates no longer follow the current lease term.');
+    }
+    const overlap = await client.query(
+      `SELECT id FROM leases
+       WHERE unit_id=$1 AND id<>$2
+         AND status IN ('draft','pending_approval','pending_signature','executed','active')
+         AND start_date<=$3 AND end_date>=$4
+       FOR UPDATE`,
+      [offer.unit_id, offer.lease_id, offer.proposed_end_date, offer.proposed_start_date],
+    );
+    if (overlap.rowCount) throw new HttpError(409, 'Another lease overlaps the proposed renewal period.');
+    const lease = (await client.query(
+      `INSERT INTO leases(
+         unit_id,tenant_id,rent,deposit,start_date,rent_start_on,end_date,source_agent_id,status,
+         created_by,term_months,due_day,renewal_of_lease_id,renewal_offer_id
+       ) VALUES($1,$2,$3,$4,$5,$5,$6,$7,'draft',$8,$9,$10,$11,$12)
+       RETURNING *`,
+      [offer.unit_id, offer.tenant_id, offer.proposed_rent, offer.proposed_deposit,
+        offer.proposed_start_date, offer.proposed_end_date, offer.source_agent_id,
+        req.user!.id, offer.term_months, offer.due_day, offer.lease_id, offer.id],
+    )).rows[0];
+    await client.query(
+      `INSERT INTO lease_lifecycle_events(lease_id,from_status,to_status,action,actor_id,reason,metadata)
+       VALUES($1,NULL,'draft','renewal_draft_created',$2,$3,
+         jsonb_build_object('renewal_of_lease_id',$4::uuid,'renewal_offer_id',$5::uuid))`,
+      [lease.id, req.user!.id, reason, offer.lease_id, offer.id],
+    );
+    await client.query(
+      `INSERT INTO lease_renewal_offer_events(offer_id,actor_id,event_type,from_status,to_status,reason)
+       VALUES($1,$2,'converted','accepted','accepted',$3)`,
+      [offer.id, req.user!.id, reason],
+    );
+    await audit(client, req.user!.id, 'lease_renewal_converted_to_draft', 'lease', lease.id, null, {
+      renewal_of_lease_id: offer.lease_id, renewal_offer_id: offer.id,
+    });
+    return { lease, replayed: false };
+  });
+  res.status(result.replayed ? 200 : 201).json(result);
 }));
 
 ops.post('/leases/:id/submit-for-approval', requireActivity('property.tenancy.manage'), h(async (req, res) => {
@@ -1377,6 +1754,41 @@ ops.get('/leases', requireAnyActivity('property.tenancy.manage', 'rent.payments.
          WHERE link.tenant_id=l.tenant_id AND link.revoked_at IS NULL),'[]'::json) AS tenant_access_accounts,
        EXISTS (SELECT 1 FROM lease_documents d WHERE d.lease_id=l.id AND d.party='tenant') AS tenant_signature_evidence,
        EXISTS (SELECT 1 FROM lease_documents d WHERE d.lease_id=l.id AND d.party='owner') AS owner_signature_evidence,
+       COALESCE((SELECT json_agg(json_build_object(
+         'id',offer.id,'status',offer.status,'proposed_rent',offer.proposed_rent::text,
+         'proposed_deposit',offer.proposed_deposit::text,'proposed_start_date',offer.proposed_start_date,
+         'proposed_end_date',offer.proposed_end_date,'term_months',offer.term_months,
+         'due_day',offer.due_day,'expires_on',offer.expires_on,'review_reason',offer.review_reason,
+         'response_note',offer.response_note,'request_reason',offer.request_reason,
+         'events',(SELECT json_agg(json_build_object(
+           'event_type',event.event_type,'from_status',event.from_status,'to_status',event.to_status,
+           'reason',event.reason,'created_at',event.created_at
+         ) ORDER BY event.created_at,event.id)
+           FROM lease_renewal_offer_events event WHERE event.offer_id=offer.id),
+         'created_by',offer.created_by,
+         'converted_lease_id',(SELECT renewal.id FROM leases renewal WHERE renewal.renewal_offer_id=offer.id)
+       ) ORDER BY offer.created_at DESC,offer.id)
+         FROM lease_renewal_offers offer WHERE offer.lease_id=l.id),'[]'::json) AS renewal_offers,
+       COALESCE((SELECT json_agg(json_build_object(
+         'id',inspection.id,'revision',inspection.revision,'actual_vacated_on',inspection.actual_vacated_on,
+         'inspected_on',inspection.inspected_on,'condition_notes',inspection.condition_notes,
+         'keys_returned',inspection.keys_returned,'deposit_deduction',inspection.deposit_deduction::text,
+         'deduction_reason',inspection.deduction_reason,'status',inspection.status,
+         'submitted_by',inspection.submitted_by,'reviewed_by',inspection.reviewed_by,
+         'review_note',inspection.review_note,'submitted_at',inspection.submitted_at,
+         'reviewed_at',inspection.reviewed_at,
+         'evidence',(SELECT COALESCE(json_agg(json_build_object(
+           'id',evidence.id,'mime',evidence.mime,'size_bytes',evidence.size_bytes,
+           'created_at',evidence.created_at
+         ) ORDER BY evidence.created_at,evidence.id),'[]'::json)
+           FROM lease_move_out_inspection_evidence evidence WHERE evidence.inspection_id=inspection.id),
+         'events',(SELECT COALESCE(json_agg(json_build_object(
+           'event_type',event.event_type,'reason',event.reason,'created_at',event.created_at
+         ) ORDER BY event.created_at,event.id),'[]'::json)
+           FROM lease_move_out_inspection_events event WHERE event.inspection_id=inspection.id)
+       ) ORDER BY inspection.revision DESC)
+         FROM lease_move_out_inspections inspection WHERE inspection.lease_id=l.id),'[]'::json)
+         AS move_out_inspections,
        latest_notice.notice_type,latest_notice.received_on AS notice_received_on,
        latest_notice.proposed_effective_on
      FROM leases l JOIN property_units u ON u.id = l.unit_id JOIN properties p ON p.id = u.property_id LEFT JOIN tenants t ON t.id = l.tenant_id
@@ -1399,14 +1811,207 @@ ops.get('/leases/:id/payments', requireAnyActivity('property.tenancy.manage', 'r
   )).rows));
 }));
 
+ops.post('/leases/:id/move-out-inspections', requireActivity('property.tenancy.manage'), h(async (req, res) => {
+  const body = LeaseMoveOutInspectionIn.parse(req.body);
+  const deduction = renewalMoney(body.deposit_deduction, true);
+  if (leaseMoneyToCents(deduction) > 0n && !body.deduction_reason) {
+    throw new HttpError(422, 'A reason is required for proposed deposit deductions.');
+  }
+  const inspection = await withUser(req.user!, async (c) => {
+    const lease = (await c.query(
+      `SELECT id,status,start_date,current_date::text AS today
+       FROM leases WHERE id=$1 FOR UPDATE`,
+      [req.params.id],
+    )).rows[0];
+    if (!lease) throw new HttpError(404, 'Lease not found');
+    if (lease.status !== 'active') throw new HttpError(409, 'Only an active lease can receive a move-out inspection');
+    if (body.actual_vacated_on < String(lease.start_date).slice(0, 10)
+      || body.actual_vacated_on > lease.today
+      || body.inspected_on < body.actual_vacated_on
+      || body.inspected_on > lease.today) {
+      throw new HttpError(422, 'Move-out and inspection dates must be valid, current dates within the lease period.');
+    }
+    const latest = (await c.query(
+      `SELECT revision,status FROM lease_move_out_inspections
+       WHERE lease_id=$1 ORDER BY revision DESC LIMIT 1 FOR UPDATE`,
+      [lease.id],
+    )).rows[0];
+    if (latest?.status === 'pending_review') {
+      throw new HttpError(409, 'A move-out inspection is already awaiting review.');
+    }
+    if (latest?.status === 'approved') {
+      throw new HttpError(409, 'An approved move-out inspection already exists for this lease.');
+    }
+    const row = (await c.query(
+      `INSERT INTO lease_move_out_inspections(
+         lease_id,revision,actual_vacated_on,inspected_on,condition_notes,keys_returned,
+         deposit_deduction,deduction_reason,submitted_by
+       ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [lease.id, (latest?.revision ?? 0) + 1, body.actual_vacated_on, body.inspected_on,
+        body.condition_notes, body.keys_returned, deduction, body.deduction_reason ?? null, req.user!.id],
+    )).rows[0];
+    await c.query(
+      `INSERT INTO lease_move_out_inspection_events(inspection_id,actor_id,event_type,reason)
+       VALUES($1,$2,'submitted',$3)`,
+      [row.id, req.user!.id, body.condition_notes.slice(0, 1000)],
+    );
+    await audit(c, req.user!.id, 'lease_move_out_inspection_submitted', 'lease', lease.id, null, {
+      inspection_id: row.id, revision: row.revision, actual_vacated_on: body.actual_vacated_on,
+      deposit_deduction: deduction,
+    });
+    return row;
+  });
+  res.status(201).json(inspection);
+}));
+
+ops.post('/leases/:id/move-out-inspections/:inspectionId/decision',
+  requireActivity('property.tenancy.approve'), h(async (req, res) => {
+    const body = z.object({ decision: z.enum(['approve','reject']), reason: LifecycleReason }).strict().parse(req.body);
+    const inspection = await withUser(req.user!, async (c) => {
+      const current = (await c.query(
+        `SELECT inspection.*,lease.status AS lease_status
+         FROM lease_move_out_inspections inspection
+         JOIN leases lease ON lease.id=inspection.lease_id
+         WHERE inspection.id=$1 AND inspection.lease_id=$2
+         FOR UPDATE OF inspection,lease`,
+        [req.params.inspectionId, req.params.id],
+      )).rows[0];
+      if (!current) throw new HttpError(404, 'Move-out inspection not found');
+      if (current.status !== 'pending_review') throw new HttpError(409, 'Move-out inspection is not awaiting review');
+      if (current.submitted_by === req.user!.id) {
+        throw new HttpError(403, 'The inspection submitter cannot review their own inspection');
+      }
+      if (current.lease_status !== 'active') throw new HttpError(409, 'The lease is no longer active');
+      if (body.decision === 'approve') {
+        const deposit = (await c.query(
+          `SELECT COALESCE(sum(amount),0)::text AS amount FROM rent_transactions
+           WHERE lease_id=$1 AND kind='deposit' AND status='reconciled'`,
+          [req.params.id],
+        )).rows[0].amount;
+        if (leaseMoneyToCents(String(current.deposit_deduction)) > leaseMoneyToCents(String(deposit))) {
+          throw new HttpError(422, 'Proposed deposit deductions exceed the reconciled deposit.');
+        }
+      }
+      const status = body.decision === 'approve' ? 'approved' : 'rejected';
+      const updated = (await c.query(
+        `UPDATE lease_move_out_inspections
+         SET status=$2,reviewed_by=$3,reviewed_at=now(),review_note=$4
+         WHERE id=$1 RETURNING *`,
+        [current.id, status, req.user!.id, body.reason],
+      )).rows[0];
+      await c.query(
+        `INSERT INTO lease_move_out_inspection_events(inspection_id,actor_id,event_type,reason)
+         VALUES($1,$2,$3,$4)`,
+        [current.id, req.user!.id, status, body.reason],
+      );
+      await audit(c, req.user!.id, `lease_move_out_inspection_${status}`, 'lease', req.params.id, {
+        status: current.status,
+      }, { status, inspection_id: current.id, revision: current.revision, reason: body.reason });
+      return updated;
+    });
+    res.json(inspection);
+  }));
+
+ops.post('/leases/:id/move-out-inspections/:inspectionId/evidence',
+  requireActivity('property.tenancy.manage'),
+  express.raw({ type: () => true, limit: '10mb' }), h(async (req, res) => {
+    const buffer = req.body as Buffer;
+    if (!Buffer.isBuffer(buffer) || buffer.length === 0) throw new HttpError(400, 'No file received');
+    const mime = sniff(buffer);
+    if (!mime) throw new HttpError(415, 'Only PDF, JPEG or PNG evidence is accepted');
+    const evidence = await withUser(req.user!, async (c) => {
+      const inspection = (await c.query(
+        `SELECT inspection.id,inspection.status,lease.status AS lease_status
+         FROM lease_move_out_inspections inspection JOIN leases lease ON lease.id=inspection.lease_id
+         WHERE inspection.id=$1 AND inspection.lease_id=$2 FOR UPDATE OF inspection,lease`,
+        [req.params.inspectionId, req.params.id],
+      )).rows[0];
+      if (!inspection) throw new HttpError(404, 'Move-out inspection not found');
+      if (inspection.status !== 'pending_review' || inspection.lease_status !== 'active') {
+        throw new HttpError(409, 'Evidence can only be added to an inspection awaiting review.');
+      }
+      const storageKey = randomUUID();
+      const sha256 = createHash('sha256').update(buffer).digest('hex');
+      const row = (await c.query(
+        `INSERT INTO lease_move_out_inspection_evidence
+           (inspection_id,storage_key,sha256,mime,size_bytes,uploaded_by)
+         VALUES($1,$2,$3,$4,$5,$6)
+         RETURNING id,inspection_id,sha256,mime,size_bytes,uploaded_by,created_at`,
+        [inspection.id, storageKey, sha256, mime, buffer.length, req.user!.id],
+      )).rows[0];
+      await putFile(storageKey, buffer);
+      await audit(c, req.user!.id, 'lease_move_out_evidence_uploaded', 'lease', req.params.id, null, {
+        evidence_id: row.id, inspection_id: inspection.id, sha256, mime, size_bytes: buffer.length,
+      });
+      return row;
+    });
+    res.status(201).json(evidence);
+  }));
+
+ops.get('/lease-move-out-evidence/:id/file', h(async (req, res) => {
+  const evidence = await withUser(req.user!, async (c) => {
+    const row = (await c.query(
+      `SELECT evidence.id,evidence.inspection_id,evidence.storage_key,evidence.mime,inspection.lease_id
+       FROM lease_move_out_inspection_evidence evidence
+       JOIN lease_move_out_inspections inspection ON inspection.id=evidence.inspection_id
+       WHERE evidence.id=$1`,
+      [req.params.id],
+    )).rows[0];
+    if (!row) throw new HttpError(404, 'Move-out inspection evidence not found');
+    await audit(c, req.user!.id, 'lease_move_out_evidence_downloaded', 'lease', row.lease_id, null, {
+      evidence_id: row.id, inspection_id: row.inspection_id,
+    });
+    return row;
+  });
+  const file = await getFile(evidence.storage_key);
+  res.set({
+    'Content-Type': evidence.mime,
+    'Content-Disposition': 'attachment',
+    'X-Content-Type-Options': 'nosniff',
+    'Cache-Control': 'private, no-store',
+  }).send(file);
+}));
+
 ops.post('/leases/:id/end', requireActivity('property.tenancy.manage'), h(async (req, res) => {
+  const { reason } = z.object({ reason: LifecycleReason }).strict().parse(req.body);
   res.json(await withUser(req.user!, async (c) => {
-    const l = (await c.query("UPDATE leases SET status = 'ended' WHERE id = $1 AND status = 'active' RETURNING *", [req.params.id])).rows[0];
-    if (!l) throw new HttpError(404, 'Active lease not found');
-    await c.query("UPDATE rent_charges SET status = 'waived' WHERE lease_id = $1 AND status = 'due' AND period > current_date", [l.id]); // future months only
-    await c.query("UPDATE property_units SET occupancy = 'vacant' WHERE id = $1", [l.unit_id]);
-    await audit(c, req.user!.id, 'lease_ended', 'lease', l.id);
-    return l;
+    const lease = (await c.query('SELECT * FROM leases WHERE id=$1 FOR UPDATE', [req.params.id])).rows[0];
+    if (!lease || lease.status !== 'active') throw new HttpError(404, 'Active lease not found');
+    const inspection = (await c.query(
+      `SELECT id,revision,actual_vacated_on FROM lease_move_out_inspections
+       WHERE lease_id=$1 AND status='approved' FOR SHARE`,
+      [lease.id],
+    )).rows[0];
+    if (!inspection) throw new HttpError(409, 'An independently reviewed move-out inspection is required before ending this lease.');
+    if (await c.query(
+      `SELECT 1 FROM leases WHERE unit_id=$1 AND id<>$2 AND status='active' FOR UPDATE`,
+      [lease.unit_id, lease.id],
+    ).then((result) => result.rowCount)) {
+      throw new HttpError(409, 'Another active lease still occupies this unit.');
+    }
+    const ended = (await c.query(
+      `UPDATE leases SET status='ended',ended_on=$2,termination_reason=$3
+       WHERE id=$1 AND status='active' RETURNING *`,
+      [lease.id, inspection.actual_vacated_on, reason],
+    )).rows[0];
+    if (!ended) throw new HttpError(409, 'Lease status changed before closeout completed.');
+    await c.query(
+      `UPDATE rent_charges SET status='waived'
+       WHERE lease_id=$1 AND status='due' AND period>current_date`,
+      [lease.id],
+    );
+    await c.query("SELECT set_config('app.unit_turnover_lease_id',$1,true)", [lease.id]);
+    await c.query("UPDATE property_units SET occupancy='turnover' WHERE id=$1", [lease.unit_id]);
+    await c.query(
+      `INSERT INTO lease_lifecycle_events(lease_id,from_status,to_status,action,actor_id,reason,metadata)
+       VALUES($1,'active','ended','lease_ended',$2,$3,
+         jsonb_build_object('inspection_id',$4::uuid,'inspection_revision',$5::int,'ended_on',$6::date))`,
+      [lease.id, req.user!.id, reason, inspection.id, inspection.revision, inspection.actual_vacated_on],
+    );
+    await audit(c, req.user!.id, 'lease_ended', 'lease', lease.id, { status: lease.status }, {
+      reason, ended_on: inspection.actual_vacated_on, inspection_id: inspection.id,
+    });
+    return ended;
   }));
 }));
 
@@ -1665,23 +2270,39 @@ ops.post('/leases/:id/deposit/pay', requireActivity('rent.payments.submit'), h(a
 }));
 
 ops.post('/leases/:id/deposit/refund', requireActivity('rent.deposit.refund_request'), h(async (req, res) => {
-  const b = z.object({ amount: z.number().positive().transform((x) => Math.round(x * 100) / 100).pipe(z.number().positive()), reference: z.string().trim().min(3).max(200), channel: z.string().trim().min(2).max(40).default('manual'), reason: z.string().trim().min(10).max(1000) }).parse(req.body);
+  const b = z.object({
+    amount: z.union([z.string().trim(), z.number().finite().transform(String)])
+      .pipe(z.string().regex(/^\d{1,12}(?:\.\d{1,2})?$/)),
+    reference: z.string().trim().min(3).max(200),
+    channel: z.string().trim().min(2).max(40).default('manual'),
+    reason: z.string().trim().min(10).max(1000),
+  }).strict().parse(req.body);
+  const amount = renewalMoney(b.amount);
   res.status(201).json(await withUser(req.user!, async (c) => {
     const lease = (await c.query('SELECT * FROM leases WHERE id = $1 FOR UPDATE', [req.params.id])).rows[0];
     if (!lease) throw new HttpError(404, 'Lease not found');
     if (lease.status !== 'ended') throw new HttpError(409, 'A deposit can be returned only after the lease ends');
+    const disposition = (await c.query(
+      `SELECT deposit_deduction::text FROM lease_move_out_inspections
+       WHERE lease_id=$1 AND status='approved'`,
+      [lease.id],
+    )).rows[0];
+    if (!disposition) throw new HttpError(409, 'An approved move-out deposit disposition is required before refunding the deposit.');
     if (await c.query('SELECT 1 FROM rent_transactions WHERE reference = $1', [b.reference]).then((x) => x.rowCount)) throw new HttpError(409, 'That payment reference has already been used');
     const deposit = (await c.query("SELECT * FROM rent_transactions WHERE lease_id = $1 AND kind = 'deposit' AND status = 'reconciled' FOR UPDATE", [lease.id])).rows[0];
     if (!deposit) throw new HttpError(409, 'The deposit must be collected and reconciled before it can be returned');
-    const reserved = Number((await c.query("SELECT coalesce(sum(amount),0) AS amount FROM rent_transactions WHERE lease_id = $1 AND kind = 'deposit_refund' AND status <> 'void'", [lease.id])).rows[0].amount);
-    const available = Math.round((Number(deposit.amount) - reserved) * 100) / 100;
-    if (b.amount > available) throw new HttpError(422, `Refund exceeds the remaining deposit balance of ETB ${available}.`);
+    const reserved = (await c.query("SELECT coalesce(sum(amount),0)::text AS amount FROM rent_transactions WHERE lease_id = $1 AND kind = 'deposit_refund' AND status <> 'void'", [lease.id])).rows[0].amount;
+    const refundable = leaseMoneyToCents(String(deposit.amount)) - leaseMoneyToCents(String(disposition.deposit_deduction));
+    const available = refundable - leaseMoneyToCents(renewalMoney(String(reserved), true));
+    if (available < 0n || leaseMoneyToCents(amount) > available) {
+      throw new HttpError(422, 'Refund exceeds the approved remaining deposit disposition.');
+    }
     const refund = (await c.query(
       `INSERT INTO rent_transactions (lease_id, kind, amount, channel, reference, reason, recorded_by)
        VALUES ($1,'deposit_refund',$2,$3,$4,$5,$6) RETURNING *`,
-      [lease.id, b.amount, b.channel, b.reference, b.reason, req.user!.id],
+      [lease.id, amount, b.channel, b.reference, b.reason, req.user!.id],
     )).rows[0];
-    await audit(c, req.user!.id, 'deposit_refund_recorded', 'rent_transaction', refund.id, null, { amount: b.amount, reference: b.reference, reason: b.reason });
+    await audit(c, req.user!.id, 'deposit_refund_recorded', 'rent_transaction', refund.id, null, { amount, reference: b.reference, reason: b.reason });
     return refund;
   }));
 }));
@@ -1705,10 +2326,19 @@ ops.post('/rent-transactions/:id/reconcile', requireActivity('rent.transactions.
       entry = [['Cash', Number(transaction.amount), 0], ['Tenant Deposit Liability', 0, Number(transaction.amount)]];
     } else {
       if (lease.status !== 'ended') throw new HttpError(409, 'The lease must remain ended while its deposit is returned');
+      const disposition = (await c.query(
+        `SELECT deposit_deduction::text FROM lease_move_out_inspections
+         WHERE lease_id=$1 AND status='approved'`,
+        [lease.id],
+      )).rows[0];
+      if (!disposition) throw new HttpError(409, 'An approved move-out deposit disposition is required before reconciling this refund');
       const deposit = (await c.query("SELECT amount FROM rent_transactions WHERE lease_id = $1 AND kind = 'deposit' AND status = 'reconciled' FOR UPDATE", [lease.id])).rows[0];
       if (!deposit) throw new HttpError(409, 'No collected deposit is available');
-      const reserved = Number((await c.query("SELECT coalesce(sum(amount),0) AS amount FROM rent_transactions WHERE lease_id = $1 AND kind = 'deposit_refund' AND status <> 'void'", [lease.id])).rows[0].amount);
-      if (reserved > Number(deposit.amount)) throw new HttpError(409, 'Deposit refunds exceed the collected deposit');
+      const reserved = (await c.query("SELECT coalesce(sum(amount),0)::text AS amount FROM rent_transactions WHERE lease_id = $1 AND kind = 'deposit_refund' AND status <> 'void'", [lease.id])).rows[0].amount;
+      const refundable = leaseMoneyToCents(String(deposit.amount)) - leaseMoneyToCents(String(disposition.deposit_deduction));
+      if (refundable < 0n || leaseMoneyToCents(String(reserved)) > refundable) {
+        throw new HttpError(409, 'Deposit refunds exceed the independently approved refundable balance');
+      }
       entry = [['Tenant Deposit Liability', Number(transaction.amount), 0], ['Cash', 0, Number(transaction.amount)]];
     }
     await post(c, 'rent_transaction', transaction.id, entry);

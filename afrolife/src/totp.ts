@@ -59,5 +59,5 @@ export function verifyTotpStep(secretB32: string, code: string, nowMs = Date.now
   return matchedStep;
 }
 
-export const otpauthUri = (secret: string, account: string, issuer = process.env.MFA_ISSUER ?? 'AfroLife Agency') =>
+export const otpauthUri = (secret: string, account: string, issuer = process.env.MFA_ISSUER ?? 'AfroSherik') =>
   `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(account)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}`;

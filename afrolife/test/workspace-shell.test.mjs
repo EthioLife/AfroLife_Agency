@@ -431,3 +431,17 @@ test('workspace and financial tables use RTL-aware logical text alignment', asyn
   assert.match(financialStyles, /\.bi-series-bar\.is-negative\s*\{[^}]*margin-inline-start:/);
   assert.match(financialStyles, /\.bi-scope-banner\s*\{[^}]*border-inline-start:/);
 });
+
+test('mini-app workspaces share a responsive shell, focus, and surface palette', async () => {
+  const workspaceStyles = await readFile(new URL('../public/styles.css', import.meta.url), 'utf8');
+  const financialStyles = await readFile(new URL('../public/financial-workspaces.css', import.meta.url), 'utf8');
+
+  assert.match(workspaceStyles, /--brand-green:\s*#174b3d/i);
+  assert.match(workspaceStyles, /--opportunity-yellow:\s*#d7ad59/i);
+  assert.match(workspaceStyles, /\.workspace \.panel,\s*\.workspace \.form-card\s*\{[^}]*background:\s*var\(--surface-raised\);/s);
+  assert.match(workspaceStyles, /\.workspace table:not\(\[class\]\) th,\s*\.workspace table:not\(\[class\]\) td\s*\{[^}]*text-align:\s*start;/s);
+  assert.match(workspaceStyles, /@media \(max-width: 700px\) \{\s*\.workspace-layout \{ display: block;/);
+  assert.match(financialStyles, /\.bi-filter-form/);
+  assert.match(financialStyles, /\.finance-data-table,\s*\.bi-data-table/);
+  assert.match(financialStyles, /\.bi-filter-form input:focus/);
+});

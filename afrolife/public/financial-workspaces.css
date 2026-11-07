@@ -196,9 +196,9 @@
 .tenant-data-metadata,
 .tenant-data-checklist {
   border-color: var(--line);
-  border-radius: 13px;
-  background: #fff;
-  box-shadow: 0 8px 22px rgba(16, 43, 39, .04);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  box-shadow: var(--panel-shadow);
 }
 
 .financial-dashboard h2,
@@ -210,7 +210,7 @@
 }
 
 .finance-data-table th,
-.bi-data-table th { background: #f3f7f3; }
+.bi-data-table th { background: var(--surface-green); }
 
 .finance-data-table tbody tr:hover,
 .bi-data-table tbody tr:hover { background: #f7faf7; }
@@ -228,13 +228,15 @@
 .bi-freshness {
   border-top-color: var(--teal);
   border-radius: 12px;
-  box-shadow: 0 8px 22px rgba(16, 43, 39, .04);
+  background: var(--surface-raised);
+  box-shadow: var(--panel-shadow);
 }
 
 .bi-metric {
   border-inline-start-color: var(--gold);
-  border-radius: 0 10px 10px 0;
-  background: #fff;
+  border-radius: 12px;
+  background: var(--surface-raised);
+  box-shadow: var(--panel-shadow);
 }
 
 .bi-coverage strong,
@@ -245,8 +247,8 @@
 .tenant-data-scope-banner {
   border-color: #d3e4d7;
   border-inline-start-color: var(--teal);
-  border-radius: 0 11px 11px 0;
-  background: #edf5ef;
+  border-radius: 12px;
+  background: var(--surface-green);
 }
 
 .bi-scope-banner { color: var(--green-dark); }
@@ -257,8 +259,8 @@
 .bi-empty,
 .admin-data-empty {
   border-inline-start-color: var(--gold);
-  border-radius: 0 10px 10px 0;
-  background: #fbf8ef;
+  border-radius: 12px;
+  background: var(--surface-yellow);
 }
 
 .bi-filter-form input,
@@ -287,8 +289,8 @@
 .tenant-data-request-form select:focus,
 .tenant-data-request-form textarea:focus {
   border-color: var(--teal);
-  outline: 3px solid rgba(31, 123, 104, .15);
-  outline-offset: 1px;
+  outline: 3px solid rgba(135, 92, 8, .2);
+  outline-offset: 2px;
 }
 
 .mini-app-access-choice:hover,
