@@ -342,10 +342,29 @@ const requirePropertyTenantContext: RequestHandler = (req, _res, next) => {
     if (active !== tenantSystemId) {
       throw new HttpError(403, 'The requested property tenant is not active or available to this account.');
     }
+    if (req.user!.role === 'global_admin') {
+      await audit(client, req.user!.id, 'property_tenant_support_accessed', 'property_operating_tenant',
+        tenantSystemId, null, {
+          purpose: req.get('x-afrolife-property-tenant-purpose'),
+          method: req.method,
+          path: req.path,
+        });
+    }
   }).then(() => next(), next);
 };
 
 api.use(authenticate);
+api.get('/property/tenant-systems/mine', h(async (req, res) => {
+  res.json(await withUser(req.user!, async (client) => (await client.query(
+    `SELECT tenant.id,tenant.tenant_key,tenant.legal_name,tenant.jurisdiction,tenant.timezone,tenant.currency,
+       tenant.status,member.tenant_role
+     FROM property_operating_tenant_members member
+     JOIN property_operating_tenants tenant ON tenant.id=member.tenant_system_id
+     WHERE member.user_id=$1 AND member.status='active'
+     ORDER BY tenant.legal_name,tenant.id`,
+    [req.user!.id],
+  )).rows));
+}));
 api.post('/property/tenant-systems', requireRole('global_admin'), h(async (req, res) => {
   const body = z.object({
     tenant_key: z.string().trim().regex(/^[a-z][a-z0-9-]{2,79}$/),

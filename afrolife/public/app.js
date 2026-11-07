@@ -27,6 +27,7 @@ const SIGNUP_DONE_KEY = 'afrolife.signup-upload-complete';
 const SIGNUP_DOCUMENTS_KEY = 'afrolife.signup-uploaded-documents';
 const EDIR_APPLICATION_UPLOAD_KEY = 'afrolife.edir-application-upload';
 const EDIR_ORGANIZATION_KEY = 'afrolife.edir-organization';
+const PROPERTY_TENANT_KEY = 'afrolife.property-tenant';
 const DEFAULT_EDIR_ORGANIZATION = '00000000-0000-4000-8000-000000000002';
 const STAFF = new Set(['global_admin', 'super_admin', 'compliance', 'finance', 'finance_manager']);
 const KNOWN_PANELS = new Set([
@@ -40,7 +41,7 @@ const MINI_APP_PANELS = new Set([
   'insurance', 'privacy', 'global-bi',
 ]);
 const $ = (selector) => document.querySelector(selector);
-const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
+const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
 const loadedPanels = new Set();
 let accessVisiblePanels = new Set();
 state.supportAppealQueue = [];
@@ -73,6 +74,20 @@ function apiRoot() {
   if (!base) throw new Error(t('Enter the API server address first.'));
   API_ROOT = `${base}/api/v1`;
   return API_ROOT;
+}
+
+function propertyTenantRequestHeaders() {
+  return state.propertyTenantContextId
+    ? { 'x-afrolife-property-tenant-id': state.propertyTenantContextId }
+    : {};
+}
+
+function authenticatedPropertyFetch(path, options = {}) {
+  const headers = new Headers(options.headers ?? {});
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  if (token) headers.set('authorization', ['Bearer', token].join(' '));
+  for (const [name, value] of Object.entries(propertyTenantRequestHeaders())) headers.set(name, value);
+  return fetch(`${apiRoot()}${path}`, { ...options, headers });
 }
 
 function roleLabel(role) {
@@ -416,6 +431,9 @@ setInterval(loadPublicIndustryNews, 15 * 60 * 1000);
 async function api(path, options = {}) {
   const headers = new Headers(options.headers ?? {});
   headers.set('x-afrolife-edir-id', state.edirOrganizationId);
+  if (state.propertyTenantContextId) {
+    headers.set('x-afrolife-property-tenant-id', state.propertyTenantContextId);
+  }
   if (state.user?.role === 'super_admin' && state.platformTenantContextId) {
     headers.set('x-afrolife-platform-tenant-id', state.platformTenantContextId);
   }
@@ -442,6 +460,7 @@ async function downloadAuthenticatedFile(path, filename) {
   const response = await fetch(`${apiRoot()}${path}`, {
     headers: {
       'x-afrolife-edir-id': state.edirOrganizationId,
+      ...propertyTenantRequestHeaders(),
       ...(token ? { authorization: `Bearer ${token}` } : {}),
     },
   });
@@ -1012,6 +1031,7 @@ async function submitEdirRegistration(event) {
         method: 'POST',
         headers: {
           authorization: `Signup ${progress.uploadToken}`,
+          ...propertyTenantRequestHeaders(),
           'content-type': file.type,
         },
         body: file,
@@ -1205,6 +1225,17 @@ function signOut({ revoke = true, message = '' } = {}) {
 async function loadWorkspace() {
   state.user = await api('/auth/me');
   startSessionActivity(state.user.session_idle_timeout_minutes ?? 30);
+  state.propertyTenantMemberships = await api('/property/tenant-systems/mine');
+  if (!state.propertyTenantMemberships.some((tenant) => tenant.id === state.propertyTenantContextId && tenant.status === 'active')) {
+    state.propertyTenantContextId = state.propertyTenantMemberships.length === 1
+      ? state.propertyTenantMemberships[0].id
+      : null;
+  }
+  if (state.propertyTenantContextId) {
+    localStorage.setItem(PROPERTY_TENANT_KEY, state.propertyTenantContextId);
+  } else {
+    localStorage.removeItem(PROPERTY_TENANT_KEY);
+  }
   const featureFallback = { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] };
   const passwordRequired = state.user.must_change_password || state.user.required_security_step === 'password';
   state.mfaRequired = state.mfaRequired || state.user.required_security_step === 'mfa';
@@ -3938,6 +3969,18 @@ function renderProperties() {
       ? 'Manage your properties and units, track listing review, and follow maintenance and rent statements.'
       : 'Create and manage property records, units, rent details, and private listing pictures.',
   ));
+  if (state.propertyTenantMemberships.length > 1) {
+    const tenantPicker = field('Operating tenant', 'property_tenant_context', 'select', true);
+    tenantPicker.input.dataset.propertyTenantContext = 'true';
+    for (const tenant of state.propertyTenantMemberships) {
+      tenantPicker.input.append(new Option(
+        `${tenant.legal_name} · ${tenant.tenant_role.replaceAll('_', ' ')}`,
+        tenant.id,
+      ));
+    }
+    tenantPicker.input.value = state.propertyTenantContextId ?? '';
+    wrap.append(tenantPicker.label);
+  }
   const metrics = propertyDashboardMetrics(state.properties);
   wrap.append(renderAppDashboard({
     title: owner ? 'Landlord dashboard' : 'Property Management dashboard',
@@ -7602,7 +7645,8 @@ async function showPropertyPhotos(propertyId, container) {
     }
     const grid = node('div', undefined, 'property-photo-grid');
     for (const photo of photos) {
-      const response = await fetch(`${apiRoot()}/properties/${propertyId}/photos/${photo.id}/file`, {
+      const propertyContextHeaders = propertyTenantRequestHeaders();
+      const response = await authenticatedPropertyFetch(`/properties/${propertyId}/photos/${photo.id}/file`, {
         headers: { authorization: `Bearer ${sessionStorage.getItem(TOKEN_KEY)}` },
       });
       if (!response.ok) throw new Error(t('Could not load a property picture ({{status}}).', { status: response.status }));

@@ -53,8 +53,8 @@ CREATE TABLE property_operating_tenant_support_grants (
     CHECK (status IN ('pending','active','rejected','expired','revoked')),
   CHECK (expires_at>requested_at),
   CHECK (approved_by IS NULL OR approved_by<>requested_by),
-  CHECK ((status='active' AND approved_by IS NOT NULL AND approved_at IS NOT NULL)
-    OR (status<>'active' AND approved_at IS NULL))
+  CHECK ((status IN ('active','revoked') AND approved_by IS NOT NULL AND approved_at IS NOT NULL)
+    OR (status IN ('pending','rejected','expired') AND approved_at IS NULL))
 );
 CREATE INDEX property_operating_tenant_support_active_idx
   ON property_operating_tenant_support_grants(user_id,tenant_system_id,expires_at)
@@ -114,6 +114,11 @@ ALTER TABLE properties ADD COLUMN tenant_system_id uuid REFERENCES property_oper
 ALTER TABLE tenants ADD COLUMN tenant_system_id uuid REFERENCES property_operating_tenants(id);
 ALTER TABLE leases ADD COLUMN tenant_system_id uuid REFERENCES property_operating_tenants(id);
 ALTER TABLE maintenance_requests ADD COLUMN tenant_system_id uuid REFERENCES property_operating_tenants(id);
+ALTER TABLE maintenance_requests
+  ADD COLUMN IF NOT EXISTS lease_id uuid REFERENCES leases(id),
+  ADD COLUMN IF NOT EXISTS resident_user_id uuid REFERENCES users(id);
+ALTER TABLE rent_transactions ADD COLUMN tenant_system_id uuid REFERENCES property_operating_tenants(id);
+ALTER TABLE property_vendors ADD COLUMN tenant_system_id uuid REFERENCES property_operating_tenants(id);
 
 UPDATE properties SET tenant_system_id=(
   SELECT id FROM property_operating_tenants WHERE tenant_key='legacy-property-operations'
@@ -127,15 +132,27 @@ UPDATE leases SET tenant_system_id=(
 UPDATE maintenance_requests SET tenant_system_id=(
   SELECT id FROM property_operating_tenants WHERE tenant_key='legacy-property-operations'
 );
+UPDATE rent_transactions transaction_row SET tenant_system_id=lease.tenant_system_id
+FROM leases lease WHERE lease.id=transaction_row.lease_id;
+UPDATE rent_transactions SET tenant_system_id=(
+  SELECT id FROM property_operating_tenants WHERE tenant_key='legacy-property-operations'
+) WHERE tenant_system_id IS NULL;
+UPDATE property_vendors SET tenant_system_id=(
+  SELECT id FROM property_operating_tenants WHERE tenant_key='legacy-property-operations'
+);
 
 ALTER TABLE properties ALTER COLUMN tenant_system_id SET NOT NULL;
 ALTER TABLE tenants ALTER COLUMN tenant_system_id SET NOT NULL;
 ALTER TABLE leases ALTER COLUMN tenant_system_id SET NOT NULL;
 ALTER TABLE maintenance_requests ALTER COLUMN tenant_system_id SET NOT NULL;
+ALTER TABLE rent_transactions ALTER COLUMN tenant_system_id SET NOT NULL;
+ALTER TABLE property_vendors ALTER COLUMN tenant_system_id SET NOT NULL;
 CREATE INDEX properties_tenant_system_idx ON properties(tenant_system_id,id);
 CREATE INDEX tenants_tenant_system_idx ON tenants(tenant_system_id,id);
 CREATE INDEX leases_tenant_system_idx ON leases(tenant_system_id,id);
 CREATE INDEX maintenance_requests_tenant_system_idx ON maintenance_requests(tenant_system_id,id);
+CREATE INDEX rent_transactions_tenant_system_idx ON rent_transactions(tenant_system_id,id);
+CREATE INDEX property_vendors_tenant_system_idx ON property_vendors(tenant_system_id,id);
 
 CREATE OR REPLACE FUNCTION app_property_tenant_system_id()
 RETURNS uuid
@@ -189,7 +206,94 @@ CREATE TRIGGER leases_tenant_system_guard BEFORE INSERT OR UPDATE OF tenant_syst
   FOR EACH ROW EXECUTE FUNCTION guard_property_tenant_system_id();
 CREATE TRIGGER maintenance_requests_tenant_system_guard BEFORE INSERT OR UPDATE OF tenant_system_id ON maintenance_requests
   FOR EACH ROW EXECUTE FUNCTION guard_property_tenant_system_id();
+CREATE TRIGGER rent_transactions_tenant_system_guard BEFORE INSERT OR UPDATE OF tenant_system_id ON rent_transactions
+  FOR EACH ROW EXECUTE FUNCTION guard_property_tenant_system_id();
+CREATE TRIGGER property_vendors_tenant_system_guard BEFORE INSERT OR UPDATE OF tenant_system_id ON property_vendors
+  FOR EACH ROW EXECUTE FUNCTION guard_property_tenant_system_id();
 REVOKE ALL ON FUNCTION guard_property_tenant_system_id() FROM PUBLIC;
+
+CREATE OR REPLACE FUNCTION guard_property_record_tenant_relationships()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp
+AS $$
+DECLARE property_tenant uuid;
+DECLARE resident_tenant uuid;
+BEGIN
+  IF TG_TABLE_NAME='leases' THEN
+    SELECT property.tenant_system_id INTO property_tenant
+    FROM property_units unit JOIN properties property ON property.id=unit.property_id
+    WHERE unit.id=NEW.unit_id;
+    SELECT tenant.tenant_system_id INTO resident_tenant FROM tenants tenant WHERE tenant.id=NEW.tenant_id;
+    IF property_tenant IS NULL OR resident_tenant IS DISTINCT FROM property_tenant
+      OR property_tenant IS DISTINCT FROM app_property_tenant_system_id() THEN
+      RAISE EXCEPTION 'Lease, resident, and unit must belong to the same property tenant'
+        USING ERRCODE='23514';
+    END IF;
+    IF TG_OP='INSERT' THEN
+      NEW.tenant_system_id := property_tenant;
+    ELSIF NEW.tenant_system_id IS DISTINCT FROM property_tenant THEN
+      RAISE EXCEPTION 'Lease tenant scope must match its unit and resident'
+        USING ERRCODE='23514';
+    END IF;
+  ELSIF TG_TABLE_NAME='maintenance_requests' THEN
+    IF NEW.unit_id IS NOT NULL THEN
+      SELECT property.tenant_system_id INTO property_tenant
+      FROM property_units unit JOIN properties property ON property.id=unit.property_id
+      WHERE unit.id=NEW.unit_id AND property.id=NEW.property_id;
+    ELSE
+      SELECT tenant_system_id INTO property_tenant FROM properties WHERE id=NEW.property_id;
+    END IF;
+    IF property_tenant IS NULL OR property_tenant IS DISTINCT FROM app_property_tenant_system_id() THEN
+      RAISE EXCEPTION 'Maintenance request and property must belong to the same property tenant'
+        USING ERRCODE='23514';
+    END IF;
+    IF TG_OP='INSERT' THEN
+      NEW.tenant_system_id := property_tenant;
+    ELSIF NEW.tenant_system_id IS DISTINCT FROM property_tenant THEN
+      RAISE EXCEPTION 'Maintenance tenant scope must match its property'
+        USING ERRCODE='23514';
+    END IF;
+    IF NEW.lease_id IS NOT NULL AND NOT EXISTS (
+      SELECT 1 FROM leases lease
+      WHERE lease.id=NEW.lease_id AND lease.tenant_system_id=property_tenant
+        AND lease.unit_id=NEW.unit_id
+    ) THEN
+      RAISE EXCEPTION 'Maintenance request lease must belong to the same property tenant and unit'
+        USING ERRCODE='23514';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER leases_tenant_relationship_guard BEFORE INSERT OR UPDATE OF unit_id,tenant_id,tenant_system_id ON leases
+  FOR EACH ROW EXECUTE FUNCTION guard_property_record_tenant_relationships();
+CREATE TRIGGER maintenance_tenant_relationship_guard BEFORE INSERT OR UPDATE OF property_id,unit_id,lease_id,tenant_system_id ON maintenance_requests
+  FOR EACH ROW EXECUTE FUNCTION guard_property_record_tenant_relationships();
+CREATE OR REPLACE FUNCTION guard_property_transaction_tenant_relationship()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp
+AS $$
+DECLARE lease_tenant uuid;
+BEGIN
+  SELECT tenant_system_id INTO lease_tenant FROM leases WHERE id=NEW.lease_id;
+  IF lease_tenant IS NULL OR lease_tenant IS DISTINCT FROM app_property_tenant_system_id() THEN
+    RAISE EXCEPTION 'Rent transaction and lease must belong to the same property tenant'
+      USING ERRCODE='23514';
+  END IF;
+  IF TG_OP='INSERT' THEN
+    NEW.tenant_system_id := lease_tenant;
+  ELSIF NEW.tenant_system_id IS DISTINCT FROM lease_tenant THEN
+    RAISE EXCEPTION 'Rent transaction tenant scope must match its lease'
+      USING ERRCODE='23514';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER rent_transactions_tenant_relationship_guard
+  BEFORE INSERT OR UPDATE OF lease_id,tenant_system_id ON rent_transactions
+  FOR EACH ROW EXECUTE FUNCTION guard_property_transaction_tenant_relationship();
+REVOKE ALL ON FUNCTION guard_property_transaction_tenant_relationship() FROM PUBLIC;
+REVOKE ALL ON FUNCTION guard_property_record_tenant_relationships() FROM PUBLIC;
 
 CREATE OR REPLACE FUNCTION provision_property_operating_tenant(
   requested_key text,
@@ -372,9 +476,18 @@ CREATE POLICY property_operating_tenants_member_read ON property_operating_tenan
   FOR SELECT USING (
     status='active'
     AND id=nullif(current_setting('app.property_tenant_system_id',true),'')::uuid
-    AND EXISTS (
-      SELECT 1 FROM property_operating_tenant_members member
-      WHERE member.tenant_system_id=id AND member.user_id=app_user_id() AND member.status='active'
+    AND (
+      EXISTS (
+        SELECT 1 FROM property_operating_tenant_members member
+        WHERE member.tenant_system_id=id AND member.user_id=app_user_id() AND member.status='active'
+      )
+      OR EXISTS (
+        SELECT 1 FROM property_operating_tenant_support_grants grant_row
+        WHERE grant_row.tenant_system_id=id AND grant_row.user_id=app_user_id()
+          AND grant_row.status='active' AND grant_row.expires_at>now()
+          AND grant_row.purpose=current_setting('app.property_tenant_purpose',true)
+          AND app_role()='global_admin'
+      )
     )
   );
 CREATE POLICY property_operating_tenant_members_self_read ON property_operating_tenant_members
@@ -409,6 +522,162 @@ CREATE POLICY property_units_operating_tenant_scope ON property_units AS RESTRIC
     SELECT 1 FROM properties property
     WHERE property.id=property_id AND property.tenant_system_id=app_property_tenant_system_id()
   ));
+CREATE POLICY maintenance_evidence_operating_tenant_scope ON maintenance_evidence AS RESTRICTIVE FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM maintenance_requests maintenance
+    WHERE maintenance.id=maintenance_request_id
+      AND maintenance.tenant_system_id=app_property_tenant_system_id()
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM maintenance_requests maintenance
+    WHERE maintenance.id=maintenance_request_id
+      AND maintenance.tenant_system_id=app_property_tenant_system_id()
+  ));
+CREATE POLICY property_vendor_bills_operating_tenant_scope ON property_vendor_bills AS RESTRICTIVE FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM maintenance_requests maintenance
+    WHERE maintenance.id=maintenance_request_id
+      AND maintenance.tenant_system_id=app_property_tenant_system_id()
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM maintenance_requests maintenance
+    WHERE maintenance.id=maintenance_request_id
+      AND maintenance.tenant_system_id=app_property_tenant_system_id()
+  ));
+CREATE POLICY property_vendor_memberships_operating_tenant_scope ON property_vendor_memberships AS RESTRICTIVE FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM property_vendors vendor
+    WHERE vendor.id=vendor_id AND vendor.tenant_system_id=app_property_tenant_system_id()
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM property_vendors vendor
+    WHERE vendor.id=vendor_id AND vendor.tenant_system_id=app_property_tenant_system_id()
+  ));
+CREATE POLICY property_rental_applications_operating_tenant_scope ON property_rental_applications AS RESTRICTIVE FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM properties property
+    WHERE property.id=property_id AND property.tenant_system_id=app_property_tenant_system_id()
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM properties property
+    WHERE property.id=property_id AND property.tenant_system_id=app_property_tenant_system_id()
+  ));
+CREATE POLICY property_rental_application_events_operating_tenant_scope ON property_rental_application_events AS RESTRICTIVE FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM property_rental_applications application
+    JOIN properties property ON property.id=application.property_id
+    WHERE application.id=application_id AND property.tenant_system_id=app_property_tenant_system_id()
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM property_rental_applications application
+    JOIN properties property ON property.id=application.property_id
+    WHERE application.id=application_id AND property.tenant_system_id=app_property_tenant_system_id()
+  ));
+CREATE POLICY property_unit_turnover_events_operating_tenant_scope ON property_unit_turnover_events AS RESTRICTIVE FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM property_units unit
+    JOIN properties property ON property.id=unit.property_id
+    WHERE unit.id=property_unit_turnover_events.unit_id
+      AND property.tenant_system_id=app_property_tenant_system_id()
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM property_units unit
+    JOIN properties property ON property.id=unit.property_id
+    WHERE unit.id=property_unit_turnover_events.unit_id
+      AND property.tenant_system_id=app_property_tenant_system_id()
+  ));
+CREATE POLICY property_authority_evidence_operating_tenant_scope ON property_authority_evidence AS RESTRICTIVE FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM properties property
+    WHERE property.id=property_id AND property.tenant_system_id=app_property_tenant_system_id()
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM properties property
+    WHERE property.id=property_id AND property.tenant_system_id=app_property_tenant_system_id()
+  ));
+CREATE POLICY property_authority_events_operating_tenant_scope ON property_authority_review_events AS RESTRICTIVE FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM properties property
+    WHERE property.id=property_id AND property.tenant_system_id=app_property_tenant_system_id()
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM properties property
+    WHERE property.id=property_id AND property.tenant_system_id=app_property_tenant_system_id()
+  ));
+CREATE POLICY lease_documents_operating_tenant_scope ON lease_documents AS RESTRICTIVE FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM leases lease
+    WHERE lease.id=lease_id AND lease.tenant_system_id=app_property_tenant_system_id()
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM leases lease
+    WHERE lease.id=lease_id AND lease.tenant_system_id=app_property_tenant_system_id()
+  ));
+CREATE POLICY lease_versions_operating_tenant_scope ON lease_versions AS RESTRICTIVE FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM leases lease
+    WHERE lease.id=lease_id AND lease.tenant_system_id=app_property_tenant_system_id()
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM leases lease
+    WHERE lease.id=lease_id AND lease.tenant_system_id=app_property_tenant_system_id()
+  ));
+CREATE POLICY lease_lifecycle_events_operating_tenant_scope ON lease_lifecycle_events AS RESTRICTIVE FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM leases lease
+    WHERE lease.id=lease_id AND lease.tenant_system_id=app_property_tenant_system_id()
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM leases lease
+    WHERE lease.id=lease_id AND lease.tenant_system_id=app_property_tenant_system_id()
+  ));
+CREATE POLICY lease_notices_operating_tenant_scope ON lease_notices AS RESTRICTIVE FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM leases lease
+    WHERE lease.id=lease_id AND lease.tenant_system_id=app_property_tenant_system_id()
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM leases lease
+    WHERE lease.id=lease_id AND lease.tenant_system_id=app_property_tenant_system_id()
+  ));
+CREATE POLICY property_tenant_invitations_operating_tenant_scope ON property_tenant_access_invitations AS RESTRICTIVE FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM leases lease
+    WHERE lease.id=lease_id AND lease.tenant_system_id=app_property_tenant_system_id()
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM leases lease
+    WHERE lease.id=lease_id AND lease.tenant_system_id=app_property_tenant_system_id()
+  ));
+CREATE POLICY maintenance_request_events_operating_tenant_scope ON maintenance_request_events AS RESTRICTIVE FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM maintenance_requests maintenance
+    WHERE maintenance.id=maintenance_request_id
+      AND maintenance.tenant_system_id=app_property_tenant_system_id()
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM maintenance_requests maintenance
+    WHERE maintenance.id=maintenance_request_id
+      AND maintenance.tenant_system_id=app_property_tenant_system_id()
+  ));
+CREATE POLICY property_tenant_links_operating_tenant_scope ON property_tenant_account_links AS RESTRICTIVE FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM tenants tenant
+    WHERE tenant.id=tenant_id AND tenant.tenant_system_id=app_property_tenant_system_id()
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM tenants tenant
+    WHERE tenant.id=tenant_id AND tenant.tenant_system_id=app_property_tenant_system_id()
+  ));
+CREATE POLICY lease_renewal_events_operating_tenant_scope ON lease_renewal_offer_events AS RESTRICTIVE FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM lease_renewal_offers offer JOIN leases lease ON lease.id=offer.lease_id
+    WHERE offer.id=offer_id AND lease.tenant_system_id=app_property_tenant_system_id()
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM lease_renewal_offers offer JOIN leases lease ON lease.id=offer.lease_id
+    WHERE offer.id=offer_id AND lease.tenant_system_id=app_property_tenant_system_id()
+  ));
 CREATE POLICY rent_charges_operating_tenant_scope ON rent_charges AS RESTRICTIVE FOR ALL
   USING (EXISTS (
     SELECT 1 FROM leases lease
@@ -419,14 +688,11 @@ CREATE POLICY rent_charges_operating_tenant_scope ON rent_charges AS RESTRICTIVE
     WHERE lease.id=lease_id AND lease.tenant_system_id=app_property_tenant_system_id()
   ));
 CREATE POLICY rent_transactions_operating_tenant_scope ON rent_transactions AS RESTRICTIVE FOR ALL
-  USING (EXISTS (
-    SELECT 1 FROM leases lease
-    WHERE lease.id=lease_id AND lease.tenant_system_id=app_property_tenant_system_id()
-  ))
-  WITH CHECK (EXISTS (
-    SELECT 1 FROM leases lease
-    WHERE lease.id=lease_id AND lease.tenant_system_id=app_property_tenant_system_id()
-  ));
+  USING (tenant_system_id=app_property_tenant_system_id())
+  WITH CHECK (tenant_system_id=app_property_tenant_system_id());
+CREATE POLICY property_vendors_operating_tenant_scope ON property_vendors AS RESTRICTIVE FOR ALL
+  USING (tenant_system_id=app_property_tenant_system_id())
+  WITH CHECK (tenant_system_id=app_property_tenant_system_id());
 CREATE POLICY property_photos_operating_tenant_scope ON property_photos AS RESTRICTIVE FOR ALL
   USING (EXISTS (
     SELECT 1 FROM properties property
