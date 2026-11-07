@@ -41,8 +41,8 @@ export async function withUser<T>(u: AuthUser, fn: (c: PoolClient) => Promise<T>
   const c = await pool.connect();
   try {
     await c.query('BEGIN');
-    await c.query("SELECT set_config('app.user_id',$1,true), set_config('app.role',$2,true), set_config('app.edir_id',$3,true), set_config('app.role_permissions',$4,true)",
-      [u.id, u.role, u.edir_id ?? '00000000-0000-4000-8000-000000000002', JSON.stringify(u.rolePermissions ?? {})]);
+    await c.query("SELECT set_config('app.user_id',$1,true), set_config('app.role',$2,true), set_config('app.edir_id',$3,true), set_config('app.role_permissions',$4,true), set_config('app.property_tenant_system_id',$5,true)",
+      [u.id, u.role, u.edir_id ?? '00000000-0000-4000-8000-000000000002', JSON.stringify(u.rolePermissions ?? {}), u.propertyTenantSystemId ?? '']);
     const r = await fn(c);
     await c.query('COMMIT');
     return r;
