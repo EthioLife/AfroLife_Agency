@@ -64,6 +64,10 @@
           <p class="muted">Sign in with your registered Ethiopian phone number.</p>
           <label>Phone number<input name="phone" type="tel" autocomplete="username" placeholder="+251 9…" required minlength="8"></label>
           <label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="200"></label>
+          <div class="login-links">
+            <button id="show-password-recovery" class="text-button" type="button" aria-expanded="false" aria-controls="password-recovery-help">Forgot your password?</button>
+          </div>
+          <p id="password-recovery-help" class="fine-print" role="note" hidden>Contact your organization’s administrator for help resetting your password. Self-service password reset is not available on this page.</p>
           <label id="mfa-field" hidden>Authenticator code<input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6"></label>
           <p id="login-error" class="form-error" role="alert"></p>
           <button id="retry-session" class="button button-outline button-wide" type="button" hidden>Retry workspace connection</button>

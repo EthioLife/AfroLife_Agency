@@ -9038,6 +9038,26 @@ $('#signup-agent-type').addEventListener('change', updateSignupFields);
 $('#signup-plan').addEventListener('change', updatePlanLabels);
 $('#signup-territory-search').addEventListener('input', syncSignupTerritory);
 $('#signup-territory-search').addEventListener('change', syncSignupTerritory);
+$('#show-password-recovery').addEventListener('click', () => {
+  const button = $('#show-password-recovery');
+  const help = $('#password-recovery-help');
+  const expanded = button.getAttribute('aria-expanded') === 'true';
+  button.setAttribute('aria-expanded', String(!expanded));
+  help.hidden = expanded;
+});
+document.querySelectorAll('a[href="#login-form"]').forEach((link) => link.addEventListener('click', (event) => {
+  if (!$('#app-view').hidden || $('#login-view').hidden) return;
+  event.preventDefault();
+  const loginForm = $('#login-form');
+  if (loginForm.hidden) {
+    $('#signup-form').hidden = true;
+    loginForm.hidden = false;
+  }
+  if (window.location.hash !== '#login-form') window.history.pushState(null, '', '#login-form');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  loginForm.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+  loginForm.querySelector('input[name="phone"]').focus({ preventScroll: true });
+}));
 $('#create-account').addEventListener('click', () => openSignup(false));
 $('#public-create-account').addEventListener('click', () => openSignup(false));
 $('#join-edir').addEventListener('click', () => openSignup(false, true));

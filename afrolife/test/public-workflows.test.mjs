@@ -568,7 +568,7 @@ test('public hub integrates the campaign artwork with the existing public action
   assert.match(styles, /@media \(max-width: 700px\) \{[\s\S]*?\.hub-service-network \{ min-height: 220px; \}/);
   assert.match(styles, /\.hub-heading \{ grid-template-columns: minmax\(0, 1fr\); gap:/);
   assert.match(styles, /#public-hub \.service-card\[data-panel\] \.service-icon\s*\{[^}]*background:\s*var\(--mini-app-tint\);[^}]*color:\s*var\(--mini-app-ink/s);
-  assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v35'/);
+  assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v37'/);
   assert.match(serviceWorker, /'\/tenant-data-admin\.js'/);
   for (const asset of [
     '/icons/afrosherik-icon-192.png', '/icons/afrosherik-icon-256.png', '/icons/afrosherik-icon-512.png',
@@ -606,4 +606,21 @@ test('public subscription catalog includes the approved ETB 1,000 services', () 
   );
   assert.deepEqual(normalizeMySubscriptions({ requests: [{ id: 'one' }] }), [{ id: 'one' }]);
   assert.deepEqual(subscriptionRequestPayload(['edir', 'edir', 'agent']), { services: ['edir', 'agent'] });
+});
+
+test('public sign-in flow exposes recovery guidance and reliably navigates to the form', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
+  const i18n = readFileSync(new URL('../public/i18n.js', import.meta.url), 'utf8');
+
+  assert.match(html, /id="show-password-recovery"[^>]*aria-expanded="false"[^>]*aria-controls="password-recovery-help"/);
+  assert.match(html, /id="password-recovery-help"[^>]*role="note"[^>]*hidden[^>]*>Contact your organization’s administrator/);
+  assert.match(app, /button\.setAttribute\('aria-expanded', String\(!expanded\)\);[\s\S]*?help\.hidden = expanded;/);
+  assert.match(app, /document\.querySelectorAll/);
+  assert.match(app, /loginForm\.scrollIntoView\(\{ behavior: reducedMotion \? 'auto' : 'smooth', block: 'start' \}\)/);
+  assert.match(app, /loginForm\.querySelector\('input\[name="phone"\]'\)\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(styles, /#login-form \{ scroll-margin-block-start: 1rem; \}/);
+  assert.match(i18n, /'One Platform\. Endless Possibilities\.':\s*\{\s*am: 'አንድ መድረክ። ወሰን የሌላቸው እድሎች።'/);
+  assert.match(i18n, /'Forgot your password\?':\s*\{\s*am: 'የይለፍ ቃልዎን ረሱ\?'/);
 });

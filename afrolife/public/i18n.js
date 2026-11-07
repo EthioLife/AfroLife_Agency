@@ -646,6 +646,15 @@ addedLanguages.sw['Region'] = 'Mkoa'; addedLanguages.sw['City'] = 'Jiji'; addedL
 addedLanguages.sw['Pro plan — ETB {{amount}} per month'] = 'Mpango wa Pro — ETB {{amount}} kwa mwezi';
 addedLanguages.sw['Enterprise plan — ETB {{amount}} per month'] = 'Mpango wa Enterprise — ETB {{amount}} kwa mwezi';for (const [locale, messages] of Object.entries(addedLanguages)) Object.assign(catalogs[locale], messages);
 const publicSurfaceTranslations = {
+  'One Platform. Endless Possibilities.': {
+    am: 'አንድ መድረክ። ወሰን የሌላቸው እድሎች።',
+  },
+  'Forgot your password?': {
+    am: 'የይለፍ ቃልዎን ረሱ?',
+  },
+  'Contact your organization’s administrator for help resetting your password. Self-service password reset is not available on this page.': {
+    am: 'የይለፍ ቃልዎን ለማስጀመር እገዛ ለማግኘት የድርጅትዎን አስተዳዳሪ ያነጋግሩ። በዚህ ገጽ ላይ በራስዎ የይለፍ ቃል ማስጀመር አይቻልም።',
+  },
   'Skip to content': {
     am: 'ወደ ይዘቱ ይሂዱ', om: 'Gara qabiyyeetti darbi', ti: 'ናብ ትሕዝቶ ዝለል', so: 'U bood nuxurka', ar: 'انتقل إلى المحتوى', sw: 'Ruka hadi kwenye maudhui',
   },

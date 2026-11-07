@@ -5,8 +5,8 @@ import { runInNewContext } from 'node:vm';
 
 const workerSource = readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8');
 
-test('changed brand assets advance the public shell cache version', () => {
-  assert.match(workerSource, /const CACHE = 'afrolife-shell-v35'/);
+test('changed public shell assets advance the cache version', () => {
+  assert.match(workerSource, /const CACHE = 'afrolife-shell-v37'/);
   assert.match(workerSource, /'\/financial-workspaces\.css'/);
   assert.match(workerSource, /'\/accounting-dashboard\.js'/);
   assert.match(workerSource, /'\/global-bi\.js'/);
