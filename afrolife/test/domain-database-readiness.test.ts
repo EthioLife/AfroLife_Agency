@@ -52,12 +52,16 @@ const completeSchemas: Record<AgencyDomain, { tables: string[]; rls: string[] }>
       'property_tenant_access_invitations', 'property_tenant_account_links',
       'property_authority_evidence', 'property_authority_review_events',
       'maintenance_sla_escalations',
+      'property_operating_tenants', 'property_operating_tenant_members',
+      'property_operating_tenant_events', 'property_operating_tenant_support_grants',
     ],
     rls: [
       'agents', 'marketplace_configuration', 'maintenance_requests', 'properties', 'property_photos',
       'property_units', 'rent_charges', 'leases', 'property_tenant_access_invitations',
       'property_tenant_account_links', 'property_authority_evidence', 'property_authority_review_events',
       'maintenance_sla_escalations',
+      'property_operating_tenants', 'property_operating_tenant_members',
+      'property_operating_tenant_events', 'property_operating_tenant_support_grants',
     ],
   },
   marketplace: {

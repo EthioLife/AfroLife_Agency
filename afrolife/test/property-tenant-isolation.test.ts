@@ -17,6 +17,7 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(migration, /CREATE POLICY property_rental_applications_operating_tenant_scope/);
   assert.match(migration, /CREATE POLICY lease_move_out_inspections_operating_tenant_scope/);
   assert.match(migration, /CREATE POLICY property_vendor_bills_operating_tenant_scope/);
+  assert.doesNotMatch(migration, /ALTER TABLE property_tenant_account_links FORCE ROW LEVEL SECURITY/);
   assert.match(migration, /assign_property_operating_tenant_member/);
   assert.match(migration, /provision_property_operating_tenant/);
   assert.match(migration, /support_grant_approved/);

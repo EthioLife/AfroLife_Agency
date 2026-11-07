@@ -53,6 +53,7 @@ const maintenanceSlaEscalationIndex = readFileSync(new URL('../migrations/109_ma
 const workforceOffboardingSerialization = readFileSync(new URL('../migrations/110_workforce_offboarding_serialization.sql', import.meta.url), 'utf8');
 const workforcePropertySupportAssistant = readFileSync(new URL('../migrations/113_workforce_property_support_assistant.sql', import.meta.url), 'utf8');
 const propertyResidentRlsRecursionFix = readFileSync(new URL('../migrations/114_property_resident_rls_recursion_fix.sql', import.meta.url), 'utf8');
+const propertyResidentRlsFunctionOwner = readFileSync(new URL('../migrations/115_property_resident_rls_function_owner.sql', import.meta.url), 'utf8');
 const marketplaceRouter = readFileSync(new URL('../services/marketplace/router.ts', import.meta.url), 'utf8');
 const propertyManagementRouter = readFileSync(new URL('../services/property-management/router.ts', import.meta.url), 'utf8');
 const propertyVendorPortal = readFileSync(new URL('../src/property-vendor-portal.ts', import.meta.url), 'utf8');
@@ -609,6 +610,7 @@ test('resident lease self-service requires a one-time claim and scopes property,
 });
 
 test('resident property visibility avoids recursive property-unit row security evaluation', () => {
+  assert.match(coreMigrator,/name === '114_property_resident_rls_recursion_fix\.sql'[\s\S]*?ALTER TABLE IF EXISTS public\.property_tenant_account_links NO FORCE ROW LEVEL SECURITY/);
   assert.match(propertyResidentRlsRecursionFix,/ALTER TABLE property_tenant_account_links NO FORCE ROW LEVEL SECURITY/);
   assert.match(propertyResidentRlsRecursionFix,/CREATE OR REPLACE FUNCTION app_resident_has_active_lease_on_property\(target_property_id uuid\)/);
   assert.match(propertyResidentRlsRecursionFix,/SECURITY DEFINER\s+SET search_path = public, pg_temp\s+SET row_security = off/);
@@ -618,6 +620,7 @@ test('resident property visibility avoids recursive property-unit row security e
   assert.match(propertyResidentRlsRecursionFix,/GRANT EXECUTE ON FUNCTION app_resident_has_active_lease_on_property\(uuid\) TO "\{\{role\}\}"/);
   assert.match(propertyResidentRlsRecursionFix,/DROP POLICY properties_linked_resident_read ON properties/);
   assert.match(propertyResidentRlsRecursionFix,/USING \(app_resident_has_active_lease_on_property\(id\)\)/);
+  assert.match(propertyResidentRlsFunctionOwner,/ALTER TABLE property_tenant_account_links NO FORCE ROW LEVEL SECURITY/);
 });
 
 test('property publication requires independent owner-authority review and scanned evidence', () => {

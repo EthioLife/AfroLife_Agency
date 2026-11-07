@@ -13,6 +13,8 @@ export interface InsuranceServiceAssertion {
   kycStatus?: string;
   organizationId?: string;
   rolePermissions?: RoleActivityOverrides;
+  propertyTenantSystemId?: string;
+  propertyTenantPurpose?: string;
   issuedAt: number;
 }
 
@@ -57,6 +59,9 @@ export function verifyServiceAssertion(
     || (decoded.kycStatus !== undefined && !['uploaded', 'under_review', 'verified', 'rejected'].includes(decoded.kycStatus))
     || (decoded.organizationId !== undefined && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(decoded.organizationId))
     || (decoded.rolePermissions !== undefined && !isRoleActivityOverrides(decoded.rolePermissions))
+    || (decoded.propertyTenantSystemId !== undefined && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(decoded.propertyTenantSystemId))
+    || (decoded.propertyTenantPurpose !== undefined && (typeof decoded.propertyTenantPurpose !== 'string'
+      || decoded.propertyTenantPurpose.trim().length < 10 || decoded.propertyTenantPurpose.length > 1000))
     || !Number.isSafeInteger(decoded.issuedAt)
     || Math.abs(now - decoded.issuedAt) > 60_000) return null;
   return decoded;
@@ -118,6 +123,8 @@ export function createServiceGateway(options: {
       ...(req.user!.kyc_status ? { kycStatus: req.user!.kyc_status } : {}),
       ...(req.get('x-afrolife-edir-id') ? { organizationId: req.get('x-afrolife-edir-id') } : {}),
       ...(req.user!.rolePermissions ? { rolePermissions: req.user!.rolePermissions } : {}),
+      ...(req.user!.propertyTenantSystemId ? { propertyTenantSystemId: req.user!.propertyTenantSystemId } : {}),
+      ...(req.user!.propertyTenantPurpose ? { propertyTenantPurpose: req.user!.propertyTenantPurpose } : {}),
       issuedAt,
     })).toString('base64url');
     const bodyHash = requestBodyHash(req.body);

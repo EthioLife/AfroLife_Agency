@@ -81,7 +81,7 @@ app.use((req, res, next) => {
   if (origin && corsOrigins.has(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
-    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-AfroLife-Edir-Id, X-AfroLife-Correlation-Id');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-AfroLife-Edir-Id, X-AfroLife-Correlation-Id, X-AfroLife-Property-Tenant-Id, X-AfroLife-Property-Tenant-Purpose');
     res.setHeader('Access-Control-Expose-Headers', 'X-AfroLife-Correlation-Id');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   }
@@ -309,6 +309,7 @@ const requirePropertyTenantContext: RequestHandler = (req, _res, next) => {
         throw new HttpError(403, 'No active, approved support grant matches this tenant and purpose.');
       }
       tenantSystemId = requested.data;
+      req.user!.propertyTenantPurpose = purpose.data;
       await client.query(
         "SELECT set_config('app.property_tenant_purpose',$1,true)",
         [purpose.data],
@@ -323,10 +324,10 @@ const requirePropertyTenantContext: RequestHandler = (req, _res, next) => {
        LIMIT 2`,
       [req.user!.id, requested.success ? requested.data : null],
     );
-    if (memberships.rowCount === 0) {
+    if (memberships.rows.length === 0) {
       throw new HttpError(403, 'You are not an active member of the requested property tenant.');
     }
-    if (!requested.success && memberships.rowCount > 1) {
+    if (!requested.success && memberships.rows.length > 1) {
       throw new HttpError(400, 'Select a property tenant using x-afrolife-property-tenant-id.');
     }
       tenantSystemId = memberships.rows[0].tenant_system_id as string;
@@ -379,7 +380,7 @@ api.post('/property/tenant-systems', requireRole('global_admin'), h(async (req, 
       'SELECT provision_property_operating_tenant($1,$2,$3,$4,$5,$6) AS id',
       [body.tenant_key,body.legal_name,body.initial_admin,body.jurisdiction,body.timezone,body.currency],
     )
-  )).then((result) => result.id as string);
+  )).then((result) => result.rows[0].id as string);
   res.status(201).json({ id: tenantSystemId, tenant_key: body.tenant_key });
 }));
 api.post('/property/tenant-systems/:id/members', requirePropertyTenantContext, h(async (req, res) => {
@@ -399,6 +400,20 @@ api.post('/property/tenant-systems/:id/members', requirePropertyTenantContext, h
   });
   res.status(204).end();
 }));
+api.post('/property/tenant-systems/:id/status', requireRole('global_admin'), h(async (req, res) => {
+  const tenantSystemId = z.string().uuid().parse(req.params.id);
+  const body = z.object({
+    status: z.enum(['active','suspended','offboarding','closed']),
+    reason: z.string().trim().min(10).max(1000),
+  }).strict().parse(req.body);
+  await withUser(req.user!, async (client) => {
+    await client.query(
+      'SELECT set_property_operating_tenant_status($1,$2,$3)',
+      [tenantSystemId,body.status,body.reason],
+    );
+  });
+  res.status(204).end();
+}));
 api.post('/property/tenant-support-grants', requireRole('global_admin'), h(async (req, res) => {
   const body = z.object({
     tenant_system_id: z.string().uuid(),
@@ -410,7 +425,7 @@ api.post('/property/tenant-support-grants', requireRole('global_admin'), h(async
       'SELECT request_property_tenant_support_grant($1,$2,$3,$4::timestamptz) AS id',
       [body.tenant_system_id,req.user!.id,body.purpose,body.expires_at],
     )
-  )).then((result) => result.id as string);
+  )).then((result) => result.rows[0].id as string);
   res.status(201).json({ id: grantId, status: 'pending' });
 }));
 api.get('/property/tenant-support-grants/pending', requireRole('global_admin'), h(async (req, res) => {

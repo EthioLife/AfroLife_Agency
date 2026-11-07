@@ -15,6 +15,7 @@ export interface AuthUser {
   miniAppAccessMode?: MiniAppAccessMode;
   miniAppGrants?: MiniAppKey[];
   propertyTenantSystemId?: string;
+  propertyTenantPurpose?: string;
 }
 
 export function isPlatformAdminRole(role: string): boolean {

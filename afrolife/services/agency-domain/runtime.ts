@@ -80,6 +80,8 @@ export async function startAgencyDomainService(
       kyc_status: user.kycStatus,
       rolePermissions: user.rolePermissions,
       edir_id: user.organizationId,
+      propertyTenantSystemId: user.propertyTenantSystemId,
+      propertyTenantPurpose: user.propertyTenantPurpose,
     };
     next();
   }, serviceRouter);

@@ -1236,6 +1236,21 @@ async function loadWorkspace() {
   } else {
     localStorage.removeItem(PROPERTY_TENANT_KEY);
   }
+  const tenantContextHost = $('#property-tenant-context');
+  tenantContextHost.replaceChildren();
+  if (state.propertyTenantMemberships.length) {
+    const tenantPicker = field('Property operating tenant', 'property_tenant_context', 'select', true);
+    tenantPicker.input.dataset.propertyTenantContext = 'true';
+    tenantPicker.input.append(new Option('Select a tenant', ''));
+    for (const tenant of state.propertyTenantMemberships) {
+      tenantPicker.input.append(new Option(
+        `${tenant.legal_name} · ${tenant.tenant_role.replaceAll('_', ' ')}`,
+        tenant.id,
+      ));
+    }
+    tenantPicker.input.value = state.propertyTenantContextId ?? '';
+    tenantContextHost.append(tenantPicker.label);
+  }
   const featureFallback = { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] };
   const passwordRequired = state.user.must_change_password || state.user.required_security_step === 'password';
   state.mfaRequired = state.mfaRequired || state.user.required_security_step === 'mfa';
@@ -3969,18 +3984,6 @@ function renderProperties() {
       ? 'Manage your properties and units, track listing review, and follow maintenance and rent statements.'
       : 'Create and manage property records, units, rent details, and private listing pictures.',
   ));
-  if (state.propertyTenantMemberships.length > 1) {
-    const tenantPicker = field('Operating tenant', 'property_tenant_context', 'select', true);
-    tenantPicker.input.dataset.propertyTenantContext = 'true';
-    for (const tenant of state.propertyTenantMemberships) {
-      tenantPicker.input.append(new Option(
-        `${tenant.legal_name} · ${tenant.tenant_role.replaceAll('_', ' ')}`,
-        tenant.id,
-      ));
-    }
-    tenantPicker.input.value = state.propertyTenantContextId ?? '';
-    wrap.append(tenantPicker.label);
-  }
   const metrics = propertyDashboardMetrics(state.properties);
   wrap.append(renderAppDashboard({
     title: owner ? 'Landlord dashboard' : 'Property Management dashboard',
@@ -7762,7 +7765,7 @@ async function uploadPropertyPhotos(propertyId, files, caption = '') {
       throw new Error(t('This file exceeds the configured upload size limit.'));
     }
     const query = new URLSearchParams({ caption });
-    const response = await fetch(`${apiRoot()}/properties/${propertyId}/photos/upload?${query}`, {
+    const response = await authenticatedPropertyFetch(`/properties/${propertyId}/photos/upload?${query}`, {
       method: 'POST',
       headers: {
         authorization: `Bearer ${sessionStorage.getItem(TOKEN_KEY)}`,
@@ -7776,6 +7779,19 @@ async function uploadPropertyPhotos(propertyId, files, caption = '') {
 }
 
 document.addEventListener('change', (event) => {
+  const propertyTenantSelect = event.target.closest('select[data-property-tenant-context]');
+  if (propertyTenantSelect) {
+    state.propertyTenantContextId = propertyTenantSelect.value || null;
+    if (state.propertyTenantContextId) localStorage.setItem(PROPERTY_TENANT_KEY, state.propertyTenantContextId);
+    else localStorage.removeItem(PROPERTY_TENANT_KEY);
+    loadedPanels.clear();
+    if (state.panel === 'properties' || state.panel === 'rent') {
+      refresh().catch((error) => showAlert(error.message, true));
+    } else {
+      showAlert('Property tenant context updated.');
+    }
+    return;
+  }
   const contextSelect = event.target.closest('select[data-platform-tenant-context]');
   if (!contextSelect) return;
   state.platformTenantContextId = contextSelect.value || null;

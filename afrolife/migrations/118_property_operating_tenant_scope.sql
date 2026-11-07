@@ -73,10 +73,12 @@ INSERT INTO property_operating_tenant_members(tenant_system_id,user_id,tenant_ro
 SELECT tenant.id,user.id,
   CASE user.role
     WHEN 'super_admin' THEN 'tenant_admin'
+    WHEN 'corporate_business_manager' THEN 'tenant_admin'
     WHEN 'master_agent' THEN 'master_agent'
     WHEN 'field_agent' THEN 'field_agent'
     WHEN 'property_owner' THEN 'owner'
     WHEN 'customer' THEN 'resident'
+    WHEN 'property_vendor' THEN 'vendor'
     WHEN 'vendor' THEN 'vendor'
     WHEN 'finance' THEN 'tenant_accountant'
     WHEN 'finance_manager' THEN 'tenant_accountant'
@@ -452,16 +454,54 @@ BEGIN
     jsonb_build_object('grant_id',target_grant,'reason',revocation_reason));
 END;
 $$;
+CREATE OR REPLACE FUNCTION set_property_operating_tenant_status(
+  target_tenant uuid,
+  next_status text,
+  change_reason text
+)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp
+AS $$
+DECLARE actor uuid := app_user_id();
+DECLARE previous_status text;
+BEGIN
+  IF app_role()<>'global_admin' OR actor IS NULL
+    OR next_status NOT IN ('active','suspended','offboarding','closed')
+    OR length(trim(change_reason))<10 THEN
+    RAISE EXCEPTION 'Tenant lifecycle changes require a Global Admin and documented reason'
+      USING ERRCODE='42501';
+  END IF;
+  SELECT status INTO previous_status FROM property_operating_tenants
+  WHERE id=target_tenant FOR UPDATE;
+  IF previous_status IS NULL OR previous_status='closed'
+    OR (previous_status='offboarding' AND next_status NOT IN ('offboarding','closed')) THEN
+    RAISE EXCEPTION 'Property tenant lifecycle transition is not permitted'
+      USING ERRCODE='23514';
+  END IF;
+  UPDATE property_operating_tenants SET status=next_status,updated_at=now()
+  WHERE id=target_tenant;
+  IF next_status IN ('suspended','offboarding','closed') THEN
+    UPDATE property_operating_tenant_support_grants
+    SET status='revoked'
+    WHERE tenant_system_id=target_tenant AND status='active';
+  END IF;
+  INSERT INTO property_operating_tenant_events(tenant_system_id,actor_id,event_type,event_data)
+  VALUES(target_tenant,actor,'tenant_status_changed',
+    jsonb_build_object('from_status',previous_status,'to_status',next_status,'reason',change_reason));
+END;
+$$;
 REVOKE ALL ON FUNCTION provision_property_operating_tenant(text,text,uuid,text,text,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION assign_property_operating_tenant_member(uuid,uuid,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION request_property_tenant_support_grant(uuid,uuid,text,timestamptz) FROM PUBLIC;
 REVOKE ALL ON FUNCTION decide_property_tenant_support_grant(uuid,boolean,text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION revoke_property_tenant_support_grant(uuid,text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION set_property_operating_tenant_status(uuid,text,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION provision_property_operating_tenant(text,text,uuid,text,text,text) TO "{{role}}";
 GRANT EXECUTE ON FUNCTION assign_property_operating_tenant_member(uuid,uuid,text) TO "{{role}}";
 GRANT EXECUTE ON FUNCTION request_property_tenant_support_grant(uuid,uuid,text,timestamptz) TO "{{role}}";
 GRANT EXECUTE ON FUNCTION decide_property_tenant_support_grant(uuid,boolean,text) TO "{{role}}";
 GRANT EXECUTE ON FUNCTION revoke_property_tenant_support_grant(uuid,text) TO "{{role}}";
+GRANT EXECUTE ON FUNCTION set_property_operating_tenant_status(uuid,text,text) TO "{{role}}";
 
 ALTER TABLE property_operating_tenants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE property_operating_tenants FORCE ROW LEVEL SECURITY;
@@ -475,7 +515,6 @@ ALTER TABLE property_operating_tenant_support_grants FORCE ROW LEVEL SECURITY;
 CREATE POLICY property_operating_tenants_member_read ON property_operating_tenants
   FOR SELECT USING (
     status='active'
-    AND id=nullif(current_setting('app.property_tenant_system_id',true),'')::uuid
     AND (
       EXISTS (
         SELECT 1 FROM property_operating_tenant_members member
@@ -490,12 +529,48 @@ CREATE POLICY property_operating_tenants_member_read ON property_operating_tenan
       )
     )
   );
+CREATE POLICY property_operating_tenants_global_admin ON property_operating_tenants
+  FOR ALL USING (app_role()='global_admin')
+  WITH CHECK (app_role()='global_admin');
+CREATE POLICY property_operating_tenant_members_assign ON property_operating_tenant_members
+  FOR ALL USING (
+    app_role()='global_admin'
+    OR EXISTS (
+      SELECT 1 FROM property_operating_tenant_members actor_member
+      WHERE actor_member.tenant_system_id=property_operating_tenant_members.tenant_system_id
+        AND actor_member.user_id=app_user_id() AND actor_member.tenant_role='tenant_admin'
+        AND actor_member.status='active'
+    )
+  )
+  WITH CHECK (
+    app_role()='global_admin'
+    OR EXISTS (
+      SELECT 1 FROM property_operating_tenant_members actor_member
+      WHERE actor_member.tenant_system_id=property_operating_tenant_members.tenant_system_id
+        AND actor_member.user_id=app_user_id() AND actor_member.tenant_role='tenant_admin'
+        AND actor_member.status='active'
+    )
+  );
+CREATE POLICY property_operating_tenant_events_write ON property_operating_tenant_events
+  FOR INSERT WITH CHECK (
+    actor_id=app_user_id()
+    AND (
+      app_role()='global_admin'
+      OR EXISTS (
+        SELECT 1 FROM property_operating_tenant_members member
+        WHERE member.tenant_system_id=property_operating_tenant_events.tenant_system_id
+          AND member.user_id=app_user_id() AND member.tenant_role='tenant_admin'
+          AND member.status='active'
+      )
+    )
+  );
 CREATE POLICY property_operating_tenant_members_self_read ON property_operating_tenant_members
   FOR SELECT USING (user_id=app_user_id());
 CREATE POLICY property_operating_tenant_events_member_read ON property_operating_tenant_events
   FOR SELECT USING (tenant_system_id=app_property_tenant_system_id());
-CREATE POLICY property_operating_tenant_support_grants_global_read ON property_operating_tenant_support_grants
-  FOR SELECT USING (app_role()='global_admin');
+CREATE POLICY property_operating_tenant_support_grants_global_admin ON property_operating_tenant_support_grants
+  FOR ALL USING (app_role()='global_admin')
+  WITH CHECK (app_role()='global_admin');
 
 GRANT SELECT ON property_operating_tenants,property_operating_tenant_members,property_operating_tenant_events,
   property_operating_tenant_support_grants TO "{{role}}";
@@ -586,6 +661,48 @@ CREATE POLICY property_unit_turnover_events_operating_tenant_scope ON property_u
     WHERE unit.id=property_unit_turnover_events.unit_id
       AND property.tenant_system_id=app_property_tenant_system_id()
   ));
+CREATE POLICY tenants_field_agent_minimum_access ON tenants AS RESTRICTIVE FOR ALL
+  USING (app_role()<>'field_agent')
+  WITH CHECK (app_role()<>'field_agent');
+CREATE POLICY leases_field_agent_minimum_access ON leases AS RESTRICTIVE FOR ALL
+  USING (app_role()<>'field_agent')
+  WITH CHECK (app_role()<>'field_agent');
+CREATE POLICY rent_charges_field_agent_minimum_access ON rent_charges AS RESTRICTIVE FOR ALL
+  USING (app_role()<>'field_agent')
+  WITH CHECK (app_role()<>'field_agent');
+CREATE POLICY rent_transactions_field_agent_minimum_access ON rent_transactions AS RESTRICTIVE FOR ALL
+  USING (app_role()<>'field_agent')
+  WITH CHECK (app_role()<>'field_agent');
+CREATE POLICY lease_documents_field_agent_minimum_access ON lease_documents AS RESTRICTIVE FOR ALL
+  USING (app_role()<>'field_agent')
+  WITH CHECK (app_role()<>'field_agent');
+CREATE POLICY lease_notices_field_agent_minimum_access ON lease_notices AS RESTRICTIVE FOR ALL
+  USING (app_role()<>'field_agent')
+  WITH CHECK (app_role()<>'field_agent');
+CREATE POLICY move_out_inspections_field_agent_minimum_access ON lease_move_out_inspections AS RESTRICTIVE FOR ALL
+  USING (app_role()<>'field_agent')
+  WITH CHECK (app_role()<>'field_agent');
+CREATE POLICY move_out_inspection_events_field_agent_minimum_access ON lease_move_out_inspection_events AS RESTRICTIVE FOR ALL
+  USING (app_role()<>'field_agent')
+  WITH CHECK (app_role()<>'field_agent');
+CREATE POLICY move_out_inspection_evidence_field_agent_minimum_access ON lease_move_out_inspection_evidence AS RESTRICTIVE FOR ALL
+  USING (app_role()<>'field_agent')
+  WITH CHECK (app_role()<>'field_agent');
+CREATE POLICY renewal_offers_field_agent_minimum_access ON lease_renewal_offers AS RESTRICTIVE FOR ALL
+  USING (app_role()<>'field_agent')
+  WITH CHECK (app_role()<>'field_agent');
+CREATE POLICY renewal_events_field_agent_minimum_access ON lease_renewal_offer_events AS RESTRICTIVE FOR ALL
+  USING (app_role()<>'field_agent')
+  WITH CHECK (app_role()<>'field_agent');
+CREATE POLICY rental_applications_field_agent_minimum_access ON property_rental_applications AS RESTRICTIVE FOR ALL
+  USING (app_role()<>'field_agent')
+  WITH CHECK (app_role()<>'field_agent');
+CREATE POLICY maintenance_request_events_field_agent_minimum_access ON maintenance_request_events AS RESTRICTIVE FOR ALL
+  USING (app_role()<>'field_agent')
+  WITH CHECK (app_role()<>'field_agent');
+CREATE POLICY maintenance_evidence_field_agent_minimum_access ON maintenance_evidence AS RESTRICTIVE FOR ALL
+  USING (app_role()<>'field_agent')
+  WITH CHECK (app_role()<>'field_agent');
 CREATE POLICY property_authority_evidence_operating_tenant_scope ON property_authority_evidence AS RESTRICTIVE FOR ALL
   USING (EXISTS (
     SELECT 1 FROM properties property
@@ -746,3 +863,32 @@ CREATE POLICY lease_move_out_evidence_operating_tenant_scope ON lease_move_out_i
       AND EXISTS (SELECT 1 FROM leases lease WHERE lease.id=inspection.lease_id
         AND lease.tenant_system_id=app_property_tenant_system_id())
   ));
+
+ALTER TABLE properties FORCE ROW LEVEL SECURITY;
+ALTER TABLE property_units FORCE ROW LEVEL SECURITY;
+ALTER TABLE tenants FORCE ROW LEVEL SECURITY;
+ALTER TABLE leases FORCE ROW LEVEL SECURITY;
+ALTER TABLE rent_charges FORCE ROW LEVEL SECURITY;
+ALTER TABLE rent_transactions FORCE ROW LEVEL SECURITY;
+ALTER TABLE maintenance_requests FORCE ROW LEVEL SECURITY;
+ALTER TABLE property_photos FORCE ROW LEVEL SECURITY;
+ALTER TABLE property_rental_applications FORCE ROW LEVEL SECURITY;
+ALTER TABLE property_rental_application_events FORCE ROW LEVEL SECURITY;
+ALTER TABLE property_authority_evidence FORCE ROW LEVEL SECURITY;
+ALTER TABLE property_authority_review_events FORCE ROW LEVEL SECURITY;
+ALTER TABLE lease_documents FORCE ROW LEVEL SECURITY;
+ALTER TABLE lease_versions FORCE ROW LEVEL SECURITY;
+ALTER TABLE lease_lifecycle_events FORCE ROW LEVEL SECURITY;
+ALTER TABLE lease_notices FORCE ROW LEVEL SECURITY;
+ALTER TABLE property_tenant_access_invitations FORCE ROW LEVEL SECURITY;
+ALTER TABLE lease_renewal_offers FORCE ROW LEVEL SECURITY;
+ALTER TABLE lease_renewal_offer_events FORCE ROW LEVEL SECURITY;
+ALTER TABLE lease_move_out_inspections FORCE ROW LEVEL SECURITY;
+ALTER TABLE lease_move_out_inspection_events FORCE ROW LEVEL SECURITY;
+ALTER TABLE lease_move_out_inspection_evidence FORCE ROW LEVEL SECURITY;
+ALTER TABLE property_unit_turnover_events FORCE ROW LEVEL SECURITY;
+ALTER TABLE maintenance_request_events FORCE ROW LEVEL SECURITY;
+ALTER TABLE maintenance_evidence FORCE ROW LEVEL SECURITY;
+ALTER TABLE property_vendors FORCE ROW LEVEL SECURITY;
+ALTER TABLE property_vendor_memberships FORCE ROW LEVEL SECURITY;
+ALTER TABLE property_vendor_bills FORCE ROW LEVEL SECURITY;
