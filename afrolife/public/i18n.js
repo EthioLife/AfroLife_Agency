@@ -2733,6 +2733,152 @@ for (const [message, translations] of Object.entries(publicSurfaceTranslations))
   catalogs.en[message] ??= message;
   for (const [locale, translation] of Object.entries(translations)) catalogs[locale][message] = translation;
 }
+const authRefreshTranslations = {
+  'Sign in with your registered phone number. Ethiopia is selected first; international numbers are supported.': {
+    am: 'በተመዘገበው ስልክ ቁጥርዎ ይግቡ። ኢትዮጵያ በነባሪነት ተመርጣለች፤ ዓለም አቀፍ ቁጥሮችም ይደገፋሉ።',
+    om: 'Lakkoofsa bilbilaa galmeessitaniin seenaa. Itoophiyaan dursee filatamte; lakkoofsi biyya alaa ni deeggarama.',
+    ti: 'ብዝተመዝገበ ቁጽሪ ስልኪኹም እቶ። ኢትዮጵያ ብቐዳምነት ተመሪጻ ኣላ፤ ኣህጉራዊ ቁጽርታት እውን ይድገፉ።',
+    so: 'Ku gal lambarka taleefankaaga diiwaangashan. Itoobiya ayaa marka hore la doortay; lambarrada caalamiga ahna waa la taageeraa.',
+    ar: 'سجّل الدخول برقم هاتفك المسجل. إثيوبيا محددة أولاً، وتُدعم الأرقام الدولية أيضاً.',
+    sw: 'Ingia kwa kutumia nambari ya simu uliyosajili. Ethiopia imechaguliwa kwanza; nambari za kimataifa pia zinaungwa mkono.',
+  },
+  'Country calling code': {
+    am: 'የአገር መደወያ ኮድ', om: 'Koodii bilbila biyya', ti: 'ኮድ መደወሊ ሃገር',
+    so: 'Koodhka wicitaanka dalka', ar: 'رمز الاتصال الدولي', sw: 'Msimbo wa kupiga simu wa nchi',
+  },
+  'National phone number': {
+    am: 'የአገር ውስጥ ስልክ ቁጥር', om: 'Lakkoofsa bilbilaa biyya keessaa', ti: 'ቁጽሪ ስልኪ ውሽጢ ሃገር',
+    so: 'Lambarka taleefanka gudaha', ar: 'رقم الهاتف المحلي', sw: 'Nambari ya simu ya ndani',
+  },
+  'Choose from suggestions or type another international calling code.': {
+    am: 'ከጥቆማዎቹ ይምረጡ ወይም ሌላ ዓለም አቀፍ የመደወያ ኮድ ያስገቡ።',
+    om: 'Yaada keessaa filadhaa yookaan koodii bilbila idil-addunyaa biraa barreessaa.',
+    ti: 'ካብ ምርጫታት ምረጹ ወይ ካልእ ኣህጉራዊ ኮድ መደወሊ ጻሕፉ።',
+    so: 'Ka dooro talooyinka ama qor koodh wicitaan caalami ah oo kale.',
+    ar: 'اختر من الاقتراحات أو اكتب رمز اتصال دولياً آخر.',
+    sw: 'Chagua kwenye mapendekezo au uandike msimbo mwingine wa kimataifa.',
+  },
+  'Forgot password?': {
+    am: 'የይለፍ ቃል ረሱ?', om: 'Jecha icciitii irraanfattanii?', ti: 'መሕለፊ ቃል ረሲዕኩም?',
+    so: 'Ma illowday erayga sirta ah?', ar: 'هل نسيت كلمة المرور؟', sw: 'Umesahau nenosiri?',
+  },
+  'ACCOUNT RECOVERY': {
+    am: 'መለያ መልሶ ማግኘት', om: 'Herrega deebisanii argachuu', ti: 'ምምላስ ሕሳብ',
+    so: 'Soo celinta akoonka', ar: 'استعادة الحساب', sw: 'Urejeshaji wa akaunti',
+  },
+  'Password recovery': {
+    am: 'የይለፍ ቃል መልሶ ማግኘት', om: 'Jecha icciitii deebisanii argachuu', ti: 'ምምላስ መሕለፊ ቃል',
+    so: 'Soo celinta erayga sirta ah', ar: 'استعادة كلمة المرور', sw: 'Urejeshaji wa nenosiri',
+  },
+  'Enter the phone number on your account to check available recovery options.': {
+    am: 'የመለያዎን ስልክ ቁጥር በማስገባት ያሉትን የመልሶ ማግኛ አማራጮች ይመልከቱ።',
+    om: 'Filannoo deebisanii argachuu jiru ilaaluuf lakkoofsa bilbilaa herrega keessanii galchaa.',
+    ti: 'ኣማራጺታት ምምላስ ንምፍላጥ ናይ ሕሳብኩም ቁጽሪ ስልኪ ኣእትዉ።',
+    so: 'Geli lambarka taleefanka akoonkaaga si aad u hubiso hababka soo celinta ee jira.',
+    ar: 'أدخل رقم الهاتف المرتبط بحسابك للتحقق من خيارات الاستعادة المتاحة.',
+    sw: 'Weka nambari ya simu ya akaunti yako ili kuangalia njia za urejeshaji zinazopatikana.',
+  },
+  'SMS password recovery is unavailable because delivery is not configured. No code was sent. Contact AfroLife support to recover your account.': {
+    am: 'የSMS መልሶ ማግኛ አገልግሎት ስላልተዋቀረ አይገኝም። ኮድ አልተላከም። መለያዎን ለማግኘት የAfroLife ድጋፍን ያነጋግሩ።',
+    om: 'Deebisanii argachuun SMS hin qindaa’in. Koodiin hin ergamne. Herrega keessan deebifachuuf deeggarsa AfroLife qunnamaa.',
+    ti: 'ምምላስ ቃል SMS ስለዘይተዋቐረ ኣይርከብን። ኮድ ኣይተላእከን። ሕሳብኩም ንምምላስ ደገፍ AfroLife ርኸቡ።',
+    so: 'Soo celinta SMS lama heli karo maadaama diristu aan la habayn. Koodh lama dirin. La xiriir taageerada AfroLife.',
+    ar: 'استعادة كلمة المرور عبر الرسائل غير متاحة لأن الإرسال غير مُعدّ. لم يُرسل أي رمز. اتصل بدعم AfroLife لاستعادة حسابك.',
+    sw: 'Urejeshaji wa SMS haupatikani kwa kuwa huduma ya kutuma haijasanidiwa. Hakuna msimbo uliotumwa. Wasiliana na usaidizi wa AfroLife.',
+  },
+  'Request recovery help': {
+    am: 'የመልሶ ማግኛ እገዛ ይጠይቁ', om: 'Deeggarsa deebisanii argachuu gaafadhaa', ti: 'ሓገዝ ምምላስ ሕተቱ',
+    so: 'Codso caawimaad soo celin', ar: 'طلب المساعدة في الاستعادة', sw: 'Omba usaidizi wa urejeshaji',
+  },
+  'Back to sign in': {
+    am: 'ወደ መግቢያ ተመለስ', om: 'Gara seensaatti deebi’aa', ti: 'ናብ መእተዊ ተመለሱ',
+    so: 'Ku noqo gelitaanka', ar: 'العودة إلى تسجيل الدخول', sw: 'Rudi kwenye kuingia',
+  },
+  'Fayda verification is unavailable until AfroLife receives approved access. Use secure document review instead; this is not live Fayda verification.': {
+    am: 'AfroLife የተፈቀደ መዳረሻ እስኪያገኝ ድረስ የፋይዳ ማረጋገጫ አይገኝም። በምትኩ ደህንነቱ የተጠበቀውን የሰነድ ግምገማ ይጠቀሙ፤ ይህ ቀጥታ የፋይዳ ማረጋገጫ አይደለም።',
+    om: 'Mirkaneessi Fayda hanga AfroLife hayyama argatutti hin jiru. Bakka isaa gamaaggama sanadaa nageenya qabu fayyadamaa; kun mirkaneessa Fayda kallattii miti.',
+    ti: 'AfroLife ፍቑድ መእተዊ ክሳብ ዝረክብ ምርግጋጽ Fayda ኣይርከብን። ኣብ ክንድኡ ውሑስ ግምገማ ሰነድ ተጠቀሙ፤ እዚ ቀጥታዊ ምርግጋጽ Fayda ኣይኮነን።',
+    so: 'Xaqiijinta Fayda lama heli karo ilaa AfroLife hesho oggolaansho. Isticmaal dib-u-eegista dukumentiyada; tani ma aha xaqiijin Fayda oo toos ah.',
+    ar: 'التحقق من فايدة غير متاح حتى تحصل AfroLife على وصول معتمد. استخدم مراجعة المستندات الآمنة بدلاً منه؛ فهذا ليس تحققاً مباشراً من فايدة.',
+    sw: 'Uthibitishaji wa Fayda haupatikani hadi AfroLife ipate ruhusa iliyoidhinishwa. Tumia ukaguzi salama wa hati badala yake; huu si uthibitishaji wa moja kwa moja wa Fayda.',
+  },
+  'Authenticator sign-in is required for administrative roles and cannot be disabled.': {
+    am: 'ለአስተዳደር ሚናዎች በማረጋገጫ መተግበሪያ መግባት ግዴታ ነው፤ ሊቦዝን አይችልም።',
+    om: 'Gahee bulchiinsaatiif seensa appii mirkaneessaa dirqama; dhaabuu hin danda’amu.',
+    ti: 'ንሚናታት ምምሕዳር ብኣፕ ምርግጋጽ ምእታው ግዴታ እዩ፤ ክስናኽል ኣይከኣልን።',
+    so: 'Doorka maamulka waxaa khasab ku ah gelitaanka xaqiijiyaha, lamana damin karo.',
+    ar: 'تسجيل الدخول باستخدام تطبيق المصادقة إلزامي للأدوار الإدارية ولا يمكن تعطيله.',
+    sw: 'Kuingia kwa kutumia programu ya uthibitishaji ni lazima kwa majukumu ya usimamizi na hakuwezi kuzimwa.',
+  },
+  'Optional: add an authenticator app for an extra sign-in step. You can turn it off later after verifying your password and code.': {
+    am: 'አማራጭ፦ ተጨማሪ የመግቢያ ደረጃ ለማከል የማረጋገጫ መተግበሪያ ይጠቀሙ። የይለፍ ቃልና ኮድ ካረጋገጡ በኋላ ሊያጠፉት ይችላሉ።',
+    om: 'Filannoo: tarkaanfii seensaa dabalataaf appii mirkaneessaa dabalaa. Jecha icciitii fi koodii mirkaneessitanii booda dhaabuu dandeessu.',
+    ti: 'ኣማራጺ፦ ተወሳኺ ደረጃ ምእታው ንምውሳኽ ኣፕ ምርግጋጽ ተጠቀሙ። መሕለፊ ቃልን ኮድን ድሕሪ ምርግጋጽ ከተጥፍእዎ ትኽእሉ።',
+    so: 'Ikhtiyaar: ku dar barnaamij xaqiijiye si gelitaanku u yeesho tallaabo dheeraad ah. Waad damin kartaa kadib markaad xaqiijiso erayga sirta ah iyo koodhka.',
+    ar: 'اختياري: أضف تطبيق مصادقة لخطوة إضافية عند الدخول. يمكنك إيقافه لاحقاً بعد التحقق من كلمة المرور والرمز.',
+    sw: 'Hiari: ongeza programu ya uthibitishaji kwa hatua ya ziada ya kuingia. Unaweza kuizima baadaye baada ya kuthibitisha nenosiri na msimbo.',
+  },
+  'Passkeys and device sign-in': {
+    am: 'Passkey እና በመሣሪያ መግባት', om: 'Passkey fi seensa meeshaa', ti: 'Passkeyን ብመሳርሒ ምእታውን',
+    so: 'Furayaasha passkey iyo gelitaanka qalabka', ar: 'مفاتيح المرور وتسجيل الدخول بالجهاز', sw: 'Passkey na kuingia kwa kifaa',
+  },
+  'Unavailable until secure WebAuthn support is configured. If enabled later, your device may use biometrics or a PIN; AfroLife will not collect biometric data.': {
+    am: 'ደህንነቱ የተጠበቀ WebAuthn እስኪዋቀር ድረስ አይገኝም። በኋላ ከነቃ መሣሪያዎ ባዮሜትሪክስ ወይም PIN ሊጠቀም ይችላል፤ AfroLife የባዮሜትሪክ መረጃ አይሰበስብም።',
+    om: 'Hanga deeggarsi WebAuthn nageenya qabu qindaa’utti hin jiru. Booda yoo baname meeshaan keessan baayomeetiriksii yookaan PIN fayyadamuu danda’a; AfroLife daataa baayomeetiriksii hin kuusu.',
+    ti: 'ውሑስ ደገፍ WebAuthn ክሳብ ዝዋደድ ኣይርከብን። ድሕሪ ምንቃሕ መሳርሒኹም ባዮሜትሪክስ ወይ PIN ክጥቀም ይኽእል፤ AfroLife ዳታ ባዮሜትሪክስ ኣይእክብን።',
+    so: 'Lama heli karo ilaa taageerada WebAuthn ee sugan la habeeyo. Haddii mustaqbalka la furo, qalabkaagu wuxuu isticmaali karaa biometrics ama PIN; AfroLife ma ururinayo xogta biometrics.',
+    ar: 'غير متاح حتى إعداد دعم WebAuthn الآمن. إذا فُعّل لاحقاً، قد يستخدم جهازك القياسات الحيوية أو رمز PIN؛ لن تجمع AfroLife بيانات القياسات الحيوية.',
+    sw: 'Haipatikani hadi usaidizi salama wa WebAuthn usanidiwe. Ukiwezeshwa baadaye, kifaa chako kinaweza kutumia bayometriki au PIN; AfroLife haitakusanya data ya bayometriki.',
+  },
+  'Device sign-in unavailable': {
+    am: 'በመሣሪያ መግባት አይገኝም', om: 'Seensa meeshaa hin jiru', ti: 'ምእታው ብመሳርሒ ኣይርከብን',
+    so: 'Gelitaanka qalabka lama heli karo', ar: 'تسجيل الدخول بالجهاز غير متاح', sw: 'Kuingia kwa kifaa hakupatikani',
+  },
+  'Secure device credential registration is not available yet.': {
+    am: 'ደህንነቱ የተጠበቀ የመሣሪያ ማረጋገጫ ምዝገባ ገና አይገኝም።',
+    om: 'Galmeessi ragaa meeshaa nageenya qabu ammaaf hin jiru.',
+    ti: 'ምዝገባ ውሑስ መረጋገጺ መሳርሒ ገና ኣይርከብን።',
+    so: 'Diiwaangelinta aqoonsiga qalabka ee sugan weli lama heli karo.',
+    ar: 'تسجيل بيانات اعتماد الجهاز الآمنة غير متاح حالياً.',
+    sw: 'Usajili salama wa kitambulisho cha kifaa bado haupatikani.',
+  },
+  'To turn off the optional authenticator step, confirm your current password and a valid one-time code.': {
+    am: 'አማራጭ የማረጋገጫ ደረጃውን ለማጥፋት የአሁኑን የይለፍ ቃልና ትክክለኛ የአንድ ጊዜ ኮድ ያረጋግጡ።',
+    om: 'Tarkaanfii mirkaneessaa filannoo dhaabuuf jecha icciitii ammaa fi koodii yeroo tokkoo sirrii mirkaneessaa.',
+    ti: 'ነቲ ኣማራጺ ምርግጋጽ ንምጥፋእ ናይ ሕጂ መሕለፊ ቃልን ቅኑዕ ኮድ ሓደ ግዜን ኣረጋግጹ።',
+    so: 'Si aad u damiso tallaabada xaqiijiyaha, xaqiiji erayga sirta ah ee hadda iyo koodh hal mar shaqeeya.',
+    ar: 'لإيقاف خطوة المصادقة الاختيارية، أكّد كلمة مرورك الحالية ورمزاً صالحاً لمرة واحدة.',
+    sw: 'Ili kuzima hatua ya hiari ya uthibitishaji, thibitisha nenosiri lako la sasa na msimbo halali wa matumizi moja.',
+  },
+  'Turn off two-step verification': {
+    am: 'የሁለት ደረጃ ማረጋገጫን አጥፋ', om: 'Mirkaneessa tarkaanfii lamaa dhaabi', ti: 'ምርግጋጽ ክልተ ደረጃ ኣጥፍኡ',
+    so: 'Dami xaqiijinta laba-tallaabo', ar: 'إيقاف التحقق بخطوتين', sw: 'Zima uthibitishaji wa hatua mbili',
+  },
+  'Two-step verification disabled.': {
+    am: 'የሁለት ደረጃ ማረጋገጫ ቦዝኗል።', om: 'Mirkaneessi tarkaanfii lamaa dhaabbateera.', ti: 'ምርግጋጽ ክልተ ደረጃ ተሰናኺሉ።',
+    so: 'Xaqiijinta laba-tallaabo waa la damiyay.', ar: 'تم إيقاف التحقق بخطوتين.', sw: 'Uthibitishaji wa hatua mbili umezimwa.',
+  },
+  'Enter a valid country calling code and phone number.': {
+    am: 'ትክክለኛ የአገር መደወያ ኮድና ስልክ ቁጥር ያስገቡ።',
+    om: 'Koodii bilbila biyya fi lakkoofsa bilbilaa sirrii galchaa.',
+    ti: 'ቅኑዕ ኮድ መደወሊ ሃገርን ቁጽሪ ስልክን ኣእትዉ።',
+    so: 'Geli koodh wicitaan dal iyo lambar taleefan oo sax ah.',
+    ar: 'أدخل رمز اتصال دولي ورقم هاتف صحيحين.',
+    sw: 'Weka msimbo sahihi wa nchi na nambari ya simu.',
+  },
+  'If recovery becomes available, instructions will be provided without confirming whether an account exists.': {
+    am: 'መልሶ ማግኛ ሲገኝ መለያ መኖሩን ሳያረጋግጡ መመሪያ ይሰጣል።',
+    om: 'Deebisanii argachuun yoo jiraate, herregni jiraachuu isaa osoo hin mirkaneessin qajeelfamni ni kennama.',
+    ti: 'ምምላስ ምስ ዝርከብ ሕሳብ እንተሎ ከይተረጋገጸ መምርሒ ክወሃብ እዩ።',
+    so: 'Haddii soo celintu suurtowdo, tilmaamo ayaa la bixin doonaa iyadoo aan la xaqiijin jiritaanka akoonka.',
+    ar: 'إذا أصبحت الاستعادة متاحة، فستُقدّم التعليمات دون تأكيد وجود حساب.',
+    sw: 'Urejeshaji ukipatikana, maelekezo yatatolewa bila kuthibitisha kama akaunti ipo.',
+  },
+};
+for (const [message, translations] of Object.entries(authRefreshTranslations)) {
+  catalogs.en[message] = message;
+  for (const [locale, translation] of Object.entries(translations)) catalogs[locale][message] = translation;
+}
 const localeStorageKey = 'afrolife.locale';
 const supportedLocales = Object.keys(localeNames);
 const storedLocale = localStorage.getItem(localeStorageKey);

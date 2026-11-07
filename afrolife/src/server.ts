@@ -176,9 +176,11 @@ const AGENT = ['master_agent', 'field_agent'];
 const api = express.Router();
 api.use(apiMetricsMiddleware);
 
-// ---- Auth (login with lockout and optional 2FA lives in admin.ts) ----
+// ---- Auth (lockout, mandatory administrative MFA, and recovery boundary live in admin.ts) ----
 api.post('/auth/login', createApiRateLimiter('login', Number(process.env.LOGIN_RATE_LIMIT ?? 20)));
 api.post('/auth/signup', createApiRateLimiter('signup', 5));
+api.post('/auth/password-recovery/request', createApiRateLimiter('password-recovery', 5));
+api.post('/auth/password-recovery/complete', createApiRateLimiter('password-recovery-complete', 5));
 api.use(loginRouter);
 api.post('/edir/public/registration-applications', createApiRateLimiter('edir-registration', 5));
 api.post('/edir/public/registration-applications', process.env.EDIR_SERVICE_URL

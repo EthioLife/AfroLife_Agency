@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { isPlatformAdminRole } from '../src/auth-types.js';
-import { adminRouter } from '../src/admin.js';
+import { requiresMfaEnrollment } from '../src/auth-types.js';
+import { adminRouter, loginRouter } from '../src/admin.js';
+import { getFaydaVerificationStatus, getSmsRecoveryStatus } from '../src/auth-integrations.js';
 import { learningRouter } from '../src/learning.js';
 import { getRoleActivity, hasRoleActivityAccess, isRoleActivityOverrides, ROLE_ACTIVITIES, ROLE_NAMES } from '../src/role-activities.js';
 
@@ -10,6 +12,58 @@ test('Global Admin and Super Admin share platform-administration classification'
   assert.equal(isPlatformAdminRole('global_admin'), true);
   assert.equal(isPlatformAdminRole('super_admin'), true);
   assert.equal(isPlatformAdminRole('finance'), false);
+});
+
+test('administrative roles always require MFA while regular accounts remain optional', () => {
+  for (const role of ['global_admin', 'super_admin', 'compliance', 'finance', 'finance_manager', 'corporate_business_manager']) {
+    assert.equal(requiresMfaEnrollment(role), true, `${role} must enroll in MFA`);
+  }
+  for (const role of ['customer', 'worker', 'property_owner', 'master_agent', 'field_agent']) {
+    assert.equal(requiresMfaEnrollment(role), false, `${role} keeps optional MFA`);
+  }
+});
+
+test('SMS recovery and Fayda remain unavailable even when feature flags are requested', () => {
+  assert.equal(getSmsRecoveryStatus({ SMS_RECOVERY_ENABLED: '1' }).enabled, false);
+  assert.equal(getSmsRecoveryStatus({ SMS_RECOVERY_ENABLED: '1' }).status, 'unavailable');
+  assert.equal(getFaydaVerificationStatus({ FAYDA_VERIFICATION_ENABLED: '1' }).enabled, false);
+  assert.equal(getFaydaVerificationStatus({ FAYDA_VERIFICATION_ENABLED: '1' }).status, 'unavailable');
+  assert.equal(getFaydaVerificationStatus({ FAYDA_VERIFICATION_ENABLED: '0' }).status, 'disabled');
+});
+
+test('password recovery migration stores only hash material and limits challenges', async () => {
+  const migration = await readFile(new URL('../migrations/106_auth_password_recovery_challenges.sql', import.meta.url), 'utf8');
+  assert.match(migration, /CREATE TABLE auth_password_recovery_challenges/);
+  assert.match(migration, /code_hash bytea NOT NULL CHECK \(octet_length\(code_hash\) = 32\)/);
+  assert.match(migration, /failed_attempts integer NOT NULL DEFAULT 0 CHECK \(failed_attempts BETWEEN 0 AND 5\)/);
+  assert.match(migration, /expires_at <= created_at \+ interval '5 minutes'/);
+  assert.ok(migration.includes("phone ~ '^\\+[1-9][0-9]{7,14}$'"));
+  assert.match(migration, /GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE auth_password_recovery_challenges TO "\{\{role\}\}"/);
+  assert.doesNotMatch(migration, /\b(?:otp|code|token)\s+text\b/i);
+});
+
+test('password recovery endpoints return no-store 503 without creating a challenge or revealing accounts', async () => {
+  const invoke = (path: string) => {
+    const route = loginRouter.stack.find((layer) => layer.route?.path === path)?.route;
+    assert.ok(route, `missing route ${path}`);
+    const response = {
+      statusCode: 0,
+      headers: {} as Record<string, string>,
+      body: undefined as unknown,
+      setHeader(name: string, value: string) { this.headers[name.toLowerCase()] = value; return this; },
+      status(code: number) { this.statusCode = code; return this; },
+      json(body: unknown) { this.body = body; return this; },
+    };
+    route.stack[0].handle({} as never, response as never, () => { throw new Error('unexpected next()'); });
+    return response;
+  };
+  const request = invoke('/auth/password-recovery/request');
+  const complete = invoke('/auth/password-recovery/complete');
+  assert.equal(request.statusCode, 503);
+  assert.equal(request.headers['cache-control'], 'no-store');
+  assert.deepEqual(complete.body, request.body);
+  assert.match((request.body as { error: string }).error, /delivery is not configured/);
+  assert.doesNotMatch(JSON.stringify([request.body, complete.body]), /\b\d{6}\b|reset.?token/i);
 });
 
 test('Global Admin role migration preserves separate promotion and operational roles', async () => {

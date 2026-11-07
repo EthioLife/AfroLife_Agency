@@ -446,6 +446,28 @@ test('AfroLife sign-in uses the campaign logo and welcome artwork', () => {
   assert.match(styles, /@media \(max-width: 700px\) \{\s*\.welcome-signin-shortcut\s*\{\s*display:\s*inline-flex;[\s\S]*?min-height:\s*46px;/);
 });
 
+test('authentication uses an Ethiopia-first international phone entry and explicit provider availability', async () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const phoneInput = await import('../public/phone-input.js');
+  assert.equal(phoneInput.normalizePhoneParts('+251', '0911 234 567'), '+251911234567');
+  assert.equal(phoneInput.normalizePhoneParts('+1', '(415) 555-0132'), '+14155550132');
+  assert.equal(phoneInput.normalizePhoneParts('+251', '+14155550132'), '+14155550132');
+  assert.equal(phoneInput.normalizePhoneParts('+251', '0611234567'), null);
+  assert.equal(phoneInput.phonePayload({
+    elements: { namedItem: (name) => ({ value: name === 'phone_country_code' ? '+251' : '0911234567' }) },
+  }).phone_national_number, '0911234567');
+  assert.equal(phoneInput.phonePayload({
+    elements: { namedItem: (name) => ({ value: name === 'phone_country_code' ? '+251' : '+14155550132' }) },
+  }).phone, '+14155550132');
+  assert.match(html, /id="login-form"[\s\S]*?name="phone_country_code"[^>]*value="\+251"/);
+  assert.match(html, /id="signup-form"[\s\S]*?name="phone_country_code"[^>]*value="\+251"/);
+  assert.match(html, /id="recovery-form"[\s\S]*?SMS password recovery is unavailable/);
+  assert.match(html, /Fayda verification is unavailable[\s\S]*?not live Fayda verification/);
+  assert.match(app, /canonicalPhonePayload\(form\)/);
+  assert.match(app, /Device sign-in unavailable/);
+});
+
 test('mobile sign-in places the campaign welcome before sign-in and signup forms', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
