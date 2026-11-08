@@ -1686,9 +1686,28 @@ async function loadPanelData(panel) {
         state.propertyAgentScopes = await safeGet(
           `/property/tenant-systems/${encodeURIComponent(activePropertyTenant)}/agent-scopes`, [],
         );
-        state.propertyTenantAgentCandidates = propertyTenantMembership?.tenant_role === 'tenant_admin'
-          ? await safeGet(`/property/tenant-systems/${encodeURIComponent(activePropertyTenant)}/agent-candidates`, [])
-          : [];
+        if (propertyTenantMembership?.tenant_role === 'tenant_admin') {
+          state.propertyTenantAgentCandidates = await safeGet(
+            `/property/tenant-systems/${encodeURIComponent(activePropertyTenant)}/agent-candidates`, [],
+          );
+        } else if (propertyTenantMembership?.tenant_role === 'master_agent') {
+          const today = new Date().toISOString().slice(0, 10);
+          const managedPropertyIds = [...new Set(state.propertyAgentScopes
+            .filter((scope) => scope.user_id === state.user.id && scope.tenant_role === 'master_agent'
+              && scope.status === 'active' && scope.effective_from <= today
+              && (!scope.effective_to || scope.effective_to >= today))
+            .map((scope) => scope.property_id))];
+          const candidatesByProperty = await Promise.all(managedPropertyIds.map(async (propertyId) => {
+            const candidates = await safeGet(
+              `/property/tenant-systems/${encodeURIComponent(activePropertyTenant)}/agent-candidates?property_id=${encodeURIComponent(propertyId)}`,
+              [],
+            );
+            return candidates.map((candidate) => ({ ...candidate, property_id: propertyId }));
+          }));
+          state.propertyTenantAgentCandidates = candidatesByProperty.flat();
+        } else {
+          state.propertyTenantAgentCandidates = [];
+        }
       } else {
         state.propertyAgentScopes = [];
         state.propertyTenantAgentCandidates = [];
@@ -4388,7 +4407,8 @@ function renderMaintenanceOperations() {
   if (state.user.role !== 'field_agent') section.append(form);
   const tenantMembership = state.propertyTenantMemberships.find((tenant) =>
     tenant.id === state.propertyTenantContextId && tenant.status === 'active');
-  if (tenantMembership?.tenant_role === 'tenant_admin' && !state.propertyTenantSupportGrantId) {
+  if (['tenant_admin','master_agent'].includes(tenantMembership?.tenant_role)
+    && !state.propertyTenantSupportGrantId) {
     const scopePanel = node('section', undefined, 'panel form-card');
     scopePanel.append(
       node('h3', 'Property agent assignments'),
@@ -4402,13 +4422,18 @@ function renderMaintenanceOperations() {
       scopeProperty.input.append(new Option(property.address, property.id));
     }
     const scopeAgent = field('Tenant agent', 'user_id', 'select', true);
-    scopeAgent.input.append(new Option('Choose an active agent', ''));
-    for (const candidate of state.propertyTenantAgentCandidates) {
-      scopeAgent.input.append(new Option(
-        `${candidate.legal_name} · ${candidate.tenant_role.replaceAll('_', ' ')}`,
-        candidate.user_id,
-      ));
-    }
+    const renderCandidates = () => {
+      scopeAgent.input.replaceChildren(new Option('Choose an active agent', ''));
+      for (const candidate of state.propertyTenantAgentCandidates) {
+        if (candidate.property_id && candidate.property_id !== scopeProperty.input.value) continue;
+        scopeAgent.input.append(new Option(
+          `${candidate.legal_name} · ${candidate.tenant_role.replaceAll('_', ' ')}`,
+          candidate.user_id,
+        ));
+      }
+    };
+    scopeProperty.input.addEventListener('change', renderCandidates);
+    renderCandidates();
     scopeForm.append(
       scopeProperty.label,
       scopeAgent.label,
@@ -4428,14 +4453,17 @@ function renderMaintenanceOperations() {
         `${scope.legal_name} · ${scope.tenant_role.replaceAll('_', ' ')} · assigned ${new Date(scope.assigned_at).toLocaleDateString(document.documentElement.lang)}`,
         scope.status,
       );
-      item.append(
-        button('Suspend', 'property-agent-scope-status', 'button button-outline', {
-          propertyId: scope.property_id, userId: scope.user_id, status: 'suspended',
-        }),
-        button('End assignment', 'property-agent-scope-status', 'button button-quiet', {
-          propertyId: scope.property_id, userId: scope.user_id, status: 'ended',
-        }),
-      );
+      if (tenantMembership.tenant_role === 'tenant_admin'
+        || (scope.tenant_role === 'field_agent' && scope.user_id !== state.user.id)) {
+        item.append(
+          button('Suspend', 'property-agent-scope-status', 'button button-outline', {
+            propertyId: scope.property_id, userId: scope.user_id, status: 'suspended',
+          }),
+          button('End assignment', 'property-agent-scope-status', 'button button-quiet', {
+            propertyId: scope.property_id, userId: scope.user_id, status: 'ended',
+          }),
+        );
+      }
       scopePanel.append(item);
     }
     section.append(scopePanel);
@@ -6750,7 +6778,9 @@ async function submitForm(form) {
     return;
   }
   if (form.dataset.form === 'property-agent-scope') {
-    const candidate = state.propertyTenantAgentCandidates.find((agent) => agent.user_id === values.user_id);
+    const candidate = state.propertyTenantAgentCandidates.find((agent) =>
+      agent.user_id === values.user_id
+      && (!agent.property_id || agent.property_id === values.property_id));
     if (!candidate || !state.propertyTenantContextId) {
       throw new Error(t('Choose an active agent in the selected property tenant.'));
     }

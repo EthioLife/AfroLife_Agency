@@ -439,15 +439,13 @@ api.get('/property/tenant-systems/:id/agent-scopes', requirePropertyTenantContex
 }));
 api.get('/property/tenant-systems/:id/agent-candidates', requirePropertyTenantContext, h(async (req, res) => {
   const tenantSystemId = z.string().uuid().parse(req.params.id);
+  const propertyId = req.query.property_id === undefined
+    ? null
+    : z.string().uuid().parse(req.query.property_id);
   res.json(await withUser(req.user!, async (client) => (await client.query(
-    `SELECT member.user_id,user_row.legal_name,member.tenant_role
-     FROM property_operating_tenant_members member
-     JOIN users user_row ON user_row.id=member.user_id
-     WHERE member.tenant_system_id=$1 AND member.status='active' AND user_row.active=true
-       AND member.tenant_role IN ('master_agent','field_agent')
-       AND app_property_tenant_role_matches(member.tenant_role,user_row.role)
-     ORDER BY user_row.legal_name,member.user_id`,
-    [tenantSystemId],
+    `SELECT * FROM list_property_agent_candidates($1,$2)
+     ORDER BY legal_name,user_id`,
+    [tenantSystemId,propertyId],
   )).rows));
 }));
 api.post('/property/tenant-systems/:id/agent-scopes', requirePropertyTenantContext, h(async (req, res) => {

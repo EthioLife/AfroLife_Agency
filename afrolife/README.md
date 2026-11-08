@@ -287,7 +287,8 @@ support-grant workflow. Do not grant the runtime database role table ownership
 or `BYPASSRLS`.
 
 Tenant administrators can assign active Master Agents and Field Agents to
-specific properties. Internal maintenance assignments must target one of those
+specific properties; an assigned Master Agent can delegate Field Agents only
+within that property. Internal maintenance assignments must target one of those
 active tenant members with an active scope for that property; the database
 checks the same rules as the API. Suspending or ending an assignment removes
 the field agent's access to the property's work orders, history, and evidence.

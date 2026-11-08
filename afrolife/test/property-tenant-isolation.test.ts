@@ -67,6 +67,18 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(agentScopeMigration, /maintenance_evidence_scoped_field_agent_insert/);
   assert.match(agentScopeMigration, /property_agent_scope_events_immutable/);
 
+  const hierarchyMigration = await readFile(
+    new URL('../migrations/121_property_master_agent_delegation.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(hierarchyMigration, /CREATE OR REPLACE FUNCTION app_property_agent_can_manage/);
+  assert.match(hierarchyMigration, /app_role\(\)='master_agent'/);
+  assert.match(hierarchyMigration, /CREATE POLICY properties_master_agent_scope_read/);
+  assert.match(hierarchyMigration, /CREATE POLICY property_units_master_agent_scope_read/);
+  assert.match(hierarchyMigration, /Master agents may assign only field agents to properties in their active scope/);
+  assert.match(hierarchyMigration, /Master agents may change only field-agent scopes in their active property assignment/);
+  assert.match(hierarchyMigration, /CREATE OR REPLACE FUNCTION list_property_agent_candidates/);
+
   const core = await readFile(new URL('../src/core.ts', import.meta.url), 'utf8');
   assert.match(core, /app\.property_tenant_system_id/);
   const server = await readFile(new URL('../src/server.ts', import.meta.url), 'utf8');
@@ -78,7 +90,7 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(server, /property\/tenant-support-grants\/mine/);
   assert.match(server, /property\/tenant-systems\/:id\/agent-scopes/);
   assert.match(server, /property\/tenant-systems\/:id\/agent-candidates/);
-  assert.match(server, /app_property_tenant_role_matches\(member\.tenant_role,user_row\.role\)/);
+  assert.match(server, /list_property_agent_candidates\(\$1,\$2\)/);
   assert.match(server, /api\.get\('\/property\/tenant-systems', requireRole\('global_admin'\)/);
   assert.match(server, /api\.post\('\/property\/tenant-systems\/:id\/members\/:userId\/status'/);
   const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
