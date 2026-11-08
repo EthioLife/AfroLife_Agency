@@ -167,7 +167,9 @@ const uploadMaintenanceEvidence = h(async (req, res) => {
     if (!maintenance) throw new HttpError(404, 'Maintenance request not found');
     const permittedStatuses = req.user!.role === 'property_vendor'
       ? ['accepted','in_progress','rework_required']
-      : ['open','triaged','assigned','in_progress'];
+      : req.user!.role === 'field_agent'
+        ? ['assigned','in_progress','rework_required']
+        : ['open','triaged','assigned','in_progress'];
     if (!permittedStatuses.includes(maintenance.status)) {
       throw new HttpError(409, 'Evidence cannot be added in the current maintenance status');
     }

@@ -286,6 +286,18 @@ ordinary tenant members; tenant access for these accounts must use the approved
 support-grant workflow. Do not grant the runtime database role table ownership
 or `BYPASSRLS`.
 
+Tenant administrators can assign active Master Agents and Field Agents to
+specific properties. Internal maintenance assignments must target one of those
+active tenant members with an active scope for that property; the database
+checks the same rules as the API. Suspending or ending an assignment removes
+the field agent's access to the property's work orders, history, and evidence.
+Field-agent maintenance responses omit lease/resident identifiers and cost
+data. Database and API controls prevent field agents from editing assignment,
+priority, cost, or other protected work-order fields and from approving
+completion. Tenant
+roles that do not yet map to a distinct supported application role (including
+board member and inspector) cannot be activated as memberships.
+
 ## Configurable business rules
 
 Global Admins can review and update operational rules in **Admin & review → Business rules**. Updates are validated, saved to `config_rules`, and recorded in the audit log. The editable values cover contract fees and commissions, Pro/Enterprise display prices, matching weights and thresholds, optional verified reference/certificate requirements, rent due dates and maximum lease duration, invoice payment periods, and refund caps.

@@ -2390,6 +2390,9 @@ ops.get('/rent-transactions/pending', requireAnyActivity('rent.transactions.view
 
 // ================= Maintenance =================
 ops.post('/maintenance', requireActivity('property.maintenance.manage'), h(async (req, res) => {
+  if (req.user!.role === 'field_agent') {
+    throw new HttpError(403, 'Field agents can only work on maintenance assigned to them');
+  }
   const b = z.object({ property_id: z.string().uuid(), unit_id: z.string().uuid().optional(), description: z.string().trim().min(10).max(2000), category: z.enum(['general','plumbing','electrical','appliance','structural','cleaning','safety','other']).default('general'), priority: z.enum(['low', 'normal', 'urgent']).default('normal'), idempotency_key: z.string().uuid().optional() }).parse(req.body);
   const priority = b.category === 'safety' ? 'urgent' : b.priority;
   const payloadHash = b.idempotency_key ? createHash('sha256').update(JSON.stringify({
@@ -2436,13 +2439,21 @@ ops.post('/maintenance', requireActivity('property.maintenance.manage'), h(async
 ops.get('/maintenance', requireActivity('property.maintenance.manage'), h(async (req, res) => {
   const offset = z.coerce.number().int().min(0).max(100000).parse(req.query.offset ?? 0);
   res.json(await withUser(req.user!, async (c) => (await c.query(
-    `SELECT m.*, p.address, u.unit_no,vendor.name AS vendor_name,
+    `SELECT m.id,m.property_id,m.unit_id,m.description,m.priority,m.status,m.assigned_to,
+       m.assigned_vendor_id,m.category,m.resolution_note,m.completed_at,m.updated_at,m.created_at,
+       m.sla_due_at,m.review_note,m.completion_submitted_by,m.completion_submitted_at,
+       m.reviewed_by,m.reviewed_at,
+       CASE WHEN app_role()='field_agent' THEN NULL ELSE m.cost END AS cost,
+       COALESCE(p.address,field_context.property_address) AS address,
+       COALESCE(u.unit_no,field_context.unit_no) AS unit_no,vendor.name AS vendor_name,
        extract(epoch FROM (COALESCE(m.completed_at,now())-m.created_at))/3600 AS age_hours,
        latest.event_type AS latest_event_type, latest.note AS latest_event_note,
        latest.created_at AS latest_event_at,
        (SELECT count(*)::int FROM maintenance_evidence e
         WHERE e.maintenance_request_id=m.id AND e.scan_status='clean') AS evidence_count
-     FROM maintenance_requests m JOIN properties p ON p.id = m.property_id LEFT JOIN property_units u ON u.id=m.unit_id
+     FROM maintenance_requests m LEFT JOIN properties p ON p.id = m.property_id
+     LEFT JOIN property_units u ON u.id=m.unit_id
+     LEFT JOIN LATERAL app_property_agent_task_context(m.id) field_context ON true
      LEFT JOIN property_vendors vendor ON vendor.id=m.assigned_vendor_id
      LEFT JOIN LATERAL (
        SELECT e.event_type,e.note,e.created_at FROM maintenance_request_events e
@@ -2486,7 +2497,7 @@ ops.get('/maintenance/:id/events', requireActivity('property.maintenance.manage'
 ops.post('/maintenance/:id/update', requireActivity('property.maintenance.manage'), requireRole(...AGENT, 'corporate_business_manager', 'super_admin', 'global_admin'), h(async (req, res) => {
   const b = z.object({
     status: z.enum(['triaged', 'assigned', 'in_progress', 'awaiting_review', 'completed', 'rework_required', 'cancelled']),
-    assigned_to: z.string().trim().min(2).max(200).optional(),
+    assigned_to: z.string().uuid().optional(),
     assigned_vendor_id: z.string().uuid().optional(),
     sla_hours: z.number().int().min(1).max(720).optional(),
     cost: z.number().nonnegative().finite().optional(),
@@ -2502,8 +2513,8 @@ ops.post('/maintenance/:id/update', requireActivity('property.maintenance.manage
     if (body.status === 'triaged' && !body.resolution_note) {
       context.addIssue({ code: z.ZodIssueCode.custom, path: ['resolution_note'], message: 'Add triage notes before routing this request' });
     }
-    if (body.status === 'assigned' && !body.assigned_to && !body.assigned_vendor_id) {
-      context.addIssue({ code: z.ZodIssueCode.custom, path: ['assigned_to'], message: 'Choose the assigned person or vendor' });
+    if (body.assigned_to && body.assigned_vendor_id) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['assigned_vendor_id'], message: 'Choose either an internal technician or an external vendor, not both' });
     }
     if (body.status === 'awaiting_review' && !body.resolution_note) {
       context.addIssue({ code: z.ZodIssueCode.custom, path: ['resolution_note'], message: 'Describe completed work before requesting review' });
@@ -2516,12 +2527,40 @@ ops.post('/maintenance/:id/update', requireActivity('property.maintenance.manage
     }
   }).parse(req.body);
   const reviewRoles = ['corporate_business_manager', 'super_admin', 'global_admin'];
+  if (req.user!.role === 'field_agent'
+    && (!['in_progress','awaiting_review'].includes(b.status)
+      || b.assigned_to !== undefined || b.assigned_vendor_id !== undefined
+      || b.sla_hours !== undefined || b.cost !== undefined || b.review_note !== undefined)) {
+    throw new HttpError(403, 'Field agents may only update their assigned work status and completion notes');
+  }
   if (requiresMaintenanceReview(b.status) && !reviewRoles.includes(req.user!.role)) {
     throw new HttpError(403, 'Only a maintenance reviewer can approve completion or return work for rework');
   }
   res.json(await withUser(req.user!, async (c) => {
     const m = (await c.query('SELECT * FROM maintenance_requests WHERE id = $1 FOR UPDATE', [req.params.id])).rows[0];
     if (!m) throw new HttpError(404, 'Request not found');
+    if (req.user!.role === 'field_agent' && m.assigned_to_user_id !== req.user!.id) {
+      throw new HttpError(404, 'Assigned maintenance request not found');
+    }
+    if (b.assigned_to) {
+      const assignee = (await c.query(
+        `SELECT 1 FROM users user_row
+         JOIN property_operating_tenant_members member
+           ON member.user_id=user_row.id AND member.tenant_system_id=$2 AND member.status='active'
+          AND member.tenant_role IN ('master_agent','field_agent')
+         WHERE user_row.id=$1 AND user_row.active=true
+           AND app_property_tenant_role_matches(member.tenant_role,user_row.role)`,
+        [b.assigned_to,m.tenant_system_id],
+      )).rowCount;
+      if (!assignee) throw new HttpError(422, 'Choose an active agent who is a member of this property tenant');
+      const propertyScope = (await c.query(
+        `SELECT 1 FROM property_agent_scopes
+         WHERE tenant_system_id=$1 AND property_id=$2 AND user_id=$3 AND status='active'
+           AND effective_from<=current_date AND (effective_to IS NULL OR effective_to>=current_date)`,
+        [m.tenant_system_id,m.property_id,b.assigned_to],
+      )).rowCount;
+      if (!propertyScope) throw new HttpError(422, 'Assign this agent to the property before routing maintenance work');
+    }
     if (b.assigned_vendor_id) {
       if (!['corporate_business_manager','super_admin','global_admin'].includes(req.user!.role)) {
         throw new HttpError(403, 'Only a maintenance supervisor can assign an external vendor');
@@ -2539,9 +2578,10 @@ ops.post('/maintenance/:id/update', requireActivity('property.maintenance.manage
     if (b.status === 'in_progress' && m.assigned_vendor_id) {
       throw new HttpError(409, 'Assigned vendors must accept the work in their portal before it can start');
     }
-    const assignee = b.assigned_vendor_id ? null : b.assigned_to ?? null;
-    const r = await c.query(`UPDATE maintenance_requests SET status=$2, assigned_to=COALESCE($3,assigned_to),
-      assigned_vendor_id=COALESCE($8,assigned_vendor_id),
+    const r = await c.query(`UPDATE maintenance_requests SET status=$2,
+      assigned_to=CASE WHEN $8 IS NOT NULL THEN NULL WHEN $3 IS NOT NULL THEN $3 ELSE assigned_to END,
+      assigned_to_user_id=CASE WHEN $8 IS NOT NULL THEN NULL WHEN $3 IS NOT NULL THEN $3::uuid ELSE assigned_to_user_id END,
+      assigned_vendor_id=CASE WHEN $3 IS NOT NULL THEN NULL WHEN $8 IS NOT NULL THEN $8 ELSE assigned_vendor_id END,
       sla_due_at=CASE WHEN $2='triaged' THEN now()+make_interval(hours=>$9) ELSE sla_due_at END,
       cost=COALESCE($4,cost), resolution_note=COALESCE($5,resolution_note),
       review_note=CASE WHEN $2='awaiting_review' THEN NULL ELSE COALESCE($6,review_note) END,

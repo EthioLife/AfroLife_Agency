@@ -74,6 +74,7 @@ export const agencyDomainSchemaRequirements: Record<AgencyDomain, {
       'lease_move_out_inspection_evidence', 'property_unit_turnover_events',
       'property_operating_tenants', 'property_operating_tenant_members',
       'property_operating_tenant_events', 'property_operating_tenant_support_grants',
+      'property_agent_scopes', 'property_agent_scope_events',
     ],
     rowLevelSecurity: [
       'agents', 'marketplace_configuration', 'maintenance_requests', 'properties', 'property_photos',
@@ -89,6 +90,7 @@ export const agencyDomainSchemaRequirements: Record<AgencyDomain, {
       'lease_move_out_inspection_evidence', 'property_unit_turnover_events',
       'property_operating_tenants', 'property_operating_tenant_members',
       'property_operating_tenant_events', 'property_operating_tenant_support_grants',
+      'property_agent_scopes', 'property_agent_scope_events',
     ],
     requiredColumns: [
       'users.id', 'users.role', 'users.active', 'users.kyc_status', 'agents.id', 'agents.territory_id',
@@ -118,6 +120,11 @@ export const agencyDomainSchemaRequirements: Record<AgencyDomain, {
       'maintenance_requests.description', 'maintenance_requests.priority',
       'maintenance_requests.status', 'maintenance_requests.source_agent_id',
       'maintenance_requests.tenant_system_id',
+      'maintenance_requests.assigned_to_user_id',
+      'property_agent_scopes.tenant_system_id', 'property_agent_scopes.property_id',
+      'property_agent_scopes.user_id', 'property_agent_scopes.tenant_role',
+      'property_agent_scopes.status', 'property_agent_scopes.effective_from',
+      'property_agent_scopes.effective_to',
       'maintenance_requests.lease_id', 'maintenance_requests.resident_user_id',
       'property_tenant_access_invitations.lease_id', 'property_tenant_access_invitations.tenant_id',
       'property_tenant_access_invitations.token_hash', 'property_tenant_access_invitations.expires_at',

@@ -397,8 +397,8 @@ api.post('/property/tenant-systems/:id/members', requirePropertyTenantContext, h
   const body = z.object({
     user_id: z.string().uuid(),
     tenant_role: z.enum([
-      'tenant_admin','tenant_accountant','master_agent','agent','field_agent',
-      'owner','resident','vendor','board_member','inspector',
+      'tenant_admin','tenant_accountant','master_agent','field_agent',
+      'owner','resident','vendor',
     ]),
   }).strict().parse(req.body);
   await withUser(req.user!, async (client) => {
@@ -420,6 +420,64 @@ api.post('/property/tenant-systems/:id/members/:userId/status', requirePropertyT
     await client.query(
       'SELECT set_property_operating_tenant_member_status($1,$2,$3,$4)',
       [tenantSystemId,targetUserId,body.status,body.reason],
+    );
+  });
+  res.status(204).end();
+}));
+api.get('/property/tenant-systems/:id/agent-scopes', requirePropertyTenantContext, h(async (req, res) => {
+  const tenantSystemId = z.string().uuid().parse(req.params.id);
+  res.json(await withUser(req.user!, async (client) => (await client.query(
+    `SELECT scope.tenant_system_id,scope.property_id,property.address,scope.user_id,user_row.legal_name,
+       scope.tenant_role,scope.status,scope.effective_from,scope.effective_to,scope.assigned_by,scope.assigned_at
+     FROM property_agent_scopes scope
+     JOIN properties property ON property.id=scope.property_id
+     JOIN users user_row ON user_row.id=scope.user_id
+     WHERE scope.tenant_system_id=$1
+     ORDER BY property.address,user_row.legal_name,scope.user_id`,
+    [tenantSystemId],
+  )).rows));
+}));
+api.get('/property/tenant-systems/:id/agent-candidates', requirePropertyTenantContext, h(async (req, res) => {
+  const tenantSystemId = z.string().uuid().parse(req.params.id);
+  res.json(await withUser(req.user!, async (client) => (await client.query(
+    `SELECT member.user_id,user_row.legal_name,member.tenant_role
+     FROM property_operating_tenant_members member
+     JOIN users user_row ON user_row.id=member.user_id
+     WHERE member.tenant_system_id=$1 AND member.status='active' AND user_row.active=true
+       AND member.tenant_role IN ('master_agent','field_agent')
+       AND app_property_tenant_role_matches(member.tenant_role,user_row.role)
+     ORDER BY user_row.legal_name,member.user_id`,
+    [tenantSystemId],
+  )).rows));
+}));
+api.post('/property/tenant-systems/:id/agent-scopes', requirePropertyTenantContext, h(async (req, res) => {
+  const tenantSystemId = z.string().uuid().parse(req.params.id);
+  const body = z.object({
+    property_id: z.string().uuid(),
+    user_id: z.string().uuid(),
+    tenant_role: z.enum(['master_agent','field_agent']),
+    reason: z.string().trim().min(10).max(1000),
+  }).strict().parse(req.body);
+  await withUser(req.user!, async (client) => {
+    await client.query(
+      'SELECT assign_property_agent_scope($1,$2,$3,$4,$5)',
+      [tenantSystemId,body.property_id,body.user_id,body.tenant_role,body.reason],
+    );
+  });
+  res.status(204).end();
+}));
+api.post('/property/tenant-systems/:id/agent-scopes/:propertyId/:userId/status', requirePropertyTenantContext, h(async (req, res) => {
+  const tenantSystemId = z.string().uuid().parse(req.params.id);
+  const propertyId = z.string().uuid().parse(req.params.propertyId);
+  const userId = z.string().uuid().parse(req.params.userId);
+  const body = z.object({
+    status: z.enum(['suspended','ended']),
+    reason: z.string().trim().min(10).max(1000),
+  }).strict().parse(req.body);
+  await withUser(req.user!, async (client) => {
+    await client.query(
+      'SELECT set_property_agent_scope_status($1,$2,$3,$4,$5)',
+      [tenantSystemId,propertyId,userId,body.status,body.reason],
     );
   });
   res.status(204).end();

@@ -43,6 +43,30 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(platformRoleGuard, /app_role\(\)<>'global_admin'/);
   assert.match(platformRoleGuard, /app_role\(\)='global_admin'[\s\S]*property_operating_tenant_support_grants/);
 
+  const agentScopeMigration = await readFile(
+    new URL('../migrations/120_property_agent_scope_and_maintenance_assignees.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(agentScopeMigration, /CREATE TABLE property_agent_scopes/);
+  assert.match(agentScopeMigration, /app_property_tenant_role_matches/);
+  assert.match(agentScopeMigration, /WHEN 'field_agent' THEN target_auth_role='field_agent'/);
+  assert.match(agentScopeMigration, /app_property_tenant_role_matches\(member\.tenant_role,user_row\.role\)/);
+  assert.match(agentScopeMigration, /CREATE OR REPLACE FUNCTION assign_property_agent_scope/);
+  assert.match(agentScopeMigration, /CREATE OR REPLACE FUNCTION set_property_agent_scope_status/);
+  assert.match(agentScopeMigration, /NEW\.assigned_to_user_id/);
+  assert.match(agentScopeMigration, /app_property_tenant_role_matches\(member\.tenant_role,user_row\.role\)/);
+  assert.match(agentScopeMigration, /Maintenance assignee must be an active agent assigned to this property in the same tenant/);
+  assert.match(agentScopeMigration, /Field agents cannot create maintenance requests; a supervisor must assign work/);
+  assert.match(agentScopeMigration, /CREATE OR REPLACE FUNCTION guard_property_field_agent_maintenance_update/);
+  assert.match(agentScopeMigration, /to_jsonb\(NEW\)-allowed_changes/);
+  assert.match(agentScopeMigration, /property_field_agent_maintenance_update_guard/);
+  assert.match(agentScopeMigration, /maintenance_requests_field_agent_assigned_only/);
+  assert.match(agentScopeMigration, /maintenance_requests_scoped_field_agent_read/);
+  assert.match(agentScopeMigration, /maintenance_requests_scoped_field_agent_update/);
+  assert.match(agentScopeMigration, /maintenance_evidence_scoped_field_agent_read/);
+  assert.match(agentScopeMigration, /maintenance_evidence_scoped_field_agent_insert/);
+  assert.match(agentScopeMigration, /property_agent_scope_events_immutable/);
+
   const core = await readFile(new URL('../src/core.ts', import.meta.url), 'utf8');
   assert.match(core, /app\.property_tenant_system_id/);
   const server = await readFile(new URL('../src/server.ts', import.meta.url), 'utf8');
@@ -52,6 +76,9 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(server, /'\/property-vendors', '\/property-vendor-bills', '\/property-vendor-payments'/);
   assert.match(server, /requireAnyMiniAppAccess\('properties', 'rent', 'accounting'\)/);
   assert.match(server, /property\/tenant-support-grants\/mine/);
+  assert.match(server, /property\/tenant-systems\/:id\/agent-scopes/);
+  assert.match(server, /property\/tenant-systems\/:id\/agent-candidates/);
+  assert.match(server, /app_property_tenant_role_matches\(member\.tenant_role,user_row\.role\)/);
   assert.match(server, /api\.get\('\/property\/tenant-systems', requireRole\('global_admin'\)/);
   assert.match(server, /api\.post\('\/property\/tenant-systems\/:id\/members\/:userId\/status'/);
   const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
@@ -60,4 +87,19 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(app, /property\/tenant-systems\/mine/);
   assert.match(app, /property-tenant-support-decision/);
   assert.match(app, /property-tenant-support-request/);
+  assert.match(app, /property-agent-scope/);
+  assert.match(app, /propertyAgentScopes/);
+
+  const operations = await readFile(new URL('../src/ops.ts', import.meta.url), 'utf8');
+  assert.match(operations, /assigned_to: z\.string\(\)\.uuid\(\)\.optional\(\)/);
+  assert.match(operations, /Assign this agent to the property before routing maintenance work/);
+  assert.match(operations, /Field agents may only update their assigned work status and completion notes/);
+  assert.match(operations, /Field agents can only work on maintenance assigned to them/);
+  assert.match(operations, /CASE WHEN app_role\(\)='field_agent' THEN NULL ELSE m\.cost END AS cost/);
+  const vendorPortal = await readFile(new URL('../src/property-vendor-portal.ts', import.meta.url), 'utf8');
+  assert.match(vendorPortal, /req\.user!\.role === 'field_agent'[\s\S]*\['assigned','in_progress','rework_required'\]/);
+
+  const propertyRouter = await readFile(new URL('../services/property-management/router.ts', import.meta.url), 'utf8');
+  assert.match(propertyRouter, /const salePrice = fieldAgent \? 'NULL::numeric AS sale_price'/);
+  assert.match(propertyRouter, /const unitRent = fieldAgent \? 'NULL::numeric'/);
 });

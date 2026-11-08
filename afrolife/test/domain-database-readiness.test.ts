@@ -61,6 +61,7 @@ const completeSchemas: Record<AgencyDomain, { tables: string[]; rls: string[] }>
       'lease_move_out_inspection_evidence', 'property_unit_turnover_events',
       'property_operating_tenants', 'property_operating_tenant_members',
       'property_operating_tenant_events', 'property_operating_tenant_support_grants',
+      'property_agent_scopes', 'property_agent_scope_events',
     ],
     rls: [
       'agents', 'marketplace_configuration', 'maintenance_requests', 'properties', 'property_photos',
@@ -76,6 +77,7 @@ const completeSchemas: Record<AgencyDomain, { tables: string[]; rls: string[] }>
       'lease_move_out_inspection_evidence', 'property_unit_turnover_events',
       'property_operating_tenants', 'property_operating_tenant_members',
       'property_operating_tenant_events', 'property_operating_tenant_support_grants',
+      'property_agent_scopes', 'property_agent_scope_events',
     ],
   },
   marketplace: {
