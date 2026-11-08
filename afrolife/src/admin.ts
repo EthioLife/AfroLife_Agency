@@ -19,7 +19,13 @@ import { createApiRateLimiter } from './rate-limit-store.js';
 import { sessionIdleTimeoutMinutes, WORKSPACE_MODULES } from './runtime-config.js';
 import { ROLE_ACTIVITIES, ROLE_NAMES, getRoleActivity, hasRoleActivityAccess, type RoleName } from './role-activities.js';
 import { MINI_APP_LABELS } from './mini-app-access.js';
-import { EXCLUDED_TENANT_CAPABILITY_ROLES, tenantCapabilitiesSchema, tenantOperatorRequestSchema } from './platform-data-admin.js';
+import {
+  EXCLUDED_TENANT_CAPABILITY_ROLES,
+  tenantCapabilitiesSchema,
+  tenantMigrationEventSchema,
+  tenantMigrationStartSchema,
+  tenantOperatorRequestSchema,
+} from './platform-data-admin.js';
 import { getMyTenantDataScopes, getTenantDataScope, requireTenantDataCapability } from './tenant-data-access.js';
 import { getKycRequirements, requiredKycDocuments, ConfigScope, validateMarketplaceConfig, loadMarketplaceConfig } from './marketplace-config.js';
 
@@ -978,6 +984,108 @@ adminRouter.get('/platform/my-data/:tenantId/analytics', h(async (req, res) => {
     metrics: [],
     series: [],
   });
+}));
+
+adminRouter.get('/platform/my-data/:tenantId/migration-runs', h(async (req, res) => {
+  const tenantId = z.string().uuid().parse(req.params.tenantId);
+  const result = await withUser(req.user!, async (client) => {
+    const scope = await getTenantDataScope(client, req.user!.id, tenantId);
+    if (!scope) throw new HttpError(404, 'No active data-administrator assignment exists for this tenant.');
+    requireTenantDataCapability(scope, 'database_admin');
+    const [runs, events] = await Promise.all([
+      client.query(
+        `SELECT id,tenant_id,created_by,source_reference,target_reference,summary,created_at
+         FROM platform_tenant_migration_runs
+         WHERE tenant_id=$1
+         ORDER BY created_at DESC,id DESC LIMIT 100`,
+        [tenantId],
+      ),
+      client.query(
+        `SELECT event.id,event.run_id,event.actor_id,
+                event.stage,event.manifest_sha256,event.source_record_count,event.staged_record_count,
+                event.unresolved_count,event.validation_error_count,event.evidence_reference,
+                event.notes,event.created_at
+         FROM platform_tenant_migration_events event
+         WHERE event.tenant_id=$1
+         ORDER BY event.id`,
+        [tenantId],
+      ),
+    ]);
+    const eventsByRun = new Map<string, typeof events.rows>();
+    for (const event of events.rows) {
+      const entries = eventsByRun.get(event.run_id) ?? [];
+      entries.push(event);
+      eventsByRun.set(event.run_id, entries);
+    }
+    return runs.rows.map((run) => {
+      const runEvents = eventsByRun.get(run.id) ?? [];
+      return { ...run, current_stage: runEvents[runEvents.length - 1]?.stage ?? 'invalid', events: runEvents };
+    });
+  });
+  res.json(result);
+}));
+
+adminRouter.post('/platform/my-data/:tenantId/migration-runs', h(async (req, res) => {
+  const tenantId = z.string().uuid().parse(req.params.tenantId);
+  const body = tenantMigrationStartSchema.parse(req.body);
+  const created = await withUser(req.user!, async (client) => {
+    const scope = await getTenantDataScope(client, req.user!.id, tenantId);
+    if (!scope) throw new HttpError(404, 'No active data-administrator assignment exists for this tenant.');
+    requireTenantDataCapability(scope, 'database_admin');
+    const run = (await client.query(
+      `INSERT INTO platform_tenant_migration_runs
+         (tenant_id,created_by,source_reference,target_reference,summary)
+       VALUES($1,$2,$3,$4,$5)
+       RETURNING id,tenant_id,created_by,source_reference,target_reference,summary,created_at`,
+      [tenantId,req.user!.id,body.source_reference,body.target_reference,body.summary],
+    )).rows[0];
+    const event = (await client.query(
+      `INSERT INTO platform_tenant_migration_events
+         (run_id,tenant_id,actor_id,stage,manifest_sha256,evidence_reference,notes)
+       VALUES($1,$2,$3,'planned',$4,$5,$6)
+       RETURNING id,stage,created_at`,
+      [run.id,tenantId,req.user!.id,body.manifest_sha256,body.evidence_reference,body.notes],
+    )).rows[0];
+    await audit(client, req.user!.id, 'platform_tenant_migration_planned',
+      'platform_tenant_migration_run', run.id, null, {
+        tenant_id: tenantId,
+        source_reference: body.source_reference,
+        target_reference: body.target_reference,
+        manifest_sha256: body.manifest_sha256,
+      });
+    return { ...run, current_stage: event.stage };
+  });
+  res.status(201).json(created);
+}));
+
+adminRouter.post('/platform/my-data/:tenantId/migration-runs/:runId/events', h(async (req, res) => {
+  const tenantId = z.string().uuid().parse(req.params.tenantId);
+  const runId = z.string().uuid().parse(req.params.runId);
+  const body = tenantMigrationEventSchema.parse(req.body);
+  const created = await withUser(req.user!, async (client) => {
+    const scope = await getTenantDataScope(client, req.user!.id, tenantId);
+    if (!scope) throw new HttpError(404, 'No active data-administrator assignment exists for this tenant.');
+    requireTenantDataCapability(scope, 'database_admin');
+    const event = (await client.query(
+      `INSERT INTO platform_tenant_migration_events
+         (run_id,tenant_id,actor_id,stage,manifest_sha256,source_record_count,staged_record_count,
+          unresolved_count,validation_error_count,evidence_reference,notes)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       RETURNING id,stage,created_at`,
+      [runId,tenantId,req.user!.id,body.stage,body.manifest_sha256 ?? null,
+        body.source_record_count ?? null,body.staged_record_count ?? null,body.unresolved_count,
+        body.validation_error_count,body.evidence_reference,body.notes],
+    )).rows[0];
+    await audit(client, req.user!.id, 'platform_tenant_migration_stage_recorded',
+      'platform_tenant_migration_run', runId, null, {
+        tenant_id: tenantId,
+        stage: event.stage,
+        evidence_reference: body.evidence_reference,
+        manifest_sha256: body.manifest_sha256 ?? null,
+      });
+    return event;
+  });
+  res.status(201).json(created);
 }));
 
 adminRouter.post('/platform/my-data/:tenantId/operator-requests', h(async (req, res) => {

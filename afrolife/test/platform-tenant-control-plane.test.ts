@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { adminRouter } from '../src/admin.js';
 import { workspaceModulesForServices } from '../src/runtime-config.js';
+import { tenantMigrationEventSchema, tenantMigrationStartSchema } from '../src/platform-data-admin.js';
 
 const routes = adminRouter.stack.flatMap((layer) => (layer.route
   ? [{
@@ -116,4 +117,72 @@ test('global catalog explicitly excludes regulated financial-product definitions
   );
   assert.match(migration, /category IN \('catalog','marketplace','service_addon'\)/);
   assert.doesNotMatch(migration, /category IN \([^)]*(insurance|credit|loan|interest_rate|premium)/i);
+});
+
+test('staged tenant migration records require non-secret evidence and guard cutover transitions', async () => {
+  const hash = 'a'.repeat(64);
+  const start = {
+    source_reference: 'approved-source-2026-11',
+    target_reference: 'approved-target-2026-11',
+    summary: 'Move approved property records to the new tenant deployment.',
+    manifest_sha256: hash,
+    evidence_reference: 'change-ticket-123',
+    notes: 'Approved migration plan and dry-run baseline.',
+  };
+  assert.equal(tenantMigrationStartSchema.safeParse(start).success, true);
+  assert.equal(tenantMigrationStartSchema.safeParse({
+    ...start,
+    target_reference: start.source_reference,
+  }).success, false);
+  assert.equal(tenantMigrationStartSchema.safeParse({
+    ...start,
+    source_reference: 'postgresql://db.example',
+  }).success, false);
+  assert.equal(tenantMigrationStartSchema.safeParse({
+    ...start,
+    notes: 'password=do-not-store',
+  }).success, false);
+
+  const reconciliation = {
+    stage: 'reconciled',
+    manifest_sha256: hash,
+    source_record_count: 100,
+    staged_record_count: 100,
+    unresolved_count: 2,
+    validation_error_count: 0,
+    evidence_reference: 'reconciliation-report-123',
+    notes: 'Two rows still require operator review before cutover.',
+  };
+  assert.equal(tenantMigrationEventSchema.safeParse(reconciliation).success, true);
+  assert.equal(tenantMigrationEventSchema.safeParse({
+    ...reconciliation,
+    source_record_count: -1,
+  }).success, false);
+  assert.equal(tenantMigrationEventSchema.safeParse({
+    ...reconciliation,
+    stage: 'cutover_completed',
+    manifest_sha256: undefined,
+  }).success, false);
+
+  const migration = await readFile(
+    new URL('../migrations/126_platform_tenant_migration_evidence.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(migration, /CREATE TABLE platform_tenant_migration_runs/);
+  assert.match(migration, /CREATE TABLE platform_tenant_migration_events/);
+  assert.match(migration, /guard_platform_tenant_migration_run/);
+  assert.match(migration, /guard_platform_tenant_migration_event/);
+  assert.match(migration, /Another property-data migration is still active/);
+  assert.match(migration, /previous_unresolved=0 AND previous_errors=0/);
+  assert.match(migration, /NEW\.actor_id IS DISTINCT FROM run_creator/);
+  assert.match(migration, /FORCE ROW LEVEL SECURITY/);
+  assert.match(migration, /platform_tenant_migration_events_immutable/);
+
+  const admin = await readFile(new URL('../src/admin.ts', import.meta.url), 'utf8');
+  assert.match(admin, /platform\/my-data\/:tenantId\/migration-runs/);
+  assert.match(admin, /platform\/my-data\/:tenantId\/migration-runs\/:runId\/events/);
+  assert.match(admin, /requireTenantDataCapability\(scope, 'database_admin'\)/);
+  const workspace = await readFile(new URL('../public/tenant-data-admin.js', import.meta.url), 'utf8');
+  assert.match(workspace, /Evidence tracking only: AfroLife does not connect to, move, or modify tenant data/);
+  assert.match(workspace, /Resolve dry-run issues and reconcile all records before independent cutover approval/);
 });

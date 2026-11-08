@@ -20,7 +20,10 @@ export function createTenantDataAdminWorkspace(
   selectedTenantId,
   workspace,
   analyticsStatus,
-  onTenantChange,
+  migrationRuns = [],
+  actorId = '',
+  onTenantChange = () => {},
+  onMigrationChange = async () => {},
 ) {
   const root = element('div', undefined, 'tenant-data-admin-workspace');
   const heading = element('div', undefined, 'section-heading');
@@ -173,6 +176,213 @@ export function createTenantDataAdminWorkspace(
     });
     requestPanel.append(form);
     root.append(requestPanel);
+
+    const migrationPanel = element('section', undefined, 'panel tenant-data-migration');
+    migrationPanel.append(
+      element('h3', 'Staged property-data migration and cutover'),
+      element('p', 'Evidence tracking only: AfroLife does not connect to, move, or modify tenant data. The tenant operator runs each approved step externally. Resolve dry-run issues and reconcile all records before independent cutover approval.'),
+    );
+    const startForm = element('form');
+    startForm.className = 'tenant-data-migration-start-form';
+    const startFields = [
+      ['Source system reference', 'source_reference', 'text'],
+      ['Target system reference', 'target_reference', 'text'],
+      ['Migration summary', 'summary', 'textarea'],
+      ['Manifest SHA-256 (lowercase hexadecimal)', 'manifest_sha256', 'text'],
+      ['Approved change and verified backup evidence reference', 'evidence_reference', 'text'],
+      ['Plan notes', 'notes', 'textarea'],
+    ];
+    for (const [label, name, type] of startFields) {
+      const wrapper = element('label', label);
+      const input = element(type === 'textarea' ? 'textarea' : 'input');
+      if (type !== 'textarea') input.type = type;
+      input.name = name;
+      input.required = true;
+      input.maxLength = name === 'manifest_sha256' ? 64 : name === 'source_reference' || name === 'target_reference' || name === 'evidence_reference' ? 200 : 1000;
+      if (name === 'manifest_sha256') {
+        input.minLength = 64;
+        input.pattern = '[0-9a-f]{64}';
+      }
+      if (['summary','notes'].includes(name)) input.minLength = 10;
+      wrapper.append(input);
+      startForm.append(wrapper);
+    }
+    const startButton = element('button', 'Create migration plan', 'button button-primary');
+    startButton.type = 'submit';
+    const startFeedback = element('p');
+    startFeedback.setAttribute('aria-live', 'polite');
+    startForm.append(startButton, startFeedback);
+    startForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      startButton.disabled = true;
+      startFeedback.textContent = '';
+      try {
+        const values = Object.fromEntries(new FormData(startForm).entries());
+        await api(`/platform/my-data/${encodeURIComponent(assignment.tenant_id)}/migration-runs`, {
+          method: 'POST',
+          body: JSON.stringify(values),
+        });
+        startForm.reset();
+        await onMigrationChange();
+      } catch (error) {
+        startFeedback.textContent = error?.message ?? 'The migration plan could not be recorded.';
+      } finally {
+        startButton.disabled = false;
+      }
+    });
+    migrationPanel.append(startForm);
+
+    if (!migrationRuns?.length) {
+      migrationPanel.append(element('p', 'No migration plans have been recorded for this tenant.'));
+    }
+    for (const run of migrationRuns ?? []) {
+      const item = element('article', undefined, 'tenant-data-migration-run');
+      item.append(
+        element('h4', `${run.source_reference} → ${run.target_reference}`),
+        element('p', `Stage: ${run.current_stage} · Planned by ${run.created_by}`),
+        element('p', run.summary),
+      );
+      for (const migrationEvent of run.events) {
+        item.append(element('p',
+          `${migrationEvent.stage} · ${migrationEvent.created_at} · ${migrationEvent.notes}`));
+      }
+      const lastEvent = run.events[run.events.length - 1];
+      const hasIssues = Number(lastEvent?.unresolved_count) > 0
+        || Number(lastEvent?.validation_error_count) > 0;
+      const nextStage = run.current_stage === 'dry_run' && hasIssues ? 'dry_run'
+        : run.current_stage === 'staged' && hasIssues ? 'staged'
+          : run.current_stage === 'reconciled' && hasIssues ? 'reconciled'
+            : {
+              planned: 'dry_run',
+              dry_run: 'staged',
+              staged: 'reconciled',
+              reconciled: 'cutover_approved',
+              cutover_approved: 'cutover_completed',
+            }[run.current_stage];
+      const canApprove = run.current_stage !== 'reconciled'
+        || (run.created_by !== actorId
+          && run.events[run.events.length - 1]?.actor_id !== actorId);
+      const canComplete = run.created_by !== actorId
+        && run.events[run.events.length - 1]?.actor_id !== actorId;
+      const canRecordNextStage = nextStage
+        && (nextStage !== 'cutover_approved' || canApprove)
+        && (nextStage !== 'cutover_completed' || canComplete);
+      if (canRecordNextStage) {
+        const stageForm = element('form');
+        stageForm.className = 'tenant-data-migration-stage-form';
+        const hash = element('input');
+        hash.type = 'text';
+        hash.name = 'manifest_sha256';
+        hash.maxLength = 64;
+        hash.pattern = '[0-9a-f]{64}';
+        hash.required = ['dry_run','staged','reconciled','cutover_completed'].includes(nextStage);
+        hash.placeholder = 'Manifest SHA-256 when required';
+        if (hash.required) stageForm.append(hash);
+        const countFields = ['dry_run','staged','reconciled'].includes(nextStage);
+        if (countFields) {
+          for (const [name, label] of [
+            ['source_record_count','Source record count'],
+            ['staged_record_count','Staged record count'],
+            ['unresolved_count','Unresolved records'],
+            ['validation_error_count','Validation errors'],
+          ]) {
+            const wrapper = element('label', label);
+            const input = element('input');
+            input.type = 'number';
+            input.name = name;
+            input.min = '0';
+            input.step = '1';
+            input.required = true;
+            if (name.endsWith('_count') && ['unresolved_count','validation_error_count'].includes(name)) input.value = '0';
+            wrapper.append(input);
+            stageForm.append(wrapper);
+          }
+        }
+        const evidence = element('input');
+        evidence.name = 'evidence_reference';
+        evidence.type = 'text';
+        evidence.maxLength = 200;
+        evidence.required = true;
+        evidence.placeholder = 'Non-secret evidence reference';
+        const notes = element('textarea');
+        notes.name = 'notes';
+        notes.minLength = 10;
+        notes.maxLength = 1000;
+        notes.required = true;
+        notes.placeholder = 'Evidence notes (minimum 10 characters)';
+        const stageButton = element('button', `Record ${nextStage.replaceAll('_', ' ')}`, 'button button-outline');
+        stageButton.type = 'submit';
+        const feedback = element('p');
+        feedback.setAttribute('aria-live', 'polite');
+        stageForm.append(evidence, notes, stageButton, feedback);
+        stageForm.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          stageButton.disabled = true;
+          feedback.textContent = '';
+          try {
+            const values = Object.fromEntries(new FormData(stageForm).entries());
+            const numericFields = ['source_record_count','staged_record_count','unresolved_count','validation_error_count'];
+            for (const fieldName of numericFields) {
+              if (values[fieldName] !== undefined) values[fieldName] = Number(values[fieldName]);
+            }
+            await api(`/platform/my-data/${encodeURIComponent(assignment.tenant_id)}/migration-runs/${encodeURIComponent(run.id)}/events`, {
+              method: 'POST',
+              body: JSON.stringify({ ...values, stage: nextStage }),
+            });
+            await onMigrationChange();
+          } catch (error) {
+            feedback.textContent = error?.message ?? 'The migration stage could not be recorded.';
+          } finally {
+            stageButton.disabled = false;
+          }
+        });
+        item.append(stageForm);
+      } else if (nextStage === 'cutover_approved' && !canApprove) {
+        item.append(element('p', 'An independent tenant database administrator must approve cutover.'));
+      } else if (nextStage === 'cutover_completed' && !canComplete) {
+        item.append(element('p', 'Cutover completion must be recorded by an operator other than the plan creator and approver.'));
+      }
+      if (['planned','dry_run','staged','reconciled'].includes(run.current_stage)) {
+        const abortForm = element('form');
+        const evidence = element('input');
+        evidence.name = 'evidence_reference';
+        evidence.type = 'text';
+        evidence.maxLength = 200;
+        evidence.required = true;
+        evidence.placeholder = 'Abort evidence reference';
+        const notes = element('textarea');
+        notes.name = 'notes';
+        notes.minLength = 10;
+        notes.maxLength = 1000;
+        notes.required = true;
+        notes.placeholder = 'Reason for aborting (minimum 10 characters)';
+        const abortButton = element('button', 'Abort migration plan', 'button button-quiet');
+        abortButton.type = 'submit';
+        const feedback = element('p');
+        feedback.setAttribute('aria-live', 'polite');
+        abortForm.append(evidence, notes, abortButton, feedback);
+        abortForm.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          abortButton.disabled = true;
+          feedback.textContent = '';
+          try {
+            const values = Object.fromEntries(new FormData(abortForm).entries());
+            await api(`/platform/my-data/${encodeURIComponent(assignment.tenant_id)}/migration-runs/${encodeURIComponent(run.id)}/events`, {
+              method: 'POST',
+              body: JSON.stringify({ ...values, stage: 'aborted' }),
+            });
+            await onMigrationChange();
+          } catch (error) {
+            feedback.textContent = error?.message ?? 'The migration plan could not be aborted.';
+          } finally {
+            abortButton.disabled = false;
+          }
+        });
+        item.append(abortForm);
+      }
+      migrationPanel.append(item);
+    }
+    root.append(migrationPanel);
   }
   return root;
 }

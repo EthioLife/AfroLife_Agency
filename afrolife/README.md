@@ -147,6 +147,18 @@ these grants do not provide database connectivity, SQL execution, or Global BI
 access. Migration, backup/restore, and database-change requests are audited
 records only and never execute operations.
 
+Database Admins can also record a staged tenant-data migration: immutable plan,
+dry-run, staging, reconciliation, independent cutover approval, and completion
+evidence. Only one unfinished run is allowed per tenant. A run cannot progress
+from a failed dry run, and cutover approval is blocked until the latest
+reconciliation reports zero unresolved records and validation errors. The
+approver must differ from the plan creator and reconciler; completion must be
+attested by an operator different from both the creator and approver. Evidence
+references and manifest hashes are recorded, not data. This is an evidence
+register only: AfroLife does not connect to, stage, transfer, reconcile, or
+modify tenant database records; the authorized tenant operator performs each
+operation externally and must maintain the approved backup and rollback plan.
+
 Each tenant operator owns any eventual local projector and scheduler. There is
 currently no tenant source extractor, trusted remote ingestion endpoint, or
 verified 30-minute schedule. Global BI reports projector/scheduler as not
