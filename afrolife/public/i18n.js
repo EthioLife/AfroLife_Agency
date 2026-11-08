@@ -7,7 +7,7 @@ const rows = [
   ['All sections', 'ሁሉም ክፍሎች', 'Kutaa hunda', 'ኩሎም ክፍልታት'],
   ['Close', 'ዝጋ', 'Cufi', 'ዕጸው'],
   ['Close workspace sections', 'የሥራ ቦታ ክፍሎችን ዝጋ', 'Kutaa hojii cufi', 'ክፍልታት ቦታ ስራሕ ዕጸው'],
-  ['PEOPLE · SERVICES · OPPORTUNITY', 'ሰዎች · አገልግሎቶች · ዕድል', 'Namoota · Tajaajila · Carraa', 'ሰባት · ኣገልግሎታት · ዕድል'],
+  ['CONNECT · ACCESS · THRIVE', 'ያገናኙ · ይድረሱ · ያድጉ', 'Walqunnami · Ga’i · Guddadhu', 'ተራኸቡ · ብጹም · ዕበዩ'],
   ['One trusted place to get work moving.', 'ሥራን ለማስኬድ አንድ የታመነ ቦታ።', 'Bakka amanamaa hojii itti jalqabsiisan.', 'ስራሕ ንምንቅስቓስ ሓደ ዝተኣመነ ቦታ።'],
   ['Coordinate leads, verified workers and service requests with clear ownership at every step.', 'ደንበኞችን፣ የተረጋገጡ ሠራተኞችን እና የአገልግሎት ጥያቄዎችን በእያንዳንዱ ደረጃ ግልጽ ኃላፊነት ባለው መንገድ ያስተባብሩ።', 'Maamiltoota, hojjettoota mirkanaa’an fi gaaffii tajaajilaa tarkaanfii hunda irratti itti gaafatamummaa ifa ta’een qindeessaa.', 'Ma’amilaat፣ ዝተረጋገጹ ሰራሕተኛታትን ሕቶታት ኣገልግሎትን ኣብ ነፍሲ ወከፍ ደረጃ ግልጺ ሓላፍነት ብዘለዎ መንገዲ ኣወሃህዱ።'],
   ['Verified workforce', 'የተረጋገጠ የሠራተኛ ኃይል', 'Hojjettoota mirkanaa’an', 'ዝተረጋገጸ ሓይሊ ሰራሕተኛ'],
@@ -943,8 +943,8 @@ const publicSurfaceTranslations = {
   'Ask about future household protection': {
     am: 'ስለ ወደፊት የቤተሰብ ጥበቃ ይጠይቁ',
   },
-  'Household cover is not active in the current AfroLife service.': {
-    am: 'በአሁኑ የAfroLife አገልግሎት ውስጥ የቤተሰብ ሽፋን ንቁ አይደለም።',
+  'Household cover is not active in the current AfroSherik service.': {
+    am: 'በአሁኑ የAfroSherik አገልግሎት ውስጥ የቤተሰብ ሽፋን ንቁ አይደለም።',
   },
   'These are non-binding requests for information. Selecting a benefit does not enroll you, collect money or start insurance coverage.': {
     am: 'እነዚህ አስገዳጅ ያልሆኑ የመረጃ ጥያቄዎች ናቸው። ጥቅም መምረጥ ምዝገባ አያደርግም፣ ገንዘብ አያስከፍልም ወይም የመድን ሽፋን አይጀምርም።',
@@ -1136,8 +1136,8 @@ const publicSurfaceTranslations = {
   'Service interests (no charge today)': {
     am: 'የአገልግሎት ፍላጎቶች (ዛሬ ክፍያ የለም)', om: 'Fedhii tajaajilaa (har’a kaffaltiin hin jiru)', ti: 'ፍላጎታት ኣገልግሎት (ሎሚ ክፍሊት የለን)', so: 'Adeegyada aad danaynayso (maanta lacag ma jirto)', ar: 'الخدمات التي تهمك (لا توجد رسوم اليوم)', sw: 'Huduma unazopendelea (hakuna malipo leo)',
   },
-  'Request AfroLife Edir membership': {
-    am: 'የAfroLife እድር አባልነት ይጠይቁ', om: 'Miseensummaa Edir AfroLife gaafadhaa', ti: 'ኣባልነት Edir AfroLife ሕተቱ', so: 'Codso xubinnimada AfroLife Edir', ar: 'اطلب عضوية إدير في AfroLife', sw: 'Omba uanachama wa AfroLife Edir',
+  'Request AfroSherik Edir membership': {
+    am: 'የAfroSherik እድር አባልነት ይጠይቁ', om: 'Miseensummaa Edir AfroSherik gaafadhaa', ti: 'ኣባልነት Edir AfroSherik ሕተቱ', so: 'Codso xubinnimada AfroSherik Edir', ar: 'اطلب عضوية إدير في AfroSherik', sw: 'Omba uanachama wa AfroSherik Edir',
   },
   'After KYC verification, you can review the currently available community and financial products before requesting enrollment.': {
     am: 'ከKYC ማረጋገጫ በኋላ ምዝገባ ከመጠየቅዎ በፊት ያሉትን የማህበረሰብና የፋይናንስ ምርቶች ማየት ይችላሉ።',
@@ -1180,8 +1180,8 @@ const publicSurfaceTranslations = {
     ar: 'اختر إقليمًا أو اكتب اسم المنطقة.',
     sw: 'Chagua eneo au uandike jina la eneo.',
   },
-  'Join AfroLife Edir': {
-    am: 'AfroLife Edirን ይቀላቀሉ', om: 'AfroLife Edir waliin makamaa', ti: 'AfroLife Edir ተጸንበሩ', so: 'Ku biir AfroLife Edir', ar: 'انضم إلى AfroLife Edir', sw: 'Jiunge na AfroLife Edir',
+  'Join AfroSherik Edir': {
+    am: 'AfroSherik Edirን ይቀላቀሉ', om: 'AfroSherik Edir waliin makamaa', ti: 'AfroSherik Edir ተጸንበሩ', so: 'Ku biir AfroSherik Edir', ar: 'انضم إلى AfroSherik Edir', sw: 'Jiunge na AfroSherik Edir',
   },
   'Register an Edir': {
     am: 'እድር ይመዝግቡ', om: 'Edir galmeessaa', ti: 'Edir መዝግቡ', so: 'Diiwaangeli Edir', ar: 'سجّل إدير', sw: 'Sajili Edir',
@@ -1237,13 +1237,13 @@ const publicSurfaceTranslations = {
   'Consent to application review': {
     am: 'ለማመልከቻ ግምገማ ፈቃድ', om: 'Gamaaggama iyyannoo irratti walii galuu', ti: 'ፍቓድ ግምገማ መመልከቲ', so: 'Oggolaanshaha dib-u-eegista codsiga', ar: 'الموافقة على مراجعة الطلب', sw: 'Idhini ya ukaguzi wa ombi',
   },
-  'I authorize AfroLife Master Edir to use these organization and contact details to review this registration application. Approval does not replace the Edir’s own legal or governance obligations.': {
-    am: 'AfroLife Master Edir ይህን የድርጅትና የመገናኛ መረጃ የምዝገባ ማመልከቻውን ለመገምገም እንዲጠቀም ፈቅጃለሁ። ፈቃድ የእድሩን ሕጋዊና የአስተዳደር ግዴታዎች አይተካም።',
-    om: 'AfroLife Master Edir odeeffannoo dhaabbataa fi qunnamtii kana iyyannoo galmee kana gamaaggamuuf akka fayyadamu nan hayyama. Ragga’iinsi dirqama seeraa fi bulchiinsa Edir bakka hin bu’u.',
-    ti: 'AfroLife Master Edir ነዚ ሓበሬታ ትካልን ርክብን ንምግምጋም መመልከቲ ክጥቀመሉ እፈቅድ። ምፍቃድ ግዴታታት ሕጊን ምምሕዳርን ናይ Edir ኣይትክእን።',
-    so: 'Waxaan oggolaanayaa in AfroLife Master Edir u isticmaalo xogtan ururka iyo xiriirka si uu u eego codsigan. Oggolaanshuhu ma beddelayo waajibaadka sharci iyo maamul ee Edir-ka.',
-    ar: 'أفوّض AfroLife Master Edir باستخدام بيانات المؤسسة والتواصل هذه لمراجعة طلب التسجيل. ولا تحل الموافقة محل الالتزامات القانونية أو الحوكمية الخاصة بإدير.',
-    sw: 'Ninaidhinisha AfroLife Master Edir kutumia maelezo haya ya shirika na mawasiliano kukagua ombi hili. Idhini haibadilishi wajibu wa kisheria au utawala wa Edir yenyewe.',
+  'I authorize AfroSherik Master Edir to use these organization and contact details to review this registration application. Approval does not replace the Edir’s own legal or governance obligations.': {
+    am: 'AfroSherik Master Edir ይህን የድርጅትና የመገናኛ መረጃ የምዝገባ ማመልከቻውን ለመገምገም እንዲጠቀም ፈቅጃለሁ። ፈቃድ የእድሩን ሕጋዊና የአስተዳደር ግዴታዎች አይተካም።',
+    om: 'AfroSherik Master Edir odeeffannoo dhaabbataa fi qunnamtii kana iyyannoo galmee kana gamaaggamuuf akka fayyadamu nan hayyama. Ragga’iinsi dirqama seeraa fi bulchiinsa Edir bakka hin bu’u.',
+    ti: 'AfroSherik Master Edir ነዚ ሓበሬታ ትካልን ርክብን ንምግምጋም መመልከቲ ክጥቀመሉ እፈቅድ። ምፍቃድ ግዴታታት ሕጊን ምምሕዳርን ናይ Edir ኣይትክእን።',
+    so: 'Waxaan oggolaanayaa in AfroSherik Master Edir u isticmaalo xogtan ururka iyo xiriirka si uu u eego codsigan. Oggolaanshuhu ma beddelayo waajibaadka sharci iyo maamul ee Edir-ka.',
+    ar: 'أفوّض AfroSherik Master Edir باستخدام بيانات المؤسسة والتواصل هذه لمراجعة طلب التسجيل. ولا تحل الموافقة محل الالتزامات القانونية أو الحوكمية الخاصة بإدير.',
+    sw: 'Ninaidhinisha AfroSherik Master Edir kutumia maelezo haya ya shirika na mawasiliano kukagua ombi hili. Idhini haibadilishi wajibu wa kisheria au utawala wa Edir yenyewe.',
   },
   'Submit Edir registration application': {
     am: 'የእድር ምዝገባ ማመልከቻ ያስገቡ', om: 'Iyyannoo galmee Edir ergaa', ti: 'መመልከቲ ምዝገባ Edir ኣቕርቡ', so: 'Gudbi codsiga diiwaangelinta Edir', ar: 'إرسال طلب تسجيل إدير', sw: 'Wasilisha ombi la usajili wa Edir',
@@ -1634,13 +1634,13 @@ const publicSurfaceTranslations = {
   'Services for work, homes, business, and community.': {
     am: 'ለሥራ፣ ለቤት፣ ለንግድና ለማህበረሰብ አገልግሎቶች።', om: 'Tajaajiloota hojii, mana, daldalaa fi hawaasaaf.', ti: 'ኣገልግሎታት ስራሕ፣ ገዛ፣ ንግዲን ማሕበረሰብን።', so: 'Adeegyada shaqada, guryaha, ganacsiga iyo bulshada.', ar: 'خدمات للعمل والمنازل والأعمال والمجتمع.', sw: 'Huduma za kazi, nyumba, biashara na jamii.',
   },
-  'Explore AfroLife’s connected services. Install the app for a home-screen shortcut and a cached public shell; sign in to access account-specific tools.': {
-    am: 'የAfroLife ተያያዥ አገልግሎቶችን ይመልከቱ። ለመነሻ ማያ አቋራጭና ለተቀመጠ የሕዝብ ገጽ መተግበሪያውን ይጫኑ፤ የመለያዎን መሣሪያዎች ለመጠቀም ይግቡ።',
-    om: 'Tajaajiloota walitti hidhaman AfroLife ilaalaa. Mallattoo fuula jalqabaa fi fuula uummataa kuufameef appii fe’aa; meeshaalee herrega keessaniif seenaa.',
-    ti: 'ኣገልግሎታት AfroLife ርኣዩ። ንመልክዕ መነሻን ዝተኻዘነ ገጽ ህዝብን መተግበሪ ጽዓኑ፤ ናይ ሕሳብ መሳርሒታት ንምጥቃም እቶ።',
-    so: 'Baadh adeegyada AfroLife ee isku xiran. Ku rakib app-ka si aad u hesho astaan shaashadda hore iyo bog dadweyne oo kaydsan; gal si aad u hesho qalabka akoonkaaga.',
-    ar: 'استكشف خدمات AfroLife المترابطة. ثبّت التطبيق لاختصار الشاشة الرئيسية والواجهة العامة المحفوظة؛ سجّل الدخول للوصول إلى أدوات حسابك.',
-    sw: 'Chunguza huduma zilizounganishwa za AfroLife. Sakinisha programu kwa njia ya mkato ya skrini ya nyumbani na ukurasa wa umma uliohifadhiwa; ingia ili kufikia zana za akaunti yako.',
+  'Explore AfroSherik’s connected services. Install the app for a home-screen shortcut and a cached public shell; sign in to access account-specific tools.': {
+    am: 'የAfroSherik ተያያዥ አገልግሎቶችን ይመልከቱ። ለመነሻ ማያ አቋራጭና ለተቀመጠ የሕዝብ ገጽ መተግበሪያውን ይጫኑ፤ የመለያዎን መሣሪያዎች ለመጠቀም ይግቡ።',
+    om: 'Tajaajiloota walitti hidhaman AfroSherik ilaalaa. Mallattoo fuula jalqabaa fi fuula uummataa kuufameef appii fe’aa; meeshaalee herrega keessaniif seenaa.',
+    ti: 'ኣገልግሎታት AfroSherik ርኣዩ። ንመልክዕ መነሻን ዝተኻዘነ ገጽ ህዝብን መተግበሪ ጽዓኑ፤ ናይ ሕሳብ መሳርሒታት ንምጥቃም እቶ።',
+    so: 'Baadh adeegyada AfroSherik ee isku xiran. Ku rakib app-ka si aad u hesho astaan shaashadda hore iyo bog dadweyne oo kaydsan; gal si aad u hesho qalabka akoonkaaga.',
+    ar: 'استكشف خدمات AfroSherik المترابطة. ثبّت التطبيق لاختصار الشاشة الرئيسية والواجهة العامة المحفوظة؛ سجّل الدخول للوصول إلى أدوات حسابك.',
+    sw: 'Chunguza huduma zilizounganishwa za AfroSherik. Sakinisha programu kwa njia ya mkato ya skrini ya nyumbani na ukurasa wa umma uliohifadhiwa; ingia ili kufikia zana za akaunti yako.',
   },
   'SERVICE MENU': {
     am: 'የአገልግሎት ምናሌ', om: 'TARREE TAJAAJILAA', ti: 'ምናሌ ኣገልግሎት', so: 'LIISKA ADEEGYADA', ar: 'قائمة الخدمات', sw: 'MENYU YA HUDUMA',
@@ -4993,13 +4993,13 @@ const authRefreshTranslations = {
     ar: 'أدخل رقم الهاتف المرتبط بحسابك للتحقق من خيارات الاستعادة المتاحة.',
     sw: 'Weka nambari ya simu ya akaunti yako ili kuangalia njia za urejeshaji zinazopatikana.',
   },
-  'SMS password recovery is unavailable because delivery is not configured. No code was sent. Contact AfroLife support to recover your account.': {
-    am: 'የSMS መልሶ ማግኛ አገልግሎት ስላልተዋቀረ አይገኝም። ኮድ አልተላከም። መለያዎን ለማግኘት የAfroLife ድጋፍን ያነጋግሩ።',
-    om: 'Deebisanii argachuun SMS hin qindaa’in. Koodiin hin ergamne. Herrega keessan deebifachuuf deeggarsa AfroLife qunnamaa.',
-    ti: 'ምምላስ ቃል SMS ስለዘይተዋቐረ ኣይርከብን። ኮድ ኣይተላእከን። ሕሳብኩም ንምምላስ ደገፍ AfroLife ርኸቡ።',
-    so: 'Soo celinta SMS lama heli karo maadaama diristu aan la habayn. Koodh lama dirin. La xiriir taageerada AfroLife.',
-    ar: 'استعادة كلمة المرور عبر الرسائل غير متاحة لأن الإرسال غير مُعدّ. لم يُرسل أي رمز. اتصل بدعم AfroLife لاستعادة حسابك.',
-    sw: 'Urejeshaji wa SMS haupatikani kwa kuwa huduma ya kutuma haijasanidiwa. Hakuna msimbo uliotumwa. Wasiliana na usaidizi wa AfroLife.',
+  'SMS password recovery is unavailable because delivery is not configured. No code was sent. Contact AfroSherik support to recover your account.': {
+    am: 'የSMS መልሶ ማግኛ አገልግሎት ስላልተዋቀረ አይገኝም። ኮድ አልተላከም። መለያዎን ለማግኘት የAfroSherik ድጋፍን ያነጋግሩ።',
+    om: 'Deebisanii argachuun SMS hin qindaa’in. Koodiin hin ergamne. Herrega keessan deebifachuuf deeggarsa AfroSherik qunnamaa.',
+    ti: 'ምምላስ ቃል SMS ስለዘይተዋቐረ ኣይርከብን። ኮድ ኣይተላእከን። ሕሳብኩም ንምምላስ ደገፍ AfroSherik ርኸቡ።',
+    so: 'Soo celinta SMS lama heli karo maadaama diristu aan la habayn. Koodh lama dirin. La xiriir taageerada AfroSherik.',
+    ar: 'استعادة كلمة المرور عبر الرسائل غير متاحة لأن الإرسال غير مُعدّ. لم يُرسل أي رمز. اتصل بدعم AfroSherik لاستعادة حسابك.',
+    sw: 'Urejeshaji wa SMS haupatikani kwa kuwa huduma ya kutuma haijasanidiwa. Hakuna msimbo uliotumwa. Wasiliana na usaidizi wa AfroSherik.',
   },
   'Request recovery help': {
     am: 'የመልሶ ማግኛ እገዛ ይጠይቁ', om: 'Deeggarsa deebisanii argachuu gaafadhaa', ti: 'ሓገዝ ምምላስ ሕተቱ',
@@ -5132,6 +5132,45 @@ const propertyArcRows = [
   ['Inspection findings recorded in the request history.', 'የምርመራ ግኝቶች በጥያቄው ታሪክ ውስጥ ተመዝግበዋል።', 'Argannoon sakatta’iinsaa seenaa gaaffii keessatti galmaa’eera.', 'ርኽበታት ምርመራ ኣብ ታሪኽ ሕቶ ተመዝጊቦም።', 'Natiijooyinka kormeerka waxaa lagu diiwaangeliyay taariikhda codsiga.', 'تم تسجيل نتائج التفتيش في سجل الطلب.', 'Matokeo ya ukaguzi yamerekodiwa katika historia ya ombi.'],
 ];
 for (const row of propertyArcRows) {
+  for (const [column, locale] of Object.keys(localeNames).entries()) {
+    catalogs[locale][row[0]] = row[column] ?? row[0];
+  }
+}
+const propertyAssociationRows = [
+  ['Association assessments', 'የማህበር ክፍያ ግምገማዎች', 'Tilmaama waldaa', 'ገምጋማት ክፍሊት ማሕበር', 'Qiimeynta ururka', 'تقييمات الجمعية', 'Tathmini za chama'],
+  ['Manage manually entered association assessments and review receipt evidence within this property tenant.', 'በእጅ የገቡ የማህበር ክፍያ ግምገማዎችን ያስተዳድሩ፤ በዚህ የንብረት ተከራይ ውስጥ የደረሰኝ ማስረጃን ይገምግሙ።', 'Tilmaama waldaa harkaan galfaman bulchaa; ragaa nagahee tenant qabeenyaa kana keessatti gamaaggamaa.', 'እቶም ብኢድ ዝኣተዉ ገምጋማት ክፍሊት ማሕበር ኣመሓድሩ፤ ኣብዚ tenant ንብረት መርትዖ ደረሰኝ ገምግሙ።', 'Maamul qiimeynta ururka ee gacanta lagu geliyo oo dib u eeg caddeynta rasiidhada gudaha tenant-kan hantida.', 'أدر تقييمات الجمعية المُدخلة يدوياً وراجع أدلة الإيصالات ضمن مستأجر العقار هذا.', 'Dhibiti tathmini za chama zilizoingizwa kwa mkono na ukague ushahidi wa risiti ndani ya tenant hii ya mali.'],
+  ['Assessment balances are operational records only. AfroLife does not calculate penalties, post ledger entries, initiate payments, or send legal notices through this workflow.', 'የግምገማ ቀሪ ሂሳቦች የሥራ መዝገቦች ብቻ ናቸው። AfroLife ቅጣት አያስላም፣ የሂሳብ መዝገብ አያስገባም፣ ክፍያ አያስጀምርም ወይም ሕጋዊ ማሳሰቢያ አይልክም።', 'Hafteen madaallii galmee hojii qofa. AfroLife adabbii hin shallagu, galmee herregaa hin maxxansu, kaffaltii hin jalqabu, yookaan beeksisa seeraa hin ergu.', 'Hafteen madaallii galmee hojii qofa. AfroLife adabbii hin shallagu, galmee herregaa hin galchu, kaffaltii hin jalqabu, beeksisa seeraas hin ergu.', 'Hadhaaga qiimeyntu waa diiwaan hawlgal oo keliya. AfroLife ma xisaabiso ganaax, ma geliso xisaab-xir, ma bilowdo lacag-bixin, mana dirto ogeysiis sharci ah.', 'أرصدة التقييم سجلات تشغيلية فقط. لا تحسب AfroLife الغرامات ولا ترحّل قيوداً محاسبية ولا تبدأ المدفوعات ولا ترسل إشعارات قانونية.', 'Salio za tathmini ni rekodi za uendeshaji pekee. AfroLife haihesabu adhabu, haitumii maingizo ya leja, haianzishi malipo, wala haitumi notisi za kisheria.'],
+  ['Association properties', 'የማህበሩ ንብረቶች', 'Qabeenya waldaa', 'ንብረታት ማሕበር', 'Guryaha ururka', 'عقارات الجمعية', 'Mali za chama'],
+  ['Association name', 'የማህበሩ ስም', 'Maqaa waldaa', 'ስም ማሕበር', 'Magaca ururka', 'اسم الجمعية', 'Jina la chama'],
+  ['Create association', 'ማህበር ይፍጠሩ', 'Waldaa uumi', 'ማሕበር ፍጠሩ', 'Abuur urur', 'إنشاء جمعية', 'Unda chama'],
+  ['No property associations have been configured in this tenant.', 'በዚህ ተከራይ ውስጥ ምንም የንብረት ማህበር አልተዋቀረም።', 'Tenant kana keessatti waldaan qabeenyaa hin qindaa’in.', 'ኣብዚ tenant ዝተዋደደ ማሕበር ንብረት የለን።', 'Tenant-kan laguma habayn urur hantiyeed.', 'لم تُهيأ جمعيات عقارية في هذا المستأجر.', 'Hakuna chama cha mali kilichosanidiwa katika tenant hii.'],
+  ['No assessments have been recorded for this association.', 'ለዚህ ማህበር ምንም ግምገማ አልተመዘገበም።', 'Waldaa kanaaf tilmaamni hin galmoofne.', 'ንዚ ማሕበር ገምጋም ኣይተመዝገበን።', 'Ururkan wax qiimeyn ah looma diiwaangelin.', 'لم تُسجل تقييمات لهذه الجمعية.', 'Hakuna tathmini iliyorekodiwa kwa chama hiki.'],
+  ['reconciled', 'ተስተካክሏል', 'Madaallameera', 'ተረጋጊጹ', 'La waafajiyay', 'تمت المطابقة', 'Imepatanishwa'],
+  ['Property', 'ንብረት', 'Qabeenya', 'ንብረት', 'Hanti', 'العقار', 'Mali'],
+  ['Assessment period start', 'የግምገማ ጊዜ መጀመሪያ', 'Jalqaba yeroo tilmaamaa', 'መጀመርታ እዋን ገምጋም', 'Bilowga muddada qiimeynta', 'بداية فترة التقييم', 'Mwanzo wa kipindi cha tathmini'],
+  ['Due date', 'የመክፈያ ቀን', 'Guyyaa kaffaltii', 'ዕለት ክፍሊት', 'Taariikhda bixinta', 'تاريخ الاستحقاق', 'Tarehe ya mwisho'],
+  ['Amount', 'መጠን', 'Hanga', 'መጠን', 'Qaddar', 'المبلغ', 'Kiasi'],
+  ['Assessment description', 'የግምገማ መግለጫ', 'Ibsa tilmaamaa', 'መግለጺ ገምጋም', 'Sharaxaadda qiimeynta', 'وصف التقييم', 'Maelezo ya tathmini'],
+  ['Record assessment', 'ግምገማውን ይመዝግቡ', 'Tilmaama galmeessi', 'ገምጋም መዝግቡ', 'Diiwaangeli qiimeyn', 'تسجيل التقييم', 'Rekodi tathmini'],
+  ['Assessed amount', 'የተገመገመ መጠን', 'Hanga tilmaamame', 'ዝተገምገመ መጠን', 'Qaddarka la qiimeeyay', 'المبلغ المُقيّم', 'Kiasi kilichotathminiwa'],
+  ['Reconciled receipts', 'የተረጋገጡ ደረሰኞች', 'Nagahee mirkanaa’e', 'ዝተረጋገጹ ደረሰኛታት', 'Rasiidhada la waafajiyay', 'الإيصالات المطابقة', 'Risiti zilizopatanishwa'],
+  ['Pending receipt evidence', 'በመጠባበቅ ላይ ያለ የደረሰኝ ማስረጃ', 'Ragaa nagahee eegaa jiru', 'መርትዖ ደረሰኝ ዝጽበ ዘሎ', 'Caddeynta rasiidka sugaysa', 'دليل الإيصال قيد الانتظار', 'Ushahidi wa risiti unaosubiri'],
+  ['Receipt amount', 'የደረሰኝ መጠን', 'Hanga nagahee', 'መጠን ደረሰኝ', 'Qaddarka rasiidka', 'مبلغ الإيصال', 'Kiasi cha risiti'],
+  ['Payment channel', 'የክፍያ መንገድ', 'Karaa kaffaltii', 'መንገዲ ክፍሊት', 'Habka lacag-bixinta', 'قناة الدفع', 'Njia ya malipo'],
+  ['External receipt reference', 'የውጭ ደረሰኝ ማጣቀሻ', 'Wabii nagahee alaa', 'መወከሲ ደረሰኝ ወጻኢ', 'Tixraaca rasiidka dibadda', 'مرجع الإيصال الخارجي', 'Rejeleo la risiti ya nje'],
+  ['Submit receipt for reconciliation', 'ደረሰኙን ለማስታረቅ ያስገቡ', 'Nagahee madaallii dhiyeessi', 'ደረሰኝ ንምርግጋጽ ኣቕርቡ', 'Gudbi rasiidka si loo waafajiyo', 'إرسال الإيصال للمطابقة', 'Wasilisha risiti kwa upatanisho'],
+  ['Submitting a receipt reference does not move money or confirm settlement.', 'የደረሰኝ ማጣቀሻ ማስገባት ገንዘብ አያንቀሳቅስም ወይም ክፍያ መፈጸሙን አያረጋግጥም።', 'Wabii nagahee dhiyeessuun maallaqa hin sochoosu yookaan kaffaltiin xumuramuu hin mirkaneessu.', 'ምድላው መወከሲ ደረሰኝ ገንዘብ ኣየንቀሳቕስን ወይ ክፍሊት ከም ዝተፈጸመ ኣየረጋግጽን።', 'Gudbinta tixraaca rasiidku lacag ma dhaqaajiso mana xaqiijiso in heshiisku dhammaaday.', 'إرسال مرجع الإيصال لا ينقل الأموال ولا يؤكد التسوية.', 'Kuwasilisha rejeleo la risiti hakuhamishi fedha wala kuthibitisha malipo.'],
+  ['Confirm reconciliation', 'ማስታረቁን ያረጋግጡ', 'Madaallii mirkaneessi', 'ምርግጋጽ ኣረጋግጹ', 'Xaqiiji is-waafajinta', 'تأكيد المطابقة', 'Thibitisha upatanisho'],
+  ['Reject receipt evidence', 'የደረሰኝ ማስረጃውን ውድቅ ያድርጉ', 'Ragaa nagahee didaa', 'መርትዖ ደረሰኝ ንጸጉ', 'Diid caddeynta rasiidka', 'رفض دليل الإيصال', 'Kataa ushahidi wa risiti'],
+  ['Document the reason for this association receipt decision (at least 10 characters).', 'ለዚህ የማህበር ደረሰኝ ውሳኔ ምክንያቱን ይመዝግቡ (ቢያንስ 10 ቁምፊዎች)።', 'Sababa murtii nagahee waldaa kana galmeessi (yoo xiqqaate qubee 10).', 'ምኽንያት ናይዚ ውሳነ ደረሰኝ ማሕበር መዝግቡ (እንተወሓደ 10 ፊደላት)።', 'Diiwaangeli sababta go’aanka rasiidka ururkan (ugu yaraan 10 xaraf).', 'دوّن سبب قرار إيصال الجمعية هذا (10 أحرف على الأقل).', 'Rekodi sababu ya uamuzi huu wa risiti ya chama (angalau herufi 10).'],
+  ['Select at least one property for the association.', 'ለማህበሩ ቢያንስ አንድ ንብረት ይምረጡ።', 'Waldaadhaaf yoo xiqqaate qabeenya tokko filadhaa.', 'ንማሕበር እንተወሓደ ሓደ ንብረት ምረጹ።', 'U dooro ugu yaraan hal hanti ururka.', 'اختر عقاراً واحداً على الأقل للجمعية.', 'Chagua angalau mali moja kwa chama.'],
+  ['Property association created.', 'የንብረት ማህበር ተፈጥሯል።', 'Waldaan qabeenyaa uumameera.', 'ማሕበር ንብረት ተፈጢሩ።', 'Ururka hantida waa la abuuray.', 'تم إنشاء جمعية العقار.', 'Chama cha mali kimeundwa.'],
+  ['Association assessment recorded.', 'የማህበሩ ግምገማ ተመዝግቧል።', 'Tilmaamni waldaa galmaa’eera.', 'ገምጋም ማሕበር ተመዝጊቡ።', 'Qiimeynta ururka waa la diiwaangeliyay.', 'تم تسجيل تقييم الجمعية.', 'Tathmini ya chama imerekodiwa.'],
+  ['Receipt reference recorded for independent reconciliation.', 'የደረሰኝ ማጣቀሻ ለገለልተኛ ማስታረቅ ተመዝግቧል።', 'Wabiin nagahee madaallii walabaaf galmaa’eera.', 'መወከሲ ደረሰኝ ንናጻ ምርግጋጽ ተመዝጊቡ።', 'Tixraaca rasiidka waxaa loo diiwaangeliyay is-waafajin madax-bannaan.', 'تم تسجيل مرجع الإيصال للمطابقة المستقلة.', 'Rejeleo la risiti limerekodiwa kwa upatanisho huru.'],
+  ['Association receipt reconciled and recorded.', 'የማህበሩ ደረሰኝ ተስተካክሎ ተመዝግቧል።', 'Nagaheen waldaa madaallamee galmaa’eera.', 'ደረሰኝ ማሕበር ተረጋጊጹን ተመዝጊቡን።', 'Rasiidka ururka waa la waafajiyay oo la diiwaangeliyay.', 'تمت مطابقة إيصال الجمعية وتسجيله.', 'Risiti ya chama imepatanishwa na kurekodiwa.'],
+  ['Association receipt evidence rejected with a recorded reason.', 'የማህበሩ ደረሰኝ ማስረጃ በተመዘገበ ምክንያት ውድቅ ሆኗል።', 'Ragaan nagahee waldaa sababa galmaa’een didameera.', 'መርትዖ ደረሰኝ ማሕበር ብዝተመዝገበ ምኽንያት ተነጺጉ።', 'Caddeynta rasiidka ururka waa la diiday iyadoo sababta la diiwaangeliyay.', 'رُفض دليل إيصال الجمعية مع تسجيل السبب.', 'Ushahidi wa risiti ya chama umekataliwa kwa sababu iliyorekodiwa.'],
+];
+for (const row of propertyAssociationRows) {
   for (const [column, locale] of Object.keys(localeNames).entries()) {
     catalogs[locale][row[0]] = row[column] ?? row[0];
   }

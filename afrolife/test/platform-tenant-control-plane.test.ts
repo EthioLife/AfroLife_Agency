@@ -237,3 +237,68 @@ test('property change requests keep submissions, decisions, and inspections tena
     assert.ok(translations.includes(`['${message}'`), `Missing ARC translation: ${message}`);
   }
 });
+
+test('association assessments and receipt decisions stay tenant-scoped and evidence-only', async () => {
+  const migration = await readFile(
+    new URL('../migrations/129_property_association_assessments.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(migration, /FOREIGN KEY \(tenant_system_id,association_id,property_id\)\s+REFERENCES property_association_properties/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION create_property_association\(/);
+  assert.match(migration, /member\.tenant_role='tenant_admin'/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION create_property_association_assessment\(/);
+  assert.match(migration, /app_property_association_can_manage\(tenant_id\)/);
+  assert.match(migration, /SELECT property\.owner_user_id INTO owner_id/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION record_property_association_receipt\(/);
+  assert.match(migration, /receipt\.status IN \('pending','reconciled'\)/);
+  assert.match(migration, /Receipt references cannot exceed the remaining assessment balance/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION decide_property_association_receipt\(/);
+  assert.match(migration, /receipt\.recorded_by=actor OR receipt\.status<>'pending'/);
+  assert.match(migration, /reviewed_by<>recorded_by/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION app_property_association_event_can_insert\(/);
+  assert.match(migration, /assessment\.owner_user_id=target_actor/);
+  assert.match(migration, /receipt\.recorded_by=target_actor/);
+  assert.match(migration, /receipt\.reviewed_by=target_actor/);
+  assert.match(migration, /app_property_association_event_can_insert\(\s*tenant_system_id,association_id,actor_id,event_type,entity_id,details\s*\)/);
+  assert.match(migration, /property_association_events_immutable/);
+  assert.match(migration, /details->>'owner_user_id'=app_user_id\(\)::text/);
+  assert.match(migration, /CREATE POLICY property_association_assessments_scoped_read/);
+  assert.match(migration, /CREATE POLICY property_association_receipts_scoped_read/);
+  assert.match(migration, /CREATE POLICY property_association_events_scoped_read/);
+  assert.equal((migration.match(/FORCE ROW LEVEL SECURITY/g) ?? []).length, 5);
+  assert.match(migration, /REVOKE ALL ON TABLE[\s\S]*FROM PUBLIC,"\{\{role\}\}"/);
+  assert.doesNotMatch(migration, /INSERT INTO ledger_entries|initiate_payment|payment_processor/i);
+
+  const server = await readFile(new URL('../src/server.ts', import.meta.url), 'utf8');
+  assert.match(server, /'\/property\/associations'/);
+  assert.match(server, /'\/property\/association-assessments'/);
+  assert.match(server, /'\/property\/association-receipts'/);
+  const operations = await readFile(new URL('../src/ops.ts', import.meta.url), 'utf8');
+  assert.match(operations, /ops\.get\('\/property\/associations'/);
+  assert.match(operations, /ops\.post\('\/property\/associations'/);
+  assert.match(operations, /create_property_association\(\$1,\$2::uuid\[\]\)/);
+  assert.match(operations, /create_property_association_assessment\(\$1,\$2,\$3,\$4,\$5,\$6,\$7\)/);
+  assert.match(operations, /record_property_association_receipt\(\$1,\$2,\$3,\$4\)/);
+  assert.match(operations, /decide_property_association_receipt\(\$1,\$2,\$3\)/);
+  assert.match(operations, /END AS status,[\s\S]*?AS reconciled_amount/);
+  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.match(app, /renderPropertyAssociations\(\)/);
+  assert.match(app, /property-assessment-create/);
+  assert.match(app, /property-assessment-receipt/);
+  assert.match(app, /property-association-receipt-decision/);
+  assert.match(app, /assessment\.status\)/);
+  assert.match(app, /does not calculate penalties, post ledger entries, initiate payments, or send legal notices/);
+
+  const translations = await readFile(new URL('../public/i18n.js', import.meta.url), 'utf8');
+  assert.match(translations, /const propertyAssociationRows = \[/);
+  for (const message of [
+    'Association assessments',
+    'Create association',
+    'Record assessment',
+    'Submit receipt for reconciliation',
+    'Confirm reconciliation',
+    'Association receipt reconciled and recorded.',
+  ]) {
+    assert.ok(translations.includes(`['${message}'`), `Missing association translation: ${message}`);
+  }
+});

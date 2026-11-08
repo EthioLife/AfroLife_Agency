@@ -44,7 +44,7 @@ const MINI_APP_PANELS = new Set([
   'insurance', 'privacy', 'global-bi',
 ]);
 const $ = (selector) => document.querySelector(selector);
-const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
+const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [] }, rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
 state.propertyTenantSupportGrantId = localStorage.getItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
 state.propertyTenantSupportGrants = [];
 state.propertyOperatingTenants = [];
@@ -1271,7 +1271,7 @@ function signOut({ revoke = true, message = '' } = {}) {
   workspaceSearchSequence += 1;
   loadedPanels.clear();
   Object.assign(state, {
-    leads: [], workers: [], workerDocumentExpiry: [], requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, rentalApplications: [], maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [],
+    leads: [], workers: [], workerDocumentExpiry: [], requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [] }, rentalApplications: [], maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [],
     commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], notificationDeliveryStatus: [],
     roleAccess: null, learningContent: [], contracts: [], leases: [], tenants: [], pendingRent: [],
     platformServices: [], platformServicePackages: [], platformTenants: [], platformSuperAdmins: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [],
@@ -1685,6 +1685,9 @@ async function loadPanelData(panel) {
       state.propertyArc = activePropertyTenant
         ? await safeGet('/property/arc-requests', { requests: [], eligible_properties: [] })
         : { requests: [], eligible_properties: [] };
+      state.propertyAssociations = activePropertyTenant
+        ? await safeGet('/property/associations', { currency: null, associations: [], assessments: [] })
+        : { currency: null, associations: [], assessments: [] };
       const propertyTenantMembership = state.propertyTenantMemberships.find((tenant) =>
         tenant.id === activePropertyTenant && tenant.status === 'active');
       if (activePropertyTenant && !state.propertyTenantSupportGrantId) {
@@ -4235,6 +4238,128 @@ function renderPropertyArc() {
   return wrap;
 }
 
+function renderPropertyAssociations() {
+  const wrap = node('section', undefined, 'panel');
+  wrap.append(
+    sectionHeading('Association assessments', 'Manage manually entered association assessments and review receipt evidence within this property tenant.'),
+    node('p', 'Assessment balances are operational records only. AfroLife does not calculate penalties, post ledger entries, initiate payments, or send legal notices through this workflow.', 'muted'),
+  );
+  const data = state.propertyAssociations ?? { currency: null, associations: [], assessments: [] };
+  const membership = state.propertyTenantMemberships.find((tenant) =>
+    tenant.id === state.propertyTenantContextId && tenant.status === 'active');
+  const canManage = ['tenant_admin','tenant_accountant'].includes(membership?.tenant_role);
+
+  if (membership?.tenant_role === 'tenant_admin' && state.properties.length) {
+    const form = node('form', undefined, 'form-card inline-form');
+    form.dataset.form = 'property-association-create';
+    const properties = field('Association properties', 'property_ids', 'select', true, {
+      multiple: true,
+      size: Math.min(8, state.properties.length),
+    });
+    for (const property of state.properties) properties.input.append(new Option(property.address, property.id));
+    form.append(
+      field('Association name', 'name', 'text', true, { minlength: 2, maxlength: 160 }).label,
+      properties.label,
+      button('Create association', 'submit', 'button button-primary'),
+    );
+    wrap.append(form);
+  }
+
+  if (!data.associations.length) {
+    wrap.append(empty('No property associations have been configured in this tenant.'));
+    return wrap;
+  }
+
+  for (const association of data.associations) {
+    const item = node('article', undefined, 'panel');
+    item.append(node('h3', association.name));
+    for (const property of association.properties) item.append(node('p', property.address, 'muted'));
+    if (canManage && association.status === 'active') {
+      const form = node('form', undefined, 'form-card inline-form');
+      form.dataset.form = 'property-assessment-create';
+      form.dataset.association = association.id;
+      const property = field('Property', 'property_id', 'select', true);
+      for (const linkedProperty of association.properties) {
+        property.input.append(new Option(linkedProperty.address, linkedProperty.property_id));
+      }
+      form.append(
+        property.label,
+        field('Assessment period start', 'period_start', 'date', true).label,
+        field('Due date', 'due_on', 'date', true).label,
+        field('Amount', 'amount', 'number', true, { min: 0.01, step: 0.01 }).label,
+        field('Assessment description', 'description', 'text', true, { minlength: 3, maxlength: 500 }).label,
+        button('Record assessment', 'submit', 'button button-primary'),
+      );
+      item.append(form);
+    }
+
+    const assessments = data.assessments.filter((assessment) => assessment.association_id === association.id);
+    if (!assessments.length) item.append(empty('No assessments have been recorded for this association.'));
+    for (const assessment of assessments) {
+      const heading = `${assessment.address}${assessment.unit_no ? ` · ${assessment.unit_no}` : ''}`;
+      const assessmentCard = card(heading, `${assessment.description} · ${assessment.period_start}`,
+        assessment.status);
+      const amountLine = node('p', undefined, 'muted');
+      amountLine.append(
+        node('span', 'Assessed amount'),
+        document.createTextNode(`: ${assessment.amount}${data.currency ? ` ${data.currency}` : ''}`),
+        document.createTextNode(' · '),
+        node('span', 'Due date'),
+        document.createTextNode(`: ${assessment.due_on}`),
+      );
+      assessmentCard.append(amountLine);
+      const receiptLine = node('p', undefined, 'muted');
+      receiptLine.append(
+        node('span', 'Reconciled receipts'),
+        document.createTextNode(`: ${assessment.reconciled_amount}${data.currency ? ` ${data.currency}` : ''}`),
+        document.createTextNode(' · '),
+        node('span', 'Pending receipt evidence'),
+        document.createTextNode(`: ${assessment.pending_amount}${data.currency ? ` ${data.currency}` : ''}`),
+      );
+      assessmentCard.append(receiptLine);
+      for (const receipt of assessment.receipts ?? []) {
+        const receiptCard = card(
+          `${receipt.amount}${data.currency ? ` ${data.currency}` : ''} · ${receipt.channel}`,
+          receipt.reference,
+          receipt.status,
+        );
+        if (receipt.review_reason) receiptCard.append(node('p', receipt.review_reason, 'muted'));
+        if (canManage && receipt.status === 'pending' && !receipt.is_recorder) {
+          receiptCard.append(
+            button('Confirm reconciliation', 'property-association-receipt-decision', 'button button-primary', {
+              id: receipt.id,
+              decision: 'reconciled',
+            }),
+            button('Reject receipt evidence', 'property-association-receipt-decision', 'button button-outline', {
+              id: receipt.id,
+              decision: 'rejected',
+            }),
+          );
+        }
+        assessmentCard.append(receiptCard);
+      }
+      if (assessment.is_owner) {
+        const receiptForm = node('form', undefined, 'form-card inline-form');
+        receiptForm.dataset.form = 'property-assessment-receipt';
+        receiptForm.dataset.assessment = assessment.id;
+        receiptForm.append(
+          field('Receipt amount', 'amount', 'number', true, { min: 0.01, step: 0.01 }).label,
+          field('Payment channel', 'channel', 'text', true, { minlength: 2, maxlength: 40 }).label,
+          field('External receipt reference', 'reference', 'text', true, { minlength: 3, maxlength: 160 }).label,
+          button('Submit receipt for reconciliation', 'submit', 'button button-outline'),
+        );
+        assessmentCard.append(
+          node('p', 'Submitting a receipt reference does not move money or confirm settlement.', 'muted'),
+          receiptForm,
+        );
+      }
+      item.append(assessmentCard);
+    }
+    wrap.append(item);
+  }
+  return wrap;
+}
+
 function renderProperties() {
   if (state.user.role === 'property_vendor') return renderVendorMaintenancePortal();
   const wrap = node('div');
@@ -4260,6 +4385,7 @@ function renderProperties() {
     emptyMessage: 'No property listings are currently available for this dashboard.',
     values: (data) => [['Property listings', data.totalListings], ['Units in listed properties', data.totalUnits]],
   }));
+  if (state.propertyTenantContextId) wrap.append(renderPropertyAssociations());
   wrap.append(renderPropertyArc());
   if (['global_admin','super_admin','corporate_business_manager'].includes(state.user.role)) {
     const authorityQueue = node('section', undefined, 'panel');
@@ -7795,6 +7921,49 @@ async function submitForm(form) {
     showAlert('Property listing saved. Upload ownership or delegated-authority evidence; it remains unavailable to customers until authority and listing reviews are approved.');
     return;
   }
+  if (form.dataset.form === 'property-association-create') {
+    const propertyIds = [...form.querySelectorAll('select[name="property_ids"] option:checked')]
+      .map((option) => option.value);
+    if (!propertyIds.length) throw new Error(t('Select at least one property for the association.'));
+    await api('/property/associations', {
+      method: 'POST',
+      body: JSON.stringify({ name: values.name.trim(), property_ids: propertyIds }),
+    });
+    form.reset();
+    await refresh();
+    showAlert('Property association created.');
+    return;
+  }
+  if (form.dataset.form === 'property-assessment-create') {
+    await api(`/property/associations/${encodeURIComponent(form.dataset.association)}/assessments`, {
+      method: 'POST',
+      body: JSON.stringify({
+        property_id: values.property_id,
+        period_start: values.period_start,
+        due_on: values.due_on,
+        amount: values.amount,
+        description: values.description.trim(),
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert('Association assessment recorded.');
+    return;
+  }
+  if (form.dataset.form === 'property-assessment-receipt') {
+    await api(`/property/association-assessments/${encodeURIComponent(form.dataset.assessment)}/receipts`, {
+      method: 'POST',
+      body: JSON.stringify({
+        amount: values.amount,
+        channel: values.channel.trim(),
+        reference: values.reference.trim(),
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert('Receipt reference recorded for independent reconciliation.');
+    return;
+  }
   if (form.dataset.form === 'property-arc-request') {
     await api('/property/arc-requests', {
       method: 'POST',
@@ -9552,6 +9721,23 @@ document.addEventListener('click', async (event) => {
         : action.dataset.decision === 'needs_info'
           ? 'Additional authority evidence requested.'
           : 'Property authority evidence rejected.');
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'property-association-receipt-decision') {
+    const reason = window.prompt(t('Document the reason for this association receipt decision (at least 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/association-receipts/${encodeURIComponent(id)}/decision`, {
+        method: 'POST',
+        body: JSON.stringify({ decision: action.dataset.decision, reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(action.dataset.decision === 'reconciled'
+        ? 'Association receipt reconciled and recorded.'
+        : 'Association receipt evidence rejected with a recorded reason.');
     } catch (error) {
       showAlert(error.message, true);
     }

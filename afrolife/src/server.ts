@@ -605,7 +605,9 @@ api.post('/property/tenant-support-grants/:id/revoke', requireRole('global_admin
   res.status(204).end();
 }));
 api.use(
-  ['/properties', '/property/arc-requests', '/tenants', '/leases', '/lease-signature-documents', '/releases',
+  ['/properties', '/property/arc-requests', '/property/associations',
+    '/property/association-assessments', '/property/association-receipts',
+    '/tenants', '/leases', '/lease-signature-documents', '/releases',
     '/rent-transactions', '/maintenance', '/resident', '/rent',
     '/property-vendors', '/property-vendor-bills', '/property-vendor-payments'],
   requirePropertyTenantContext,
@@ -637,6 +639,11 @@ api.use(
 );
 api.use(['/properties'], requirePlatformTenantService('property'), requireMiniAppAccess('properties'));
 api.use(['/property/arc-requests'], requirePlatformTenantService('property'), requireMiniAppAccess('properties'));
+api.use(
+  ['/property/associations', '/property/association-assessments', '/property/association-receipts'],
+  requirePlatformTenantService('property'),
+  requireAnyMiniAppAccess('properties', 'rent', 'accounting'),
+);
 api.use(
   ['/property-vendors', '/property-vendor-bills', '/property-vendor-payments'],
   requirePlatformTenantService('property'),

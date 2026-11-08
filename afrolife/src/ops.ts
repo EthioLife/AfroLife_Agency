@@ -766,6 +766,164 @@ ops.post('/resident/access/claim', requireRole('customer'), h(async (req, res) =
   res.status(201).json(link);
 }));
 
+ops.get('/property/associations', h(async (req, res) => {
+  const result = await withUser(req.user!, async (client) => {
+    const tenant = await client.query(
+      'SELECT currency FROM property_operating_tenants WHERE id=app_property_tenant_system_id()',
+    );
+    const tenantCurrency: string | undefined = tenant.rows[0]?.currency;
+    if (!tenantCurrency) throw new HttpError(403, 'An active property tenant context is required.');
+    const associations = await client.query(
+      `SELECT association.id,association.name,association.status,association.created_at,
+         COALESCE((
+           SELECT jsonb_agg(jsonb_build_object(
+             'property_id',property.id,'address',property.address
+           ) ORDER BY property.address)
+           FROM property_association_properties association_property
+           JOIN properties property
+             ON property.id=association_property.property_id
+            AND property.tenant_system_id=association_property.tenant_system_id
+           WHERE association_property.tenant_system_id=association.tenant_system_id
+             AND association_property.association_id=association.id
+         ),'[]'::jsonb) AS properties
+       FROM property_associations association
+       WHERE association.tenant_system_id=app_property_tenant_system_id()
+       ORDER BY association.name,association.id`,
+    );
+    const assessments = await client.query(
+      `SELECT assessment.id,assessment.association_id,assessment.property_id,
+         assessment.unit_id,property.address,unit.unit_no,
+         assessment.period_start,assessment.due_on,assessment.amount::text AS amount,
+         assessment.description,assessment.created_at,
+         (assessment.owner_user_id=app_user_id()) AS is_owner,
+         CASE
+           WHEN COALESCE((
+             SELECT sum(receipt.amount) FROM property_association_receipts receipt
+             WHERE receipt.tenant_system_id=assessment.tenant_system_id
+               AND receipt.assessment_id=assessment.id
+               AND receipt.status='reconciled'
+           ),0)>=assessment.amount THEN 'reconciled'
+           WHEN EXISTS (
+             SELECT 1 FROM property_association_receipts receipt
+             WHERE receipt.tenant_system_id=assessment.tenant_system_id
+               AND receipt.assessment_id=assessment.id
+               AND receipt.status='pending'
+           ) THEN 'pending'
+           ELSE 'open'
+         END AS status,
+         COALESCE((
+           SELECT sum(receipt.amount) FROM property_association_receipts receipt
+           WHERE receipt.tenant_system_id=assessment.tenant_system_id
+             AND receipt.assessment_id=assessment.id
+             AND receipt.status='reconciled'
+         ),0)::text AS reconciled_amount,
+         COALESCE((
+           SELECT sum(receipt.amount) FROM property_association_receipts receipt
+           WHERE receipt.tenant_system_id=assessment.tenant_system_id
+             AND receipt.assessment_id=assessment.id
+             AND receipt.status='pending'
+         ),0)::text AS pending_amount,
+         COALESCE((
+           SELECT jsonb_agg(jsonb_build_object(
+             'id',receipt.id,'amount',receipt.amount::text,'channel',receipt.channel,
+             'reference',receipt.reference,'status',receipt.status,
+             'review_reason',receipt.review_reason,'created_at',receipt.created_at,
+             'is_recorder',(receipt.recorded_by=app_user_id())
+           ) ORDER BY receipt.created_at,receipt.id)
+           FROM property_association_receipts receipt
+           WHERE receipt.tenant_system_id=assessment.tenant_system_id
+             AND receipt.assessment_id=assessment.id
+         ),'[]'::jsonb) AS receipts
+       FROM property_association_assessments assessment
+       JOIN properties property
+         ON property.id=assessment.property_id
+        AND property.tenant_system_id=assessment.tenant_system_id
+       LEFT JOIN property_units unit
+         ON unit.id=assessment.unit_id
+        AND unit.property_id=assessment.property_id
+       WHERE assessment.tenant_system_id=app_property_tenant_system_id()
+       ORDER BY assessment.due_on,assessment.created_at DESC
+       LIMIT 500`,
+    );
+    return {
+      currency: tenantCurrency,
+      associations: associations.rows,
+      assessments: assessments.rows,
+    };
+  });
+  res.json(result);
+}));
+
+ops.post('/property/associations', h(async (req, res) => {
+  const body = z.object({
+    name: z.string().trim().min(2).max(160),
+    property_ids: z.array(z.string().uuid()).min(1).max(200),
+  }).strict().parse(req.body);
+  const result = await withUser(req.user!, async (client) => (
+    await client.query(
+      'SELECT create_property_association($1,$2::uuid[]) AS id',
+      [body.name,body.property_ids],
+    )
+  ));
+  res.status(201).json({ id: result.rows[0].id, status: 'active' });
+}));
+
+ops.post('/property/associations/:id/assessments', h(async (req, res) => {
+  const associationId = z.string().uuid().parse(req.params.id);
+  const body = z.object({
+    property_id: z.string().uuid(),
+    unit_id: z.string().uuid().optional(),
+    period_start: z.string().date(),
+    due_on: z.string().date(),
+    amount: z.string().regex(/^(?:0|[1-9]\d{0,11})(?:\.\d{1,2})?$/)
+      .refine((value) => Number(value) > 0),
+    description: z.string().trim().min(3).max(500),
+  }).strict().parse(req.body);
+  const result = await withUser(req.user!, async (client) => (
+    await client.query(
+      'SELECT create_property_association_assessment($1,$2,$3,$4,$5,$6,$7) AS id',
+      [
+        associationId,body.property_id,body.unit_id ?? null,
+        body.period_start,body.due_on,body.amount,body.description,
+      ],
+    )
+  ));
+  res.status(201).json({ id: result.rows[0].id });
+}));
+
+ops.post('/property/association-assessments/:id/receipts', h(async (req, res) => {
+  const assessmentId = z.string().uuid().parse(req.params.id);
+  const body = z.object({
+    amount: z.string().regex(/^(?:0|[1-9]\d{0,11})(?:\.\d{1,2})?$/)
+      .refine((value) => Number(value) > 0),
+    channel: z.string().trim().min(2).max(40),
+    reference: z.string().trim().min(3).max(160)
+      .refine((value) => !value.includes('://') && !/(password|secret|token|credential)/i.test(value)),
+  }).strict().parse(req.body);
+  const result = await withUser(req.user!, async (client) => (
+    await client.query(
+      'SELECT record_property_association_receipt($1,$2,$3,$4) AS id',
+      [assessmentId,body.amount,body.channel,body.reference],
+    )
+  ));
+  res.status(201).json({ id: result.rows[0].id, status: 'pending' });
+}));
+
+ops.post('/property/association-receipts/:id/decision', h(async (req, res) => {
+  const receiptId = z.string().uuid().parse(req.params.id);
+  const body = z.object({
+    decision: z.enum(['reconciled','rejected']),
+    reason: z.string().trim().min(10).max(1000),
+  }).strict().parse(req.body);
+  await withUser(req.user!, async (client) => {
+    await client.query(
+      'SELECT decide_property_association_receipt($1,$2,$3)',
+      [receiptId,body.decision,body.reason],
+    );
+  });
+  res.status(204).end();
+}));
+
 ops.get('/property/arc-requests', h(async (req, res) => {
   const result = await withUser(req.user!, async (client) => {
     const requests = await client.query(
