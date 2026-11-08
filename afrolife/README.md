@@ -281,8 +281,10 @@ are audited. Tenant lifecycle, support-grant, and membership administration
 are exposed through authenticated API workflows and the Global Admin workspace.
 Select an approved grant from the property-tenant selector to supply its
 purpose-bound context; refresh approved grants after another administrator
-approves a request. Do not grant the runtime database role table ownership or
-`BYPASSRLS`.
+approves a request. Global Admin accounts cannot be provisioned or assigned as
+ordinary tenant members; tenant access for these accounts must use the approved
+support-grant workflow. Do not grant the runtime database role table ownership
+or `BYPASSRLS`.
 
 ## Configurable business rules
 

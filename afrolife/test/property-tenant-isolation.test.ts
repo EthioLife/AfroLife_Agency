@@ -32,6 +32,17 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(migration, /Vendor bill, vendor, and maintenance request must belong to the active property tenant/);
   assert.match(migration, /UPDATE OF maintenance_request_id,vendor_id,tenant_system_id ON property_vendor_bills/);
 
+  const platformRoleGuard = await readFile(
+    new URL('../migrations/119_property_platform_role_membership_guard.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(platformRoleGuard, /initial_admin=actor OR NOT EXISTS/);
+  assert.match(platformRoleGuard, /id=initial_admin AND active=true AND role<>'global_admin'/);
+  assert.match(platformRoleGuard, /id=target_user AND active=true AND role<>'global_admin'/);
+  assert.match(platformRoleGuard, /Global Admin access requires an approved support grant/);
+  assert.match(platformRoleGuard, /app_role\(\)<>'global_admin'/);
+  assert.match(platformRoleGuard, /app_role\(\)='global_admin'[\s\S]*property_operating_tenant_support_grants/);
+
   const core = await readFile(new URL('../src/core.ts', import.meta.url), 'utf8');
   assert.match(core, /app\.property_tenant_system_id/);
   const server = await readFile(new URL('../src/server.ts', import.meta.url), 'utf8');
