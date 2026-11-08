@@ -186,3 +186,36 @@ test('staged tenant migration records require non-secret evidence and guard cuto
   assert.match(workspace, /Evidence tracking only: AfroLife does not connect to, move, or modify tenant data/);
   assert.match(workspace, /Resolve dry-run issues and reconcile all records before independent cutover approval/);
 });
+
+test('property change requests keep submissions, decisions, and inspections tenant-scoped', async () => {
+  const migration = await readFile(
+    new URL('../migrations/128_property_arc_requests.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(migration, /FOREIGN KEY \(tenant_system_id,property_id\)\s+REFERENCES properties\(tenant_system_id,id\)/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION submit_property_arc_request/);
+  assert.match(migration, /Only an owner or resident with an active relationship to this property may submit a request/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION decide_property_arc_request/);
+  assert.match(migration, /requester=actor OR previous_status<>'pending_review'/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION record_property_arc_inspection/);
+  assert.match(migration, /app_property_arc_can_inspect/);
+  assert.match(migration, /CREATE POLICY property_arc_requests_scoped_read/);
+  assert.match(migration, /CREATE POLICY property_arc_events_scoped_read/);
+  assert.match(migration, /FORCE ROW LEVEL SECURITY/);
+  assert.match(migration, /property_arc_events_immutable/);
+  assert.match(migration, /evidence_reference !~\* ':\/\/\|password\|secret\|token\|credential'/);
+
+  const server = await readFile(new URL('../src/server.ts', import.meta.url), 'utf8');
+  assert.match(server, /'\/property\/arc-requests'/);
+  assert.match(server, /requirePropertyTenantContext/);
+  const operations = await readFile(new URL('../src/ops.ts', import.meta.url), 'utf8');
+  assert.match(operations, /ops\.get\('\/property\/arc-requests'/);
+  assert.match(operations, /submit_property_arc_request\(\$1,\$2,\$3,\$4,\$5\)/);
+  assert.match(operations, /decide_property_arc_request\(\$1,\$2,\$3\)/);
+  assert.match(operations, /record_property_arc_inspection\(\$1,\$2,\$3\)/);
+  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.match(app, /property-arc-request/);
+  assert.match(app, /property-arc-decision/);
+  assert.match(app, /property-arc-inspection/);
+  assert.match(app, /does not determine legal compliance, replace permits or other approvals, or claim to establish board quorum/);
+});

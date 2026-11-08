@@ -44,7 +44,7 @@ const MINI_APP_PANELS = new Set([
   'insurance', 'privacy', 'global-bi',
 ]);
 const $ = (selector) => document.querySelector(selector);
-const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
+const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
 state.propertyTenantSupportGrantId = localStorage.getItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
 state.propertyTenantSupportGrants = [];
 state.propertyOperatingTenants = [];
@@ -1271,7 +1271,7 @@ function signOut({ revoke = true, message = '' } = {}) {
   workspaceSearchSequence += 1;
   loadedPanels.clear();
   Object.assign(state, {
-    leads: [], workers: [], workerDocumentExpiry: [], requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], rentalApplications: [], maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [],
+    leads: [], workers: [], workerDocumentExpiry: [], requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, rentalApplications: [], maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [],
     commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], notificationDeliveryStatus: [],
     roleAccess: null, learningContent: [], contracts: [], leases: [], tenants: [], pendingRent: [],
     platformServices: [], platformServicePackages: [], platformTenants: [], platformSuperAdmins: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [],
@@ -1682,6 +1682,9 @@ async function loadPanelData(panel) {
         ? await safeGet('/marketplace/sellers', []) : [];
       if (hasActivity('property.listings.view')) state.properties = await safeGet('/properties', []);
       const activePropertyTenant = state.propertyTenantContextId;
+      state.propertyArc = activePropertyTenant
+        ? await safeGet('/property/arc-requests', { requests: [], eligible_properties: [] })
+        : { requests: [], eligible_properties: [] };
       const propertyTenantMembership = state.propertyTenantMemberships.find((tenant) =>
         tenant.id === activePropertyTenant && tenant.status === 'active');
       if (activePropertyTenant && !state.propertyTenantSupportGrantId) {
@@ -4140,6 +4143,81 @@ function renderResidentPropertyPortal() {
   return section;
 }
 
+function renderPropertyArc() {
+  const wrap = node('section', undefined, 'panel');
+  wrap.append(
+    sectionHeading('Property change requests', 'Submit and review property change proposals with a tenant-scoped decision and inspection history.'),
+    node('p', 'This operational workflow does not determine legal compliance, replace permits or other approvals, or claim to establish board quorum.', 'muted'),
+  );
+  const arc = state.propertyArc ?? { requests: [], eligible_properties: [] };
+  if (arc.eligible_properties.length) {
+    const form = node('form', undefined, 'form-card inline-form');
+    form.dataset.form = 'property-arc-request';
+    const propertyField = field('Property', 'property_id', 'select', true);
+    propertyField.input.append(new Option('Choose a property', ''));
+    for (const property of arc.eligible_properties) {
+      propertyField.input.append(new Option(property.address, property.property_id));
+    }
+    const typeField = field('Request type', 'request_type', 'select', true);
+    for (const [label, value] of [
+      ['Exterior alteration', 'exterior_alteration'],
+      ['Landscaping', 'landscaping'],
+      ['Painting', 'painting'],
+      ['Structural change', 'structural'],
+      ['Other', 'other'],
+    ]) typeField.input.append(new Option(label, value));
+    form.append(
+      propertyField.label,
+      typeField.label,
+      field('Summary', 'summary', 'text', true, { minlength: 3, maxlength: 120 }).label,
+      field('Describe the proposed work', 'proposal', 'textarea', true, { minlength: 10, maxlength: 2000, rows: 4 }).label,
+      field('Optional non-secret evidence reference', 'evidence_reference', 'text', false, { maxlength: 200 }).label,
+      button('Submit change request', 'submit', 'button button-primary'),
+    );
+    wrap.append(form);
+  } else {
+    wrap.append(empty('No owner-owned property or active linked resident lease is available for a request in this tenant.'));
+  }
+
+  const membership = state.propertyTenantMemberships.find((tenant) =>
+    tenant.id === state.propertyTenantContextId && tenant.status === 'active');
+  const today = new Date().toISOString().slice(0, 10);
+  const scopedTo = (propertyId, role) => state.propertyAgentScopes.some((scope) =>
+    scope.property_id === propertyId && scope.user_id === state.user.id
+      && scope.tenant_role === role && scope.status === 'active'
+      && scope.effective_from <= today && (!scope.effective_to || scope.effective_to >= today));
+  const list = node('div', undefined, 'list');
+  if (!arc.requests.length) list.append(empty('No change requests are recorded for this account or assigned property scope.'));
+  for (const request of arc.requests) {
+    const item = card(request.address, `${request.request_type.replaceAll('_', ' ')} · ${request.summary}`,
+      request.status.replaceAll('_', ' '));
+    item.append(node('p', request.proposal));
+    if (request.evidence_reference) item.append(node('p', `Evidence reference: ${request.evidence_reference}`, 'muted'));
+    for (const event of request.events ?? []) {
+      const eventDate = new Date(event.created_at).toLocaleString(document.documentElement.lang);
+      item.append(node('p',
+        `${eventDate} · ${event.actor_name ? `${event.actor_name} · ` : ''}${event.event_type.replaceAll('_', ' ')} · ${event.reason}${event.evidence_reference ? ` · Evidence: ${event.evidence_reference}` : ''}`,
+        'muted'));
+    }
+    const canReview = membership?.tenant_role === 'tenant_admin'
+      || (membership?.tenant_role === 'master_agent' && scopedTo(request.property_id, 'master_agent'));
+    const canInspect = canReview
+      || (membership?.tenant_role === 'field_agent' && scopedTo(request.property_id, 'field_agent'));
+    if (request.status === 'pending_review' && !request.is_requester && canReview) {
+      item.append(
+        button('Approve request', 'property-arc-decision', 'button button-primary', { id: request.id, decision: 'approved' }),
+        button('Reject request', 'property-arc-decision', 'button button-outline', { id: request.id, decision: 'rejected' }),
+      );
+    }
+    if (request.status === 'pending_review' && !request.is_requester && canInspect) {
+      item.append(button('Record inspection', 'property-arc-inspection', 'button button-outline', { id: request.id }));
+    }
+    list.append(item);
+  }
+  wrap.append(node('h3', 'Request history'), list);
+  return wrap;
+}
+
 function renderProperties() {
   if (state.user.role === 'property_vendor') return renderVendorMaintenancePortal();
   const wrap = node('div');
@@ -4165,6 +4243,7 @@ function renderProperties() {
     emptyMessage: 'No property listings are currently available for this dashboard.',
     values: (data) => [['Property listings', data.totalListings], ['Units in listed properties', data.totalUnits]],
   }));
+  wrap.append(renderPropertyArc());
   if (['global_admin','super_admin','corporate_business_manager'].includes(state.user.role)) {
     const authorityQueue = node('section', undefined, 'panel');
     authorityQueue.append(
@@ -7699,6 +7778,22 @@ async function submitForm(form) {
     showAlert('Property listing saved. Upload ownership or delegated-authority evidence; it remains unavailable to customers until authority and listing reviews are approved.');
     return;
   }
+  if (form.dataset.form === 'property-arc-request') {
+    await api('/property/arc-requests', {
+      method: 'POST',
+      body: JSON.stringify({
+        property_id: values.property_id,
+        request_type: values.request_type,
+        summary: values.summary.trim(),
+        proposal: values.proposal.trim(),
+        ...(values.evidence_reference.trim() ? { evidence_reference: values.evidence_reference.trim() } : {}),
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert('Property change request submitted for tenant-scoped review.');
+    return;
+  }
   if (form.dataset.form === 'property-authority-evidence') {
     const file = form.querySelector('input[name="evidence_file"]').files[0];
     if (!file) throw new Error(t('Choose an ownership or delegated-authority document.'));
@@ -9440,6 +9535,43 @@ document.addEventListener('click', async (event) => {
         : action.dataset.decision === 'needs_info'
           ? 'Additional authority evidence requested.'
           : 'Property authority evidence rejected.');
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'property-arc-decision') {
+    const reason = window.prompt(t('Document the reason for this property change decision (at least 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/arc-requests/${encodeURIComponent(id)}/decision`, {
+        method: 'POST',
+        body: JSON.stringify({ decision: action.dataset.decision, reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(action.dataset.decision === 'approved'
+        ? 'Property change request approved and recorded.'
+        : 'Property change request rejected with a recorded reason.');
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'property-arc-inspection') {
+    const notes = window.prompt(t('Record inspection findings (at least 10 characters).'));
+    if (!notes || notes.trim().length < 10) return;
+    const reference = window.prompt(t('Optional non-secret evidence reference (leave blank if none).'));
+    if (reference === null) return;
+    try {
+      await api(`/property/arc-requests/${encodeURIComponent(id)}/inspection`, {
+        method: 'POST',
+        body: JSON.stringify({
+          notes: notes.trim(),
+          ...(reference.trim() ? { evidence_reference: reference.trim() } : {}),
+        }),
+      });
+      await refresh();
+      showAlert('Inspection findings recorded in the request history.');
     } catch (error) {
       showAlert(error.message, true);
     }

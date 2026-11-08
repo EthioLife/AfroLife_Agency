@@ -766,6 +766,91 @@ ops.post('/resident/access/claim', requireRole('customer'), h(async (req, res) =
   res.status(201).json(link);
 }));
 
+ops.get('/property/arc-requests', h(async (req, res) => {
+  const result = await withUser(req.user!, async (client) => {
+    const requests = await client.query(
+      `SELECT request.id,request.property_id,property.address,request.request_type,
+         request.summary,request.proposal,request.evidence_reference,request.status,
+         request.created_at,(request.submitted_by=app_user_id()) AS is_requester,
+         COALESCE((
+           SELECT jsonb_agg(jsonb_build_object(
+             'event_type',event.event_type,'from_status',event.from_status,
+             'to_status',event.to_status,'reason',event.reason,
+             'evidence_reference',event.evidence_reference,'created_at',event.created_at,
+             'actor_name',CASE WHEN app_role()='field_agent' THEN NULL ELSE actor.legal_name END
+           ) ORDER BY event.id)
+           FROM property_arc_events event
+           LEFT JOIN users actor ON actor.id=event.actor_id
+           WHERE event.tenant_system_id=request.tenant_system_id
+             AND event.arc_request_id=request.id
+         ),'[]'::jsonb) AS events
+       FROM property_arc_requests request
+       JOIN properties property
+         ON property.id=request.property_id
+        AND property.tenant_system_id=request.tenant_system_id
+       WHERE request.tenant_system_id=app_property_tenant_system_id()
+       ORDER BY request.request_sequence DESC
+       LIMIT 100`,
+    );
+    const eligibleProperties = await client.query(
+      'SELECT * FROM list_property_arc_eligible_properties()',
+    );
+    return { requests: requests.rows, eligible_properties: eligibleProperties.rows };
+  });
+  res.json(result);
+}));
+
+ops.post('/property/arc-requests', h(async (req, res) => {
+  const body = z.object({
+    property_id: z.string().uuid(),
+    request_type: z.enum(['exterior_alteration','landscaping','painting','structural','other']),
+    summary: z.string().trim().min(3).max(120),
+    proposal: z.string().trim().min(10).max(2000),
+    evidence_reference: z.string().trim().min(2).max(200)
+      .refine((value) => !value.includes('://') && !/(password|secret|token|credential)/i.test(value))
+      .optional(),
+  }).strict().parse(req.body);
+  const requestId = await withUser(req.user!, async (client) => (
+    await client.query(
+      'SELECT submit_property_arc_request($1,$2,$3,$4,$5) AS id',
+      [body.property_id,body.request_type,body.summary,body.proposal,body.evidence_reference ?? null],
+    )
+  )).then((result) => result.rows[0].id as string);
+  res.status(201).json({ id: requestId, status: 'pending_review' });
+}));
+
+ops.post('/property/arc-requests/:id/decision', h(async (req, res) => {
+  const requestId = z.string().uuid().parse(req.params.id);
+  const body = z.object({
+    decision: z.enum(['approved','rejected']),
+    reason: z.string().trim().min(10).max(1000),
+  }).strict().parse(req.body);
+  await withUser(req.user!, async (client) => {
+    await client.query(
+      'SELECT decide_property_arc_request($1,$2,$3)',
+      [requestId,body.decision,body.reason],
+    );
+  });
+  res.status(204).end();
+}));
+
+ops.post('/property/arc-requests/:id/inspection', h(async (req, res) => {
+  const requestId = z.string().uuid().parse(req.params.id);
+  const body = z.object({
+    notes: z.string().trim().min(10).max(1000),
+    evidence_reference: z.string().trim().min(2).max(200)
+      .refine((value) => !value.includes('://') && !/(password|secret|token|credential)/i.test(value))
+      .optional(),
+  }).strict().parse(req.body);
+  await withUser(req.user!, async (client) => {
+    await client.query(
+      'SELECT record_property_arc_inspection($1,$2,$3)',
+      [requestId,body.notes,body.evidence_reference ?? null],
+    );
+  });
+  res.status(201).json({ status: 'inspection_recorded' });
+}));
+
 ops.get('/resident/property-workspace', requireRole('customer'), h(async (req, res) => {
   const workspace = await withUser(req.user!, async (client) => {
     const leases = (await client.query(
