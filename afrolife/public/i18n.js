@@ -5192,6 +5192,16 @@ const propertyAssociationRows = [
   ['Resolution evidence verified and recorded.', 'የመፍትሔ ማስረጃ ተረጋግጦ ተመዝግቧል።', 'Ragaan furmaataa mirkanaa’ee galmaa’eera.', 'መርትዖ ፍታሕ ተረጋጊጹን ተመዝጊቡን።', 'Caddeynta xallinta waa la xaqiijiyay oo la diiwaangeliyay.', 'تم التحقق من دليل المعالجة وتسجيله.', 'Ushahidi wa utatuzi umethibitishwa na kurekodiwa.'],
   ['Observation dismissed with a recorded reason.', 'ምልከታው በተመዘገበ ምክንያት ውድቅ ሆኗል።', 'Hubannoon sababa galmaa’een didameera.', 'ምልከታ ብዝተመዝገበ ምኽንያት ተነጺጉ።', 'Indha-indheynta waa la buriyay iyadoo sababta la diiwaangeliyay.', 'رُفضت الملاحظة مع تسجيل السبب.', 'Uchunguzi umekataliwa kwa sababu iliyorekodiwa.'],
   ['Evidence-based property observation recorded for review.', 'ማስረጃ ያለው የንብረት ምልከታ ለግምገማ ተመዝግቧል።', 'Hubannoon qabeenyaa ragaa qabu gamaaggamaaf galmaa’eera.', 'ምልከታ ንብረት ብመርትዖ ንግምገማ ተመዝጊቡ።', 'Indha-indheynta hantida ee caddeynta leh ayaa loo diiwaangeliyay dib-u-eegis.', 'تم تسجيل ملاحظة العقار المدعومة بالأدلة للمراجعة.', 'Uchunguzi wa mali wenye ushahidi umerekodiwa kwa ukaguzi.'],
+  ['Association calendar and amenity policies', 'የማህበር የቀን መቁጠሪያና የመገልገያ ፖሊሲዎች', 'Imaammata kalandarii fi tajaajila waldaa', 'ፖሊሲታት ካላንደርን መጠቀሚ ማሕበር', 'Siyaasadaha jadwalka iyo adeegyada ururka', 'سياسات تقويم الجمعية ومرافقها', 'Sera za kalenda na huduma za chama'],
+  ['Amenity name', 'የመገልገያ ስም', 'Maqaa tajaajilaa', 'ስም መጠቀሚ', 'Magaca adeegga', 'اسم المرفق', 'Jina la huduma'],
+  ['Calendar and use rules', 'የቀን መቁጠሪያና የአጠቃቀም ደንቦች', 'Seerota kalandarii fi itti fayyadamaa', 'ሕግታት ካላንደርን ኣጠቓቕማን', 'Xeerarka jadwalka iyo isticmaalka', 'قواعد التقويم والاستخدام', 'Sheria za kalenda na matumizi'],
+  ['Policy status', 'የፖሊሲ ሁኔታ', 'Haala imaammataa', 'ኩነታት ፖሊሲ', 'Xaaladda xeerka', 'حالة السياسة', 'Hali ya sera'],
+  ['Active', 'ንቁ', 'Hojii irra', 'ንጡፍ', 'Firfircoon', 'نشط', 'Amilifu'],
+  ['Retired', 'የተቋረጠ', 'Hojii irraa ba’e', 'ዝተቋረጸ', 'Hawl-gab', 'متوقف', 'Imesitishwa'],
+  ['These versioned rules are reference text only; bookings and availability conflicts are not automated.', 'እነዚህ በስሪት የተመዘገቡ ደንቦች የማጣቀሻ ጽሑፍ ብቻ ናቸው፤ ቦታ ማስያዝና የመገኘት ግጭቶች በራስ-ሰር አይተዳደሩም።', 'Seerotni kun barruu wabii qofa; qabannaan iddoo fi walitti bu’iinsi argamaas ofumaan hin to’ataman.', 'እዞም ብስሪት ዝተመዝገቡ ሕግታት ጽሑፍ መወከሲ ጥራይ እዮም፤ ምምዝጋብን ግጭት ተረኽቦን ብኣውቶማቲክ ኣይተመሓደሩን።', 'Xeerarkan noocyada leh waa qoraal tixraac oo keliya; boos-qabsiga iyo isku dhacyada helitaanka si otomaatig ah looma maamulo.', 'هذه القواعد ذات الإصدارات نص مرجعي فقط؛ لا تتم أتمتة الحجوزات أو تعارضات التوفر.', 'Sheria hizi zenye matoleo ni maandishi ya marejeleo pekee; nafasi na migongano ya upatikanaji haijiendeshi.'],
+  ['Record policy version', 'የፖሊሲ ስሪት ይመዝግቡ', 'Gosa imaammataa galmeessi', 'ስሪት ፖሊሲ መዝግቡ', 'Diiwaangeli nooca xeerka', 'تسجيل إصدار السياسة', 'Rekodi toleo la sera'],
+  ['Policy version', 'የፖሊሲ ስሪት', 'Gosa imaammataa', 'ስሪት ፖሊሲ', 'Nooca xeerka', 'إصدار السياسة', 'Toleo la sera'],
+  ['Association amenity policy version recorded.', 'የማህበሩ የመገልገያ ፖሊሲ ስሪት ተመዝግቧል።', 'Gosti imaammata tajaajila waldaa galmaa’eera.', 'ስሪት ፖሊሲ መጠቀሚ ማሕበር ተመዝጊቡ።', 'Nooca xeerka adeegga ururka waa la diiwaangeliyay.', 'تم تسجيل إصدار سياسة مرفق الجمعية.', 'Toleo la sera ya huduma ya chama limerekodiwa.'],
 ];
 for (const row of propertyAssociationRows) {
   for (const [column, locale] of Object.keys(localeNames).entries()) {

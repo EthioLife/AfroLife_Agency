@@ -44,7 +44,7 @@ const MINI_APP_PANELS = new Set([
   'insurance', 'privacy', 'global-bi',
 ]);
 const $ = (selector) => document.querySelector(selector);
-const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [] }, rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
+const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [] }, rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
 state.propertyTenantSupportGrantId = localStorage.getItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
 state.propertyTenantSupportGrants = [];
 state.propertyOperatingTenants = [];
@@ -1271,7 +1271,7 @@ function signOut({ revoke = true, message = '' } = {}) {
   workspaceSearchSequence += 1;
   loadedPanels.clear();
   Object.assign(state, {
-    leads: [], workers: [], workerDocumentExpiry: [], requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [] }, rentalApplications: [], maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [],
+    leads: [], workers: [], workerDocumentExpiry: [], requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [] }, rentalApplications: [], maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [],
     commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], notificationDeliveryStatus: [],
     roleAccess: null, learningContent: [], contracts: [], leases: [], tenants: [], pendingRent: [],
     platformServices: [], platformServicePackages: [], platformTenants: [], platformSuperAdmins: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [],
@@ -1686,8 +1686,10 @@ async function loadPanelData(panel) {
         ? await safeGet('/property/arc-requests', { requests: [], eligible_properties: [] })
         : { requests: [], eligible_properties: [] };
       state.propertyAssociations = activePropertyTenant
-        ? await safeGet('/property/associations', { currency: null, associations: [], assessments: [] })
-        : { currency: null, associations: [], assessments: [] };
+        ? await safeGet('/property/associations', {
+          currency: null, associations: [], assessments: [], amenity_policies: [],
+        })
+        : { currency: null, associations: [], assessments: [], amenity_policies: [] };
       const propertyTenantMembership = state.propertyTenantMemberships.find((tenant) =>
         tenant.id === activePropertyTenant && tenant.status === 'active');
       if (activePropertyTenant && !state.propertyTenantSupportGrantId) {
@@ -4244,10 +4246,13 @@ function renderPropertyAssociations() {
     sectionHeading('Association assessments', 'Manage manually entered association assessments and review receipt evidence within this property tenant.'),
     node('p', 'Assessment balances are operational records only. AfroLife does not calculate penalties, post ledger entries, initiate payments, or send legal notices through this workflow.', 'muted'),
   );
-  const data = state.propertyAssociations ?? { currency: null, associations: [], assessments: [] };
+  const data = state.propertyAssociations ?? {
+    currency: null, associations: [], assessments: [], amenity_policies: [],
+  };
   const membership = state.propertyTenantMemberships.find((tenant) =>
     tenant.id === state.propertyTenantContextId && tenant.status === 'active');
   const canManage = ['tenant_admin','tenant_accountant'].includes(membership?.tenant_role);
+  const canConfigurePolicies = membership?.tenant_role === 'tenant_admin';
   const today = new Date().toISOString().slice(0, 10);
   const scopedTo = (propertyId, role) => state.propertyAgentScopes.some((scope) =>
     scope.property_id === propertyId && scope.user_id === state.user.id
@@ -4283,6 +4288,50 @@ function renderPropertyAssociations() {
     item.append(node('h3', association.name));
     for (const property of association.properties) {
       item.append(node('p', property.address, 'muted'));
+      const propertyPolicies = (data.amenity_policies ?? [])
+        .filter((policy) => policy.association_id === association.id
+          && policy.property_id === property.property_id);
+      const currentPolicies = new Map();
+      for (const policy of propertyPolicies) {
+        const key = policy.amenity_name.trim().toLowerCase();
+        const current = currentPolicies.get(key);
+        if (!current || policy.policy_version > current.policy_version) currentPolicies.set(key, policy);
+      }
+      if (currentPolicies.size) item.append(node('h4', t('Association calendar and amenity policies')));
+      for (const policy of currentPolicies.values()) {
+        const policyCard = card(
+          `${policy.amenity_name} · ${t(policy.status === 'active' ? 'Active' : 'Retired')}`,
+          `${t('Policy version')} ${policy.policy_version}`,
+        );
+        policyCard.append(node('p', policy.rules));
+        item.append(policyCard);
+      }
+      if (canConfigurePolicies && association.status === 'active') {
+        const form = node('form', undefined, 'form-card inline-form');
+        form.dataset.form = 'property-association-amenity-policy';
+        form.dataset.association = association.id;
+        form.dataset.property = property.property_id;
+        const status = field('Policy status', 'status', 'select', true);
+        status.input.append(
+          new Option(t('Active'), 'active'),
+          new Option(t('Retired'), 'retired'),
+        );
+        form.append(
+          field('Amenity name', 'amenity_name', 'text', true, {
+            minlength: 2,
+            maxlength: 120,
+          }).label,
+          field('Calendar and use rules', 'rules', 'textarea', true, {
+            minlength: 10,
+            maxlength: 3000,
+            rows: 4,
+          }).label,
+          status.label,
+          node('p', t('These versioned rules are reference text only; bookings and availability conflicts are not automated.'), 'muted'),
+          button(t('Record policy version'), 'submit', 'button button-outline'),
+        );
+        item.append(form);
+      }
       if (association.status === 'active' && canReportOn(property.property_id)) {
         const form = node('form', undefined, 'form-card inline-form');
         form.dataset.form = 'property-association-violation';
@@ -8016,6 +8065,21 @@ async function submitForm(form) {
     form.reset();
     await refresh();
     showAlert('Property association created.');
+    return;
+  }
+  if (form.dataset.form === 'property-association-amenity-policy') {
+    await api(`/property/associations/${encodeURIComponent(form.dataset.association)}/amenity-policies`, {
+      method: 'POST',
+      body: JSON.stringify({
+        property_id: form.dataset.property,
+        amenity_name: values.amenity_name.trim(),
+        rules: values.rules.trim(),
+        status: values.status,
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert('Association amenity policy version recorded.');
     return;
   }
   if (form.dataset.form === 'property-assessment-create') {

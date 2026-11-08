@@ -879,11 +879,24 @@ ops.get('/property/associations', h(async (req, res) => {
        ORDER BY violation.created_at DESC,violation.id
        LIMIT 500`,
     );
+    const amenityPolicies = await client.query(
+      `SELECT policy.policy_version_id,policy.association_id,policy.property_id,
+         property.address,policy.amenity_name,policy.policy_version,policy.rules,
+         policy.status,policy.created_at
+       FROM property_association_amenity_policies policy
+       JOIN properties property
+         ON property.id=policy.property_id
+        AND property.tenant_system_id=policy.tenant_system_id
+       WHERE policy.tenant_system_id=app_property_tenant_system_id()
+       ORDER BY policy.association_id,policy.property_id,
+         lower(policy.amenity_name),policy.policy_version`,
+    );
     return {
       currency: tenantCurrency,
       associations: associations.rows,
       assessments: assessments.rows,
       violations: violations.rows,
+      amenity_policies: amenityPolicies.rows,
     };
   });
   res.json(result);
@@ -901,6 +914,23 @@ ops.post('/property/associations', h(async (req, res) => {
     )
   ));
   res.status(201).json({ id: result.rows[0].id, status: 'active' });
+}));
+
+ops.post('/property/associations/:id/amenity-policies', h(async (req, res) => {
+  const associationId = z.string().uuid().parse(req.params.id);
+  const body = z.object({
+    property_id: z.string().uuid(),
+    amenity_name: z.string().trim().min(2).max(120),
+    rules: z.string().trim().min(10).max(3000),
+    status: z.enum(['active','retired']),
+  }).strict().parse(req.body);
+  const result = await withUser(req.user!, async (client) => (
+    await client.query(
+      'SELECT * FROM record_property_association_amenity_policy($1,$2,$3,$4,$5)',
+      [associationId,body.property_id,body.amenity_name,body.rules,body.status],
+    )
+  ));
+  res.status(201).json(result.rows[0]);
 }));
 
 ops.post('/property/associations/:id/assessments', h(async (req, res) => {

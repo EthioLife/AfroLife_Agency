@@ -348,3 +348,42 @@ test('association violations require evidence, owner response, and independent h
   assert.match(translations, /'Owner response submitted for independent human review\.'/);
   assert.match(translations, /'Resolution evidence verified and recorded\.'/);
 });
+
+test('association amenity policies are tenant-scoped, admin-authored, and append-only references', async () => {
+  const migration = await readFile(
+    new URL('../migrations/131_property_association_amenity_policies.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(migration, /FOREIGN KEY \(tenant_system_id,association_id,property_id\)\s+REFERENCES property_association_properties/);
+  assert.match(migration, /CREATE TRIGGER property_association_amenity_policies_immutable/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION record_property_association_amenity_policy\(/);
+  assert.match(migration, /member\.tenant_role='tenant_admin'/);
+  assert.match(migration, /FOR UPDATE/);
+  assert.match(migration, /lower\(policy\.amenity_name\)=lower\(trim\(target_amenity_name\)\)/);
+  assert.match(migration, /CREATE POLICY property_association_amenity_policies_scoped_read/);
+  assert.match(migration, /CREATE POLICY property_association_amenity_policies_command_insert/);
+  assert.match(migration, /FORCE ROW LEVEL SECURITY/);
+  assert.match(migration, /REVOKE ALL ON TABLE property_association_amenity_policies FROM PUBLIC,"\{\{role\}\}"/);
+  assert.doesNotMatch(migration, /GRANT (INSERT|UPDATE|DELETE|ALL) ON TABLE property_association_amenity_policies TO "\{\{role\}\}"/);
+
+  const server = await readFile(new URL('../src/server.ts', import.meta.url), 'utf8');
+  assert.match(server, /'\/property\/associations'/);
+  const operations = await readFile(new URL('../src/ops.ts', import.meta.url), 'utf8');
+  assert.match(operations, /property_association_amenity_policies policy/);
+  assert.match(operations, /ops\.post\('\/property\/associations\/:id\/amenity-policies'/);
+  assert.match(operations, /record_property_association_amenity_policy\(\$1,\$2,\$3,\$4,\$5\)/);
+  assert.match(operations, /status: z\.enum\(\['active','retired'\]\)/);
+
+  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.match(app, /property-association-amenity-policy/);
+  assert.match(app, /These versioned rules are reference text only; bookings and availability conflicts are not automated\./);
+  const translations = await readFile(new URL('../public/i18n.js', import.meta.url), 'utf8');
+  for (const message of [
+    'Association calendar and amenity policies',
+    'Calendar and use rules',
+    'Record policy version',
+    'Association amenity policy version recorded.',
+  ]) {
+    assert.ok(translations.includes(`['${message}'`), `Missing amenity policy translation: ${message}`);
+  }
+});
