@@ -49,6 +49,7 @@ state.propertyTenantSupportGrantId = localStorage.getItem(PROPERTY_TENANT_SUPPOR
 state.propertyTenantSupportGrants = [];
 state.propertyOperatingTenants = [];
 state.propertyTenantPendingGrants = [];
+state.propertyTenantExportRequests = [];
 state.propertyAgentScopes = [];
 state.propertyTenantAgentCandidates = [];
 const loadedPanels = new Set();
@@ -1256,6 +1257,7 @@ function signOut({ revoke = true, message = '' } = {}) {
   state.propertyTenantSupportGrants = [];
   state.propertyOperatingTenants = [];
   state.propertyTenantPendingGrants = [];
+  state.propertyTenantExportRequests = [];
   localStorage.removeItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
   subscriptionState.mine = [];
   subscriptionState.mineLoaded = false;
@@ -1822,9 +1824,10 @@ async function loadPanelData(panel) {
           safeGet('/platform/tenants', []), safeGet('/platform/super-admins', []),
           safeGet('/platform/catalog-products', []),
         ]);
-        [state.propertyOperatingTenants, state.propertyTenantPendingGrants] = await Promise.all([
+        [state.propertyOperatingTenants, state.propertyTenantPendingGrants, state.propertyTenantExportRequests] = await Promise.all([
           safeGet('/property/tenant-systems', []),
           safeGet('/property/tenant-support-grants/pending', []),
+          safeGet('/property/tenant-offboarding-exports', []),
         ]);
         state.platformDataAdmin = await safeGet('/platform/tenant-capabilities', null);
         state.businessTenants = await safeGet('/platform/business-tenants', []);
@@ -6052,6 +6055,83 @@ function renderAdmin() {
     }
     wrap.append(supportAccess);
 
+    const tenantOffboarding = node('section', undefined, 'panel form-card');
+    tenantOffboarding.append(
+      node('h3', 'Tenant offboarding and external archive verification'),
+      node('p', 'AfroLife does not generate or store tenant export archives. Register the archive reference, SHA-256 digest, byte size, and record count from the approved external export process. A different Global Admin must verify it before offboarding or closure.'),
+    );
+    const exportForm = node('form', undefined, 'inline-form');
+    exportForm.dataset.form = 'property-tenant-export-request';
+    const exportTenant = field('Tenant', 'tenant_system_id', 'select', true);
+    for (const tenant of state.propertyOperatingTenants.filter((item) => ['active','suspended'].includes(item.status))) {
+      exportTenant.input.append(new Option(`${tenant.legal_name} · ${tenant.status}`, tenant.id));
+    }
+    exportForm.append(
+      exportTenant.label,
+      field('External archive evidence reference (no URL or credentials)', 'artifact_reference', 'text', true, { minlength: 2, maxlength: 200 }).label,
+      field('Archive SHA-256 (lowercase hexadecimal)', 'sha256', 'text', true, { minlength: 64, maxlength: 64, pattern: '[0-9a-f]{64}' }).label,
+      field('Archive size in bytes', 'size_bytes', 'number', true, { min: 1, step: 1 }).label,
+      field('Exported record count', 'record_count', 'number', true, { min: 0, step: 1 }).label,
+      field('Export notes (minimum 10 characters)', 'notes', 'textarea', true, { minlength: 10, maxlength: 1000, rows: 2 }).label,
+      button('Register archive for independent verification', 'submit', 'button button-primary'),
+    );
+    if (!exportTenant.input.options.length) {
+      exportForm.querySelector('button[type="submit"]').disabled = true;
+      tenantOffboarding.append(empty('No active or suspended tenants are eligible for a new archive request.'));
+    }
+    tenantOffboarding.append(exportForm, node('h4', 'External archive requests'));
+    if (!state.propertyTenantExportRequests.length) tenantOffboarding.append(empty('No tenant export archive evidence has been registered.'));
+    for (const request of state.propertyTenantExportRequests) {
+      const requestStatus = request.decision ?? 'pending verification';
+      const item = card(
+        `${request.tenant_name} · ${requestStatus}`,
+        `Reference ${request.artifact_reference} · SHA-256 ${request.sha256} · ${Number(request.size_bytes).toLocaleString()} bytes · ${Number(request.record_count).toLocaleString()} records · requested by ${request.requested_by_name}`,
+        requestStatus,
+      );
+      item.append(node('p', request.notes));
+      if (request.decision) {
+        item.append(node('p', `${request.decision} by ${request.decided_by_name} · ${request.decision_reason}`));
+      } else if (request.requested_by !== state.user.id
+        && ['active','suspended'].includes(request.tenant_status)) {
+        item.append(
+          button('Verify archive', 'property-tenant-export-decision', 'button button-outline', {
+            id: request.id, tenantId: request.tenant_system_id, decision: 'verified',
+          }),
+          button('Reject archive', 'property-tenant-export-decision', 'button button-quiet', {
+            id: request.id, tenantId: request.tenant_system_id, decision: 'rejected',
+          }),
+        );
+      } else if (!request.decision) {
+        item.append(node('p', 'Independent verification is required; the requester cannot approve this archive.'));
+      }
+      tenantOffboarding.append(item);
+    }
+    tenantOffboarding.append(node('h4', 'Tenant lifecycle'));
+    for (const tenant of state.propertyOperatingTenants) {
+      const latestExport = state.propertyTenantExportRequests.find((request) =>
+        request.tenant_system_id === tenant.id);
+      const verified = latestExport?.decision === 'verified';
+      const item = card(tenant.legal_name, `${tenant.tenant_key} · ${tenant.jurisdiction}`, tenant.status);
+      if (['active','suspended'].includes(tenant.status)) {
+        const offboard = button('Begin offboarding', 'property-tenant-status', 'button button-outline', {
+          tenantId: tenant.id, status: 'offboarding',
+        });
+        offboard.disabled = !verified;
+        item.append(offboard);
+      } else if (tenant.status === 'offboarding') {
+        const close = button('Close tenant', 'property-tenant-status', 'button button-quiet', {
+          tenantId: tenant.id, status: 'closed',
+        });
+        close.disabled = !verified;
+        item.append(close);
+      }
+      if (!verified && ['active','suspended','offboarding'].includes(tenant.status)) {
+        item.append(node('p', 'A verified, latest external archive is required before this tenant can advance.'));
+      }
+      tenantOffboarding.append(item);
+    }
+    wrap.append(tenantOffboarding);
+
     const delivery = node('section', undefined, 'panel form-card');
     delivery.append(node('h3', 'Webhook notification delivery'));
     delivery.append(node('p', 'Delivery retries use bounded backoff. Manual retries are audited and keep the original notification ID as the downstream idempotency key.'));
@@ -6761,6 +6841,28 @@ function navigateToPanel(panel, { replace = false } = {}) {
 
 async function submitForm(form) {
   const values = formData(form);
+  if (form.dataset.form === 'property-tenant-export-request') {
+    const sizeBytes = Number(values.size_bytes);
+    const recordCount = Number(values.record_count);
+    if (!Number.isSafeInteger(sizeBytes) || sizeBytes <= 0
+      || !Number.isSafeInteger(recordCount) || recordCount < 0) {
+      throw new Error(t('Archive size and record count must be whole numbers within the supported range.'));
+    }
+    await api(`/property/tenant-systems/${encodeURIComponent(values.tenant_system_id)}/offboarding-exports`, {
+      method: 'POST',
+      body: JSON.stringify({
+        artifact_reference: values.artifact_reference.trim(),
+        sha256: values.sha256.trim(),
+        size_bytes: sizeBytes,
+        record_count: recordCount,
+        notes: values.notes.trim(),
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert(t('External tenant archive registered for independent verification.'));
+    return;
+  }
   if (form.dataset.form === 'property-tenant-support-request') {
     const durationHours = Number(values.duration_hours);
     if (![1, 2, 4, 8].includes(durationHours)) throw new Error(t('Choose a support duration of up to eight hours.'));
@@ -8275,6 +8377,34 @@ document.addEventListener('click', async (event) => {
   const action = event.target.closest('button[data-action]');
   if (!action || action.type === 'submit') return;
   const { action: name, id } = action.dataset;
+  if (name === 'property-tenant-export-decision') {
+    const decision = action.dataset.decision;
+    const reason = window.prompt(t(`Explain why this tenant archive is being ${decision} (minimum 10 characters).`));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/tenant-systems/${encodeURIComponent(action.dataset.tenantId)}/offboarding-exports/${encodeURIComponent(id)}/decision`, {
+        method: 'POST',
+        body: JSON.stringify({ decision, reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(t('Tenant archive verification decision saved.'));
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
+  if (name === 'property-tenant-status') {
+    const status = action.dataset.status;
+    const reason = window.prompt(t(`Explain why this tenant is being moved to ${status} (minimum 10 characters).`));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/tenant-systems/${encodeURIComponent(action.dataset.tenantId)}/status`, {
+        method: 'POST',
+        body: JSON.stringify({ status, reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(t(`Property tenant status changed to ${status}.`));
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
   if (name === 'property-agent-scope-status') {
     const reason = window.prompt(t(`Explain why this assignment is being ${action.dataset.status} (minimum 10 characters).`));
     if (!reason || reason.trim().length < 10) return;

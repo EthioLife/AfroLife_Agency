@@ -299,6 +299,13 @@ completion. Tenant
 roles that do not yet map to a distinct supported application role (including
 board member and inspector) cannot be activated as memberships.
 
+Tenant offboarding requires an externally generated archive registered with a
+non-secret evidence reference, SHA-256 digest, byte size, and record count. A
+different Global Admin must verify the latest archive request before the tenant
+can enter offboarding or be closed. AfroLife does not generate, download, or
+delete tenant archives through this workflow; tenant records remain retained
+after closure and must be handled under the tenant's approved retention process.
+
 ## Configurable business rules
 
 Global Admins can review and update operational rules in **Admin & review → Business rules**. Updates are validated, saved to `config_rules`, and recorded in the audit log. The editable values cover contract fees and commissions, Pro/Enterprise display prices, matching weights and thresholds, optional verified reference/certificate requirements, rent due dates and maximum lease duration, invoice payment periods, and refund caps.

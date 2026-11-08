@@ -62,6 +62,7 @@ const completeSchemas: Record<AgencyDomain, { tables: string[]; rls: string[] }>
       'property_operating_tenants', 'property_operating_tenant_members',
       'property_operating_tenant_events', 'property_operating_tenant_support_grants',
       'property_agent_scopes', 'property_agent_scope_events',
+      'property_tenant_export_requests', 'property_tenant_export_events',
     ],
     rls: [
       'agents', 'marketplace_configuration', 'maintenance_requests', 'properties', 'property_photos',
@@ -78,6 +79,7 @@ const completeSchemas: Record<AgencyDomain, { tables: string[]; rls: string[] }>
       'property_operating_tenants', 'property_operating_tenant_members',
       'property_operating_tenant_events', 'property_operating_tenant_support_grants',
       'property_agent_scopes', 'property_agent_scope_events',
+      'property_tenant_export_requests', 'property_tenant_export_events',
     ],
   },
   marketplace: {

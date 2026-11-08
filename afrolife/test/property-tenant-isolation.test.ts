@@ -79,6 +79,16 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(hierarchyMigration, /Master agents may change only field-agent scopes in their active property assignment/);
   assert.match(hierarchyMigration, /CREATE OR REPLACE FUNCTION list_property_agent_candidates/);
 
+  const exportMigration = await readFile(
+    new URL('../migrations/122_property_tenant_export_closeout.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(exportMigration, /CREATE TABLE property_tenant_export_requests/);
+  assert.match(exportMigration, /CREATE TABLE property_tenant_export_events/);
+  assert.match(exportMigration, /CREATE OR REPLACE FUNCTION request_property_tenant_export/);
+  assert.match(exportMigration, /CREATE OR REPLACE FUNCTION decide_property_tenant_export/);
+  assert.match(exportMigration, /Tenant offboarding requires an independently verified export/);
+
   const core = await readFile(new URL('../src/core.ts', import.meta.url), 'utf8');
   assert.match(core, /app\.property_tenant_system_id/);
   const server = await readFile(new URL('../src/server.ts', import.meta.url), 'utf8');
@@ -91,6 +101,9 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(server, /property\/tenant-systems\/:id\/agent-scopes/);
   assert.match(server, /property\/tenant-systems\/:id\/agent-candidates/);
   assert.match(server, /list_property_agent_candidates\(\$1,\$2\)/);
+  assert.match(server, /property\/tenant-offboarding-exports/);
+  assert.match(server, /request_property_tenant_export\(\$1,\$2,\$3,\$4,\$5,\$6\)/);
+  assert.match(server, /decide_property_tenant_export\(\$1,\$2,\$3,\$4\)/);
   assert.match(server, /api\.get\('\/property\/tenant-systems', requireRole\('global_admin'\)/);
   assert.match(server, /api\.post\('\/property\/tenant-systems\/:id\/members\/:userId\/status'/);
   const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
@@ -101,6 +114,9 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(app, /property-tenant-support-request/);
   assert.match(app, /property-agent-scope/);
   assert.match(app, /propertyAgentScopes/);
+  assert.match(app, /property-tenant-export-request/);
+  assert.match(app, /property-tenant-export-decision/);
+  assert.match(app, /property-tenant-status/);
 
   const operations = await readFile(new URL('../src/ops.ts', import.meta.url), 'utf8');
   assert.match(operations, /assigned_to: z\.string\(\)\.uuid\(\)\.optional\(\)/);

@@ -494,6 +494,61 @@ api.post('/property/tenant-systems/:id/status', requireRole('global_admin'), h(a
   });
   res.status(204).end();
 }));
+api.get('/property/tenant-offboarding-exports', requireRole('global_admin'), h(async (req, res) => {
+  res.json(await withUser(req.user!, async (client) => (await client.query(
+    `SELECT request.id,request.tenant_system_id,tenant.legal_name AS tenant_name,
+       tenant.status AS tenant_status,request.artifact_reference,request.sha256,
+       request.size_bytes,request.record_count,request.notes,request.requested_by,
+       requester.legal_name AS requested_by_name,request.requested_at,
+       decision.decision,decision.actor_id AS decided_by,
+       reviewer.legal_name AS decided_by_name,decision.reason AS decision_reason,
+       decision.created_at AS decided_at
+     FROM property_tenant_export_requests request
+     JOIN property_operating_tenants tenant ON tenant.id=request.tenant_system_id
+     JOIN users requester ON requester.id=request.requested_by
+     LEFT JOIN LATERAL (
+       SELECT event.decision,event.actor_id,event.reason,event.created_at
+       FROM property_tenant_export_events event
+       WHERE event.export_request_id=request.id
+       ORDER BY event.id DESC LIMIT 1
+     ) decision ON true
+     LEFT JOIN users reviewer ON reviewer.id=decision.actor_id
+     ORDER BY request.request_sequence DESC`,
+  )).rows));
+}));
+api.post('/property/tenant-systems/:id/offboarding-exports', requireRole('global_admin'), h(async (req, res) => {
+  const tenantSystemId = z.string().uuid().parse(req.params.id);
+  const body = z.object({
+    artifact_reference: z.string().trim().min(2).max(200)
+      .refine((value) => !value.includes('://') && !/(password|secret|token|credential)/i.test(value)),
+    sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    size_bytes: z.number().safe().int().positive(),
+    record_count: z.number().safe().int().nonnegative(),
+    notes: z.string().trim().min(10).max(1000),
+  }).strict().parse(req.body);
+  const exportId = await withUser(req.user!, async (client) => (
+    await client.query(
+      'SELECT request_property_tenant_export($1,$2,$3,$4,$5,$6) AS id',
+      [tenantSystemId,body.artifact_reference,body.sha256,body.size_bytes,body.record_count,body.notes],
+    )
+  )).then((result) => result.rows[0].id as string);
+  res.status(201).json({ id: exportId, status: 'pending' });
+}));
+api.post('/property/tenant-systems/:id/offboarding-exports/:exportId/decision', requireRole('global_admin'), h(async (req, res) => {
+  const tenantSystemId = z.string().uuid().parse(req.params.id);
+  const exportId = z.string().uuid().parse(req.params.exportId);
+  const body = z.object({
+    decision: z.enum(['verified','rejected']),
+    reason: z.string().trim().min(10).max(1000),
+  }).strict().parse(req.body);
+  await withUser(req.user!, async (client) => {
+    await client.query(
+      'SELECT decide_property_tenant_export($1,$2,$3,$4)',
+      [tenantSystemId,exportId,body.decision,body.reason],
+    );
+  });
+  res.status(204).end();
+}));
 api.post('/property/tenant-support-grants', requireRole('global_admin'), h(async (req, res) => {
   const body = z.object({
     tenant_system_id: z.string().uuid(),
