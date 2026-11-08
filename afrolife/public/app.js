@@ -4189,15 +4189,32 @@ function renderPropertyArc() {
   const list = node('div', undefined, 'list');
   if (!arc.requests.length) list.append(empty('No change requests are recorded for this account or assigned property scope.'));
   for (const request of arc.requests) {
-    const item = card(request.address, `${request.request_type.replaceAll('_', ' ')} · ${request.summary}`,
-      request.status.replaceAll('_', ' '));
+    const item = card(request.address, request.summary, request.status.replaceAll('_', ' '));
+    const details = item.querySelector('p');
+    if (details) details.prepend(node('span', request.request_type.replaceAll('_', ' ')), document.createTextNode(' · '));
     item.append(node('p', request.proposal));
-    if (request.evidence_reference) item.append(node('p', `Evidence reference: ${request.evidence_reference}`, 'muted'));
+    if (request.evidence_reference) {
+      const evidence = node('p', undefined, 'muted');
+      evidence.append(node('span', 'Evidence reference'), document.createTextNode(`: ${request.evidence_reference}`));
+      item.append(evidence);
+    }
     for (const event of request.events ?? []) {
       const eventDate = new Date(event.created_at).toLocaleString(document.documentElement.lang);
-      item.append(node('p',
-        `${eventDate} · ${event.actor_name ? `${event.actor_name} · ` : ''}${event.event_type.replaceAll('_', ' ')} · ${event.reason}${event.evidence_reference ? ` · Evidence: ${event.evidence_reference}` : ''}`,
-        'muted'));
+      const history = node('p', undefined, 'muted');
+      history.append(document.createTextNode(`${eventDate} · `));
+      if (event.actor_name) history.append(document.createTextNode(`${event.actor_name} · `));
+      history.append(
+        node('span', event.event_type.replaceAll('_', ' ')),
+        document.createTextNode(` · ${event.reason}`),
+      );
+      if (event.evidence_reference) {
+        history.append(
+          document.createTextNode(' · '),
+          node('span', 'Evidence'),
+          document.createTextNode(`: ${event.evidence_reference}`),
+        );
+      }
+      item.append(history);
     }
     const canReview = membership?.tenant_role === 'tenant_admin'
       || (membership?.tenant_role === 'master_agent' && scopedTo(request.property_id, 'master_agent'));

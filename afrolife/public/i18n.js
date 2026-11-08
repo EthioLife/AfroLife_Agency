@@ -5094,6 +5094,48 @@ for (const [message, translations] of Object.entries(authRefreshTranslations)) {
   catalogs.en[message] = message;
   for (const [locale, translation] of Object.entries(translations)) catalogs[locale][message] = translation;
 }
+const propertyArcRows = [
+  ['Property change requests', 'የንብረት ለውጥ ጥያቄዎች', 'Gaaffii jijjiirama qabeenyaa', 'ሕቶታት ለውጢ ንብረት', 'Codsiyada isbeddelka hantida', 'طلبات تغييرات العقار', 'Maombi ya mabadiliko ya mali'],
+  ['Submit and review property change proposals with a tenant-scoped decision and inspection history.', 'በተከራይ የተገደበ ውሳኔና የምርመራ ታሪክ ያላቸውን የንብረት ለውጥ ሀሳቦች ያስገቡና ይገምግሙ።', 'Yaada jijjiirama qabeenyaa murtii tenant daangeffameefi seenaa sakatta’iinsa qabu galchaa, gamaaggamaa.', 'Yaadota liyyii qabeenyaa murtii daangaa tenantii fi seenaa sakatta’insaa qaban galchaa, gamaaggamaa.', 'Gudbi oo dib u eeg soo jeedimaha isbeddelka hantida oo leh go’aan ku kooban tenant-ka iyo taariikhda kormeerka.', 'قدّم وراجع مقترحات تغييرات العقار بقرار محصور بالمستأجر وسجل للتفتيش.', 'Wasilisha na kagua mapendekezo ya mabadiliko ya mali kwa uamuzi unaohusu mpangaji na historia ya ukaguzi.'],
+  ['This operational workflow does not determine legal compliance, replace permits or other approvals, or claim to establish board quorum.', 'ይህ የሥራ ሂደት የሕግ ተገዢነትን አይወስንም፣ ፈቃዶችን ወይም ሌሎች ማጽደቆችን አይተካም፣ የቦርድ ኮረምንም አያረጋግጥም።', 'Adeemsi hojii kun seera eeguu hin murteessu, hayyama yookaan mirkaneessa biraa hin bakka bu’u, quorum boordii mirkaneessees hin jedhu.', 'እዚ ኣሰራርሓ ሕጋዊ ምትእስሳር ኣይውስንን፣ ፍቓዳት ወይ ካልእ ምጽዳቕ ኣይትክእን፣ ኮረም ቦርድ ከም ዝተረጋገጸ ኣይገልጽን።', 'Habkani ma go’aamiyo u hoggaansanaanta sharciga, ma beddelo rukhsadaha ama oggolaansho kale, mana sheeganayo inuu xaqiijinayo kooramka guddiga.', 'لا تحدد هذه العملية الامتثال القانوني، ولا تحل محل التصاريح أو الموافقات الأخرى، ولا تدّعي إثبات اكتمال النصاب القانوني للمجلس.', 'Mchakato huu hauamui uzingatiaji wa sheria, hauchukui nafasi ya vibali au idhini nyingine, wala haudai kuthibitisha akidi ya bodi.'],
+  ['Property', 'ንብረት', 'Qabeenya', 'ንብረት', 'Hanti', 'العقار', 'Mali'],
+  ['Choose a property', 'ንብረት ይምረጡ', 'Qabeenya filadhaa', 'ንብረት ምረጹ', 'Dooro hanti', 'اختر عقاراً', 'Chagua mali'],
+  ['Request type', 'የጥያቄ ዓይነት', 'Gosa gaaffii', 'ዓይነት ሕቶ', 'Nooca codsiga', 'نوع الطلب', 'Aina ya ombi'],
+  ['Exterior alteration', 'የውጭ ክፍል ለውጥ', 'Jijjiirama alaa', 'ለውጢ ወጻኢ', 'Beddelka bannaanka', 'تعديل خارجي', 'Mabadiliko ya nje'],
+  ['Landscaping', 'የመሬት አቀማመጥ ሥራ', 'Hojii miidhagina naannoo', 'ስራሕ ምስሊ መሬት', 'Qurxinta dhulka', 'تنسيق الموقع', 'Uwekaji wa mandhari'],
+  ['Painting', 'ቀለም መቀባት', 'Halluu dibuu', 'ምቕባእ ቀለም', 'Rinjiyeyn', 'الطلاء', 'Kupaka rangi'],
+  ['Structural change', 'የመዋቅር ለውጥ', 'Jijjiirama caasaa', 'ለውጢ መዋቕር', 'Isbeddel qaab-dhismeed', 'تغيير إنشائي', 'Mabadiliko ya muundo'],
+  ['Other', 'ሌላ', 'Kan biraa', 'ካልእ', 'Kale', 'أخرى', 'Nyingine'],
+  ['Summary', 'ማጠቃለያ', 'Cuunfaa', 'ሓጺር መግለጺ', 'Soo koobid', 'ملخص', 'Muhtasari'],
+  ['Describe the proposed work', 'የታቀደውን ሥራ ይግለጹ', 'Hojii yaadame ibsaa', 'እቲ ዝተመደበ ስራሕ ግለጹ', 'Sharax shaqada la soo jeediyay', 'صِف العمل المقترح', 'Eleza kazi iliyopendekezwa'],
+  ['Optional non-secret evidence reference', 'አማራጭ ሚስጥራዊ ያልሆነ የማስረጃ ማጣቀሻ', 'Wabii ragaa iccitii hin taane filannoo', 'ኣማራጺ ምስጢራዊ ዘይኮነ መወከሲ መርትዖ', 'Tixraac caddeyn oo aan sir ahayn (ikhtiyaari)', 'مرجع اختياري غير سري للأدلة', 'Rejeleo la hiari la ushahidi lisilo siri'],
+  ['Submit change request', 'የለውጥ ጥያቄ ያስገቡ', 'Gaaffii jijjiiramaa dhiyeessi', 'ሕቶ ለውጢ ኣቕርቡ', 'Gudbi codsiga isbeddelka', 'إرسال طلب التغيير', 'Wasilisha ombi la mabadiliko'],
+  ['No owner-owned property or active linked resident lease is available for a request in this tenant.', 'በዚህ ተከራይ ውስጥ ጥያቄ ለማቅረብ በባለቤትነት የተያዘ ንብረት ወይም ንቁ የተገናኘ የነዋሪ ውል የለም።', 'Tenant kana keessatti gaaffii dhiyeessuuf qabeenyi abbummaa yookaan waliigalteen jiraataa hojii irra jiru hin jiru.', 'ኣብዚ tenant ሕቶ ንምቕራብ ንብረት ዋንነት ወይ ንጡፍ ውዕል ነባሪ የለን።', 'Tenant-kan kama jiraan hanti uu leeyahay mulkiile ama heshiis degane oo firfircoon oo ku xiran codsiga.', 'لا يوجد في هذا المستأجر عقار مملوك للمالك أو عقد مقيم نشط مرتبط لتقديم طلب.', 'Hakuna mali inayomilikiwa na mwenye mali au mkataba hai wa mkazi uliohusishwa wa kuwasilisha ombi katika tenant hii.'],
+  ['No change requests are recorded for this account or assigned property scope.', 'ለዚህ መለያ ወይም ለተመደበው የንብረት ወሰን የለውጥ ጥያቄ አልተመዘገበም።', 'Herrega kana yookaan daangaa qabeenyaa ramadameef gaaffiin jijjiiramaa hin galmoofne.', 'ንዚ ሕሳብ ወይ ንዝተመደበ ወሰን ንብረት ሕቶ ለውጢ ኣይተመዝገበን።', 'Wax codsiyo isbeddel ah looma diiwaangelin akoonkan ama baaxadda hantida loo xilsaaray.', 'لم تُسجل طلبات تغيير لهذا الحساب أو لنطاق العقار المعيّن.', 'Hakuna ombi la mabadiliko lililorekodiwa kwa akaunti hii au eneo la mali lililogawiwa.'],
+  ['Request history', 'የጥያቄ ታሪክ', 'Seenaa gaaffii', 'ታሪኽ ሕቶ', 'Taariikhda codsiga', 'سجل الطلبات', 'Historia ya maombi'],
+  ['Evidence reference', 'የማስረጃ ማጣቀሻ', 'Wabii ragaa', 'መወከሲ መርትዖ', 'Tixraaca caddeynta', 'مرجع الدليل', 'Rejeleo la ushahidi'],
+  ['Evidence', 'ማስረጃ', 'Ragaa', 'መርትዖ', 'Caddeyn', 'الدليل', 'Ushahidi'],
+  ['Approve request', 'ጥያቄውን ያጽድቁ', 'Gaaffii mirkaneessaa', 'ነቲ ሕቶ ኣጽድቑ', 'Oggolow codsiga', 'الموافقة على الطلب', 'Idhinisha ombi'],
+  ['Reject request', 'ጥያቄውን ውድቅ ያድርጉ', 'Gaaffii didaa', 'ነቲ ሕቶ ንጸጉ', 'Diid codsiga', 'رفض الطلب', 'Kataa ombi'],
+  ['Record inspection', 'ምርመራውን ይመዝግቡ', 'Sakatta’iinsa galmeessaa', 'ምርመራ መዝግቡ', 'Diiwaangeli kormeerka', 'تسجيل التفتيش', 'Rekodi ukaguzi'],
+  ['pending review', 'በግምገማ ላይ', 'Gamaaggama irra jira', 'ኣብ ግምገማ ኣሎ', 'Dib-u-eegis sugaya', 'قيد المراجعة', 'Inasubiri ukaguzi'],
+  ['inspection recorded', 'ምርመራ ተመዝግቧል', 'Sakatta’iinsi galmaa’eera', 'ምርመራ ተመዝጊቡ', 'Kormeerka waa la diiwaangeliyay', 'تم تسجيل التفتيش', 'Ukaguzi umerekodiwa'],
+  ['submitted', 'ቀርቧል', 'Dhiyaateera', 'ቀሪቡ', 'La gudbiyay', 'قُدّم', 'Imewasilishwa'],
+  ['approved', 'ጸድቋል', 'Mirkanaa’eera', 'ጸዲቑ', 'La oggolaaday', 'موافق عليه', 'Imeidhinishwa'],
+  ['rejected', 'ውድቅ ሆኗል', 'Didameera', 'ተነጺጉ', 'La diiday', 'مرفوض', 'Imekataliwa'],
+  ['Document the reason for this property change decision (at least 10 characters).', 'ለዚህ የንብረት ለውጥ ውሳኔ ምክንያቱን ይመዝግቡ (ቢያንስ 10 ቁምፊዎች)።', 'Sababa murtii jijjiirama qabeenyaa kanaa galmeessi (yoo xiqqaate qubee 10).', 'ምኽንያት ናይዚ ውሳነ ለውጢ ንብረት መዝግቡ (እንተወሓደ 10 ፊደላት)።', 'Diiwaangeli sababta go’aanka isbeddelka hantidan (ugu yaraan 10 xaraf).', 'دوّن سبب قرار تغيير العقار هذا (10 أحرف على الأقل).', 'Rekodi sababu ya uamuzi huu wa mabadiliko ya mali (angalau herufi 10).'],
+  ['Property change request submitted for tenant-scoped review.', 'የንብረት ለውጥ ጥያቄ በተከራይ ውስጥ ለግምገማ ቀርቧል።', 'Gaaffiin jijjiirama qabeenyaa gamaaggama tenant keessatti dhiyaateera.', 'ሕቶ ለውጢ ንብረት ኣብ tenant ንግምገማ ቀሪቡ።', 'Codsiga isbeddelka hantida waxaa loo gudbiyay dib-u-eegis tenant-ku kooban.', 'تم إرسال طلب تغيير العقار للمراجعة ضمن المستأجر.', 'Ombi la mabadiliko ya mali limewasilishwa kwa ukaguzi ndani ya tenant.'],
+  ['Property change request approved and recorded.', 'የንብረት ለውጥ ጥያቄ ጸድቆ ተመዝግቧል።', 'Gaaffiin jijjiirama qabeenyaa mirkanaa’ee galmaa’eera.', 'ሕቶ ለውጢ ንብረት ጸዲቑን ተመዝጊቡን።', 'Codsiga isbeddelka hantida waa la oggolaaday oo la diiwaangeliyay.', 'تمت الموافقة على طلب تغيير العقار وتسجيله.', 'Ombi la mabadiliko ya mali limeidhinishwa na kurekodiwa.'],
+  ['Property change request rejected with a recorded reason.', 'የንብረት ለውጥ ጥያቄ በተመዘገበ ምክንያት ውድቅ ሆኗል።', 'Gaaffiin jijjiirama qabeenyaa sababa galmaa’een didameera.', 'ሕቶ ለውጢ ንብረት ብዝተመዝገበ ምኽንያት ተነጺጉ።', 'Codsiga isbeddelka hantida waa la diiday iyadoo sababta la diiwaangeliyay.', 'رُفض طلب تغيير العقار مع تسجيل السبب.', 'Ombi la mabadiliko ya mali limekataliwa na sababu kurekodiwa.'],
+  ['Record inspection findings (at least 10 characters).', 'የምርመራ ግኝቶችን ይመዝግቡ (ቢያንስ 10 ቁምፊዎች)።', 'Argannoo sakatta’iinsaa galmeessi (yoo xiqqaate qubee 10).', 'ርኽበታት ምርመራ መዝግቡ (እንተወሓደ 10 ፊደላት)።', 'Diiwaangeli natiijooyinka kormeerka (ugu yaraan 10 xaraf).', 'دوّن نتائج التفتيش (10 أحرف على الأقل).', 'Rekodi matokeo ya ukaguzi (angalau herufi 10).'],
+  ['Optional non-secret evidence reference (leave blank if none).', 'አማራጭ ሚስጥራዊ ያልሆነ የማስረጃ ማጣቀሻ (ከሌለ ባዶ ይተዉ)።', 'Wabii ragaa iccitii hin taane filannoo (yoo hin jirre duwwaa dhiisi).', 'ኣማራጺ ምስጢራዊ ዘይኮነ መወከሲ መርትዖ (እንተዘየለ ጥራይ ሕደጉ)።', 'Tixraac caddeyn oo aan sir ahayn (ikhtiyaari, bannaan ka tag haddii aanu jirin).', 'مرجع اختياري غير سري للأدلة (اتركه فارغاً إن لم يوجد).', 'Rejeleo la hiari lisilo siri la ushahidi (acha wazi ikiwa hakuna).'],
+  ['Inspection findings recorded in the request history.', 'የምርመራ ግኝቶች በጥያቄው ታሪክ ውስጥ ተመዝግበዋል።', 'Argannoon sakatta’iinsaa seenaa gaaffii keessatti galmaa’eera.', 'ርኽበታት ምርመራ ኣብ ታሪኽ ሕቶ ተመዝጊቦም።', 'Natiijooyinka kormeerka waxaa lagu diiwaangeliyay taariikhda codsiga.', 'تم تسجيل نتائج التفتيش في سجل الطلب.', 'Matokeo ya ukaguzi yamerekodiwa katika historia ya ombi.'],
+];
+for (const row of propertyArcRows) {
+  for (const [column, locale] of Object.keys(localeNames).entries()) {
+    catalogs[locale][row[0]] = row[column] ?? row[0];
+  }
+}
 const localeStorageKey = 'afrolife.locale';
 const supportedLocales = Object.keys(localeNames);
 const storedLocale = localStorage.getItem(localeStorageKey);

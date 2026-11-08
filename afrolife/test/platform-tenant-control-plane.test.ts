@@ -217,5 +217,23 @@ test('property change requests keep submissions, decisions, and inspections tena
   assert.match(app, /property-arc-request/);
   assert.match(app, /property-arc-decision/);
   assert.match(app, /property-arc-inspection/);
+  assert.match(app, /card\(request\.address, request\.summary, request\.status\.replaceAll\('_', ' '\)\)/);
+  assert.match(app, /node\('span', request\.request_type\.replaceAll\('_', ' '\)\)/);
+  assert.match(app, /node\('span', event\.event_type\.replaceAll\('_', ' '\)\)/);
+  assert.match(app, /new Option\(label, value\)/);
   assert.match(app, /does not determine legal compliance, replace permits or other approvals, or claim to establish board quorum/);
+
+  const translations = await readFile(new URL('../public/i18n.js', import.meta.url), 'utf8');
+  assert.match(translations, /const propertyArcRows = \[/);
+  assert.match(translations, /for \(const \[column, locale\] of Object\.keys\(localeNames\)\.entries\(\)\)/);
+  for (const message of [
+    'Property change requests',
+    'Submit change request',
+    'No change requests are recorded for this account or assigned property scope.',
+    'Document the reason for this property change decision (at least 10 characters).',
+    'Property change request approved and recorded.',
+    'Inspection findings recorded in the request history.',
+  ]) {
+    assert.ok(translations.includes(`['${message}'`), `Missing ARC translation: ${message}`);
+  }
 });
