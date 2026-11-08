@@ -89,6 +89,19 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(exportMigration, /CREATE OR REPLACE FUNCTION decide_property_tenant_export/);
   assert.match(exportMigration, /Tenant offboarding requires an independently verified export/);
 
+  const lifecycleValidationMigration = await readFile(
+    new URL('../migrations/127_property_tenant_lifecycle_reason_validation.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(lifecycleValidationMigration, /change_reason IS NULL OR length\(trim\(change_reason\)\) NOT BETWEEN 10 AND 1000/);
+  assert.match(lifecycleValidationMigration, /next_status IS NULL OR next_status NOT IN/);
+  assert.match(lifecycleValidationMigration, /Tenant offboarding requires an independently verified export/);
+  assert.match(lifecycleValidationMigration, /jsonb_build_object\('from_status',previous_status,'to_status',next_status,'reason',trim\(change_reason\)\)/);
+  assert.match(lifecycleValidationMigration, /CREATE OR REPLACE FUNCTION decide_property_tenant_export/);
+  assert.match(lifecycleValidationMigration, /decision_reason IS NULL OR length\(trim\(decision_reason\)\) NOT BETWEEN 10 AND 1000/);
+  assert.match(lifecycleValidationMigration, /FROM property_operating_tenants tenant[\s\S]*WHERE tenant\.id=target_tenant[\s\S]*FOR UPDATE/);
+  assert.match(lifecycleValidationMigration, /Export review must be for an active or suspended tenant/);
+
   const core = await readFile(new URL('../src/core.ts', import.meta.url), 'utf8');
   assert.match(core, /app\.property_tenant_system_id/);
   const server = await readFile(new URL('../src/server.ts', import.meta.url), 'utf8');
