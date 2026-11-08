@@ -4248,6 +4248,14 @@ function renderPropertyAssociations() {
   const membership = state.propertyTenantMemberships.find((tenant) =>
     tenant.id === state.propertyTenantContextId && tenant.status === 'active');
   const canManage = ['tenant_admin','tenant_accountant'].includes(membership?.tenant_role);
+  const today = new Date().toISOString().slice(0, 10);
+  const scopedTo = (propertyId, role) => state.propertyAgentScopes.some((scope) =>
+    scope.property_id === propertyId && scope.user_id === state.user.id
+      && scope.tenant_role === role && scope.status === 'active'
+      && scope.effective_from <= today && (!scope.effective_to || scope.effective_to >= today));
+  const canReportOn = (propertyId) => membership?.tenant_role === 'tenant_admin'
+    || (membership?.tenant_role === 'master_agent' && scopedTo(propertyId, 'master_agent'))
+    || (membership?.tenant_role === 'field_agent' && scopedTo(propertyId, 'field_agent'));
 
   if (membership?.tenant_role === 'tenant_admin' && state.properties.length) {
     const form = node('form', undefined, 'form-card inline-form');
@@ -4273,7 +4281,30 @@ function renderPropertyAssociations() {
   for (const association of data.associations) {
     const item = node('article', undefined, 'panel');
     item.append(node('h3', association.name));
-    for (const property of association.properties) item.append(node('p', property.address, 'muted'));
+    for (const property of association.properties) {
+      item.append(node('p', property.address, 'muted'));
+      if (association.status === 'active' && canReportOn(property.property_id)) {
+        const form = node('form', undefined, 'form-card inline-form');
+        form.dataset.form = 'property-association-violation';
+        form.dataset.association = association.id;
+        form.dataset.property = property.property_id;
+        form.append(
+          field('Category or policy reference', 'category', 'text', true, { minlength: 2, maxlength: 80 }).label,
+          field('Observation summary', 'summary', 'text', true, { minlength: 3, maxlength: 160 }).label,
+          field('Describe the observed condition', 'description', 'textarea', true, {
+            minlength: 10,
+            maxlength: 2000,
+            rows: 3,
+          }).label,
+          field('Non-secret evidence reference', 'evidence_reference', 'text', true, {
+            minlength: 2,
+            maxlength: 200,
+          }).label,
+          button('Record evidence-based observation', 'submit', 'button button-outline'),
+        );
+        item.append(form);
+      }
+    }
     if (canManage && association.status === 'active') {
       const form = node('form', undefined, 'form-card inline-form');
       form.dataset.form = 'property-assessment-create';
@@ -4354,6 +4385,59 @@ function renderPropertyAssociations() {
         );
       }
       item.append(assessmentCard);
+    }
+
+    const violations = (data.violations ?? [])
+      .filter((violation) => violation.association_id === association.id);
+    if (violations.length) item.append(node('h4', 'Recorded observations'));
+    for (const violation of violations) {
+      const location = `${violation.address}${violation.unit_no ? ` · ${violation.unit_no}` : ''}`;
+      const violationCard = card(location, `${violation.category} · ${violation.summary}`, violation.status);
+      violationCard.append(
+        node('p', violation.description),
+        node('p', `${t('Evidence reference')}: ${violation.evidence_reference}`, 'muted'),
+      );
+      if (violation.closure_reason) violationCard.append(node('p', violation.closure_reason, 'muted'));
+      for (const event of violation.events ?? []) {
+        const history = node('p', undefined, 'muted');
+        history.append(document.createTextNode(
+          `${new Date(event.created_at).toLocaleString(document.documentElement.lang)} · `,
+        ));
+        if (event.actor_name) history.append(document.createTextNode(`${event.actor_name} · `));
+        history.append(
+          node('span', event.event_type.replaceAll('_', ' ')),
+          document.createTextNode(` · ${event.reason}`),
+        );
+        if (event.evidence_reference) {
+          history.append(
+            document.createTextNode(' · '),
+            node('span', 'Evidence reference'),
+            document.createTextNode(`: ${event.evidence_reference}`),
+          );
+        }
+        violationCard.append(history);
+      }
+      if (violation.is_owner && violation.status === 'pending_review') {
+        violationCard.append(button(
+          'Submit response or resolution evidence',
+          'property-association-violation-response',
+          'button button-outline',
+          { id: violation.id },
+        ));
+      }
+      if (violation.can_decide && ['pending_review','response_submitted'].includes(violation.status)) {
+        violationCard.append(
+          button('Verify resolution', 'property-association-violation-decision', 'button button-primary', {
+            id: violation.id,
+            decision: 'resolved',
+          }),
+          button('Dismiss observation', 'property-association-violation-decision', 'button button-outline', {
+            id: violation.id,
+            decision: 'dismissed',
+          }),
+        );
+      }
+      item.append(violationCard);
     }
     wrap.append(item);
   }
@@ -7121,7 +7205,7 @@ async function submitForm(form) {
     await api(`/property/tenant-systems/${encodeURIComponent(state.propertyTenantContextId)}/agent-scopes`, {
       method: 'POST',
       body: JSON.stringify({
-        property_id: values.property_id,
+        property_id: form.dataset.property,
         user_id: candidate.user_id,
         tenant_role: candidate.tenant_role,
         reason: values.reason.trim(),
@@ -7962,6 +8046,22 @@ async function submitForm(form) {
     form.reset();
     await refresh();
     showAlert('Receipt reference recorded for independent reconciliation.');
+    return;
+  }
+  if (form.dataset.form === 'property-association-violation') {
+    await api(`/property/associations/${encodeURIComponent(form.dataset.association)}/violations`, {
+      method: 'POST',
+      body: JSON.stringify({
+        property_id: form.dataset.property,
+        category: values.category.trim(),
+        summary: values.summary.trim(),
+        description: values.description.trim(),
+        evidence_reference: values.evidence_reference.trim(),
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert('Evidence-based property observation recorded for review.');
     return;
   }
   if (form.dataset.form === 'property-arc-request') {
@@ -9721,6 +9821,43 @@ document.addEventListener('click', async (event) => {
         : action.dataset.decision === 'needs_info'
           ? 'Additional authority evidence requested.'
           : 'Property authority evidence rejected.');
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'property-association-violation-response') {
+    const response = window.prompt(t('Describe your response or corrective action (at least 10 characters).'));
+    if (!response || response.trim().length < 10) return;
+    const reference = window.prompt(t('Optional non-secret evidence reference (leave blank if none).'));
+    if (reference === null) return;
+    try {
+      await api(`/property/association-violations/${encodeURIComponent(id)}/response`, {
+        method: 'POST',
+        body: JSON.stringify({
+          response: response.trim(),
+          ...(reference.trim() ? { evidence_reference: reference.trim() } : {}),
+        }),
+      });
+      await refresh();
+      showAlert('Owner response submitted for independent human review.');
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'property-association-violation-decision') {
+    const reason = window.prompt(t('Document the independent review decision (at least 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/association-violations/${encodeURIComponent(id)}/decision`, {
+        method: 'POST',
+        body: JSON.stringify({ decision: action.dataset.decision, reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(action.dataset.decision === 'resolved'
+        ? 'Resolution evidence verified and recorded.'
+        : 'Observation dismissed with a recorded reason.');
     } catch (error) {
       showAlert(error.message, true);
     }

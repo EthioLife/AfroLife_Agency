@@ -302,3 +302,49 @@ test('association assessments and receipt decisions stay tenant-scoped and evide
     assert.ok(translations.includes(`['${message}'`), `Missing association translation: ${message}`);
   }
 });
+
+test('association violations require evidence, owner response, and independent human closure', async () => {
+  const migration = await readFile(
+    new URL('../migrations/130_property_association_violation_evidence.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(migration, /FOREIGN KEY \(tenant_system_id,association_id,property_id\)\s+REFERENCES property_association_properties/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION record_property_association_violation\(/);
+  assert.match(migration, /app_property_arc_can_inspect\(tenant_id,target_property\)/);
+  assert.match(migration, /evidence_reference !~\* ':\/\/\|password\|secret\|token\|credential'/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION submit_property_association_violation_response\(/);
+  assert.match(migration, /violation\.owner_user_id<>actor[\s\S]*violation\.status<>'pending_review'/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION decide_property_association_violation\(/);
+  assert.match(migration, /actor=violation\.owner_user_id[\s\S]*actor=violation\.reported_by/);
+  assert.match(migration, /app_property_agent_can_manage\(tenant_id,violation\.property_id\)/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION guard_property_association_violation_update\(/);
+  assert.match(migration, /Violation reports are immutable; responses and decisions must be appended/);
+  assert.match(migration, /property_association_violation_events_immutable/);
+  assert.match(migration, /CREATE POLICY property_association_violations_scoped_read/);
+  assert.match(migration, /CREATE POLICY property_association_violation_events_scoped_read/);
+  assert.match(migration, /CREATE POLICY property_association_violation_events_command_insert/);
+  assert.match(migration, /REVOKE ALL ON TABLE property_association_violations,property_association_violation_events\s+FROM PUBLIC,"\{\{role\}\}"/);
+  assert.doesNotMatch(migration, /\bfine\b|\bpenalty\b|send_notice|dispatch_notice|legal_compliance/i);
+
+  const server = await readFile(new URL('../src/server.ts', import.meta.url), 'utf8');
+  assert.match(server, /'\/property\/association-violations'/);
+  const operations = await readFile(new URL('../src/ops.ts', import.meta.url), 'utf8');
+  assert.match(operations, /ops\.post\('\/property\/associations\/:id\/violations'/);
+  assert.match(operations, /record_property_association_violation\(\$1,\$2,\$3,\$4,\$5,\$6,\$7\)/);
+  assert.match(operations, /ops\.post\('\/property\/association-violations\/:id\/response'/);
+  assert.match(operations, /submit_property_association_violation_response\(\$1,\$2,\$3\)/);
+  assert.match(operations, /ops\.post\('\/property\/association-violations\/:id\/decision'/);
+  assert.match(operations, /decide_property_association_violation\(\$1,\$2,\$3\)/);
+
+  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.match(app, /property-association-violation'/);
+  assert.match(app, /property-association-violation-response/);
+  assert.match(app, /property-association-violation-decision/);
+  assert.match(app, /'Submit response or resolution evidence'/);
+  assert.match(app, /'Verify resolution'/);
+
+  const translations = await readFile(new URL('../public/i18n.js', import.meta.url), 'utf8');
+  assert.match(translations, /'Record evidence-based observation'/);
+  assert.match(translations, /'Owner response submitted for independent human review\.'/);
+  assert.match(translations, /'Resolution evidence verified and recorded\.'/);
+});

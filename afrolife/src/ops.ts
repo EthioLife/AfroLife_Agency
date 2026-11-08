@@ -845,10 +845,45 @@ ops.get('/property/associations', h(async (req, res) => {
        ORDER BY assessment.due_on,assessment.created_at DESC
        LIMIT 500`,
     );
+    const violations = await client.query(
+      `SELECT violation.id,violation.association_id,violation.property_id,violation.unit_id,
+         property.address,unit.unit_no,violation.category,violation.summary,
+         violation.description,violation.evidence_reference,violation.status,
+         violation.closure_reason,violation.created_at,
+         (violation.owner_user_id=app_user_id()) AS is_owner,
+         (violation.reported_by=app_user_id()) AS is_reporter,
+         (
+           app_property_agent_can_manage(violation.tenant_system_id,violation.property_id)
+           AND violation.owner_user_id<>app_user_id()
+           AND violation.reported_by<>app_user_id()
+         ) AS can_decide,
+         COALESCE((
+           SELECT jsonb_agg(jsonb_build_object(
+             'event_type',event.event_type,'from_status',event.from_status,
+             'to_status',event.to_status,'reason',event.reason,
+             'evidence_reference',event.evidence_reference,'created_at',event.created_at,
+             'actor_name',CASE WHEN app_role()='field_agent' THEN NULL ELSE actor.legal_name END
+           ) ORDER BY event.id)
+           FROM property_association_violation_events event
+           LEFT JOIN users actor ON actor.id=event.actor_id
+           WHERE event.tenant_system_id=violation.tenant_system_id
+             AND event.violation_id=violation.id
+         ),'[]'::jsonb) AS events
+       FROM property_association_violations violation
+       JOIN properties property
+         ON property.id=violation.property_id
+        AND property.tenant_system_id=violation.tenant_system_id
+       LEFT JOIN property_units unit
+         ON unit.id=violation.unit_id AND unit.property_id=violation.property_id
+       WHERE violation.tenant_system_id=app_property_tenant_system_id()
+       ORDER BY violation.created_at DESC,violation.id
+       LIMIT 500`,
+    );
     return {
       currency: tenantCurrency,
       associations: associations.rows,
       assessments: assessments.rows,
+      violations: violations.rows,
     };
   });
   res.json(result);
@@ -889,6 +924,61 @@ ops.post('/property/associations/:id/assessments', h(async (req, res) => {
     )
   ));
   res.status(201).json({ id: result.rows[0].id });
+}));
+
+ops.post('/property/associations/:id/violations', h(async (req, res) => {
+  const associationId = z.string().uuid().parse(req.params.id);
+  const body = z.object({
+    property_id: z.string().uuid(),
+    unit_id: z.string().uuid().optional(),
+    category: z.string().trim().min(2).max(80),
+    summary: z.string().trim().min(3).max(160),
+    description: z.string().trim().min(10).max(2000),
+    evidence_reference: z.string().trim().min(2).max(200)
+      .refine((value) => !value.includes('://') && !/(password|secret|token|credential)/i.test(value)),
+  }).strict().parse(req.body);
+  const result = await withUser(req.user!, async (client) => (
+    await client.query(
+      'SELECT record_property_association_violation($1,$2,$3,$4,$5,$6,$7) AS id',
+      [
+        associationId,body.property_id,body.unit_id ?? null,body.category,
+        body.summary,body.description,body.evidence_reference,
+      ],
+    )
+  ));
+  res.status(201).json({ id: result.rows[0].id, status: 'pending_review' });
+}));
+
+ops.post('/property/association-violations/:id/response', h(async (req, res) => {
+  const violationId = z.string().uuid().parse(req.params.id);
+  const body = z.object({
+    response: z.string().trim().min(10).max(2000),
+    evidence_reference: z.string().trim().min(2).max(200)
+      .refine((value) => !value.includes('://') && !/(password|secret|token|credential)/i.test(value))
+      .optional(),
+  }).strict().parse(req.body);
+  await withUser(req.user!, async (client) => {
+    await client.query(
+      'SELECT submit_property_association_violation_response($1,$2,$3)',
+      [violationId,body.response,body.evidence_reference ?? null],
+    );
+  });
+  res.status(201).json({ status: 'response_submitted' });
+}));
+
+ops.post('/property/association-violations/:id/decision', h(async (req, res) => {
+  const violationId = z.string().uuid().parse(req.params.id);
+  const body = z.object({
+    decision: z.enum(['resolved','dismissed']),
+    reason: z.string().trim().min(10).max(1000),
+  }).strict().parse(req.body);
+  await withUser(req.user!, async (client) => {
+    await client.query(
+      'SELECT decide_property_association_violation($1,$2,$3)',
+      [violationId,body.decision,body.reason],
+    );
+  });
+  res.status(204).end();
 }));
 
 ops.post('/property/association-assessments/:id/receipts', h(async (req, res) => {
