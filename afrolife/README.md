@@ -278,8 +278,11 @@ Global Admin support access is not automatic: the administrator requests
 access for a selected tenant with a purpose and expiry of at most eight hours,
 and a different Global Admin must approve it. Access and lifecycle decisions
 are audited. Tenant lifecycle, support-grant, and membership administration
-are exposed through authenticated API workflows; do not grant the runtime
-database role table ownership or `BYPASSRLS`.
+are exposed through authenticated API workflows and the Global Admin workspace.
+Select an approved grant from the property-tenant selector to supply its
+purpose-bound context; refresh approved grants after another administrator
+approves a request. Do not grant the runtime database role table ownership or
+`BYPASSRLS`.
 
 ## Configurable business rules
 

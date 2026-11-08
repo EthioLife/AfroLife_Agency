@@ -29,6 +29,7 @@ const SIGNUP_DOCUMENTS_KEY = 'afrolife.signup-uploaded-documents';
 const EDIR_APPLICATION_UPLOAD_KEY = 'afrolife.edir-application-upload';
 const EDIR_ORGANIZATION_KEY = 'afrolife.edir-organization';
 const PROPERTY_TENANT_KEY = 'afrolife.property-tenant';
+const PROPERTY_TENANT_SUPPORT_GRANT_KEY = 'afrolife.property-tenant-support-grant';
 const DEFAULT_EDIR_ORGANIZATION = '00000000-0000-4000-8000-000000000002';
 const STAFF = new Set(['global_admin', 'super_admin', 'compliance', 'finance', 'finance_manager']);
 const REQUIRED_MFA_ROLES = new Set(['global_admin', 'super_admin', 'compliance', 'finance', 'finance_manager', 'corporate_business_manager']);
@@ -44,6 +45,10 @@ const MINI_APP_PANELS = new Set([
 ]);
 const $ = (selector) => document.querySelector(selector);
 const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
+state.propertyTenantSupportGrantId = localStorage.getItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
+state.propertyTenantSupportGrants = [];
+state.propertyOperatingTenants = [];
+state.propertyTenantPendingGrants = [];
 const loadedPanels = new Set();
 let accessVisiblePanels = new Set();
 state.supportAppealQueue = [];
@@ -79,9 +84,14 @@ function apiRoot() {
 }
 
 function propertyTenantRequestHeaders() {
-  return state.propertyTenantContextId
-    ? { 'x-afrolife-property-tenant-id': state.propertyTenantContextId }
-    : {};
+  if (!state.propertyTenantContextId) return {};
+  const supportGrant = state.propertyTenantSupportGrants.find((grant) =>
+    grant.id === state.propertyTenantSupportGrantId
+      && grant.tenant_system_id === state.propertyTenantContextId);
+  return {
+    'x-afrolife-property-tenant-id': state.propertyTenantContextId,
+    ...(supportGrant ? { 'x-afrolife-property-tenant-purpose': supportGrant.purpose } : {}),
+  };
 }
 
 function authenticatedPropertyFetch(path, options = {}) {
@@ -433,9 +443,7 @@ setInterval(loadPublicIndustryNews, 15 * 60 * 1000);
 async function api(path, options = {}) {
   const headers = new Headers(options.headers ?? {});
   headers.set('x-afrolife-edir-id', state.edirOrganizationId);
-  if (state.propertyTenantContextId) {
-    headers.set('x-afrolife-property-tenant-id', state.propertyTenantContextId);
-  }
+  for (const [name, value] of Object.entries(propertyTenantRequestHeaders())) headers.set(name, value);
   if (state.user?.role === 'super_admin' && state.platformTenantContextId) {
     headers.set('x-afrolife-platform-tenant-id', state.platformTenantContextId);
   }
@@ -1242,6 +1250,11 @@ function signOut({ revoke = true, message = '' } = {}) {
   state.assistant = { conversations: [], queue: [], selectedId: null, messages: [], available: false, onlineCount: 0 };
   sessionStorage.removeItem(TOKEN_KEY);
   state.user = null;
+  state.propertyTenantSupportGrantId = null;
+  state.propertyTenantSupportGrants = [];
+  state.propertyOperatingTenants = [];
+  state.propertyTenantPendingGrants = [];
+  localStorage.removeItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
   subscriptionState.mine = [];
   subscriptionState.mineLoaded = false;
   subscriptionState.mineError = false;
@@ -1293,6 +1306,31 @@ function signOut({ revoke = true, message = '' } = {}) {
   showAlert('');
 }
 
+function renderPropertyTenantContext() {
+  const tenantContextHost = $('#property-tenant-context');
+  tenantContextHost.replaceChildren();
+  if (!state.propertyTenantMemberships.length && !state.propertyTenantSupportGrants.length) return;
+  const tenantPicker = field('Property operating tenant', 'property_tenant_context', 'select', true);
+  tenantPicker.input.dataset.propertyTenantContext = 'true';
+  tenantPicker.input.append(new Option('Select a tenant', ''));
+  for (const tenant of state.propertyTenantMemberships) {
+    tenantPicker.input.append(new Option(
+      `${tenant.legal_name} · ${tenant.tenant_role.replaceAll('_', ' ')}`,
+      tenant.id,
+    ));
+  }
+  for (const grant of state.propertyTenantSupportGrants) {
+    tenantPicker.input.append(new Option(
+      `${grant.tenant_name} · approved support · ${grant.purpose}`,
+      `${grant.tenant_system_id}:${grant.id}`,
+    ));
+  }
+  tenantPicker.input.value = state.propertyTenantSupportGrantId
+    ? `${state.propertyTenantContextId}:${state.propertyTenantSupportGrantId}`
+    : state.propertyTenantContextId ?? '';
+  tenantContextHost.append(tenantPicker.label);
+}
+
 async function loadWorkspace() {
   state.user = await api('/auth/me');
   state.accessOptions = Array.isArray(state.user.access_options)
@@ -1309,7 +1347,22 @@ async function loadWorkspace() {
   $('#access-mode-choice').hidden = true;
   startSessionActivity(state.user.session_idle_timeout_minutes ?? 30);
   state.propertyTenantMemberships = await api('/property/tenant-systems/mine');
-  if (!state.propertyTenantMemberships.some((tenant) => tenant.id === state.propertyTenantContextId && tenant.status === 'active')) {
+  state.propertyTenantSupportGrants = state.user.role === 'global_admin'
+    ? await api('/property/tenant-support-grants/mine')
+    : [];
+  const selectedSupportGrant = state.propertyTenantSupportGrants.find((grant) =>
+    grant.id === state.propertyTenantSupportGrantId
+      && grant.tenant_system_id === state.propertyTenantContextId);
+  const selectedMembership = state.propertyTenantMemberships.some((tenant) =>
+    tenant.id === state.propertyTenantContextId && tenant.status === 'active');
+  if (selectedSupportGrant) {
+    state.propertyTenantContextId = selectedSupportGrant.tenant_system_id;
+  } else if (selectedMembership) {
+    state.propertyTenantSupportGrantId = null;
+    localStorage.removeItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
+  } else {
+    state.propertyTenantSupportGrantId = null;
+    localStorage.removeItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
     state.propertyTenantContextId = state.propertyTenantMemberships.length === 1
       ? state.propertyTenantMemberships[0].id
       : null;
@@ -1319,21 +1372,7 @@ async function loadWorkspace() {
   } else {
     localStorage.removeItem(PROPERTY_TENANT_KEY);
   }
-  const tenantContextHost = $('#property-tenant-context');
-  tenantContextHost.replaceChildren();
-  if (state.propertyTenantMemberships.length) {
-    const tenantPicker = field('Property operating tenant', 'property_tenant_context', 'select', true);
-    tenantPicker.input.dataset.propertyTenantContext = 'true';
-    tenantPicker.input.append(new Option('Select a tenant', ''));
-    for (const tenant of state.propertyTenantMemberships) {
-      tenantPicker.input.append(new Option(
-        `${tenant.legal_name} · ${tenant.tenant_role.replaceAll('_', ' ')}`,
-        tenant.id,
-      ));
-    }
-    tenantPicker.input.value = state.propertyTenantContextId ?? '';
-    tenantContextHost.append(tenantPicker.label);
-  }
+  renderPropertyTenantContext();
   const featureFallback = { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] };
   const passwordRequired = state.user.must_change_password || state.user.required_security_step === 'password';
   state.mfaRequired = state.mfaRequired || state.user.required_security_step === 'mfa';
@@ -1747,6 +1786,10 @@ async function loadPanelData(panel) {
           safeGet('/platform/services', []), safeGet('/platform/service-packages', []),
           safeGet('/platform/tenants', []), safeGet('/platform/super-admins', []),
           safeGet('/platform/catalog-products', []),
+        ]);
+        [state.propertyOperatingTenants, state.propertyTenantPendingGrants] = await Promise.all([
+          safeGet('/property/tenant-systems', []),
+          safeGet('/property/tenant-support-grants/pending', []),
         ]);
         state.platformDataAdmin = await safeGet('/platform/tenant-capabilities', null);
         state.businessTenants = await safeGet('/platform/business-tenants', []);
@@ -5861,6 +5904,53 @@ function renderAdmin() {
   const canProvisionAgents = isGlobalAdmin || state.user.role === 'super_admin' || state.user.role === 'master_agent' || isBusinessManager;
   wrap.append(sectionHeading(isAdmin ? isGlobalAdmin ? 'Global System Administration' : 'Super Admin · Assigned entity management' : isBusinessManager ? 'Business manager workspace' : 'Compliance review', isAdmin ? isGlobalAdmin ? 'Configure platform services, packages, tenant boundaries, global identity, access, and operations.' : 'Manage only assigned business entities and the modules approved for them by the Global System Admin.' : isBusinessManager ? 'Manage business operations and review marketplace submissions.' : 'Review account verification before activation.'));
   if (isGlobalAdmin) {
+    const supportAccess = node('section', undefined, 'panel form-card');
+    supportAccess.style.marginTop = '20px';
+    supportAccess.append(
+      node('h3', t('Purpose-bound property support access')),
+      node('p', t('Tenant data access requires an independently approved grant and expires within eight hours. Approved grants appear in the property-tenant selector.')),
+    );
+    const requestForm = node('form', undefined, 'inline-form');
+    requestForm.dataset.form = 'property-tenant-support-request';
+    const tenantField = field('Tenant', 'tenant_system_id', 'select', true);
+    for (const tenant of state.propertyOperatingTenants.filter((item) => item.status === 'active')) {
+      tenantField.input.append(new Option(tenant.legal_name, tenant.id));
+    }
+    const durationField = field(t('Access duration'), 'duration_hours', 'select', true);
+    for (const hours of [1, 2, 4, 8]) {
+      durationField.input.append(new Option(`${hours} hour${hours === 1 ? '' : 's'}`, String(hours)));
+    }
+    requestForm.append(
+      tenantField.label,
+      durationField.label,
+      field('Purpose (minimum 10 characters)', 'purpose', 'textarea', true, { minlength: 10, maxlength: 1000, rows: 3 }).label,
+      button(t('Request support access'), 'submit', 'button button-primary'),
+    );
+    if (tenantField.input.options.length === 0) {
+      requestForm.querySelector('button[type="submit"]').disabled = true;
+      supportAccess.append(empty(t('There are no active property tenants to request.')));
+    }
+    supportAccess.append(requestForm);
+    supportAccess.append(button(t('Refresh my approved grants'), 'property-tenant-support-refresh', 'button button-outline'));
+    supportAccess.append(node('h4', t('My active support grants')));
+    if (!state.propertyTenantSupportGrants.length) supportAccess.append(empty(t('No approved, unexpired support grants are available.')));
+    for (const grant of state.propertyTenantSupportGrants) {
+      const item = card(grant.tenant_name, `${grant.purpose} · ${t('expires')} ${new Date(grant.expires_at).toLocaleString(document.documentElement.lang)}`, t('active support'));
+      item.append(button(t('Revoke my access'), 'property-tenant-support-revoke', 'button button-outline', { id: grant.id }));
+      supportAccess.append(item);
+    }
+    supportAccess.append(node('h4', t('Pending requests for independent approval')));
+    if (!state.propertyTenantPendingGrants.length) supportAccess.append(empty(t('No support requests are awaiting approval.')));
+    for (const grant of state.propertyTenantPendingGrants) {
+      const item = card(grant.tenant_system_id, `${grant.purpose} · ${t('requested by')} ${grant.requested_by} · ${t('expires')} ${new Date(grant.expires_at).toLocaleString(document.documentElement.lang)}`, t('pending'));
+      item.append(
+        button(t('Approve'), 'property-tenant-support-decision', 'button button-outline', { id: grant.id, decision: 'approve' }),
+        button(t('Reject'), 'property-tenant-support-decision', 'button button-quiet', { id: grant.id, decision: 'reject' }),
+      );
+      supportAccess.append(item);
+    }
+    wrap.append(supportAccess);
+
     const delivery = node('section', undefined, 'panel form-card');
     delivery.append(node('h3', 'Webhook notification delivery'));
     delivery.append(node('p', 'Delivery retries use bounded backoff. Manual retries are audited and keep the original notification ID as the downstream idempotency key.'));
@@ -6570,6 +6660,22 @@ function navigateToPanel(panel, { replace = false } = {}) {
 
 async function submitForm(form) {
   const values = formData(form);
+  if (form.dataset.form === 'property-tenant-support-request') {
+    const durationHours = Number(values.duration_hours);
+    if (![1, 2, 4, 8].includes(durationHours)) throw new Error(t('Choose a support duration of up to eight hours.'));
+    await api('/property/tenant-support-grants', {
+      method: 'POST',
+      body: JSON.stringify({
+        tenant_system_id: values.tenant_system_id,
+        purpose: values.purpose.trim(),
+        expires_at: new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString(),
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert(t('Purpose-bound support access requested for independent approval.'));
+    return;
+  }
   if (form.dataset.form === 'assistant-start') {
     const conversation = await api('/assistant/conversations', {
       method: 'POST',
@@ -7898,9 +8004,16 @@ async function uploadPropertyPhotos(propertyId, files, caption = '') {
 document.addEventListener('change', (event) => {
   const propertyTenantSelect = event.target.closest('select[data-property-tenant-context]');
   if (propertyTenantSelect) {
-    state.propertyTenantContextId = propertyTenantSelect.value || null;
+    const [tenantSystemId, supportGrantId] = propertyTenantSelect.value.split(':');
+    state.propertyTenantContextId = tenantSystemId || null;
+    state.propertyTenantSupportGrantId = supportGrantId || null;
     if (state.propertyTenantContextId) localStorage.setItem(PROPERTY_TENANT_KEY, state.propertyTenantContextId);
     else localStorage.removeItem(PROPERTY_TENANT_KEY);
+    if (state.propertyTenantSupportGrantId) {
+      localStorage.setItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY, state.propertyTenantSupportGrantId);
+    } else {
+      localStorage.removeItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
+    }
     loadedPanels.clear();
     if (state.panel === 'properties' || state.panel === 'rent') {
       refresh().catch((error) => showAlert(error.message, true));
@@ -8040,6 +8153,58 @@ document.addEventListener('click', async (event) => {
   const action = event.target.closest('button[data-action]');
   if (!action || action.type === 'submit') return;
   const { action: name, id } = action.dataset;
+  if (name === 'property-tenant-support-refresh') {
+    try {
+      state.propertyTenantSupportGrants = await api('/property/tenant-support-grants/mine');
+      if (state.propertyTenantSupportGrantId
+        && !state.propertyTenantSupportGrants.some((grant) => grant.id === state.propertyTenantSupportGrantId)) {
+        state.propertyTenantSupportGrantId = null;
+        state.propertyTenantContextId = null;
+        localStorage.removeItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
+        localStorage.removeItem(PROPERTY_TENANT_KEY);
+      }
+      renderPropertyTenantContext();
+      await refresh();
+      showAlert(t('Approved property support grants refreshed.'));
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
+  if (name === 'property-tenant-support-decision') {
+    const approve = action.dataset.decision === 'approve';
+    const reason = window.prompt(t(approve
+      ? 'Enter the independent approval reason (minimum 10 characters).'
+      : 'Enter the rejection reason (minimum 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/tenant-support-grants/${encodeURIComponent(id)}/decision`, {
+        method: 'POST',
+        body: JSON.stringify({ approve, reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(t(approve ? 'Property support grant approved.' : 'Property support grant rejected.'));
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
+  if (name === 'property-tenant-support-revoke') {
+    const reason = window.prompt(t('Explain why support access is being revoked (minimum 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/tenant-support-grants/${encodeURIComponent(id)}/revoke`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: reason.trim() }),
+      });
+      state.propertyTenantSupportGrants = state.propertyTenantSupportGrants.filter((grant) => grant.id !== id);
+      if (state.propertyTenantSupportGrantId === id) {
+        state.propertyTenantSupportGrantId = null;
+        localStorage.removeItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
+        state.propertyTenantContextId = null;
+        localStorage.removeItem(PROPERTY_TENANT_KEY);
+      }
+      await refresh();
+      showAlert(t('Property support access revoked.'));
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
   if (name === 'access-mode-choice') {
     await switchAccessMode(action.dataset.role);
     return;

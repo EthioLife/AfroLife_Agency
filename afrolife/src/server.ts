@@ -452,6 +452,17 @@ api.post('/property/tenant-support-grants', requireRole('global_admin'), h(async
   )).then((result) => result.rows[0].id as string);
   res.status(201).json({ id: grantId, status: 'pending' });
 }));
+api.get('/property/tenant-support-grants/mine', requireRole('global_admin'), h(async (req, res) => {
+  res.json(await withUser(req.user!, async (client) => (await client.query(
+    `SELECT grant_row.id,grant_row.tenant_system_id,tenant.legal_name AS tenant_name,
+       grant_row.purpose,grant_row.expires_at
+     FROM property_operating_tenant_support_grants grant_row
+     JOIN property_operating_tenants tenant ON tenant.id=grant_row.tenant_system_id
+     WHERE grant_row.user_id=$1 AND grant_row.status='active' AND grant_row.expires_at>now()
+     ORDER BY grant_row.expires_at,grant_row.id`,
+    [req.user!.id],
+  )).rows));
+}));
 api.get('/property/tenant-support-grants/pending', requireRole('global_admin'), h(async (req, res) => {
   res.json(await withUser(req.user!, async (client) => (await client.query(
     `SELECT id,tenant_system_id,user_id,purpose,requested_by,requested_at,expires_at
@@ -484,7 +495,8 @@ api.post('/property/tenant-support-grants/:id/revoke', requireRole('global_admin
 }));
 api.use(
   ['/properties', '/tenants', '/leases', '/lease-signature-documents', '/releases',
-    '/rent-transactions', '/maintenance', '/resident', '/rent'],
+    '/rent-transactions', '/maintenance', '/resident', '/rent',
+    '/property-vendors', '/property-vendor-bills', '/property-vendor-payments'],
   requirePropertyTenantContext,
 );
 api.post('/maintenance/:id/evidence', express.raw({ type: () => true, limit: '10mb' }));
@@ -513,6 +525,11 @@ api.use(
   requireAnyMiniAppAccess('requests', 'accounting', 'workers'),
 );
 api.use(['/properties'], requirePlatformTenantService('property'), requireMiniAppAccess('properties'));
+api.use(
+  ['/property-vendors', '/property-vendor-bills', '/property-vendor-payments'],
+  requirePlatformTenantService('property'),
+  requireAnyMiniAppAccess('properties', 'rent', 'accounting'),
+);
 api.use('/marketplace', requirePlatformTenantService('marketplace'), requireMiniAppAccess('marketplace'));
 api.use('/accounting', requirePlatformTenantService('accounting'), (req, _res, next) => {
   void (async () => {

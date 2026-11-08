@@ -38,9 +38,15 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(server, /x-afrolife-property-tenant-id/);
   assert.match(server, /x-afrolife-property-tenant-purpose/);
   assert.match(server, /app_property_tenant_system_id\(\) AS id/);
+  assert.match(server, /'\/property-vendors', '\/property-vendor-bills', '\/property-vendor-payments'/);
+  assert.match(server, /requireAnyMiniAppAccess\('properties', 'rent', 'accounting'\)/);
+  assert.match(server, /property\/tenant-support-grants\/mine/);
   assert.match(server, /api\.get\('\/property\/tenant-systems', requireRole\('global_admin'\)/);
   assert.match(server, /api\.post\('\/property\/tenant-systems\/:id\/members\/:userId\/status'/);
   const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
   assert.match(app, /x-afrolife-property-tenant-id/);
+  assert.match(app, /x-afrolife-property-tenant-purpose/);
   assert.match(app, /property\/tenant-systems\/mine/);
+  assert.match(app, /property-tenant-support-decision/);
+  assert.match(app, /property-tenant-support-request/);
 });
