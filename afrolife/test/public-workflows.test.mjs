@@ -26,6 +26,36 @@ import {
 import { propertyOfferTerms } from '../public/property-offers.js';
 import { marketplaceListingPayload } from '../public/marketplace-form.js';
 import { filterWorkerActivityReports, workerActivityReportsCsv } from '../public/worker-activity-reports.js';
+import { preparePasskeyCreationOptions, serializePasskeyRegistration } from '../public/passkeys.js';
+
+test('passkey WebAuthn options and attestation data use base64url byte conversion', () => {
+  const options = preparePasskeyCreationOptions({
+    challenge: 'AQIDBA',
+    user: { id: 'BQQDAg', name: '+251911234567', displayName: 'Test User' },
+    excludeCredentials: [{ id: 'AQID', transports: ['internal'] }],
+  });
+  assert.deepEqual([...options.challenge], [1, 2, 3, 4]);
+  assert.deepEqual([...options.user.id], [5, 4, 3, 2]);
+  assert.deepEqual([...options.excludeCredentials[0].id], [1, 2, 3]);
+
+  const response = serializePasskeyRegistration({
+    id: 'AQID',
+    rawId: Uint8Array.from([1, 2, 3]).buffer,
+    type: 'public-key',
+    response: {
+      attestationObject: Uint8Array.from([4, 5, 6]).buffer,
+      clientDataJSON: Uint8Array.from([7, 8, 9]).buffer,
+      getTransports: () => ['internal'],
+    },
+    getClientExtensionResults: () => ({}),
+    authenticatorAttachment: 'platform',
+  });
+  assert.equal(response.rawId, 'AQID');
+  assert.equal(response.response.attestationObject, 'BAUG');
+  assert.equal(response.response.clientDataJSON, 'BwgJ');
+  assert.deepEqual(response.response.transports, ['internal']);
+  assert.equal(response.authenticatorAttachment, 'platform');
+});
 
 test('submit buttons are handled by the delegated form workflow, not click actions', () => {
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
@@ -546,7 +576,8 @@ test('authentication uses an Ethiopia-first international phone entry and explic
   assert.match(html, /id="recovery-form"[\s\S]*?SMS password recovery is unavailable/);
   assert.match(html, /Fayda verification is unavailable[\s\S]*?not live Fayda verification/);
   assert.match(app, /canonicalPhonePayload\(form\)/);
-  assert.match(app, /Device sign-in unavailable/);
+  assert.match(app, /navigator\.credentials\.create/);
+  assert.match(app, /passkey\.disabled = !passkeyState\.enabled \|\| !browserSupportsPasskeys/);
 });
 
 test('mobile sign-in places the campaign welcome before sign-in and signup forms', () => {
@@ -624,7 +655,7 @@ test('public hub integrates the campaign artwork with the existing public action
   assert.match(styles, /@media \(max-width: 700px\) \{[\s\S]*?\.hub-service-network \{ min-height: 220px; \}/);
   assert.match(styles, /\.hub-heading \{ grid-template-columns: minmax\(0, 1fr\); gap:/);
   assert.match(styles, /#public-hub \.service-card\[data-panel\] \.service-icon\s*\{[^}]*background:\s*var\(--mini-app-tint\);[^}]*color:\s*var\(--mini-app-ink/s);
-  assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v42'/);
+  assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v45'/);
   assert.match(serviceWorker, /'\/tenant-data-admin\.js'/);
   for (const asset of [
     '/icons/afrosherik-icon-192.png', '/icons/afrosherik-icon-256.png', '/icons/afrosherik-icon-512.png',

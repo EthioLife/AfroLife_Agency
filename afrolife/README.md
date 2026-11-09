@@ -186,6 +186,15 @@ an audit trail, or a substitute for durable infrastructure monitoring.
 - Worker and customer self-service portals are not part of this MVP; approved accounts currently share the operations shell.
 - The sign-up page presents AfroLife's proposed worker pension match (5%) and Edir options: ETB 2,000 joining + ETB 200 monthly, optional ETB 5,000 annual ETB 1 million member/spouse life cover, and optional ETB 200 per household for tenant/property-owner fire, accidental-damage and burglary cover. Applicants may record non-binding interests; no contribution is collected and no pension match or insurance is active. Confirm funding, eligibility, licensed insurer/underwriter, policy wording, claims process, and commencement date before accepting money or advertising active cover. Staff can see requested benefits in KYC review.
 
+## Sign-in, recovery, identity, and passkeys
+
+- Sign-in, recovery, and registration default to Ethiopia's `+251` calling code. Other calling codes can be selected from suggestions or entered directly.
+- TOTP is optional for ordinary accounts. Administrative access continues to require MFA and cannot disable it.
+- The forgot-password flow is deliberately unavailable until an approved SMS provider is configured. Its endpoints return `503`, send no SMS, create no recovery challenge, and disclose no account or reset token. Users must contact AfroLife support for manual recovery.
+- National ID documents remain in the existing private, manual KYC review workflow. Fayda verification is disabled: this application makes no Fayda requests until AfroLife receives authorization and configures a verified adapter.
+- Optional passkey registration uses `@simplewebauthn/server` with a server-generated, session-bound five-minute challenge and required local user verification. The browser/device handles biometrics or its screen-lock PIN; the server stores only the public credential. Registration does not replace password sign-in or mandatory administrative MFA.
+- Passkey registration is disabled by default. To enable it, apply the core migrations and explicitly configure `WEBAUTHN_ORIGIN` as the exact HTTPS origin (no path) and `WEBAUTHN_RP_ID` as that origin's exact host. HTTP is accepted only for localhost development. `WEBAUTHN_RP_NAME` is optional and defaults to `AfroSherik`. Passkeys can be registered and removed in account security but are not yet a login method.
+
 ## AfroLife Edir standalone service
 
 AfroLife Edir is a separately deployable member and group administration service
@@ -718,7 +727,7 @@ The **Rent & deposits** workspace supports tenant and lease creation, rent recei
   ```
 - The app is same-origin by default. The service worker caches only static shell files and never caches API responses.
 - Administrative and sensitive staff roles must enroll in authenticator MFA; it cannot be disabled for those roles. Non-administrative users may enable or disable MFA after verifying their password and current authenticator code. Keep `REQUIRE_MFA_FOR_STAFF=1` in production as a deployment safety check.
-- Password recovery is unavailable until an approved SMS provider is integrated; `SMS_RECOVERY_ENABLED=0` is the default and request/completion endpoints explicitly return service unavailable without creating or sending a code. Migration 106 reserves short-lived, hash-only challenge storage for that future integration. Fayda verification remains disabled (`FAYDA_VERIFICATION_ENABLED=0`) until approved access and a reviewed adapter are configured; secure document review remains the available KYC path. Passkey registration is also unavailable until full WebAuthn verification is implemented.
+- Password recovery is unavailable until an approved SMS provider is integrated; `SMS_RECOVERY_ENABLED=0` is the default and request/completion endpoints explicitly return service unavailable without creating or sending a code. Fayda verification remains disabled (`FAYDA_VERIFICATION_ENABLED=0`) until approved access and a reviewed adapter are configured; secure document review remains the available KYC path. Passkey registration is available only when WebAuthn is configured with the exact production origin and RP ID documented in the account-security section above.
 - Configure `PAYMENT_WEBHOOK_SECRET` only when a payment provider has been integrated; signed events use the `x-payment-signature` HMAC-SHA256 header.
 - Configure `NOTIFY_WEBHOOK_URL` and `NOTIFY_WEBHOOK_SECRET` only for an HTTPS notification receiver. Events are sent with an `x-afrolife-signature` HMAC-SHA256 header.
 - Public sign-up creates an inactive account. Compliance must verify KYC and a Super Admin must activate it; agent records are created only as part of successful activation.

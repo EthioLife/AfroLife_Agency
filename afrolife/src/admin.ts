@@ -4,10 +4,11 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
+import { generateRegistrationOptions, verifyRegistrationResponse, type RegistrationResponseJSON } from '@simplewebauthn/server';
 import { pool, withUser, requireRole, HttpError, JWT_SECRET, invalidateUser, invalidateRolePermissions } from './core.js';
 import { normalizePhone, normalizePhoneParts } from './phone.js';
-import { requiresMfaEnrollment } from './auth-types.js';
-import { getFaydaVerificationStatus, getSmsRecoveryStatus } from './auth-integrations.js';
+import { requiresMfaEnrollment, requiresMfaForRoles } from './auth-types.js';
+import { getFaydaVerificationStatus, getSmsRecoveryStatus, getWebAuthnConfiguration, getWebAuthnStatus } from './auth-integrations.js';
 import { Phone } from './validators.js';
 import { audit, feeSnapshot } from './domain.js';
 import { mfaKeys, openAny, seal, passwordProblem, randomPassword } from './security.js';
@@ -103,7 +104,7 @@ async function issue(
     return [...new Set([u.role, ...grants.rows.map((row) => row.role_name as string)])];
   });
   const hasStaffAccess = accessOptions.some((role) => MFA_STAFF.includes(role));
-  const hasMfaRequiredAccess = accessOptions.some(requiresMfaEnrollment);
+  const hasMfaRequiredAccess = requiresMfaForRoles(accessOptions);
   const rst = u.must_change_password ? 'password'
     : (hasMfaRequiredAccess || (process.env.REQUIRE_MFA_FOR_STAFF === '1' && hasStaffAccess))
       && !u.mfa_enabled ? 'mfa' : null;
@@ -1688,6 +1689,7 @@ adminRouter.get('/auth/me', h(async (req, res) => {
     role: req.user!.role,
     primary_role: req.user!.primaryRole,
     access_options: req.user!.accessOptions ?? [req.user!.role],
+    mfa_required: requiresMfaForRoles(req.user!.accessOptions ?? [req.user!.role]),
     active_role_all_tenants: req.user!.adminRoleAllTenants ?? false,
     required_security_step: req.user!.rst ?? null,
     edir_id: req.user!.edir_id,
@@ -1779,6 +1781,160 @@ adminRouter.post('/auth/change-password', h(async (req, res) => {
   res.json(await issue({ ...u, must_change_password: false }, req.user!.sessionId, req.get('user-agent')));
 }));
 
+adminRouter.get('/auth/passkeys', h(async (req, res) => {
+  const credentials = await withUser(req.user!, async (client) => (await client.query(
+    `SELECT id,device_name,device_type,backed_up,created_at,last_used_at
+     FROM auth_passkey_credentials WHERE user_id=$1 ORDER BY created_at DESC`,
+    [req.user!.id],
+  )).rows);
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ ...getWebAuthnStatus(), credentials });
+}));
+
+adminRouter.post('/auth/passkeys/registration/options', createApiRateLimiter('passkey-registration-options', 10), h(async (req, res) => {
+  const config = getWebAuthnConfiguration();
+  if (!config) throw new HttpError(503, getWebAuthnStatus().message);
+  if (!req.user!.sessionId || !req.user!.phone) throw new HttpError(401, 'Sign in again before registering a passkey.');
+
+  const credentials = await withUser(req.user!, async (client) => (await client.query(
+    'SELECT credential_id,transports FROM auth_passkey_credentials WHERE user_id=$1',
+    [req.user!.id],
+  )).rows);
+  const options = await generateRegistrationOptions({
+    rpName: config.rpName,
+    rpID: config.rpID,
+    userID: new Uint8Array(Buffer.from(req.user!.id)),
+    userName: req.user!.phone,
+    userDisplayName: req.user!.legal_name ?? req.user!.phone,
+    attestationType: 'none',
+    excludeCredentials: credentials.map((credential) => ({
+      id: credential.credential_id,
+      ...(credential.transports?.length ? { transports: credential.transports } : {}),
+    })),
+    authenticatorSelection: {
+      authenticatorAttachment: 'platform',
+      residentKey: 'required',
+      userVerification: 'required',
+    },
+    preferredAuthenticatorType: 'localDevice',
+  });
+  await withUser(req.user!, async (client) => {
+    await client.query(
+      'DELETE FROM auth_passkey_registration_challenges WHERE user_id=$1 AND session_id=$2',
+      [req.user!.id, req.user!.sessionId],
+    );
+    await client.query(
+      `INSERT INTO auth_passkey_registration_challenges(user_id,session_id,challenge,expires_at)
+       VALUES($1,$2,$3,now()+interval '5 minutes')`,
+      [req.user!.id, req.user!.sessionId, options.challenge],
+    );
+  });
+  res.setHeader('Cache-Control', 'no-store');
+  res.json(options);
+}));
+
+adminRouter.post('/auth/passkeys/registration/verify', createApiRateLimiter('passkey-registration-verify', 8), h(async (req, res) => {
+  const body = z.object({
+    response: z.object({
+      id: z.string().min(1).max(2048),
+      rawId: z.string().regex(/^[A-Za-z0-9_-]+$/).max(2048),
+      type: z.literal('public-key'),
+      response: z.object({
+        attestationObject: z.string().min(1).max(32768),
+        clientDataJSON: z.string().min(1).max(8192),
+        transports: z.array(z.enum(['usb', 'nfc', 'ble', 'smart-card', 'hybrid', 'internal'])).max(8).optional(),
+      }).passthrough(),
+      clientExtensionResults: z.record(z.string(), z.unknown()).optional(),
+      authenticatorAttachment: z.string().nullable().optional(),
+    }).passthrough(),
+    device_name: z.string().trim().min(1).max(80)
+      .refine((value) => !/[\u0000-\u001f\u007f]/.test(value), 'Device name contains unsupported characters.'),
+  }).strict().parse(req.body);
+  if (body.response.id !== body.response.rawId) throw new HttpError(422, 'The device returned an invalid passkey response.');
+  if (!req.user!.sessionId) throw new HttpError(401, 'Sign in again before registering a passkey.');
+  const config = getWebAuthnConfiguration();
+  if (!config) throw new HttpError(503, getWebAuthnStatus().message);
+
+  const challenge = await withUser(req.user!, async (client) => (await client.query(
+    `SELECT id,challenge FROM auth_passkey_registration_challenges
+     WHERE user_id=$1 AND session_id=$2 AND consumed_at IS NULL AND expires_at>now()
+     ORDER BY created_at DESC LIMIT 1`,
+    [req.user!.id, req.user!.sessionId],
+  )).rows[0]);
+  if (!challenge) throw new HttpError(409, 'Passkey registration expired. Start again.');
+
+  let verification;
+  try {
+    verification = await verifyRegistrationResponse({
+      response: body.response as RegistrationResponseJSON,
+      expectedChallenge: challenge.challenge,
+      expectedOrigin: config.origin,
+      expectedRPID: config.rpID,
+      requireUserVerification: true,
+    });
+  } catch {
+    await withUser(req.user!, async (client) => {
+      await client.query(
+        'UPDATE auth_passkey_registration_challenges SET consumed_at=now() WHERE id=$1 AND consumed_at IS NULL',
+        [challenge.id],
+      );
+    });
+    throw new HttpError(422, 'The device passkey could not be verified. Start registration again.');
+  }
+  if (!verification.verified || !verification.registrationInfo.userVerified) {
+    await withUser(req.user!, async (client) => {
+      await client.query(
+        'UPDATE auth_passkey_registration_challenges SET consumed_at=now() WHERE id=$1 AND consumed_at IS NULL',
+        [challenge.id],
+      );
+    });
+    throw new HttpError(422, 'The device passkey could not be verified. Start registration again.');
+  }
+
+  const credential = verification.registrationInfo.credential;
+  const saved = await withUser(req.user!, async (client) => {
+    const consumed = await client.query(
+      `UPDATE auth_passkey_registration_challenges SET consumed_at=now()
+       WHERE id=$1 AND user_id=$2 AND session_id=$3 AND consumed_at IS NULL AND expires_at>now()
+       RETURNING id`,
+      [challenge.id, req.user!.id, req.user!.sessionId],
+    );
+    if (!consumed.rowCount) throw new HttpError(409, 'Passkey registration expired. Start again.');
+    const inserted = await client.query(
+      `INSERT INTO auth_passkey_credentials
+         (user_id,credential_id,public_key,sign_count,transports,device_type,backed_up,device_name)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+       RETURNING id,device_name,device_type,backed_up,created_at,last_used_at`,
+      [
+        req.user!.id, credential.id, Buffer.from(credential.publicKey), credential.counter,
+        credential.transports ?? [], verification.registrationInfo.credentialDeviceType,
+        verification.registrationInfo.credentialBackedUp, body.device_name,
+      ],
+    );
+    await audit(client, req.user!.id, 'passkey_registered', 'auth_passkey_credential', inserted.rows[0].id, null, {
+      device_name: body.device_name,
+      device_type: verification.registrationInfo.credentialDeviceType,
+    });
+    return inserted.rows[0];
+  });
+  res.setHeader('Cache-Control', 'no-store');
+  res.status(201).json(saved);
+}));
+
+adminRouter.delete('/auth/passkeys/:id', h(async (req, res) => {
+  const id = z.string().uuid().parse(req.params.id);
+  const removed = await withUser(req.user!, async (client) => {
+    const result = await client.query(
+      'DELETE FROM auth_passkey_credentials WHERE id=$1 AND user_id=$2 RETURNING id,device_name',
+      [id, req.user!.id],
+    );
+    if (!result.rowCount) throw new HttpError(404, 'Passkey not found.');
+    await audit(client, req.user!.id, 'passkey_removed', 'auth_passkey_credential', id, result.rows[0], null);
+    return result.rows[0];
+  });
+  res.json({ removed: true, device_name: removed.device_name });
+}));
+
 adminRouter.post('/auth/mfa/setup', h(async (req, res) => {
   const u = (await pool.query('SELECT phone, mfa_enabled FROM users WHERE id = $1', [req.user!.id])).rows[0];
   if (u.mfa_enabled) throw new HttpError(409, 'Two-factor sign-in is already on. Turn it off first to set it up again.');
@@ -1812,6 +1968,10 @@ adminRouter.post('/auth/mfa/disable', h(async (req, res) => {
   const step = verifyTotpStep(openSecret(u.mfa_secret), b.code);
   if (!(await bcrypt.compare(b.password, u.password_hash)) || step === null) throw new HttpError(401, 'Password or code is incorrect');
   await withUser(req.user!, async (c) => {
+    const grants = await c.query('SELECT role_name FROM user_admin_role_grants WHERE user_id=$1', [u.id]);
+    if (requiresMfaForRoles([u.role, ...grants.rows.map((grant) => grant.role_name as string)])) {
+      throw new HttpError(403, 'Two-factor sign-in is required for your administrator access.');
+    }
     const disabled = await c.query(
       'UPDATE users SET mfa_enabled = false, mfa_secret = NULL WHERE id = $1 AND mfa_enabled = true AND mfa_last_step < $2',
       [u.id, step],
