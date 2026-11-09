@@ -891,12 +891,34 @@ ops.get('/property/associations', h(async (req, res) => {
        ORDER BY policy.association_id,policy.property_id,
          lower(policy.amenity_name),policy.policy_version`,
     );
+    const duesPolicies = await client.query(
+      `SELECT policy.policy_version_id,policy.association_id,policy.property_id,
+         property.address,policy.policy_version,policy.cadence_months,
+         policy.anchor_period_start,policy.amount::text AS amount,policy.description,
+         policy.status,policy.created_at
+       FROM property_association_dues_policies policy
+       JOIN properties property
+         ON property.id=policy.property_id
+        AND property.tenant_system_id=policy.tenant_system_id
+       WHERE policy.tenant_system_id=app_property_tenant_system_id()
+       ORDER BY policy.association_id,policy.property_id,policy.policy_version`,
+    );
+    const duesCycles = await client.query(
+      `SELECT cycle.cycle_id,cycle.association_id,cycle.period_start,cycle.due_on,
+         cycle.generated_assessment_count,cycle.status,cycle.created_at
+       FROM property_association_dues_cycles cycle
+       WHERE cycle.tenant_system_id=app_property_tenant_system_id()
+       ORDER BY cycle.period_start DESC,cycle.created_at DESC
+       LIMIT 100`,
+    );
     return {
       currency: tenantCurrency,
       associations: associations.rows,
       assessments: assessments.rows,
       violations: violations.rows,
       amenity_policies: amenityPolicies.rows,
+      dues_policies: duesPolicies.rows,
+      dues_cycles: duesCycles.rows,
     };
   });
   res.json(result);
@@ -914,6 +936,45 @@ ops.post('/property/associations', h(async (req, res) => {
     )
   ));
   res.status(201).json({ id: result.rows[0].id, status: 'active' });
+}));
+
+ops.post('/property/associations/:id/dues-policies', h(async (req, res) => {
+  const associationId = z.string().uuid().parse(req.params.id);
+  const body = z.object({
+    property_id: z.string().uuid(),
+    cadence_months: z.union([z.literal(1),z.literal(3),z.literal(12)]),
+    anchor_period_start: z.string().date(),
+    amount: z.string().regex(/^(?:0|[1-9]\d{0,11})(?:\.\d{1,2})?$/)
+      .refine((value) => Number(value) > 0),
+    description: z.string().trim().min(3).max(500),
+    status: z.enum(['active','retired']),
+  }).strict().parse(req.body);
+  const result = await withUser(req.user!, async (client) => (
+    await client.query(
+      'SELECT * FROM record_property_association_dues_policy($1,$2,$3,$4,$5,$6,$7)',
+      [
+        associationId,body.property_id,body.cadence_months,body.anchor_period_start,
+        body.amount,body.description,body.status,
+      ],
+    )
+  ));
+  res.status(201).json(result.rows[0]);
+}));
+
+ops.post('/property/associations/:id/dues-cycles', h(async (req, res) => {
+  const associationId = z.string().uuid().parse(req.params.id);
+  const body = z.object({
+    period_start: z.string().date(),
+    due_on: z.string().date(),
+  }).strict().parse(req.body);
+  const result = await withUser(req.user!, async (client) => (
+    await client.query(
+      'SELECT * FROM run_property_association_dues_cycle($1,$2,$3)',
+      [associationId,body.period_start,body.due_on],
+    )
+  ));
+  const cycle = result.rows[0];
+  res.status(cycle.already_run ? 200 : 201).json(cycle);
 }));
 
 ops.post('/property/associations/:id/amenity-policies', h(async (req, res) => {

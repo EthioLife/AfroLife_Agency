@@ -387,3 +387,55 @@ test('association amenity policies are tenant-scoped, admin-authored, and append
     assert.ok(translations.includes(`['${message}'`), `Missing amenity policy translation: ${message}`);
   }
 });
+
+test('recurring association dues cycles create idempotent property assessments without ledger posting', async () => {
+  const migration = await readFile(
+    new URL('../migrations/132_property_association_dues_cycles.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(migration, /cadence_months integer NOT NULL CHECK \(cadence_months IN \(1,3,12\)\)/);
+  assert.match(migration, /anchor_period_start date NOT NULL CHECK \(extract\(day FROM anchor_period_start\)=1\)/);
+  assert.match(migration, /CREATE TRIGGER property_association_dues_policies_immutable/);
+  assert.match(migration, /CREATE TRIGGER property_association_dues_cycles_immutable/);
+  assert.match(migration, /CREATE TRIGGER property_association_dues_cycle_items_immutable/);
+  assert.match(migration, /UNIQUE \(tenant_system_id,association_id,period_start\)/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION record_property_association_dues_policy\(/);
+  assert.match(migration, /member\.tenant_role='tenant_admin'/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION run_property_association_dues_cycle\(/);
+  assert.match(migration, /app_property_association_can_manage\(tenant_id\)/);
+  assert.match(migration, /policy_month_delta%policy\.cadence_months<>0/);
+  assert.match(migration, /IF FOUND THEN[\s\S]*?RETURN QUERY SELECT new_cycle_id,generated_count,true/);
+  assert.match(migration, /existing_due_on<>target_due_on/);
+  assert.match(migration, /different due date/);
+  assert.match(migration, /property\.owner_user_id/);
+  assert.match(migration, /member\.tenant_role='owner'/);
+  assert.match(migration, /INSERT INTO property_association_assessments/);
+  assert.match(migration, /INSERT INTO property_association_dues_cycle_items/);
+  assert.match(migration, /CREATE POLICY property_association_dues_policies_scoped_read/);
+  assert.match(migration, /CREATE POLICY property_association_dues_cycles_scoped_read/);
+  assert.match(migration, /CREATE POLICY property_association_dues_cycle_items_scoped_read/);
+  assert.doesNotMatch(migration, /INSERT INTO ledger_entries|initiate_payment|payment_processor/i);
+
+  const operations = await readFile(new URL('../src/ops.ts', import.meta.url), 'utf8');
+  assert.match(operations, /property_association_dues_policies policy/);
+  assert.match(operations, /property_association_dues_cycles cycle/);
+  assert.match(operations, /ops\.post\('\/property\/associations\/:id\/dues-policies'/);
+  assert.match(operations, /record_property_association_dues_policy\(\$1,\$2,\$3,\$4,\$5,\$6,\$7\)/);
+  assert.match(operations, /ops\.post\('\/property\/associations\/:id\/dues-cycles'/);
+  assert.match(operations, /run_property_association_dues_cycle\(\$1,\$2,\$3\)/);
+  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.match(app, /property-association-dues-policy/);
+  assert.match(app, /property-association-dues-cycle/);
+  assert.match(app, /do not post ledger entries or collect payments/);
+  const translations = await readFile(new URL('../public/i18n.js', import.meta.url), 'utf8');
+  for (const message of [
+    'Recurring dues cycle policies',
+    'Create recurring dues policy version',
+    'Run dues cycle',
+    'Association dues cycle completed.',
+    'This association dues cycle already existed; no duplicate assessments were created.',
+    'Recurring dues are manually triggered and create assessments only. They do not post ledger entries or collect payments.',
+  ]) {
+    assert.ok(translations.includes(`['${message}'`), `Missing dues cycle translation: ${message}`);
+  }
+});

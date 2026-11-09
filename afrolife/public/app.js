@@ -44,7 +44,7 @@ const MINI_APP_PANELS = new Set([
   'insurance', 'privacy', 'global-bi',
 ]);
 const $ = (selector) => document.querySelector(selector);
-const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [] }, rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
+const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [] }, rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
 state.propertyTenantSupportGrantId = localStorage.getItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
 state.propertyTenantSupportGrants = [];
 state.propertyOperatingTenants = [];
@@ -1271,7 +1271,7 @@ function signOut({ revoke = true, message = '' } = {}) {
   workspaceSearchSequence += 1;
   loadedPanels.clear();
   Object.assign(state, {
-    leads: [], workers: [], workerDocumentExpiry: [], requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [] }, rentalApplications: [], maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [],
+    leads: [], workers: [], workerDocumentExpiry: [], requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [] }, rentalApplications: [], maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [],
     commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], notificationDeliveryStatus: [],
     roleAccess: null, learningContent: [], contracts: [], leases: [], tenants: [], pendingRent: [],
     platformServices: [], platformServicePackages: [], platformTenants: [], platformSuperAdmins: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [],
@@ -1688,8 +1688,12 @@ async function loadPanelData(panel) {
       state.propertyAssociations = activePropertyTenant
         ? await safeGet('/property/associations', {
           currency: null, associations: [], assessments: [], amenity_policies: [],
+          dues_policies: [], dues_cycles: [],
         })
-        : { currency: null, associations: [], assessments: [], amenity_policies: [] };
+        : {
+          currency: null, associations: [], assessments: [], amenity_policies: [],
+          dues_policies: [], dues_cycles: [],
+        };
       const propertyTenantMembership = state.propertyTenantMemberships.find((tenant) =>
         tenant.id === activePropertyTenant && tenant.status === 'active');
       if (activePropertyTenant && !state.propertyTenantSupportGrantId) {
@@ -4248,6 +4252,7 @@ function renderPropertyAssociations() {
   );
   const data = state.propertyAssociations ?? {
     currency: null, associations: [], assessments: [], amenity_policies: [],
+    dues_policies: [], dues_cycles: [],
   };
   const membership = state.propertyTenantMemberships.find((tenant) =>
     tenant.id === state.propertyTenantContextId && tenant.status === 'active');
@@ -4286,6 +4291,14 @@ function renderPropertyAssociations() {
   for (const association of data.associations) {
     const item = node('article', undefined, 'panel');
     item.append(node('h3', association.name));
+    const latestDuesPolicies = new Map();
+    for (const policy of (data.dues_policies ?? [])
+      .filter((entry) => entry.association_id === association.id)) {
+      const current = latestDuesPolicies.get(policy.property_id);
+      if (!current || policy.policy_version > current.policy_version) {
+        latestDuesPolicies.set(policy.property_id, policy);
+      }
+    }
     for (const property of association.properties) {
       item.append(node('p', property.address, 'muted'));
       const propertyPolicies = (data.amenity_policies ?? [])
@@ -4332,6 +4345,48 @@ function renderPropertyAssociations() {
         );
         item.append(form);
       }
+      const currentDuesPolicy = latestDuesPolicies.get(property.property_id);
+      if (currentDuesPolicy) {
+        const cadence = currentDuesPolicy.cadence_months === 1
+          ? 'Monthly' : currentDuesPolicy.cadence_months === 3 ? 'Quarterly' : 'Annual';
+        const duesCard = card(
+          t('Recurring dues cycle policies'),
+          `${t(cadence)} · ${t('Policy version')} ${currentDuesPolicy.policy_version} · ${currentDuesPolicy.status === 'active' ? t('Active') : t('Retired')}`,
+        );
+        duesCard.append(
+          node('p', `${currentDuesPolicy.amount}${data.currency ? ` ${data.currency}` : ''} · ${currentDuesPolicy.description}`),
+          node('p', `${t('Cycle anchor month (use first day)')}: ${currentDuesPolicy.anchor_period_start}`, 'muted'),
+        );
+        item.append(duesCard);
+      } else {
+        item.append(node('p', t('No recurring dues policy configured for this property.'), 'muted'));
+      }
+      if (canConfigurePolicies && association.status === 'active') {
+        const form = node('form', undefined, 'form-card inline-form');
+        form.dataset.form = 'property-association-dues-policy';
+        form.dataset.association = association.id;
+        form.dataset.property = property.property_id;
+        const cadence = field('Dues cadence', 'cadence_months', 'select', true);
+        cadence.input.append(
+          new Option(t('Monthly'), '1'),
+          new Option(t('Quarterly'), '3'),
+          new Option(t('Annual'), '12'),
+        );
+        const status = field('Policy status', 'status', 'select', true);
+        status.input.append(
+          new Option(t('Active'), 'active'),
+          new Option(t('Retired'), 'retired'),
+        );
+        form.append(
+          cadence.label,
+          field('Cycle anchor month (use first day)', 'anchor_period_start', 'date', true).label,
+          field('Amount', 'amount', 'number', true, { min: 0.01, step: 0.01 }).label,
+          field('Dues description', 'description', 'text', true, { minlength: 3, maxlength: 500 }).label,
+          status.label,
+          button(t('Create recurring dues policy version'), 'submit', 'button button-outline'),
+        );
+        item.append(form);
+      }
       if (association.status === 'active' && canReportOn(property.property_id)) {
         const form = node('form', undefined, 'form-card inline-form');
         form.dataset.form = 'property-association-violation';
@@ -4371,6 +4426,32 @@ function renderPropertyAssociations() {
         button('Record assessment', 'submit', 'button button-primary'),
       );
       item.append(form);
+    }
+
+    const cycles = (data.dues_cycles ?? [])
+      .filter((cycle) => cycle.association_id === association.id);
+    if (cycles.length) item.append(node('h4', t('Recent dues cycles')));
+    for (const cycle of cycles) {
+      item.append(card(
+        `${t('Cycle')}: ${cycle.period_start}`,
+        `${t('Assessments generated')}: ${cycle.generated_assessment_count} · ${t('Due date')}: ${cycle.due_on}`,
+        cycle.status,
+      ));
+    }
+    if (canManage && association.status === 'active'
+      && [...latestDuesPolicies.values()].some((policy) => policy.status === 'active')) {
+      const form = node('form', undefined, 'form-card inline-form');
+      form.dataset.form = 'property-association-dues-cycle';
+      form.dataset.association = association.id;
+      form.append(
+        field('Cycle period start (first day of month)', 'period_start', 'date', true).label,
+        field('Assessment due date', 'due_on', 'date', true).label,
+        button(t('Run dues cycle'), 'submit', 'button button-primary'),
+      );
+      item.append(
+        node('p', t('Recurring dues are manually triggered and create assessments only. They do not post ledger entries or collect payments.'), 'muted'),
+        form,
+      );
     }
 
     const assessments = data.assessments.filter((assessment) => assessment.association_id === association.id);
@@ -8080,6 +8161,41 @@ async function submitForm(form) {
     form.reset();
     await refresh();
     showAlert('Association amenity policy version recorded.');
+    return;
+  }
+  if (form.dataset.form === 'property-association-dues-policy') {
+    await api(`/property/associations/${encodeURIComponent(form.dataset.association)}/dues-policies`, {
+      method: 'POST',
+      body: JSON.stringify({
+        property_id: form.dataset.property,
+        cadence_months: Number(values.cadence_months),
+        anchor_period_start: values.anchor_period_start,
+        amount: values.amount,
+        description: values.description.trim(),
+        status: values.status,
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert('Recurring association dues policy version recorded.');
+    return;
+  }
+  if (form.dataset.form === 'property-association-dues-cycle') {
+    const result = await api(
+      `/property/associations/${encodeURIComponent(form.dataset.association)}/dues-cycles`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          period_start: values.period_start,
+          due_on: values.due_on,
+        }),
+      },
+    );
+    form.reset();
+    await refresh();
+    showAlert(result.already_run
+      ? 'This association dues cycle already existed; no duplicate assessments were created.'
+      : 'Association dues cycle completed.');
     return;
   }
   if (form.dataset.form === 'property-assessment-create') {
