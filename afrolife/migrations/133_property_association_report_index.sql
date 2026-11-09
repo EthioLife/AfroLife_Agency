@@ -1,0 +1,2 @@
+CREATE INDEX property_association_assessments_period_report_idx
+  ON property_association_assessments(tenant_system_id,period_start,association_id,property_id);

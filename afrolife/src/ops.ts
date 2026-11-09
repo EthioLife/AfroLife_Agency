@@ -924,6 +924,105 @@ ops.get('/property/associations', h(async (req, res) => {
   res.json(result);
 }));
 
+ops.get('/property/association-report', h(async (req, res) => {
+  const { period_start: periodStart, period_end: periodEnd } = z.object({
+    period_start: z.string().date(),
+    period_end: z.string().date(),
+  }).strict().parse(req.query);
+  const startTime = Date.parse(`${periodStart}T00:00:00.000Z`);
+  const endTime = Date.parse(`${periodEnd}T00:00:00.000Z`);
+  const rangeDays = (endTime - startTime) / 86_400_000;
+  if (rangeDays < 0 || rangeDays > 365) {
+    throw new HttpError(422, 'Report period must be ordered and no longer than 366 calendar days.');
+  }
+  const report = await withUser(req.user!, async (client) => {
+    const tenant = await client.query(
+      `SELECT tenant.id,tenant.currency,
+         app_property_association_can_manage(tenant.id) AS can_generate_report
+       FROM property_operating_tenants tenant
+       WHERE tenant.id=app_property_tenant_system_id()`,
+    );
+    const context = tenant.rows[0];
+    if (!context?.can_generate_report) {
+      throw new HttpError(403, 'Association reports require tenant administrator or accountant access.');
+    }
+
+    const result = await client.query(
+      `WITH filtered_assessments AS (
+         SELECT assessment.id,assessment.tenant_system_id,assessment.association_id,
+           assessment.property_id,association.name AS association_name,
+           property.address,assessment.amount
+         FROM property_association_assessments assessment
+         JOIN property_associations association
+           ON association.tenant_system_id=assessment.tenant_system_id
+          AND association.id=assessment.association_id
+         JOIN properties property
+           ON property.tenant_system_id=assessment.tenant_system_id
+          AND property.id=assessment.property_id
+         WHERE assessment.tenant_system_id=app_property_tenant_system_id()
+           AND assessment.period_start BETWEEN $1::date AND $2::date
+       ), per_property AS (
+         SELECT filtered.association_id,filtered.association_name,
+           filtered.property_id,filtered.address,count(*)::integer AS assessment_count,
+           sum(filtered.amount)::text AS assessed_amount,
+           sum(COALESCE((
+             SELECT sum(receipt.amount)
+             FROM property_association_receipts receipt
+             WHERE receipt.tenant_system_id=filtered.tenant_system_id
+               AND receipt.assessment_id=filtered.id
+               AND receipt.status='reconciled'
+           ),0))::text AS reconciled_receipt_references,
+           sum(COALESCE((
+             SELECT sum(receipt.amount)
+             FROM property_association_receipts receipt
+             WHERE receipt.tenant_system_id=filtered.tenant_system_id
+               AND receipt.assessment_id=filtered.id
+               AND receipt.status='pending'
+           ),0))::text AS pending_receipt_references
+         FROM filtered_assessments filtered
+         GROUP BY filtered.association_id,filtered.association_name,
+           filtered.property_id,filtered.address
+       ), report_summary AS (
+         SELECT count(*)::integer AS property_count,
+           COALESCE(sum(assessment_count),0)::integer AS assessment_count,
+           COALESCE(sum(assessed_amount::numeric),0)::text AS assessed_amount,
+           COALESCE(sum(reconciled_receipt_references::numeric),0)::text AS reconciled_receipt_references,
+           COALESCE(sum(pending_receipt_references::numeric),0)::text AS pending_receipt_references
+         FROM per_property
+       )
+       SELECT jsonb_build_object(
+         'summary',(SELECT to_jsonb(report_summary) FROM report_summary),
+         'properties',COALESCE((
+           SELECT jsonb_agg(to_jsonb(page) ORDER BY page.association_name,page.address)
+           FROM (
+             SELECT * FROM per_property
+             ORDER BY association_name,address
+             LIMIT 1001
+           ) page
+         ),'[]'::jsonb)
+       ) AS report`,
+      [periodStart,periodEnd],
+    );
+    const resultReport = result.rows[0]?.report;
+    if (!resultReport) throw new HttpError(500, 'Association report generation returned no result.');
+    if (resultReport.summary.property_count > 1000) {
+      throw new HttpError(422, 'Report covers more than 1000 properties; narrow the period and retry.');
+    }
+    await audit(
+      client,req.user!.id,'property_association_report_generated',
+      'property_association_report',context.id,null,
+      { period_start: periodStart, period_end: periodEnd, property_count: resultReport.summary.property_count },
+    );
+    return {
+      period_start: periodStart,
+      period_end: periodEnd,
+      currency: context.currency,
+      ...resultReport,
+    };
+  });
+  res.json(report);
+}));
+
 ops.post('/property/associations', h(async (req, res) => {
   const body = z.object({
     name: z.string().trim().min(2).max(160),

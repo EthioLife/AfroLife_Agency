@@ -439,3 +439,46 @@ test('recurring association dues cycles create idempotent property assessments w
     assert.ok(translations.includes(`['${message}'`), `Missing dues cycle translation: ${message}`);
   }
 });
+
+test('association activity reports are bounded, tenant-authorized, audited, and evidence-only', async () => {
+  const migration = await readFile(
+    new URL('../migrations/133_property_association_report_index.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(migration, /ON property_association_assessments\(tenant_system_id,period_start,association_id,property_id\)/);
+
+  const server = await readFile(new URL('../src/server.ts', import.meta.url), 'utf8');
+  assert.match(server, /'\/property\/association-report'/);
+  const operations = await readFile(new URL('../src/ops.ts', import.meta.url), 'utf8');
+  assert.match(operations, /ops\.get\('\/property\/association-report'/);
+  assert.match(operations, /period_start: z\.string\(\)\.date\(\),\s*period_end: z\.string\(\)\.date\(\)/);
+  assert.match(operations, /rangeDays\s*>\s*365/);
+  assert.match(operations, /app_property_association_can_manage\(tenant\.id\) AS can_generate_report/);
+  assert.match(operations, /assessment\.period_start BETWEEN \$1::date AND \$2::date/);
+  assert.match(operations, /receipt\.status='reconciled'/);
+  assert.match(operations, /receipt\.status='pending'/);
+  assert.match(operations, /LIMIT 1001/);
+  assert.match(operations, /resultReport\.summary\.property_count\s*>\s*1000/);
+  assert.match(operations, /property_association_report_generated/);
+  const reportRoute = operations.slice(
+    operations.indexOf("ops.get('/property/association-report'"),
+    operations.indexOf("ops.post('/property/associations'"),
+  );
+  assert.doesNotMatch(reportRoute, /deliver_report_securely|send_mail|payment_processor/i);
+
+  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.match(app, /property-association-report/);
+  assert.match(app, /propertyAssociationReport/);
+  assert.match(app, /state\.propertyTenantContextId = tenantSystemId \|\| null;\s*state\.propertyAssociationReport = null;/);
+  assert.match(app, /if \(state\.propertyTenantContextId !== reportTenantId\) return;/);
+  const translations = await readFile(new URL('../public/i18n.js', import.meta.url), 'utf8');
+  for (const message of [
+    'Association activity report',
+    'Generate a scoped assessment report for a date range. Receipt references are evidence only, not ledger or settlement balances.',
+    'Reconciled receipt references',
+    'Pending receipt references',
+    'Association activity report generated for the authorized tenant context.',
+  ]) {
+    assert.ok(translations.includes(`['${message}'`), `Missing report translation: ${message}`);
+  }
+});
