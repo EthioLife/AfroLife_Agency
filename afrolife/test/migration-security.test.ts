@@ -73,6 +73,62 @@ test('migration runners persist and enforce immutable SQL checksums', () => {
     () => assertMigrationChecksum('001_example.sql', checksum, migrationChecksum('SELECT 2;')),
     /has changed since it was applied/,
   );
+  const legacyName = '114_property_resident_rls_recursion_fix.sql';
+  const legacyStoredChecksum = '99372e3e6d9f8e7eb2717eaa65fdba9cf4c3b2166ad5738c43a6937d40596af5';
+  const legacyCurrentChecksum = migrationChecksum(propertyResidentRlsRecursionFix);
+
+  // Only the exact historical migration name + checksum pair is accepted.
+  assert.doesNotThrow(() =>
+    assertMigrationChecksum(legacyName, legacyStoredChecksum, legacyCurrentChecksum),
+  );
+  assert.throws(
+    () => assertMigrationChecksum(legacyName, legacyStoredChecksum, migrationChecksum('modified migration 114 SQL')),
+    /has changed since it was applied/,
+  );
+
+  // The same historical checksum must not be accepted for another migration.
+  assert.throws(
+    () => assertMigrationChecksum('113_another_migration.sql', legacyStoredChecksum, legacyCurrentChecksum),
+    /has changed since it was applied/,
+  );
+
+  // A different stored checksum for migration 114 must still fail.
+  assert.throws(
+    () => assertMigrationChecksum(legacyName, migrationChecksum('unrecognized historical SQL'), legacyCurrentChecksum),
+    /has changed since it was applied/,
+  );
+
+  // Readiness accepts only the exact historical record.
+  assert.deepEqual(
+    assessMigrationReadiness(
+      [{ name: legacyName, checksum: legacyCurrentChecksum }],
+      [{ name: legacyName, checksum: legacyStoredChecksum }],
+    ),
+    {
+      current: true,
+      applied: 1,
+      expected: 1,
+      checksumMismatches: 0,
+      checksumsUnverified: 0,
+      unexpectedMigrations: 0,
+    },
+  );
+
+  // Ordinary checksum mismatches remain readiness failures.
+  assert.equal(
+    assessMigrationReadiness(
+      [{ name: legacyName, checksum: legacyCurrentChecksum }],
+      [{ name: legacyName, checksum: migrationChecksum('different historical SQL') }],
+    ).checksumMismatches,
+    1,
+  );
+  assert.equal(
+    assessMigrationReadiness(
+      [{ name: legacyName, checksum: migrationChecksum('modified current migration 114 SQL') }],
+      [{ name: legacyName, checksum: legacyStoredChecksum }],
+    ).checksumMismatches,
+    1,
+  );
   const expected = [
     { name: '001_first.sql', checksum: migrationChecksum('SELECT 1;') },
     { name: '002_second.sql', checksum: migrationChecksum('SELECT 2;') },
