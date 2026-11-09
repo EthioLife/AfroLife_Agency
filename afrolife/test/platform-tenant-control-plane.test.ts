@@ -493,10 +493,10 @@ test('offline move-out inspection drafts are encrypted, tenant-scoped, and idemp
   assert.match(migration, /ON lease_move_out_inspections\(lease_id,submitted_by,client_submission_id\)/);
 
   const operations = await readFile(new URL('../src/ops.ts', import.meta.url), 'utf8');
+  assert.match(operations, /client_submission_id: z\.string\(\)\.uuid\(\)\.optional\(\)/);
   const routeStart = operations.indexOf("ops.post('/leases/:id/move-out-inspections'");
   const routeEnd = operations.indexOf("ops.post('/leases/:id/move-out-inspections/:inspectionId/decision'", routeStart);
   const route = operations.slice(routeStart, routeEnd);
-  assert.match(route, /client_submission_id: z\.string\(\)\.uuid\(\)\.optional\(\)/);
   assert.match(route, /WHERE lease_id=\$1 AND submitted_by=\$2 AND client_submission_id=\$3/);
   assert.match(route, /sameSubmission/);
   assert.match(route, /This inspection submission identifier was already used for different data/);
