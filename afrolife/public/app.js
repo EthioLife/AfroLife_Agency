@@ -10,6 +10,7 @@ import { createAdminRoleAccessEditor, createMiniAppAccessEditor } from './mini-a
 import { miniAppByPanel } from './mini-apps/registry.js';
 import { isMiniAppAllowed, isPanelEnabled, panelFromUrl, panelUrl } from './workspace-navigation.js';
 import { MIN_SEARCH_QUERY_LENGTH, searchWorkspaceRecords } from './workspace-search.js';
+import { enqueueMoveOutInspectionDraft, readMoveOutInspectionDrafts, removeMoveOutInspectionDraft } from './offline-inspection-queue.js';
 import { EDIR_APPLICATION_DOCUMENTS, canChangeServer, edirApplicationDocumentPath, missingSignupDocuments, nativeApiOrigin, signupRequiredDocuments } from './registration-flows.js';
 import { agentDashboardMetrics, marketplaceDashboardMetrics, propertyDashboardMetrics, propertyOwnerDashboardMetrics, staffingDashboardMetrics, workforceDashboardMetrics } from './dashboard-metrics.js';
 import { normalizeMySubscriptions, normalizeSubscriptionCatalog, PUBLIC_SUBSCRIPTION_SERVICES, subscriptionRequestPayload } from './subscriptions.js';
@@ -44,7 +45,7 @@ const MINI_APP_PANELS = new Set([
   'insurance', 'privacy', 'global-bi',
 ]);
 const $ = (selector) => document.querySelector(selector);
-const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [] }, propertyAssociationReport: null, rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
+const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [] }, propertyAssociationReport: null, propertyMoveOutInspectionDrafts: [], propertyMoveOutInspectionSyncError: '', rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
 state.propertyTenantSupportGrantId = localStorage.getItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
 state.propertyTenantSupportGrants = [];
 state.propertyOperatingTenants = [];
@@ -1271,7 +1272,7 @@ function signOut({ revoke = true, message = '' } = {}) {
   workspaceSearchSequence += 1;
   loadedPanels.clear();
   Object.assign(state, {
-    leads: [], workers: [], workerDocumentExpiry: [], requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [] }, propertyAssociationReport: null, rentalApplications: [], maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [],
+    leads: [], workers: [], workerDocumentExpiry: [], requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [] }, propertyAssociationReport: null, propertyMoveOutInspectionDrafts: [], propertyMoveOutInspectionSyncError: '', rentalApplications: [], maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [],
     commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], notificationDeliveryStatus: [],
     roleAccess: null, learningContent: [], contracts: [], leases: [], tenants: [], pendingRent: [],
     platformServices: [], platformServicePackages: [], platformTenants: [], platformSuperAdmins: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [],
@@ -1555,6 +1556,7 @@ async function loadWorkspace() {
     renderPanel();
     return;
   }
+  await syncPropertyMoveOutInspectionDrafts();
   renderPanel();
   await refresh();
 }
@@ -3075,6 +3077,43 @@ async function syncWorkerClockQueue() {
       localStorage.setItem(workerClockQueueKey(), JSON.stringify(remaining));
     } catch (error) {
       state.workerClockQueueError = `Clock-event sync stopped to preserve event order: ${error.message}`;
+      break;
+    }
+  }
+}
+
+async function syncPropertyMoveOutInspectionDrafts() {
+  state.propertyMoveOutInspectionSyncError = '';
+  if (!state.user || !globalThis.indexedDB) return;
+  try {
+    state.propertyMoveOutInspectionDrafts = await readMoveOutInspectionDrafts(state.user.id);
+  } catch (error) {
+    state.propertyMoveOutInspectionSyncError = error instanceof Error ? error.message : 'Encrypted inspection drafts could not be read.';
+    return;
+  }
+  if (!state.propertyTenantContextId || !navigator.onLine) return;
+  const pending = state.propertyMoveOutInspectionDrafts.filter((draft) =>
+    draft.tenant_system_id === state.propertyTenantContextId);
+  if (pending.length && !hasActivity('property.tenancy.manage')) {
+    state.propertyMoveOutInspectionSyncError = 'The current role cannot sync queued move-out inspections.';
+    return;
+  }
+  for (const draft of pending) {
+    try {
+      await api(`/leases/${encodeURIComponent(draft.lease_id)}/move-out-inspections`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ...draft.payload,
+          client_submission_id: draft.client_submission_id,
+        }),
+      });
+      await removeMoveOutInspectionDraft(state.user.id, draft.client_submission_id);
+      state.propertyMoveOutInspectionDrafts = state.propertyMoveOutInspectionDrafts
+        .filter((entry) => entry.client_submission_id !== draft.client_submission_id);
+    } catch (error) {
+      state.propertyMoveOutInspectionSyncError = error instanceof Error
+        ? error.message
+        : 'Move-out inspection sync failed.';
       break;
     }
   }
@@ -5549,6 +5588,21 @@ function renderAgents() {
 function renderRent() {
   const wrap = node('div');
   wrap.append(sectionHeading('Rent & deposits', 'Record payments first. A different finance officer reconciles them into the ledger.'));
+  const inspectionDrafts = state.propertyMoveOutInspectionDrafts.filter((draft) =>
+    draft.tenant_system_id === state.propertyTenantContextId);
+  if (state.propertyMoveOutInspectionSyncError) {
+    const error = node('p', undefined, 'alert error');
+    setLocalizedText(error,
+      'Move-out inspection sync stopped; encrypted drafts are preserved on this device: {{error}}',
+      { error: state.propertyMoveOutInspectionSyncError });
+    wrap.append(error);
+  }
+  if (inspectionDrafts.length) {
+    wrap.append(
+      node('p', t('Saved move-out inspection drafts: {{count}}. They are encrypted on this device and sync when online. Evidence files must be uploaded separately.', { count: inspectionDrafts.length }), 'muted'),
+      button('Retry move-out inspection sync', 'move-out-inspection-sync', 'button button-outline'),
+    );
+  }
   const maintenanceFinanceQueue = renderMaintenanceFinanceQueue();
   if (maintenanceFinanceQueue) wrap.append(maintenanceFinanceQueue);
   if (['global_admin','super_admin','finance','finance_manager'].includes(state.user.role)) {
@@ -8847,6 +8901,8 @@ document.addEventListener('change', (event) => {
     const [tenantSystemId, supportGrantId] = propertyTenantSelect.value.split(':');
     state.propertyTenantContextId = tenantSystemId || null;
     state.propertyAssociationReport = null;
+    state.propertyMoveOutInspectionDrafts = [];
+    state.propertyMoveOutInspectionSyncError = '';
     state.propertyTenantSupportGrantId = supportGrantId || null;
     if (state.propertyTenantContextId) localStorage.setItem(PROPERTY_TENANT_KEY, state.propertyTenantContextId);
     else localStorage.removeItem(PROPERTY_TENANT_KEY);
@@ -8856,11 +8912,11 @@ document.addEventListener('change', (event) => {
       localStorage.removeItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
     }
     loadedPanels.clear();
-    if (state.panel === 'properties' || state.panel === 'rent') {
-      refresh().catch((error) => showAlert(error.message, true));
-    } else {
-      showAlert('Property tenant context updated.');
-    }
+    void (async () => {
+      await syncPropertyMoveOutInspectionDrafts();
+      if (state.panel === 'properties' || state.panel === 'rent') await refresh();
+      else showAlert('Property tenant context updated.');
+    })().catch((error) => showAlert(error.message, true));
     return;
   }
   const contextSelect = event.target.closest('select[data-platform-tenant-context]');
@@ -8910,9 +8966,10 @@ $('#assistant-dialog').addEventListener('close', () => {
 });
 
 window.addEventListener('online', () => {
-  if (state.user?.role !== 'worker') return;
+  if (!state.user) return;
   void (async () => {
-    await syncWorkerClockQueue();
+    if (state.user.role === 'worker') await syncWorkerClockQueue();
+    await syncPropertyMoveOutInspectionDrafts();
     await refresh();
   })().catch((error) => showAlert(error.message, true));
 });
@@ -9841,6 +9898,21 @@ document.addEventListener('click', async (event) => {
       .catch((error) => showAlert(error.message, true));
     return;
   }
+  if (name === 'move-out-inspection-sync') {
+    try {
+      await syncPropertyMoveOutInspectionDrafts();
+      await refresh();
+      showAlert(state.propertyMoveOutInspectionSyncError
+        ? 'Move-out inspection sync stopped; encrypted drafts are preserved on this device: {{error}}'
+        : 'Queued move-out inspection drafts were synchronized.',
+      Boolean(state.propertyMoveOutInspectionSyncError), {
+        error: state.propertyMoveOutInspectionSyncError,
+      });
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
   if (name === 'move-out-submit') {
     const actualVacatedOn = window.prompt(t('Enter the actual move-out date (YYYY-MM-DD).'), new Date().toISOString().slice(0, 10));
     if (!actualVacatedOn) return;
@@ -9857,19 +9929,36 @@ document.addEventListener('click', async (event) => {
       : undefined;
     if (Number(deduction) > 0 && (!deductionReason || deductionReason.trim().length < 10)) return;
     try {
-      await api(`/leases/${encodeURIComponent(id)}/move-out-inspections`, {
-        method: 'POST',
-        body: JSON.stringify({
+      if (!state.propertyTenantContextId) throw new Error('Select an active property tenant before submitting an inspection.');
+      const payload = {
           actual_vacated_on: actualVacatedOn,
           inspected_on: inspectedOn,
           condition_notes: conditionNotes.trim(),
           keys_returned: keysReturned.trim().toLowerCase() === 'yes',
           deposit_deduction: deduction.trim(),
           ...(deductionReason ? { deduction_reason: deductionReason.trim() } : {}),
-        }),
-      });
+      };
+      const draft = {
+        tenant_system_id: state.propertyTenantContextId,
+        lease_id: id,
+        client_submission_id: crypto.randomUUID(),
+        enqueued_at: new Date().toISOString(),
+        payload,
+      };
+      state.propertyMoveOutInspectionDrafts = await enqueueMoveOutInspectionDraft(state.user.id, draft);
+      await syncPropertyMoveOutInspectionDrafts();
       await refresh();
-      showAlert('Move-out inspection submitted for independent review. The lease remains active until reviewed closeout.');
+      if (state.propertyMoveOutInspectionSyncError) {
+        showAlert(
+          'Move-out inspection sync stopped; encrypted drafts are preserved on this device: {{error}}',
+          true,
+          { error: state.propertyMoveOutInspectionSyncError },
+        );
+      } else if (state.propertyMoveOutInspectionDrafts.some((entry) => entry.client_submission_id === draft.client_submission_id)) {
+        showAlert('Move-out inspection draft saved securely on this device; it will sync when online. Evidence files are not included.');
+      } else {
+        showAlert('Move-out inspection submitted for independent review. The lease remains active until reviewed closeout.');
+      }
     } catch (error) { showAlert(error.message, true); }
     return;
   }

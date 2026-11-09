@@ -1538,6 +1538,7 @@ const LeaseIn = z.object({
 const LifecycleReason = z.string().trim().min(10).max(1000);
 
 const LeaseMoveOutInspectionIn = z.object({
+  client_submission_id: z.string().uuid().optional(),
   actual_vacated_on: z.string().date(),
   inspected_on: z.string().date(),
   condition_notes: z.string().trim().min(10).max(4000),
@@ -2340,13 +2341,32 @@ ops.post('/leases/:id/move-out-inspections', requireActivity('property.tenancy.m
   if (leaseMoneyToCents(deduction) > 0n && !body.deduction_reason) {
     throw new HttpError(422, 'A reason is required for proposed deposit deductions.');
   }
-  const inspection = await withUser(req.user!, async (c) => {
+  const result = await withUser(req.user!, async (c) => {
     const lease = (await c.query(
       `SELECT id,status,start_date,current_date::text AS today
        FROM leases WHERE id=$1 FOR UPDATE`,
       [req.params.id],
     )).rows[0];
     if (!lease) throw new HttpError(404, 'Lease not found');
+    if (body.client_submission_id) {
+      const prior = (await c.query(
+        `SELECT * FROM lease_move_out_inspections
+         WHERE lease_id=$1 AND submitted_by=$2 AND client_submission_id=$3`,
+        [lease.id, req.user!.id, body.client_submission_id],
+      )).rows[0];
+      if (prior) {
+        const sameSubmission = String(prior.actual_vacated_on).slice(0, 10) === body.actual_vacated_on
+          && String(prior.inspected_on).slice(0, 10) === body.inspected_on
+          && prior.condition_notes === body.condition_notes
+          && prior.keys_returned === body.keys_returned
+          && leaseMoneyToCents(String(prior.deposit_deduction)) === leaseMoneyToCents(deduction)
+          && (prior.deduction_reason ?? null) === (body.deduction_reason ?? null);
+        if (!sameSubmission) {
+          throw new HttpError(409, 'This inspection submission identifier was already used for different data.');
+        }
+        return { inspection: prior, duplicate: true };
+      }
+    }
     if (lease.status !== 'active') throw new HttpError(409, 'Only an active lease can receive a move-out inspection');
     if (body.actual_vacated_on < String(lease.start_date).slice(0, 10)
       || body.actual_vacated_on > lease.today
@@ -2368,10 +2388,11 @@ ops.post('/leases/:id/move-out-inspections', requireActivity('property.tenancy.m
     const row = (await c.query(
       `INSERT INTO lease_move_out_inspections(
          lease_id,revision,actual_vacated_on,inspected_on,condition_notes,keys_returned,
-         deposit_deduction,deduction_reason,submitted_by
-       ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+         deposit_deduction,deduction_reason,submitted_by,client_submission_id
+       ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
       [lease.id, (latest?.revision ?? 0) + 1, body.actual_vacated_on, body.inspected_on,
-        body.condition_notes, body.keys_returned, deduction, body.deduction_reason ?? null, req.user!.id],
+         body.condition_notes, body.keys_returned, deduction, body.deduction_reason ?? null,
+         req.user!.id, body.client_submission_id ?? null],
     )).rows[0];
     await c.query(
       `INSERT INTO lease_move_out_inspection_events(inspection_id,actor_id,event_type,reason)
@@ -2379,12 +2400,13 @@ ops.post('/leases/:id/move-out-inspections', requireActivity('property.tenancy.m
       [row.id, req.user!.id, body.condition_notes.slice(0, 1000)],
     );
     await audit(c, req.user!.id, 'lease_move_out_inspection_submitted', 'lease', lease.id, null, {
-      inspection_id: row.id, revision: row.revision, actual_vacated_on: body.actual_vacated_on,
+      inspection_id: row.id, revision: row.revision, client_submission_id: body.client_submission_id ?? null,
+      actual_vacated_on: body.actual_vacated_on,
       deposit_deduction: deduction,
     });
-    return row;
+    return { inspection: row, duplicate: false };
   });
-  res.status(201).json(inspection);
+  res.status(result.duplicate ? 200 : 201).json(result.inspection);
 }));
 
 ops.post('/leases/:id/move-out-inspections/:inspectionId/decision',

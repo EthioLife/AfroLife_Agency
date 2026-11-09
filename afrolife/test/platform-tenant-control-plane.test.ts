@@ -482,3 +482,37 @@ test('association activity reports are bounded, tenant-authorized, audited, and 
     assert.ok(translations.includes(`['${message}'`), `Missing report translation: ${message}`);
   }
 });
+
+test('offline move-out inspection drafts are encrypted, tenant-scoped, and idempotent on sync', async () => {
+  const migration = await readFile(
+    new URL('../migrations/134_property_move_out_inspection_idempotency.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(migration, /ADD COLUMN client_submission_id uuid/);
+  assert.match(migration, /UNIQUE INDEX lease_move_out_inspection_client_submission_idx/);
+  assert.match(migration, /ON lease_move_out_inspections\(lease_id,submitted_by,client_submission_id\)/);
+
+  const operations = await readFile(new URL('../src/ops.ts', import.meta.url), 'utf8');
+  const routeStart = operations.indexOf("ops.post('/leases/:id/move-out-inspections'");
+  const routeEnd = operations.indexOf("ops.post('/leases/:id/move-out-inspections/:inspectionId/decision'", routeStart);
+  const route = operations.slice(routeStart, routeEnd);
+  assert.match(route, /client_submission_id: z\.string\(\)\.uuid\(\)\.optional\(\)/);
+  assert.match(route, /WHERE lease_id=\$1 AND submitted_by=\$2 AND client_submission_id=\$3/);
+  assert.match(route, /sameSubmission/);
+  assert.match(route, /This inspection submission identifier was already used for different data/);
+  assert.match(route, /result\.duplicate \? 200 : 201/);
+
+  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.match(app, /enqueueMoveOutInspectionDraft/);
+  assert.match(app, /syncPropertyMoveOutInspectionDrafts/);
+  assert.match(app, /draft\.tenant_system_id === state\.propertyTenantContextId/);
+  assert.match(app, /client_submission_id: draft\.client_submission_id/);
+  assert.match(app, /removeMoveOutInspectionDraft/);
+  assert.match(app, /Evidence files must be uploaded separately/);
+
+  const queue = await readFile(new URL('../public/offline-inspection-queue.js', import.meta.url), 'utf8');
+  assert.match(queue, /AES-GCM/);
+  assert.match(queue, /indexedDB\.open/);
+  assert.match(queue, /additionalData: new TextEncoder\(\)\.encode\(userId\)/);
+  assert.doesNotMatch(queue, /localStorage/);
+});
