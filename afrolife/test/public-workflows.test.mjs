@@ -354,28 +354,19 @@ test('agent signup accepts typed territory names and offers seeded Ethiopian reg
   }
 });
 
-test('AfroLife sign-in uses the campaign logo and welcome artwork', () => {
+test('AfroSherik sign-in uses the brand lockup and campaign artwork', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
-  const logo = readFileSync(new URL('../public/icon.svg', import.meta.url), 'utf8');
-  const hero = readFileSync(new URL('../public/brand/afrolife-campaign-hero.png', import.meta.url));
+  const lockup = readFileSync(new URL('../public/brand/afrosherik-brand-lockup.png', import.meta.url));
+  const hero = readFileSync(new URL('../public/brand/afrosherik-campaign-hero.png', import.meta.url));
   const pngDimensions = (image) => {
     assert.equal(image.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
     return [image.readUInt32BE(16), image.readUInt32BE(20)];
   };
-  assert.match(html, /<a class="brand" href="\/"[^>]*>\s*<img src="\/brand\/afrolife-brand-lockup\.svg" alt="" width="312" height="120">\s*<\/a>/);
-  assert.match(html, /<img src="\/brand\/afrolife-campaign-hero\.png" alt="A woman in Addis Ababa beside the campaign message: More Opportunities\. Stronger Communities\." width="488" height="232">/);
-  assert.match(logo, /<title[^>]*>AfroLife mark/);
-  assert.doesNotMatch(logo, /<rect\b[^>]*fill="#0B2D4A"/i);
-  const lockup = readFileSync(new URL('../public/brand/afrolife-brand-lockup.svg', import.meta.url), 'utf8');
-  assert.match(lockup, /viewBox="0 0 312 120"/);
-  assert.match(lockup, /#0B2D4A/);
-  assert.match(lockup, /ማህበረሰብ \+ አገልግሎት \+ እድል/);
-  assert.match(lockup, /font-size="17"/);
-  assert.doesNotMatch(lockup, /<rect\b/i);
-  assert.doesNotMatch(lockup, /አደል/);
-  assert.deepEqual(pngDimensions(hero), [488, 232]);
-  assert.equal(existsSync(new URL('../public/brand/afrolife-woven-knot.svg', import.meta.url)), false);
+  assert.match(html, /<a class="brand" href="\/"[^>]*>\s*<img src="\/brand\/afrosherik-brand-lockup\.png" alt="AfroSherik — Connect · Access · Thrive" width="490" height="152">\s*<\/a>/);
+  assert.match(html, /<img src="\/brand\/afrosherik-campaign-hero\.png" alt="AfroSherik campaign artwork showing a woman with a phone and the Addis Ababa skyline beside the message: More Opportunities\. Stronger Communities\." width="427" height="204">/);
+  assert.deepEqual(pngDimensions(lockup), [490, 152]);
+  assert.deepEqual(pngDimensions(hero), [427, 204]);
   assert.match(styles, /\.brand img\s*\{[^}]*width:\s*312px;[^}]*height:\s*120px;[^}]*object-fit:\s*contain/s);
   assert.match(styles, /@media \(max-width: 650px\) \{\s*\.topbar\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;[\s\S]*?\.brand img\s*\{[^}]*width:\s*min\(312px,\s*100%\);[^}]*height:\s*auto;/);
   assert.match(styles, /@media \(max-width: 920px\) and \(min-width: 651px\) \{\s*\.topbar\s*\{[^}]*grid-template-areas:\s*"brand language" "install account";/);
@@ -400,23 +391,18 @@ test('mobile sign-in places the campaign welcome before sign-in and signup forms
   assert.ok(loginView.indexOf('id="signup-form"') < loginView.indexOf('id="server-setup-home"'));
 });
 
-test('AfroLife icon is a textless brand mark with matching PWA icons and mini-app tokens', () => {
+test('AfroSherik PWA icons match the public brand shell', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
-  const icon = readFileSync(new URL('../public/icon.svg', import.meta.url), 'utf8');
   const manifest = JSON.parse(readFileSync(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
-  assert.match(icon, /viewBox="0 0 256 256"/);
-  assert.doesNotMatch(icon, /<text\b/i);
-  for (const color of ['#0066FF', '#00B85A', '#FFB000']) assert.ok(icon.includes(color));
-  assert.doesNotMatch(icon, /<rect\b/i, 'the app mark must not include a background rectangle');
-  assert.match(html, /<link rel="icon" href="\/icon\.svg\?v=5" type="image\/svg\+xml">/);
-  assert.match(html, /<link rel="apple-touch-icon" href="\/icons\/afrolife-icon-192\.png">/);
+  assert.match(html, /<link rel="icon" href="\/icons\/afrosherik-icon-192\.png" type="image\/png" sizes="192x192">/);
+  assert.match(html, /<link rel="apple-touch-icon" href="\/icons\/afrosherik-icon-192\.png">/);
   assert.match(html, new RegExp(`<meta name="theme-color" content="${manifest.theme_color}">`));
   assert.equal(manifest.theme_color, '#174b3d');
   assert.deepEqual(manifest.icons.slice(0, 3).map(({ src, sizes }) => [src, sizes]), [
-    ['/icons/afrolife-icon-192.png', '192x192'],
-    ['/icons/afrolife-icon-256.png', '256x256'],
-    ['/icons/afrolife-icon-512.png', '512x512'],
+    ['/icons/afrosherik-icon-192.png', '192x192'],
+    ['/icons/afrosherik-icon-256.png', '256x256'],
+    ['/icons/afrosherik-icon-512.png', '512x512'],
   ]);
   assert.match(styles, /--platform-blue:\s*#0066ff/i);
   assert.match(styles, /--brand-green:\s*#174b3d/i);
@@ -430,10 +416,10 @@ test('public hub integrates the campaign artwork with the existing public action
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
   const serviceWorker = readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8');
-  assert.match(html, /<section id="public-hub"[\s\S]*?<div class="hub-heading">[\s\S]*?<p class="eyebrow">PEOPLE · SERVICES · OPPORTUNITY<\/p>[\s\S]*?<h2>Services for work, homes, business, and community\.<\/h2>[\s\S]*?<figure class="hub-campaign">[\s\S]*?<div class="hub-service-network" role="img" aria-label="Work, homes, business, and community services connected through AfroLife">/);
+  assert.match(html, /<section id="public-hub"[\s\S]*?<div class="hub-heading">[\s\S]*?<p class="eyebrow">CONNECT · ACCESS · THRIVE<\/p>[\s\S]*?<h2>Services for work, homes, business, and community\.<\/h2>[\s\S]*?<figure class="hub-campaign">[\s\S]*?<div class="hub-service-network" role="img" aria-label="Work, homes, business, and community services connected through AfroSherik">/);
   assert.match(html, /<a class="button button-primary" href="#login-form">Sign in<\/a>/);
   assert.match(html, /<button id="public-create-account" class="button button-outline" type="button">Create account<\/button>/);
-  assert.match(html, /<button class="button button-outline" type="button" data-install-pwa>Install AfroLife<\/button>/);
+  assert.match(html, /<button class="button button-outline" type="button" data-install-pwa>Install AfroSherik<\/button>/);
   assert.match(html, /class="hub-network-node hub-network-node--work"[^>]*>Work<\/span>/);
   assert.match(html, /class="hub-network-node hub-network-node--homes"[^>]*>Homes<\/span>/);
   assert.match(html, /class="hub-network-node hub-network-node--business"[^>]*>Business<\/span>/);
@@ -446,11 +432,11 @@ test('public hub integrates the campaign artwork with the existing public action
   assert.match(styles, /@media \(max-width: 700px\) \{[\s\S]*?\.hub-service-network \{ min-height: 220px; \}/);
   assert.match(styles, /\.hub-heading \{ grid-template-columns: minmax\(0, 1fr\); gap:/);
   assert.match(styles, /#public-hub \.service-card\[data-panel\] \.service-icon\s*\{[^}]*background:\s*var\(--mini-app-tint\);[^}]*color:\s*var\(--mini-app-ink/s);
-  assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v34'/);
+  assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v43'/);
   assert.match(serviceWorker, /'\/tenant-data-admin\.js'/);
   for (const asset of [
-    '/icons/afrolife-icon-192.png', '/icons/afrolife-icon-256.png', '/icons/afrolife-icon-512.png',
-    '/brand/afrolife-brand-lockup.svg', '/brand/afrolife-campaign-hero.png',
+    '/icons/afrosherik-icon-192.png', '/icons/afrosherik-icon-256.png', '/icons/afrosherik-icon-512.png',
+    '/brand/afrosherik-brand-lockup.png', '/brand/afrosherik-campaign-hero.png',
   ]) assert.ok(serviceWorker.includes(`'${asset}'`), `service worker should cache ${asset}`);
 });
 
@@ -468,7 +454,7 @@ test('public landing page does not repeat raster artwork across visible image el
   const repeatedSources = [...new Set(imageSources.filter((source, index) => imageSources.indexOf(source) !== index))];
 
   assert.deepEqual(repeatedSources, []);
-  assert.equal(imageSources.filter((source) => source === '/brand/afrolife-campaign-hero.png').length, 1);
+  assert.equal(imageSources.filter((source) => source === '/brand/afrosherik-campaign-hero.png').length, 1);
 });
 
 test('public subscription catalog includes the nine approved ETB 1,000 services', () => {

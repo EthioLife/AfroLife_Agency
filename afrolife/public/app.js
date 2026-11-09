@@ -131,7 +131,7 @@ function assistantButton(message, action, id) {
 
 function renderAssistant() {
   const assistant = state.assistant;
-  setLocalizedText($('#assistant-intro'), 'Your access and support options follow your AfroLife role.');
+  setLocalizedText($('#assistant-intro'), 'Your access and support options follow your AfroSherik role.');
   setLocalizedText($('#assistant-disclosure'), 'Your support request is private to you and the support agent who claims it. Do not send passwords, payment card details, or authentication codes.');
   setLocalizedText($('#assistant-availability-status'), 'Online support agents: {{count}}', { count: assistant.onlineCount });
   const presenceButton = $('#assistant-presence-toggle');
@@ -200,7 +200,7 @@ function renderAssistant() {
     item.dataset.sender = message.sender_type;
     const sender = message.sender_type === 'user'
       ? (message.sender_id === state.user.id ? 'You' : roleLabel(message.sender_role))
-      : 'AfroLife support';
+      : 'AfroSherik support';
     item.append(node('small', sender));
     const body = document.createElement('p');
     body.textContent = message.body;
@@ -380,7 +380,7 @@ async function loadPublicIndustryNews() {
       setIndustryNewsStatus('Feeds updated', 'ready');
     }
   } catch (error) {
-    console.warn('AfroLife industry news could not be loaded.', error);
+    console.warn('AfroSherik industry news could not be loaded.', error);
     fallback.hidden = false;
     $('#industry-news-fallback-message').textContent = 'Live headlines are temporarily unavailable. Search current coverage from Google News:';
     results.replaceChildren();
@@ -644,7 +644,7 @@ function updatePlanLabels() {
     $('#signup-plan option[value="enterprise"]').textContent = t('Enterprise plan — ETB {{amount}} per month', { amount: plans.agent_enterprise_monthly_etb });
   }
   const descriptions = {
-    free: ['Free service', 'Core AfroLife tools for your role, including lead, worker, request, contract and listing workflows.'],
+    free: ['Free service', 'Core AfroSherik tools for your role, including lead, worker, request, contract and listing workflows.'],
     pro: ['Pro service', 'Pro is a plan request only. Future paid features require billing and activation.'],
     enterprise: ['Enterprise service', 'Enterprise is a plan request only. Team reporting is not active until billing and activation are configured.'],
   };
@@ -844,7 +844,7 @@ async function submitSignup(event) {
     if (!form.dataset.signupCreated) {
       const signup = await api('/auth/signup', { method: 'POST', body: JSON.stringify(payload) });
       uploadToken = signup.upload_token;
-      if (!uploadToken) throw new Error(t('Registration succeeded but a secure document-upload token was not issued. Contact AfroLife support.'));
+      if (!uploadToken) throw new Error(t('Registration succeeded but a secure document-upload token was not issued. Contact AfroSherik support.'));
       sessionStorage.setItem(SIGNUP_UPLOAD_KEY, uploadToken);
       sessionStorage.setItem(SIGNUP_DOCUMENTS_KEY, JSON.stringify({
         accountType,
@@ -963,7 +963,7 @@ async function submitEdirRegistration(event) {
       });
       const applicationId = result?.application_id ?? result?.id;
       if (!applicationId || !result?.upload_token) {
-        throw new Error(t('The application response did not include the secure upload details. Contact AfroLife support before submitting again.'));
+        throw new Error(t('The application response did not include the secure upload details. Contact AfroSherik support before submitting again.'));
       }
       progress = {
         applicationId: String(applicationId),
@@ -1003,7 +1003,7 @@ async function submitEdirRegistration(event) {
     form.reset();
     syncEdirRegistrationRequirements(null);
     setLocalizedText($('#edir-registration-success'),
-      'Application received. AfroLife Master Edir will review it before an organization workspace is activated. Reference: {{id}}',
+      'Application received. AfroSherik Master Edir will review it before an organization workspace is activated. Reference: {{id}}',
       { id: progress.applicationId });
     $('#edir-registration-success').hidden = false;
   } catch (reason) {
@@ -1095,7 +1095,7 @@ function startSessionActivity(idleTimeoutMinutes) {
     if (sessionStorage.getItem(TOKEN_KEY) && Date.now() - lastSessionActivityAt < 60_000) {
       api('/auth/session').catch((error) => {
         if (!(error instanceof ApiError && error.status === 401)) {
-          console.error('The active AfroLife session could not be refreshed.', error);
+          console.error('The active AfroSherik session could not be refreshed.', error);
         }
       });
     }
@@ -1112,11 +1112,11 @@ function signOut({ revoke = true, message = '' } = {}) {
       headers.set('authorization', ['Bearer', token].join(' '));
       void fetch(endpoint, { method: 'POST', headers })
         .then((response) => {
-          if (!response.ok && response.status !== 401) console.warn('AfroLife could not revoke the signed-out server session.', response.status);
+          if (!response.ok && response.status !== 401) console.warn('AfroSherik could not revoke the signed-out server session.', response.status);
         })
-        .catch((error) => console.warn('AfroLife could not reach the server to revoke the signed-out session.', error));
+        .catch((error) => console.warn('AfroSherik could not reach the server to revoke the signed-out session.', error));
     } catch (error) {
-      console.warn('AfroLife could not resolve the server to revoke the signed-out session.', error);
+      console.warn('AfroSherik could not resolve the server to revoke the signed-out session.', error);
     }
   }
   stopSessionActivity();
@@ -1949,7 +1949,7 @@ function renderOverview() {
     const offer = node('section', undefined, 'panel form-card edir-offer');
     offer.append(node('p', 'ETHIOLIFE EDIR · MEMBERSHIP OFFER', 'eyebrow'));
     offer.append(node('h2', 'Explore Edir membership and available benefits'));
-    offer.append(node('p', 'Open to verified AfroLife users across worker, employer, landlord, tenant, seller, and buyer services. Review active community, savings, share, and contribution options before requesting membership. Lending, insurance, and benefit payouts are not live in this pilot.'));
+    offer.append(node('p', 'Open to verified AfroSherik users across worker, employer, landlord, tenant, seller, and buyer services. Review active community, savings, share, and contribution options before requesting membership. Lending, insurance, and benefit payouts are not live in this pilot.'));
     const action = button('View Edir offer', 'open-edir-offer', 'button button-primary');
     action.addEventListener('click', () => navigateToPanel('edir'));
     offer.append(action);
@@ -2117,7 +2117,7 @@ function decoratePublicServiceLogos() {
     ['Homes & rentals', miniAppLogo('properties')],
     ['Marketplace', miniAppLogo('marketplace')],
     ['Workforce', miniAppLogo('workers')],
-    ['AfroLife Edir', miniAppLogo('edir')],
+    ['AfroSherik Edir', miniAppLogo('edir')],
     ['SACCO / MFI', miniAppLogo('mfi')],
     ['Agent services', '/icon.svg'],
     ['Accounting & Finance', miniAppLogo('accounting')],
@@ -2126,7 +2126,7 @@ function decoratePublicServiceLogos() {
     ['Homes & rentals', 'properties'],
     ['Marketplace', 'marketplace'],
     ['Workforce', 'workers'],
-    ['AfroLife Edir', 'edir'],
+    ['AfroSherik Edir', 'edir'],
     ['SACCO / MFI', 'mfi'],
     ['Agent services', 'agents'],
     ['Accounting & Finance', 'accounting'],
@@ -2899,7 +2899,7 @@ function renderWorkerPortal() {
   wrap.append(leave);
 
   const payroll = node('section', undefined, 'panel');
-  payroll.append(sectionHeading('Payroll handoff status', 'These statuses show whether AfroLife generated an export or recorded an external handoff. They are not payslips and do not confirm payment.'));
+  payroll.append(sectionHeading('Payroll handoff status', 'These statuses show whether AfroSherik generated an export or recorded an external handoff. They are not payslips and do not confirm payment.'));
   const payrollList = node('div', undefined, 'list');
   if (!state.workerPortalPayrollExports.length) payrollList.append(empty('No payroll handoff records are available for your approved time yet.'));
   for (const record of state.workerPortalPayrollExports) {
@@ -2991,7 +2991,7 @@ function renderWorkerPortal() {
   wrap.append(payments);
 
   const support = node('section', undefined, 'panel');
-  support.append(sectionHeading('AfroLife worker support', 'Ask for help with an assignment, contract terms, work reports or pay, safety, or another work-related concern.'));
+  support.append(sectionHeading('AfroSherik worker support', 'Ask for help with an assignment, contract terms, work reports or pay, safety, or another work-related concern.'));
   const supportForm = node('form', undefined, 'panel form-card inline-form');
   supportForm.dataset.form = 'worker-support';
   const category = field('Support topic', 'category', 'select');
@@ -3016,7 +3016,7 @@ function renderWorkerPortal() {
   const ticketList = node('div', undefined, 'list');
   if (!state.workerSupportRequests.length) ticketList.append(empty('Your support requests and replies will appear here.'));
   for (const request of state.workerSupportRequests) {
-    const item = card(request.subject, `${request.category.replaceAll('_', ' ')} · ${request.description}${request.response ? ` · AfroLife response: ${request.response}` : ''}`, request.status);
+    const item = card(request.subject, `${request.category.replaceAll('_', ' ')} · ${request.description}${request.response ? ` · AfroSherik response: ${request.response}` : ''}`, request.status);
     ticketList.append(item);
   }
   support.append(ticketList);
@@ -3646,7 +3646,7 @@ function renderResidentPropertyPortal() {
   const section = node('section', undefined, 'panel');
   section.append(
     sectionHeading('Resident self-service', 'View your linked lease, recorded charges and receipts, supporting documents, notices, and maintenance requests.'),
-    node('p', 'AfroLife displays recorded operational information only. Payment records do not confirm that funds were paid to a landlord; tenant notices are not legal service or termination.', 'muted'),
+    node('p', 'AfroSherik displays recorded operational information only. Payment records do not confirm that funds were paid to a landlord; tenant notices are not legal service or termination.', 'muted'),
   );
   if (!workspace.leases.length) {
     section.append(empty('No lease is linked to this account. Ask the property manager to issue a one-time access code, then claim it here.'));
@@ -3868,7 +3868,7 @@ function renderProperties() {
   if (canManage && state.rentalApplications.length) {
     const applications = node('section', undefined, 'panel');
     applications.append(node('h3', 'Rental application review'),
-      node('p', 'Review applications manually. AfroLife does not run automated tenant screening. Rejections and requests for information require a reason.', 'muted'));
+      node('p', 'Review applications manually. AfroSherik does not run automated tenant screening. Rejections and requests for information require a reason.', 'muted'));
     for (const application of state.rentalApplications) {
       const item = card(`${application.address}${application.unit_no ? ` · ${application.unit_no}` : ''}`,
         `${application.applicant_name} · ${new Date(application.created_at).toLocaleDateString()}`,
@@ -3914,7 +3914,7 @@ function renderProperties() {
     }
     form.append(territory.label);
     if(['global_admin','super_admin','corporate_business_manager'].includes(state.user.role)){
-      const seller=field('Seller / agent represented','owner_user_id','select',false);const none=node('option','AfroLife managed listing');none.value='';seller.input.append(none);for(const user of state.marketplaceSellers){const option=node('option',`${user.legal_name} · ${roleLabel(user.role)}`);option.value=user.id;seller.input.append(option);}form.append(seller.label);
+      const seller=field('Seller / agent represented','owner_user_id','select',false);const none=node('option','AfroSherik managed listing');none.value='';seller.input.append(none);for(const user of state.marketplaceSellers){const option=node('option',`${user.legal_name} · ${roleLabel(user.role)}`);option.value=user.id;seller.input.append(option);}form.append(seller.label);
     }
     form.append(field('Description','description','textarea',false,{maxlength:5000,rows:3}).label);
     const listingMode=field('Listing transaction','listing_mode','select');for(const [value,label] of [['sale','For sale'],['rent','For rent'],['sale_or_rent','Sale or rent']]){const option=node('option',label);option.value=value;listingMode.input.append(option);}form.append(listingMode.label);
@@ -4364,12 +4364,12 @@ function renderInsurance() {
   consentInput.type = 'checkbox';
   consentInput.name = 'consent';
   consentInput.required = true;
-  consent.append(consentInput, node('span', 'I consent to AfroLife forwarding this information request to the Insurance service team. This is not an application, policy, quote, or coverage confirmation.'));
+  consent.append(consentInput, node('span', 'I consent to AfroSherik forwarding this information request to the Insurance service team. This is not an application, policy, quote, or coverage confirmation.'));
   const agentConsent = node('label', undefined, 'benefit-check span-2');
   const agentConsentInput = document.createElement('input');
   agentConsentInput.type = 'checkbox';
   agentConsentInput.name = 'agent_referral_consent';
-  agentConsent.append(agentConsentInput, node('span', 'Optional: I consent to sharing my name, phone number, and selected topic with one assigned AfroLife Agent for non-binding follow-up and referral to the Insurance service team. The Agent cannot advise, quote, collect premiums, or issue or change a policy.'));
+  agentConsent.append(agentConsentInput, node('span', 'Optional: I consent to sharing my name, phone number, and selected topic with one assigned AfroSherik Agent for non-binding follow-up and referral to the Insurance service team. The Agent cannot advise, quote, collect premiums, or issue or change a policy.'));
   requestForm.append(consent, agentConsent, button('Submit information request', 'submit', 'button button-primary span-2'));
   wrap.append(notice, requestForm);
   const myRequests = node('section', undefined, 'panel form-card');
@@ -5522,7 +5522,7 @@ function renderAdmin() {
   if (isNativeApp && canChangeServer(state.user.role)) {
     const serverTools = node('section', undefined, 'panel form-card admin-server-tools');
     serverTools.append(node('h3', 'Connection settings'));
-    serverTools.append(node('p', 'Change the configured AfroLife server for this device. This affects only this app installation.'));
+    serverTools.append(node('p', 'Change the configured AfroSherik server for this device. This affects only this app installation.'));
     const changeButton = button('Change server', 'change-server', 'button button-outline');
     changeButton.id = 'change-server';
     changeButton.addEventListener('click', () => {
@@ -5647,7 +5647,7 @@ function renderAdmin() {
       : `${user.phone} · ${roleLabel(user.role)}`;
     const requestedBenefits = [
       user.pension_match_interest && 'Pension match requested',
-      user.edir_member_interest && 'AfroLife Edir requested',
+      user.edir_member_interest && 'AfroSherik Edir requested',
       user.edir_life_interest && 'Life cover requested',
       user.household_cover_interest && 'Household cover requested',
     ].filter(Boolean).join(' · ');
@@ -6001,7 +6001,7 @@ function renderPanel() {
     accounting: 'Accounting & Finance',
     'global-bi': 'Global BI',
     'tenant-data-admin': 'Tenant data administration',
-    edir: 'AfroLife Edir workspace',
+    edir: 'AfroSherik Edir workspace',
     insurance: 'Insurance information',
     marketplace: 'Marketplace',
     leads: 'Leads',
@@ -6270,7 +6270,7 @@ async function submitForm(form) {
     }) });
     form.reset();
     await refresh();
-    showAlert('Your support request was sent to AfroLife.');
+    showAlert('Your support request was sent to AfroSherik.');
     return;
   }
   if (form.dataset.form === 'support-case-create') {
@@ -7443,7 +7443,7 @@ document.addEventListener('click', async (event) => {
         method: 'POST', body: '{}',
       });
       window.prompt(
-        'Deliver this one-time resident access code only through a separately verified contact channel. AfroLife does not send the code.',
+        'Deliver this one-time resident access code only through a separately verified contact channel. AfroSherik does not send the code.',
         invitation.claim_code,
       );
       await refresh();
@@ -8779,7 +8779,7 @@ $('#retry-session').addEventListener('click', async () => {
   try {
     await loadWorkspace();
   } catch (error) {
-    console.error('AfroLife could not restore the saved session.', error);
+    console.error('AfroSherik could not restore the saved session.', error);
     if (state.user && !$('#app-view').hidden) {
       showAlert('Your session is still active, but some workspace data could not be loaded. Check the connection and reload the workspace.', true);
       return;
@@ -8869,12 +8869,12 @@ if (!isNativeApp || localStorage.getItem(API_URL_KEY)) void loadPublicSubscripti
 
 if (!isNativeApp && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch((error) => {
-    console.error('AfroLife offline support could not be enabled.', error);
+    console.error('AfroSherik offline support could not be enabled.', error);
   }));
 }
 if (sessionStorage.getItem(TOKEN_KEY)) {
   loadWorkspace().catch((error) => {
-    console.error('AfroLife could not restore the saved session.', error);
+    console.error('AfroSherik could not restore the saved session.', error);
     if (sessionStorage.getItem(TOKEN_KEY)) {
       if (state.user && !$('#app-view').hidden) {
         showAlert('Your session is still active, but some workspace data could not be loaded. Check the connection and reload the workspace.', true);

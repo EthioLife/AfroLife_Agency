@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 312 120" role="img" aria-labelledby="title desc">
-  <title id="title">AfroLife</title>
-  <desc id="desc">AfroLife. People, services, and opportunity. ማህበረሰብ + አገልግሎት + እድል</desc>
+  <title id="title">AfroSherik</title>
+  <desc id="desc">AfroSherik. People, services, and opportunity. ማህበረሰብ + አገልግሎት + እድል</desc>
   <g transform="translate(-6 -12) scale(.5)">
     <circle cx="128" cy="61" r="19" fill="#FFB000"/>
     <path d="M92 73c13 0 22 11 18 24l-24 79c-5 16-15 23-28 20-13-3-19-15-14-29l27-77c4-11 10-17 21-17Z" fill="#00B85A"/>
     <path d="M164 73c-13 0-22 11-18 24l24 79c5 16 15 23 28 20 13-3 19-15 14-29l-27-77c-4-11-10-17-21-17Z" fill="#0066FF"/>
     <path d="M90 181c3-25 19-41 38-41s35 16 38 41c-11 10-24 15-38 15s-27-5-38-15Z" fill="#FFB000"/>
   </g>
-  <text x="111" y="54" fill="#0B2D4A" font-family="Arial, sans-serif" font-size="43" font-weight="700" letter-spacing="-1.6">AfroLife</text>
+  <text x="111" y="54" fill="#0B2D4A" font-family="Arial, sans-serif" font-size="43" font-weight="700" letter-spacing="-1.6">AfroSherik</text>
   <text x="294" y="37" fill="#0B2D4A" font-family="Arial, sans-serif" font-size="8" font-weight="700">®</text>
   <text x="117" y="76" fill="#27435A" font-family="Arial, sans-serif" font-size="12.5">
     <tspan>People </tspan><tspan fill="#D7AD59">•</tspan><tspan> Services </tspan><tspan fill="#D7AD59">•</tspan><tspan> Opportunity</tspan>

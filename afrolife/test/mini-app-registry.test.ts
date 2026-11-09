@@ -12,7 +12,7 @@ test('each Agency mini-app declares a unique module, panel, and gateway API surf
     assert.ok(miniApp.id);
     assert.ok(miniApp.name);
     assert.ok(miniApp.logo?.startsWith('/mini-apps/'),
-      `${miniApp.id} must use a branded mini-app logo or the approved AfroLife mark`);
+      `${miniApp.id} must use a branded mini-app logo or the approved AfroSherik mark`);
     const logo = readFileSync(new URL(`../public${miniApp.logo}`, import.meta.url), 'utf8');
     assert.match(logo, /<title/);
     assert.match(logo, /#174b3d/i);
@@ -130,21 +130,14 @@ test('existing rent workspace drives the approved lease lifecycle without removi
   assert.match(operations, /if \(!legacyImmediateLeasesEnabled\(process\.env\)\)/);
 });
 
-test('AfroLife identity and retained install artwork stay aligned with the brand shell', () => {
-  const logo = readFileSync(new URL('../public/icon.svg', import.meta.url), 'utf8');
-  assert.match(logo, /<title[^>]*>AfroLife mark/);
-  assert.doesNotMatch(logo, /<rect\b[^>]*fill="#0B2D4A"/i);
-  assert.match(logo, /#00B85A/i);
-  assert.match(logo, /#0066FF/i);
-  assert.match(logo, /#FFB000/i);
-
+test('AfroSherik identity and install artwork stay aligned with the brand shell', () => {
   const manifest = JSON.parse(readFileSync(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
-  assert.equal(manifest.name, 'AfroLife Agency');
-  assert.equal(manifest.short_name, 'AfroLife');
+  assert.equal(manifest.name, 'AfroSherik | አፍሮ-ሸሪክ');
+  assert.equal(manifest.short_name, 'AfroSherik');
   assert.equal(manifest.theme_color, '#174b3d');
   assert.ok(manifest.icons.slice(0, 2).every((entry: { purpose: string }) => entry.purpose === 'any'));
   for (const size of [192, 256, 512]) {
-    const iconPath = `/icons/afrolife-icon-${size}.png`;
+    const iconPath = `/icons/afrosherik-icon-${size}.png`;
     const icon = readFileSync(new URL(`../public${iconPath}`, import.meta.url));
     assert.equal(icon.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
     assert.equal(icon.readUInt32BE(16), size);
@@ -154,8 +147,8 @@ test('AfroLife identity and retained install artwork stay aligned with the brand
   }
 
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
-  assert.match(html, /src="\/brand\/afrolife-brand-lockup\.svg"/);
-  assert.match(html, /afrolife-icon-192\.png/);
+  assert.match(html, /src="\/brand\/afrosherik-brand-lockup\.png"/);
+  assert.match(html, /afrosherik-icon-192\.png/);
   assert.match(html, /placeholder="https:\/\/afrolife-agency\.duckdns\.org"/);
   const manifestColor = html.match(/<meta name="theme-color" content="([^"]+)"/);
   assert.equal(manifestColor?.[1], manifest.theme_color);

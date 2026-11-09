@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   color-scheme: light;
   --ink: #18332d;
   --muted: #64776d;
@@ -1611,7 +1611,7 @@ body {
   .maintenance-metric { padding: 11px; }
 }
 
-/* AfroLife product shell: consistent surfaces and controls across every mini-app. */
+/* AfroSherik product shell: consistent surfaces and controls across every mini-app. */
 :root {
   --brand-green: #174b3d;
   --platform-blue: #0066ff;
