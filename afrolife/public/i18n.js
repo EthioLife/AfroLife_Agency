@@ -1,13 +1,13 @@
 const rows = [
   ['Sign out', 'ውጣ', 'Ba’i', 'ውፃእ'],
-  ['AfroLife home', 'የAfroLife መነሻ', 'Fuula jalqabaa AfroLife', 'መበገሲ ገጽ AfroLife'],
+  ['AfroSherik home', 'የAfroSherik መነሻ', 'Fuula jalqabaa AfroSherik', 'መበገሲ ገጽ AfroSherik'],
   ['More', 'ተጨማሪ', 'Dabalata', 'ተወሳኺ'],
   ['More workspace sections', 'ተጨማሪ የሥራ ቦታ ክፍሎች', 'Kutaa hojii dabalataa', 'ተወሳኺ ክፍልታት ቦታ ስራሕ'],
   ['YOUR WORKSPACE', 'የእርስዎ የሥራ ቦታ', 'IDDOO HOJII KEESSAN', 'ቦታ ስራሕኩም'],
   ['All sections', 'ሁሉም ክፍሎች', 'Kutaa hunda', 'ኩሎም ክፍልታት'],
   ['Close', 'ዝጋ', 'Cufi', 'ዕጸው'],
   ['Close workspace sections', 'የሥራ ቦታ ክፍሎችን ዝጋ', 'Kutaa hojii cufi', 'ክፍልታት ቦታ ስራሕ ዕጸው'],
-  ['PEOPLE · SERVICES · OPPORTUNITY', 'ሰዎች · አገልግሎቶች · ዕድል', 'Namoota · Tajaajila · Carraa', 'ሰባት · ኣገልግሎታት · ዕድል'],
+  ['CONNECT · ACCESS · THRIVE', 'ያገናኙ · ያግኙ · ይበልጽጉ', 'Wal qunnami · Argadhu · Guddaadhu', 'ተራኸቡ · ርኸቡ · ዕበዩ'],
   ['One trusted place to get work moving.', 'ሥራን ለማስኬድ አንድ የታመነ ቦታ።', 'Bakka amanamaa hojii itti jalqabsiisan.', 'ስራሕ ንምንቅስቓስ ሓደ ዝተኣመነ ቦታ።'],
   ['Coordinate leads, verified workers and service requests with clear ownership at every step.', 'ደንበኞችን፣ የተረጋገጡ ሠራተኞችን እና የአገልግሎት ጥያቄዎችን በእያንዳንዱ ደረጃ ግልጽ ኃላፊነት ባለው መንገድ ያስተባብሩ።', 'Maamiltoota, hojjettoota mirkanaa’an fi gaaffii tajaajilaa tarkaanfii hunda irratti itti gaafatamummaa ifa ta’een qindeessaa.', 'Ma’amilaat፣ ዝተረጋገጹ ሰራሕተኛታትን ሕቶታት ኣገልግሎትን ኣብ ነፍሲ ወከፍ ደረጃ ግልጺ ሓላፍነት ብዘለዎ መንገዲ ኣወሃህዱ።'],
   ['Verified workforce', 'የተረጋገጠ የሠራተኛ ኃይል', 'Hojjettoota mirkanaa’an', 'ዝተረጋገጸ ሓይሊ ሰራሕተኛ'],
@@ -20,11 +20,11 @@ const rows = [
   ['Password', 'የይለፍ ቃል', 'Jecha icciitii', 'መሕለፊ ቃል'],
   ['Authenticator code', 'የማረጋገጫ ኮድ', 'Koodii mirkaneessaa', 'ኮድ መረጋገጺ'],
   ['Sign in', 'ግባ', 'Seeni', 'እቶ'],
-  ['Access is limited to approved AfroLife accounts.', 'መዳረሻው ለተፈቀዱ የAfroLife መለያዎች ብቻ ነው።', 'Seensaan herrega AfroLife hayyamame qofaaf daangeffama.', 'መእተዊ ንዝተፈቕደሎም ሕሳባት AfroLife ጥራይ ዝተወሰነ እዩ።'],
+  ['Access is limited to approved AfroSherik accounts.', 'መዳረሻው ለተፈቀዱ የAfroSherik መለያዎች ብቻ ነው።', 'Seensaan herrega AfroSherik hayyamame qofaaf daangeffama.', 'መእተዊ ንዝተፈቕደሎም ሕሳባት AfroSherik ጥራይ ዝተወሰነ እዩ።'],
   ['API server address', 'የAPI አገልጋይ አድራሻ', 'Teessoo sarvarii API', 'ኣድራሻ ሰርቨር API'],
   ['Save server address', 'የአገልጋይ አድራሻ አስቀምጥ', 'Teessoo sarvarii olkaa’i', 'ኣድራሻ ሰርቨር ዓቅብ'],
   ['Change server', 'አገልጋይ ቀይር', 'Sarvarii jijjiiri', 'ሰርቨር ቀይር'],
-  ['ETHIOLIFE OPERATIONS', 'የETHIOLIFE ሥራ አስተዳደር', 'HOJII ETHIOLIFE', 'ስራሕ ETHIOLIFE'],
+  ['AFROSHERIK OPERATIONS', 'የAfroSherik ሥራ አስተዳደር', 'Hojii AfroSherik', 'ስራሕ AfroSherik'],
   ['Your workspace', 'የእርስዎ የሥራ ቦታ', 'Iddoo hojii keessan', 'ቦታ ስራሕኩም'],
   ['Refresh', 'አድስ', 'Haaromsi', 'ኣሐድስ'],
   ['Workspace sections', 'የሥራ ቦታ ክፍሎች', 'Kutaa iddoo hojii', 'ክፍልታት ቦታ ስራሕ'],
@@ -181,7 +181,7 @@ const rows = [
   ['Network request failed. Check your connection and server address.', 'የኔትወርክ ጥያቄ አልተሳካም። ግንኙነትዎን እና የአገልጋይ አድራሻውን ያረጋግጡ።', 'Gaaffiin neetworkii hin milkoofne. Walqunnamtii fi teessoo sarvarii keessan mirkaneessaa.', 'ሕቶ ኔትወርክ ኣይተዓወተን። ርክብኩምን ኣድራሻ ሰርቨርን ኣረጋግጹ።'],
   ['Create an account', 'መለያ ይፍጠሩ', 'Herrega uumaa', 'ሕሳብ ፍጠሩ'],
   ['Sign up', 'ይመዝገቡ', 'Galmaa’aa', 'ተመዝገቡ'],
-  ['Apply to join AfroLife', 'ወደ AfroLife ለመቀላቀል ያመልክቱ', 'AfroLife waliin makamuuf iyyadhaa', 'ምስ AfroLife ንምጽንባር ኣመልክቱ'],
+  ['Apply to join AfroSherik', 'ወደ AfroSherik ለመቀላቀል ያመልክቱ', 'AfroSherik waliin makamuuf iyyadhaa', 'ምስ AfroSherik ንምጽንባር ኣመልክቱ'],
   ['Choose account type', 'የመለያ ዓይነት ይምረጡ', 'Gosa herregaa filadhaa', 'ዓይነት ሕሳብ ምረጹ'],
   ['I want to join as a worker', 'እንደ ሠራተኛ መቀላቀል እፈልጋለሁ', 'Hojjetaa ta’ee makamuun barbaada', 'ከም ሰራሕተኛ ክጽንበር እደሊ'],
   ['I want to join as a buyer / customer', 'እንደ ገዢ / ደንበኛ መቀላቀል እፈልጋለሁ', 'Akka bitataa / maamilaatti makamuun barbaada', 'ከም ገዛኢ / ዓሚል ክጽንበር እደሊ'],
@@ -252,7 +252,7 @@ const rows = [
   ['Too many failed attempts. Try again in 15 minutes.', 'ብዙ ያልተሳኩ ሙከራዎች ተደርገዋል። እባክዎ ከ15 ደቂቃ በኋላ ይሞክሩ።', 'Yaaliiwwan baay’een hin milkoofne. Maaloo daqiiqaa 15 booda yaali.', 'ብዙሓት ዘይተዓወቱ ፈተነታት ተገይሮም። በጃኹም ድሕሪ 15 ደቒቕ ፈትኑ።'],
   ['Worker applicants must consent to identity and eligibility document review before uploading KYC documents.', 'የሠራተኛ አመልካቾች የKYC ሰነዶችን ከመጫናቸው በፊት ለመታወቂያ እና ብቁነት ማረጋገጫ እንዲጠቀሙባቸው መስማማት አለባቸው።', 'Iyyattoonni hojjetaa sanadoota KYC olkaa’uu isaanii dura eenyummaa fi ulaagaa mirkaneessuuf akka ilaalaman eeyyamuu qabu.', 'ኣመልከትቲ ሰራሕተኛ ሰነዳት KYC ቅድሚ ምጽዓኖም ንመንነትን ብቕዓትን ምርግጋጽ ክጥቀሙሎም ፍቓዶም ክህቡ ኣለዎም።'],
   ['Consent to worker document review', 'ለሠራተኛ ሰነዶች ግምገማ ፈቃድ', 'Eeyyama sakatta’iinsa sanada hojjetaa', 'ፍቓድ ንምርመራ ሰነድ ሰራሕተኛ'],
-  ['AfroLife may use my National ID and police-clearance documents to verify my identity and assess eligibility for workforce services. Authorized compliance staff will review these documents, which are stored privately.', 'AfroLife የመታወቂያ ካርዴን እና የፖሊስ ማረጋገጫ ሰነዶቼን ማንነቴን ለማረጋገጥ እና ለሥራ አገልግሎቶች ብቁነቴን ለመገምገም እንዲጠቀምባቸው እስማማለሁ። ፈቃድ ያላቸው የCompliance ሠራተኞች ይመረምሯቸዋል፤ ሰነዶቹም በግል ይቀመጣሉ።', 'AfroLife sanada eenyummaa fi ragaa poolisii koo eenyummaa koo mirkaneessuu fi tajaajila hojii keessatti ulaagaa koo madaaluuf akka fayyadamu nan eeyyama. Hojjettoonni compliance hayyamaman sanadoota kana ni sakatta’u; isaanis iccitiidhaan kuufamu.', 'AfroLife ንመንነተይ ንምርግጋጽን ንኣገልግሎት ስራሕ ብቕዓተይ ንምግምጋምን ናይ መንነት መለለዪን ናይ ፖሊስ ሰነዳትን ክጥቀመሎም እሰማማዕ። ፍቓድ ዘለዎም ሰራሕተኛታት Compliance ክምርምርዎም እዮም፤ ብሕታዊ ብዝኾነ መንገዲ ይቕመጡ።'],
+  ['AfroSherik may use my National ID and police-clearance documents to verify my identity and assess eligibility for workforce services. Authorized compliance staff will review these documents, which are stored privately.', 'AfroSherik የመታወቂያ ካርዴን እና የፖሊስ ማረጋገጫ ሰነዶቼን ማንነቴን ለማረጋገጥ እና ለሥራ አገልግሎቶች ብቁነቴን ለመገምገም እንዲጠቀምባቸው እስማማለሁ። ፈቃድ ያላቸው የCompliance ሠራተኞች ይመረምሯቸዋል፤ ሰነዶቹም በግል ይቀመጣሉ።', 'AfroSherik sanada eenyummaa fi ragaa poolisii koo eenyummaa koo mirkaneessuu fi tajaajila hojii keessatti ulaagaa koo madaaluuf akka fayyadamu nan eeyyama. Hojjettoonni compliance hayyamaman sanadoota kana ni sakatta’u; isaanis iccitiidhaan kuufamu.', 'AfroSherik ንመንነተይ ንምርግጋጽን ንኣገልግሎት ስራሕ ብቕዓተይ ንምግምጋምን ናይ መንነት መለለዪን ናይ ፖሊስ ሰነዳትን ክጥቀመሎም እሰማማዕ። ፍቓድ ዘለዎም ሰራሕተኛታት Compliance ክምርምርዎም እዮም፤ ብሕታዊ ብዝኾነ መንገዲ ይቕመጡ።'],
   ['Commissions', 'ኮሚሽኖች', 'Koomishinii', 'ኮሚሽናት'],
   ['Review earned commissions, current holdbacks, and eligible releases.', 'የተገኙ ኮሚሽኖችን፣ የተያዙ መጠኖችን እና ለመክፈል የደረሱትን ይመልከቱ።', 'Koomishinii argaman, maallaqa qabame fi kan gadi lakkifamu sakatta’aa.', 'እተረኽቡ ኮሚሽናት፣ ዝተታሕዘ ገንዘብን ክፍሊትን ርአዩ።'],
   ['No commission events are available for your account.', 'ለመለያዎ የኮሚሽን መዝገቦች አልተገኙም።', 'Galmeen koomishinii herrega keessaniif hin jiru.', 'ንመለያኹም ዝምልከት መዝገብ ኮሚሽን የለን።'],
@@ -280,7 +280,7 @@ const rows = [
   ['Choose a restored availability', 'የሚመለሰውን አቅርቦት ይምረጡ', 'Argama deebifamu filadhaa', 'ዝምለስ ድልውነት ምረጹ'],
   ['Worker availability', 'የሠራተኛ አቅርቦት', 'Argama hojjetaa', 'ድልውነት ሰራሕተኛ'],
   ['Cancel', 'ሰርዝ', 'Haqi', 'ሰርዝ'],
-  ['ETHIOLIFE REGISTRATION', 'የETHIOLIFE ምዝገባ', 'GALMEE ETHIOLIFE', 'ምዝገባ ETHIOLIFE'],
+  ['AFROSHERIK REGISTRATION', 'የETHIOLIFE ምዝገባ', 'GALMEE ETHIOLIFE', 'ምዝገባ ETHIOLIFE'],
   ['Internal error', 'ውስጣዊ ስህተት', 'Dogoggora keessaa', 'ጌጋ ውሽጣዊ'],
   ['Business rules', 'የንግድ ደንቦች', 'Seerota daldalaa', 'ሕግታት ንግዲ'],
   ['Changes apply to new calculations immediately. Unsigned contracts are repriced; signed contracts, recorded payments, and ledger entries are not rewritten.', 'ለውጦቹ ወዲያውኑ በአዲስ ስሌቶች ላይ ይተገበራሉ። ያልተፈረሙ ውሎች ዋጋቸው ይሰላል፤ የተፈረሙ ውሎች፣ የተመዘገቡ ክፍያዎች እና የሂሳብ መዝገቦች አይቀየሩም።', 'Jijjiiramni battalumatti shallaggii haaraa irratti hojiirra oola. Waliigalteewwan hin mallatteeffamne irra deebi’anii shallagamu; waliigalteewwan mallatteeffaman, kaffaltiin galmaa’e fi galmeen herregaa hin jijjiiramu.', 'ለውጢ ብቕጽበት ኣብ ሓደስቲ ሕሳባት ይትግበር። ዘይተፈረሙ ውዕላት ዋጋኦም እንደገና ይሕሰብ፤ ዝተፈረሙ ውዕላት፣ ዝተመዝገቡ ክፍሊታትን መዝገብ ሕሳብን ኣይቀየሩን።'],
@@ -308,7 +308,7 @@ const rows = [
   ['Submit for review', 'ለግምገማ አስገባ', 'Gamaaggamaaf dhiyeessi', 'ንግምገማ ኣቕርብ'],
   ['Withdraw request', 'ጥያቄውን አንሳ', 'Gaaffii haqii', 'ሕቶ ሰርዝ'],
   ['Payroll handoff status', 'የደመወዝ ማስተላለፊያ ሁኔታ', 'Haala dabarsa mindaa', 'ኩነታት ምሕደራ ደሞዝ'],
-  ['These statuses show whether AfroLife generated an export or recorded an external handoff. They are not payslips and do not confirm payment.', 'እነዚህ ሁኔታዎች AfroLife የደመወዝ ፋይል መፍጠሩን ወይም ወደ ውጭ ማስተላለፉን ያሳያሉ። የደመወዝ ወረቀት አይደሉም፤ ክፍያ መፈጸሙንም አያረጋግጡም።', 'Haalli kun AfroLife faayila mindaa uumuu ykn dabarsa alaa galmeessuu agarsiisa. Waraqaa mindaa miti; kaffaltiin raawwatamuu isaa hin mirkaneessu.', 'እዚ ኩነታት እዚ AfroLife ፋይል ደሞዝ ምፍጣሩ ወይ ናብ ወጻኢ ምስግጋሩ የርኢ። ወረቐት ደሞዝ ኣይኮነን፣ ክፍሊት ምፍጻሙ እውን ኣየረጋግጽን።'],
+  ['These statuses show whether AfroSherik generated an export or recorded an external handoff. They are not payslips and do not confirm payment.', 'እነዚህ ሁኔታዎች AfroSherik የደመወዝ ፋይል መፍጠሩን ወይም ወደ ውጭ ማስተላለፉን ያሳያሉ። የደመወዝ ወረቀት አይደሉም፤ ክፍያ መፈጸሙንም አያረጋግጡም።', 'Haalli kun AfroSherik faayila mindaa uumuu ykn dabarsa alaa galmeessuu agarsiisa. Waraqaa mindaa miti; kaffaltiin raawwatamuu isaa hin mirkaneessu.', 'እዚ ኩነታት እዚ AfroSherik ፋይል ደሞዝ ምፍጣሩ ወይ ናብ ወጻኢ ምስግጋሩ የርኢ። ወረቐት ደሞዝ ኣይኮነን፣ ክፍሊት ምፍጻሙ እውን ኣየረጋግጽን።'],
   ['Workforce operations', 'የሠራተኛ ኃይል አስተዳደር', 'Bulchiinsa humna hojii', 'ምምሕዳር ሓይሊ ሰራሕተኛ'],
   ['Shift scheduling', 'የፈረቃ መርሐ ግብር', 'Sagantaa shiftii', 'መደብ ሺፍት'],
   ['Attendance exceptions and approvals', 'የሰዓት ልዩነቶችና ማጽደቆች', 'Adda durummaa fi mirkaneessa argama hojii', 'ፍልልያት ሰዓትን ምጽዳቕን'],
@@ -368,7 +368,7 @@ const rows = [
   ['Enterprise plan — ETB {{amount}} per month', 'የድርጅት ዕቅድ — ETB {{amount}} በወር', 'Karoora Enterprise — ETB {{amount}} ji’atti', 'መደብ Enterprise — ETB {{amount}} ኣብ ወርሒ'],
   ['KYC identity document (PDF, JPEG, PNG · max 10 MB)', 'የKYC መታወቂያ ሰነድ (PDF፣ JPEG፣ PNG · ከፍተኛ 10 ሜባ)', 'Sanada eenyummaa KYC (PDF, JPEG, PNG · hanga 10 MB)', 'ሰነድ መንነት KYC (PDF, JPEG, PNG · ዝለዓለ 10 MB)'],
   ['Police clearance (required for worker applicants)', 'የፖሊስ የሥነ-ምግባር ማረጋገጫ (ለሠራተኛ አመልካቾች ግዴታ)', 'Ragaa qulqullina poolisii (kaadhimamtoota hojjetaaaf dirqama)', 'ምስክር ናይ ፖሊስ (ንኣመልከትቲ ሰራሕተኛታት ግዴታ)'],
-  ['Documents are stored privately and reviewed by AfroLife compliance staff.', 'ሰነዶች በግል ይቀመጣሉ እና በAfroLife የተገዢነት ሠራተኞች ይገመገማሉ።', 'Sanadoonni iccitiidhaan kuufamu, hojjettoota to’annoo AfroLife tiin ilaalamu.', 'ሰነዳት ብምስጢር ይቕመጡ፣ ብሰራሕተኛታት ተገዢነት AfroLife ይግምገሙ።'],
+  ['Documents are stored privately and reviewed by AfroSherik compliance staff.', 'ሰነዶች በግል ይቀመጣሉ እና በAfroSherik የተገዢነት ሠራተኞች ይገመገማሉ።', 'Sanadoonni iccitiidhaan kuufamu, hojjettoota to’annoo AfroSherik tiin ilaalamu.', 'ሰነዳት ብምስጢር ይቕመጡ፣ ብሰራሕተኛታት ተገዢነት AfroSherik ይግምገሙ።'],
   ['Property listings', 'ዝርዝር ንብረት', 'Tarree qabeenyaa', 'ዝርዝር ንብረት'],
   ['Create and manage property records, units, rent details, and private listing pictures.', 'የንብረት መዝገቦችን፣ ክፍሎችን፣ የኪራይ ዝርዝሮችን እና የግል ሥዕሎችን ይፍጠሩ እና ያስተዳድሩ።', 'Galmee qabeenyaa, kutaa, odeeffannoo kiraa fi suuraa iccitiin kuufamu uumuu fi bulchuu.', 'Galmee qabeenyaa፣ kutaa፣ bal’ina kiraaን ስእሊ ንብረትን ፍጠሩን ኣመሓድሩን።'],
   ['Add a property listing', 'የንብረት ዝርዝር ጨምር', 'Qabeenya tarree irratti dabali', 'ዝርዝር ንብረት ወስኽ'],
@@ -411,7 +411,7 @@ const rows = [
   ['verify', 'አረጋግጥ', 'mirkaneessi', 'ኣረጋግጽ'],
   ['rejected', 'ውድቅ ተደርጓል', 'fudhatama dide', 'ተነጺጉ'],
   ['Select each required KYC document before submitting.', 'ከማስገባትዎ በፊት እያንዳንዱን የሚፈለግ KYC ሰነድ ይምረጡ።', 'Dura erguu sanada KYC barbaachisu hunda filadhaa.', 'ቅድሚ ምቕራብ ነፍሲ ወከፍ ዝድለ ሰነድ KYC ምረጹ።'],
-  ['Registration succeeded but a secure document-upload token was not issued. Contact AfroLife support.', 'ምዝገባው ተሳክቷል ግን ደህንነቱ የተጠበቀ የሰነድ መጫኛ ቶከን አልተሰጠም። የAfroLife ድጋፍን ያነጋግሩ።', 'Galmeen milkaa’eera garuu mallattoon nageenya olkaa’insa sanadaa hin kennamne. Deeggarsa AfroLife qunnamaa.', 'ምዝገባ ተሳኺዑ ግን ውሑስ ምልክት ምጽዓን ሰነድ ኣይተዋህበን። ደገፍ AfroLife ርኸቡ።'],
+  ['Registration succeeded but a secure document-upload token was not issued. Contact AfroSherik support.', 'ምዝገባው ተሳክቷል ግን ደህንነቱ የተጠበቀ የሰነድ መጫኛ ቶከን አልተሰጠም። የAfroSherik ድጋፍን ያነጋግሩ።', 'Galmeen milkaa’eera garuu mallattoon nageenya olkaa’insa sanadaa hin kennamne. Deeggarsa AfroSherik qunnamaa.', 'ምዝገባ ተሳኺዑ ግን ውሑስ ምልክት ምጽዓን ሰነድ ኣይተዋህበን። ደገፍ AfroSherik ርኸቡ።'],
   ['Document upload failed ({{status}})', 'ሰነድ መጫን አልተሳካም ({{status}})', 'Sanada olkaa’uun hin milkoofne ({{status}})', 'ሰነድ ምጽዓን ኣይተሳኽዐን ({{status}})'],
   ['Picture upload failed ({{status}})', 'ሥዕል መጫን አልተሳካም ({{status}})', 'Suuraa olkaa’uun hin milkoofne ({{status}})', 'ስእሊ ምጽዓን ኣይተሳኽዐን ({{status}})'],
   ['Download failed ({{status}})', 'ማውረድ አልተሳካም ({{status}})', 'Buusuun hin milkoofne ({{status}})', 'ምውራድ ኣይተሳኽዐን ({{status}})'],
@@ -463,18 +463,18 @@ const addedLanguages = {
     'Enterprise team and portfolio insights': 'ሪፖርት ጉጅለን ንብረትን ኢንተርፕራይዝ'
   },
   so: {
-    'Region': 'Gobol', 'City': 'Magaalo', 'Sub-city': 'Xaafad', 'Woreda': 'Woreda', 'Kebele': 'Kebele', 'Territory': 'Deegaan', 'Pro plan — ETB {{amount}} per month': 'Qorshaha Pro — ETB {{amount}} bishii', 'Enterprise plan — ETB {{amount}} per month': 'Qorshaha Enterprise — ETB {{amount}} bishii', 'Sign out': 'Ka bax', 'AfroLife home': 'Bogga hore ee AfroLife', 'Language': 'Luqad', 'Install app': 'Ku rakib abka',
+    'Region': 'Gobol', 'City': 'Magaalo', 'Sub-city': 'Xaafad', 'Woreda': 'Woreda', 'Kebele': 'Kebele', 'Territory': 'Deegaan', 'Pro plan — ETB {{amount}} per month': 'Qorshaha Pro — ETB {{amount}} bishii', 'Enterprise plan — ETB {{amount}} per month': 'Qorshaha Enterprise — ETB {{amount}} bishii', 'Sign out': 'Ka bax', 'AfroSherik home': 'Bogga hore ee AfroSherik', 'Language': 'Luqad', 'Install app': 'Ku rakib abka',
     'One trusted place to get work moving.': 'Hal meel oo la isku halayn karo oo shaqada lagu bilaabo.',
     'Coordinate leads, verified workers and service requests with clear ownership at every step.': 'Isku dubbarid macaamiisha, shaqaalaha la xaqiijiyey iyo codsiyada adeegga adigoo caddeynaya cidda masuulka ka ah tallaabo kasta.',
     'Verified workforce': 'Shaqaale la xaqiijiyey', 'Accountable agent network': 'Shabakad wakiillo lala xisaabtami karo', 'Central matching oversight': 'Kormeer dhexe oo isku-aadinta ah',
     'WORKER & COMMUNITY BENEFITS': 'FAA IIDOOYINKA SHAQAALAHA IYO BULSHADA', 'Build security together': 'Wadajir u dhisa ammaan dhaqaale',
-    'Proposed 5% AfroLife match on eligible worker pension deposits.': 'AfroLife waxay soo jeedinaysaa inay ku darto 5% kaydka hawlgabka ee shaqaalaha u qalma.',
-    'AfroLife Edir': 'Edir-ka AfroLife', 'Optional life cover': 'Caymis nololeed oo ikhtiyaari ah', 'Home protection': 'Ilaalinta guriga',
-    'Open to Guaranteed Category A employees and AfroLife users, subject to program rules. Proposed ETB 2,000 joining fee + ETB 200 monthly for group accident and health cover.': 'Shaqaalaha Guaranteed Category A iyo isticmaalayaasha AfroLife way codsan karaan, sida waafaqsan xeerarka barnaamijka. Khidmadaha la soo jeediyey: ETB 2,000 gelitaanka iyo ETB 200 bishii oo loogu talagalay caymiska shilalka iyo caafimaadka kooxeed.',
+    'Proposed 5% AfroSherik match on eligible worker pension deposits.': 'AfroSherik waxay soo jeedinaysaa inay ku darto 5% kaydka hawlgabka ee shaqaalaha u qalma.',
+    'AfroSherik Edir': 'Edir-ka AfroSherik', 'Optional life cover': 'Caymis nololeed oo ikhtiyaari ah', 'Home protection': 'Ilaalinta guriga',
+    'Open to Guaranteed Category A employees and AfroSherik users, subject to program rules. Proposed ETB 2,000 joining fee + ETB 200 monthly for group accident and health cover.': 'Shaqaalaha Guaranteed Category A iyo isticmaalayaasha AfroSherik way codsan karaan, sida waafaqsan xeerarka barnaamijka. Khidmadaha la soo jeediyey: ETB 2,000 gelitaanka iyo ETB 200 bishii oo loogu talagalay caymiska shilalka iyo caafimaadka kooxeed.',
     'ETB 5,000 annual contribution for proposed ETB 1 million cover for the member or spouse.': 'Lacag-bixin sanadle ah oo ETB 5,000 ah ayaa loogu talagalay caymiska la soo jeediyey ee ETB 1 milyan, xubinta ama lammaanaha.',
     'Tenants and property owners may request household fire, accidental damage and burglary cover for an additional ETB 200 premium.': 'Kiraystayaasha iyo mulkiilayaasha guryuhu waxay codsan karaan caymiska dabka, waxyeellada shilka iyo tuugada, qiime dheeraad ah oo ETB 200 ah halkii guri.',
-    'Choose your interests during sign-up. No payment is taken and no match or insurance cover is active until AfroLife confirms eligibility, funding, insurer terms and a start date.': 'Dooro faa’iidooyinka aad xiisaynayso markaad isdiiwaangelinayso. Lacag lagama qaadayo, mana jiro gunno ama caymis shaqaynaya ilaa AfroLife xaqiijiso u-qalmitaanka, maalgelinta, shuruudaha caymis-bixiyaha iyo taariikhda bilowga.',
-    'Apply to join AfroLife': 'Codso inaad ku biirto AfroLife', 'Welcome back': 'Soo dhawoow', 'Sign in': 'Gal', 'Sign up': 'Isdiiwaangeli',
+    'Choose your interests during sign-up. No payment is taken and no match or insurance cover is active until AfroSherik confirms eligibility, funding, insurer terms and a start date.': 'Dooro faa’iidooyinka aad xiisaynayso markaad isdiiwaangelinayso. Lacag lagama qaadayo, mana jiro gunno ama caymis shaqaynaya ilaa AfroSherik xaqiijiso u-qalmitaanka, maalgelinta, shuruudaha caymis-bixiyaha iyo taariikhda bilowga.',
+    'Apply to join AfroSherik': 'Codso inaad ku biirto AfroSherik', 'Welcome back': 'Soo dhawoow', 'Sign in': 'Gal', 'Sign up': 'Isdiiwaangeli',
     'Phone number': 'Lambarka telefoonka', 'Password': 'Furaha sirta ah', 'Full name': 'Magaca oo buuxa', 'Email (optional)': 'Iimayl (ikhtiyaari)',
     'Choose account type': 'Dooro nooca akoonka', 'I want to join as a worker': 'Waxaan doonayaa inaan ku biiro shaqaale ahaan',
     'I want to join as a buyer / customer': 'Waxaan doonayaa inaan ku biiro iibsade/macmiil ahaan',
@@ -483,7 +483,7 @@ const addedLanguages = {
     'Type a city, sub-city, woreda, or kebele, then choose a matching suggestion.': 'Qor magaalo, xaafad, woreda ama kebele, kadibna dooro soo-jeedin ku habboon.',
     'Choose a territory from the suggestions.': 'Ka dooro deegaanka liiska soo-jeedimaha.',
     'Benefit interests (no charge today)': 'Faa’iidooyinka aad xiisaynayso (maanta lacag lagama qaadayo)',
-    'Worker pension match': 'Ku-darka kaydka hawlgabka shaqaalaha', 'Join AfroLife Edir': 'Ku biir Edir-ka AfroLife',
+    'Worker pension match': 'Ku-darka kaydka hawlgabka shaqaalaha', 'Join AfroSherik Edir': 'Ku biir Edir-ka AfroSherik',
     'Add life cover': 'Ku dar caymis nololeed', 'Add household cover': 'Ku dar caymiska guriga',
     'These are non-binding requests for information. Selecting a benefit does not enroll you, collect money or start insurance coverage.': 'Kuwani waa codsiyo aan kugu waajibinayn oo xog-ogaalnimo ah. Doorashada faa’iido ma aha isdiiwaangelin, lacag-qaadis ama bilow caymis.',
     'Proposed ETB 2,000 joining fee and ETB 200 monthly for member group accident and health cover.': 'Khidmadaha la soo jeediyey waa ETB 2,000 gelitaanka iyo ETB 200 bishii oo loogu talagalay caymiska shilalka iyo caafimaadka kooxeed.',
@@ -503,18 +503,18 @@ const addedLanguages = {
     'Free': 'Bilaash', 'Pro': 'Pro', 'Enterprise': 'Enterprise', 'Properties': 'Guryo', 'Workers': 'Shaqaale', 'Overview': 'Guudmar', 'Security': 'Amniga'
   },
   ar: {
-    'Region': 'إقليم', 'City': 'مدينة', 'Sub-city': 'منطقة فرعية', 'Woreda': 'وردة', 'Kebele': 'كيبيلي', 'Territory': 'منطقة', 'Pro plan — ETB {{amount}} per month': 'خطة Pro — {{amount}} بر إثيوبي شهريًا', 'Enterprise plan — ETB {{amount}} per month': 'خطة Enterprise — {{amount}} بر إثيوبي شهريًا', 'Sign out': 'تسجيل الخروج', 'AfroLife home': 'الصفحة الرئيسية لأفرو لايف', 'Language': 'اللغة', 'Install app': 'تثبيت التطبيق',
+    'Region': 'إقليم', 'City': 'مدينة', 'Sub-city': 'منطقة فرعية', 'Woreda': 'وردة', 'Kebele': 'كيبيلي', 'Territory': 'منطقة', 'Pro plan — ETB {{amount}} per month': 'خطة Pro — {{amount}} بر إثيوبي شهريًا', 'Enterprise plan — ETB {{amount}} per month': 'خطة Enterprise — {{amount}} بر إثيوبي شهريًا', 'Sign out': 'تسجيل الخروج', 'AfroSherik home': 'الصفحة الرئيسية لأفرو لايف', 'Language': 'اللغة', 'Install app': 'تثبيت التطبيق',
     'One trusted place to get work moving.': 'مكان موثوق واحد لبدء العمل.',
     'Coordinate leads, verified workers and service requests with clear ownership at every step.': 'نسّق العملاء المحتملين والعمال المعتمدين وطلبات الخدمة مع وضوح المسؤولية في كل خطوة.',
     'Verified workforce': 'قوى عاملة تم التحقق منها', 'Accountable agent network': 'شبكة وكلاء خاضعة للمساءلة', 'Central matching oversight': 'إشراف مركزي على المطابقة',
     'WORKER & COMMUNITY BENEFITS': 'مزايا العمال والمجتمع', 'Build security together': 'نبني الأمان معًا',
-    'Proposed 5% AfroLife match on eligible worker pension deposits.': 'مساهمة مطابقة مقترحة من أفرو لايف بنسبة 5٪ في إيداعات تقاعد العمال المؤهلين.',
-    'AfroLife Edir': 'إدير أفرو لايف', 'Optional life cover': 'تأمين حياة اختياري', 'Home protection': 'حماية المنزل',
-    'Open to Guaranteed Category A employees and AfroLife users, subject to program rules. Proposed ETB 2,000 joining fee + ETB 200 monthly for group accident and health cover.': 'متاح لموظفي الفئة المضمونة A ومستخدمي أفرو لايف وفقًا لقواعد البرنامج. الرسوم المقترحة: 2,000 بر إثيوبي للانضمام و200 بر شهريًا لتغطية جماعية للحوادث والصحة.',
+    'Proposed 5% AfroSherik match on eligible worker pension deposits.': 'مساهمة مطابقة مقترحة من أفرو لايف بنسبة 5٪ في إيداعات تقاعد العمال المؤهلين.',
+    'AfroSherik Edir': 'إدير أفرو لايف', 'Optional life cover': 'تأمين حياة اختياري', 'Home protection': 'حماية المنزل',
+    'Open to Guaranteed Category A employees and AfroSherik users, subject to program rules. Proposed ETB 2,000 joining fee + ETB 200 monthly for group accident and health cover.': 'متاح لموظفي الفئة المضمونة A ومستخدمي أفرو لايف وفقًا لقواعد البرنامج. الرسوم المقترحة: 2,000 بر إثيوبي للانضمام و200 بر شهريًا لتغطية جماعية للحوادث والصحة.',
     'ETB 5,000 annual contribution for proposed ETB 1 million cover for the member or spouse.': 'مساهمة سنوية مقترحة قدرها 5,000 بر إثيوبي لتغطية قدرها مليون بر للعضو أو الزوج أو الزوجة.',
     'Tenants and property owners may request household fire, accidental damage and burglary cover for an additional ETB 200 premium.': 'يمكن للمستأجرين ومالكي العقارات طلب تغطية للحريق والأضرار العرضية والسرقة المنزلية مقابل قسط إضافي قدره 200 بر إثيوبي لكل منزل.',
-    'Choose your interests during sign-up. No payment is taken and no match or insurance cover is active until AfroLife confirms eligibility, funding, insurer terms and a start date.': 'اختر المزايا التي تهمك عند التسجيل. لن يتم تحصيل أي مبلغ ولن تبدأ المساهمة المطابقة أو التغطية التأمينية حتى تؤكد أفرو لايف الأهلية والتمويل وشروط شركة التأمين وتاريخ البدء.',
-    'Apply to join AfroLife': 'قدّم طلب الانضمام إلى أفرو لايف', 'Welcome back': 'مرحبًا بعودتك', 'Sign in': 'تسجيل الدخول', 'Sign up': 'إنشاء حساب',
+    'Choose your interests during sign-up. No payment is taken and no match or insurance cover is active until AfroSherik confirms eligibility, funding, insurer terms and a start date.': 'اختر المزايا التي تهمك عند التسجيل. لن يتم تحصيل أي مبلغ ولن تبدأ المساهمة المطابقة أو التغطية التأمينية حتى تؤكد أفرو لايف الأهلية والتمويل وشروط شركة التأمين وتاريخ البدء.',
+    'Apply to join AfroSherik': 'قدّم طلب الانضمام إلى أفرو لايف', 'Welcome back': 'مرحبًا بعودتك', 'Sign in': 'تسجيل الدخول', 'Sign up': 'إنشاء حساب',
     'Phone number': 'رقم الهاتف', 'Password': 'كلمة المرور', 'Full name': 'الاسم الكامل', 'Email (optional)': 'البريد الإلكتروني (اختياري)',
     'Choose account type': 'اختر نوع الحساب', 'I want to join as a worker': 'أرغب في الانضمام كعامل',
     'I want to join as a buyer / customer': 'أرغب في الانضمام كمشترٍ / عميل',
@@ -523,7 +523,7 @@ const addedLanguages = {
     'Type a city, sub-city, woreda, or kebele, then choose a matching suggestion.': 'اكتب اسم مدينة أو منطقة فرعية أو وريدا أو كيبيلي، ثم اختر الاقتراح المطابق.',
     'Choose a territory from the suggestions.': 'اختر منطقة من الاقتراحات.',
     'Benefit interests (no charge today)': 'المزايا التي تهمك (دون رسوم اليوم)',
-    'Worker pension match': 'مساهمة مطابقة لتقاعد العامل', 'Join AfroLife Edir': 'الانضمام إلى إدير أفرو لايف',
+    'Worker pension match': 'مساهمة مطابقة لتقاعد العامل', 'Join AfroSherik Edir': 'الانضمام إلى إدير أفرو لايف',
     'Add life cover': 'إضافة تأمين على الحياة', 'Add household cover': 'إضافة تغطية منزلية',
     'These are non-binding requests for information. Selecting a benefit does not enroll you, collect money or start insurance coverage.': 'هذه طلبات غير ملزمة للحصول على معلومات. اختيار ميزة لا يعني التسجيل أو تحصيل الأموال أو بدء التغطية التأمينية.',
     'Proposed ETB 2,000 joining fee and ETB 200 monthly for member group accident and health cover.': 'الرسوم المقترحة: 2,000 بر إثيوبي للانضمام و200 بر شهريًا للتغطية الجماعية للحوادث والصحة.',
@@ -543,18 +543,18 @@ const addedLanguages = {
     'Free': 'مجاني', 'Pro': 'احترافي', 'Enterprise': 'مؤسسات', 'Properties': 'العقارات', 'Workers': 'العمال', 'Overview': 'نظرة عامة', 'Security': 'الأمان'
   },
   sw: {
-    'Sign out': 'Toka', 'AfroLife home': 'Ukurasa wa mwanzo wa AfroLife', 'Language': 'Lugha', 'Install app': 'Sakinisha programu',
+    'Sign out': 'Toka', 'AfroSherik home': 'Ukurasa wa mwanzo wa AfroSherik', 'Language': 'Lugha', 'Install app': 'Sakinisha programu',
     'One trusted place to get work moving.': 'Mahali pa kuaminika pa kuanzisha kazi.',
     'Coordinate leads, verified workers and service requests with clear ownership at every step.': 'Ratibu wateja watarajiwa, wafanyakazi waliothibitishwa na maombi ya huduma huku wajibu ukiwa wazi katika kila hatua.',
     'Verified workforce': 'Wafanyakazi waliothibitishwa', 'Accountable agent network': 'Mtandao wa mawakala unaowajibika', 'Central matching oversight': 'Usimamizi mkuu wa ulinganishaji',
     'WORKER & COMMUNITY BENEFITS': 'FAIDA KWA WAFANYAKAZI NA JAMII', 'Build security together': 'Jenga usalama pamoja',
-    'Proposed 5% AfroLife match on eligible worker pension deposits.': 'AfroLife inapendekeza kuongeza mchango wa 5% kwenye akiba ya pensheni ya wafanyakazi wanaostahili.',
-    'AfroLife Edir': 'Edir ya AfroLife', 'Optional life cover': 'Bima ya maisha ya hiari', 'Home protection': 'Ulinzi wa nyumba',
-    'Open to Guaranteed Category A employees and AfroLife users, subject to program rules. Proposed ETB 2,000 joining fee + ETB 200 monthly for group accident and health cover.': 'Wafanyakazi wa Guaranteed Category A na watumiaji wa AfroLife wanaweza kuomba kulingana na masharti ya mpango. Ada zinazopendekezwa: ETB 2,000 ya kujiunga na ETB 200 kila mwezi kwa bima ya pamoja ya ajali na afya.',
+    'Proposed 5% AfroSherik match on eligible worker pension deposits.': 'AfroSherik inapendekeza kuongeza mchango wa 5% kwenye akiba ya pensheni ya wafanyakazi wanaostahili.',
+    'AfroSherik Edir': 'Edir ya AfroSherik', 'Optional life cover': 'Bima ya maisha ya hiari', 'Home protection': 'Ulinzi wa nyumba',
+    'Open to Guaranteed Category A employees and AfroSherik users, subject to program rules. Proposed ETB 2,000 joining fee + ETB 200 monthly for group accident and health cover.': 'Wafanyakazi wa Guaranteed Category A na watumiaji wa AfroSherik wanaweza kuomba kulingana na masharti ya mpango. Ada zinazopendekezwa: ETB 2,000 ya kujiunga na ETB 200 kila mwezi kwa bima ya pamoja ya ajali na afya.',
     'ETB 5,000 annual contribution for proposed ETB 1 million cover for the member or spouse.': 'Mchango wa mwaka wa ETB 5,000 unapendekezwa kwa bima ya ETB milioni 1 kwa mwanachama au mwenzi.',
     'Tenants and property owners may request household fire, accidental damage and burglary cover for an additional ETB 200 premium.': 'Wapangaji na wamiliki wa nyumba wanaweza kuomba bima ya moto, uharibifu wa bahati mbaya na wizi kwa ada ya ziada ya ETB 200 kwa kila nyumba.',
-    'Choose your interests during sign-up. No payment is taken and no match or insurance cover is active until AfroLife confirms eligibility, funding, insurer terms and a start date.': 'Chagua unachopendelea unapojisajili. Hakuna malipo yanayochukuliwa wala mchango unaolinganishwa au bima inayoanza hadi AfroLife ithibitishe ustahiki, ufadhili, masharti ya bima na tarehe ya kuanza.',
-    'Apply to join AfroLife': 'Omba kujiunga na AfroLife', 'Welcome back': 'Karibu tena', 'Sign in': 'Ingia', 'Sign up': 'Jisajili',
+    'Choose your interests during sign-up. No payment is taken and no match or insurance cover is active until AfroSherik confirms eligibility, funding, insurer terms and a start date.': 'Chagua unachopendelea unapojisajili. Hakuna malipo yanayochukuliwa wala mchango unaolinganishwa au bima inayoanza hadi AfroSherik ithibitishe ustahiki, ufadhili, masharti ya bima na tarehe ya kuanza.',
+    'Apply to join AfroSherik': 'Omba kujiunga na AfroSherik', 'Welcome back': 'Karibu tena', 'Sign in': 'Ingia', 'Sign up': 'Jisajili',
     'Phone number': 'Nambari ya simu', 'Password': 'Nenosiri', 'Full name': 'Jina kamili', 'Email (optional)': 'Barua pepe (si lazima)',
     'Choose account type': 'Chagua aina ya akaunti', 'I want to join as a worker': 'Ninataka kujiunga kama mfanyakazi',
     'I want to join as a buyer / customer': 'Ninataka kujiunga kama mnunuzi / mteja',
@@ -563,7 +563,7 @@ const addedLanguages = {
     'Type a city, sub-city, woreda, or kebele, then choose a matching suggestion.': 'Andika jina la jiji, kitongoji, woreda au kebele, kisha uchague pendekezo linalolingana.',
     'Choose a territory from the suggestions.': 'Chagua eneo kutoka kwenye mapendekezo.',
     'Benefit interests (no charge today)': 'Faida unazopendelea (hakuna malipo leo)',
-    'Worker pension match': 'Mchango linganifu wa pensheni ya mfanyakazi', 'Join AfroLife Edir': 'Jiunge na Edir ya AfroLife',
+    'Worker pension match': 'Mchango linganifu wa pensheni ya mfanyakazi', 'Join AfroSherik Edir': 'Jiunge na Edir ya AfroSherik',
     'Add life cover': 'Ongeza bima ya maisha', 'Add household cover': 'Ongeza bima ya nyumba',
     'These are non-binding requests for information. Selecting a benefit does not enroll you, collect money or start insurance coverage.': 'Haya ni maombi ya taarifa yasiyokufunga. Kuchagua faida hakukusajili, hakuchukui pesa wala kuanzisha bima.',
     'Proposed ETB 2,000 joining fee and ETB 200 monthly for member group accident and health cover.': 'Ada zinazopendekezwa ni ETB 2,000 ya kujiunga na ETB 200 kila mwezi kwa bima ya pamoja ya ajali na afya ya mwanachama.',
@@ -620,15 +620,15 @@ Object.assign(addedLanguages.sw, {
   'A retry export was created for only the selected failed rows. The export has not been filed or paid.': 'Faili la jaribio jipya limetengenezwa kwa mistari iliyoshindwa uliyochagua pekee. Faili halijawasilishwa wala kulipwa.',
 });
 const planCopy = {
-  am: ['ለእርስዎ ሚና የሚገኙ የAfroLife መሠረታዊ መሣሪያዎች፦ ደንበኞች፣ ሠራተኞች፣ ጥያቄዎች፣ ውሎች እና ዝርዝሮች።', 'የPro ዕቅድ ጥያቄ ብቻ ነው። ለወደፊት የሚከፈሉ አገልግሎቶች የክፍያ ሥርዓትና ማግበር ይፈልጋሉ።', 'የEnterprise ዕቅድ ጥያቄ ብቻ ነው። የቡድን ሪፖርት ክፍያና ማግበር እስኪዘጋጅ ድረስ አይሠራም።'],
-  om: ['Meeshaalee AfroLife gahee keessaniif jiran: maamiltoota, hojjettoota, gaaffii, waliigaltee fi tarreeffama.', 'Karoora Pro filachuun gaaffii qofa. Tajaajilli kaffaltii gara fuulduraa kaffaltii fi hojii irra oolchuu barbaada.', 'Karoora Enterprise filachuun gaaffii qofa. Gabaasni garee hanga kaffaltii fi hojii irra oolutti hin jiru.'],
-  ti: ['ን ሓላፍነትኩም ዝምልከቱ መሰረታዊ መሳርሒታት AfroLife፦ ዓማዊል፣ ሰራሕተኛታት፣ ሕቶታት፣ ውዕላትን ዝርዝራትን።', 'መደብ Pro ሕቶ ጥራይ እዩ። ናይ መጻኢ ዝኽፈሉ ኣገልግሎታት ክፍሊትን ምንቃሕን ይጠልቡ።', 'መደብ Enterprise ሕቶ ጥራይ እዩ። ሪፖርት ጉጅለ ክፍሊትን ምንቃሕን ክሳብ ዝዳሎ ኣይሰርሕን።'],
-  so: ['Qalabka AfroLife ee doorkaaga: macaamiil, shaqaale, codsiyo, heshiisyo iyo liisaska.', 'Pro waa codsi qorshe oo keliya. Adeegyada lacagta leh ee mustaqbalka waxay u baahan yihiin lacag-bixin iyo hawlgelin.', 'Enterprise waa codsi qorshe oo keliya. Warbixinta kooxda ma shaqaynayso ilaa lacag-bixin iyo hawlgelin la diyaariyo.'],
-  ar: ['أدوات AfroLife المتاحة لدورك: العملاء والعمال والطلبات والعقود والقوائم.', 'اختيار Pro طلب فقط. الميزات المدفوعة مستقبلًا تحتاج إلى إعداد الدفع والتفعيل.', 'اختيار Enterprise طلب فقط. تقارير الفريق غير متاحة حتى إعداد الدفع والتفعيل.'],
-  sw: ['Zana za AfroLife za jukumu lako: wateja, wafanyakazi, maombi, mikataba na matangazo.', 'Pro ni ombi la mpango tu. Huduma za kulipia za baadaye zinahitaji malipo na kuwezeshwa.', 'Enterprise ni ombi la mpango tu. Ripoti za timu hazipatikani hadi malipo na kuwezeshwa viandaliwe.'],
+  am: ['ለእርስዎ ሚና የሚገኙ የAfroSherik መሠረታዊ መሣሪያዎች፦ ደንበኞች፣ ሠራተኞች፣ ጥያቄዎች፣ ውሎች እና ዝርዝሮች።', 'የPro ዕቅድ ጥያቄ ብቻ ነው። ለወደፊት የሚከፈሉ አገልግሎቶች የክፍያ ሥርዓትና ማግበር ይፈልጋሉ።', 'የEnterprise ዕቅድ ጥያቄ ብቻ ነው። የቡድን ሪፖርት ክፍያና ማግበር እስኪዘጋጅ ድረስ አይሠራም።'],
+  om: ['Meeshaalee AfroSherik gahee keessaniif jiran: maamiltoota, hojjettoota, gaaffii, waliigaltee fi tarreeffama.', 'Karoora Pro filachuun gaaffii qofa. Tajaajilli kaffaltii gara fuulduraa kaffaltii fi hojii irra oolchuu barbaada.', 'Karoora Enterprise filachuun gaaffii qofa. Gabaasni garee hanga kaffaltii fi hojii irra oolutti hin jiru.'],
+  ti: ['ን ሓላፍነትኩም ዝምልከቱ መሰረታዊ መሳርሒታት AfroSherik፦ ዓማዊል፣ ሰራሕተኛታት፣ ሕቶታት፣ ውዕላትን ዝርዝራትን።', 'መደብ Pro ሕቶ ጥራይ እዩ። ናይ መጻኢ ዝኽፈሉ ኣገልግሎታት ክፍሊትን ምንቃሕን ይጠልቡ።', 'መደብ Enterprise ሕቶ ጥራይ እዩ። ሪፖርት ጉጅለ ክፍሊትን ምንቃሕን ክሳብ ዝዳሎ ኣይሰርሕን።'],
+  so: ['Qalabka AfroSherik ee doorkaaga: macaamiil, shaqaale, codsiyo, heshiisyo iyo liisaska.', 'Pro waa codsi qorshe oo keliya. Adeegyada lacagta leh ee mustaqbalka waxay u baahan yihiin lacag-bixin iyo hawlgelin.', 'Enterprise waa codsi qorshe oo keliya. Warbixinta kooxda ma shaqaynayso ilaa lacag-bixin iyo hawlgelin la diyaariyo.'],
+  ar: ['أدوات AfroSherik المتاحة لدورك: العملاء والعمال والطلبات والعقود والقوائم.', 'اختيار Pro طلب فقط. الميزات المدفوعة مستقبلًا تحتاج إلى إعداد الدفع والتفعيل.', 'اختيار Enterprise طلب فقط. تقارير الفريق غير متاحة حتى إعداد الدفع والتفعيل.'],
+  sw: ['Zana za AfroSherik za jukumu lako: wateja, wafanyakazi, maombi, mikataba na matangazo.', 'Pro ni ombi la mpango tu. Huduma za kulipia za baadaye zinahitaji malipo na kuwezeshwa.', 'Enterprise ni ombi la mpango tu. Ripoti za timu hazipatikani hadi malipo na kuwezeshwa viandaliwe.'],
 };
 for (const [locale, [free, pro, enterprise]] of Object.entries(planCopy)) {
-  addedLanguages[locale]['Core AfroLife tools for your role, including lead, worker, request, contract and listing workflows.'] = free;
+  addedLanguages[locale]['Core AfroSherik tools for your role, including lead, worker, request, contract and listing workflows.'] = free;
   addedLanguages[locale]['Pro is a plan request only. Future paid features require billing and activation.'] = pro;
   addedLanguages[locale]['Enterprise is a plan request only. Team reporting is not active until billing and activation are configured.'] = enterprise;
   Object.assign(catalogs[locale], addedLanguages[locale]);
@@ -646,7 +646,7 @@ const publicSurfaceTranslations = {
   'Install app': {
     am: 'መተግበሪያውን ይጫኑ', om: 'Appii fe’i', ti: 'መተግበሪ ጽዓን', so: 'Ku rakib abka', ar: 'تثبيت التطبيق', sw: 'Sakinisha programu',
   },
-  'ETHIOLIFE REGISTRATION': {
+  'AFROSHERIK REGISTRATION': {
     am: 'የETHIOLIFE ምዝገባ', om: 'Galmee ETHIOLIFE', ti: 'ምዝገባ ETHIOLIFE', so: 'Diiwaangelinta ETHIOLIFE', ar: 'تسجيل ETHIOLIFE', sw: 'Usajili wa ETHIOLIFE',
   },
   'Staff approval is required before sign-in. Your account will remain inactive until compliance review and activation are complete.': {
@@ -672,8 +672,8 @@ const publicSurfaceTranslations = {
   'Service interests (no charge today)': {
     am: 'የአገልግሎት ፍላጎቶች (ዛሬ ክፍያ የለም)', om: 'Fedhii tajaajilaa (har’a kaffaltiin hin jiru)', ti: 'ፍላጎታት ኣገልግሎት (ሎሚ ክፍሊት የለን)', so: 'Adeegyada aad danaynayso (maanta lacag ma jirto)', ar: 'الخدمات التي تهمك (لا توجد رسوم اليوم)', sw: 'Huduma unazopendelea (hakuna malipo leo)',
   },
-  'Request AfroLife Edir membership': {
-    am: 'የAfroLife እድር አባልነት ይጠይቁ', om: 'Miseensummaa Edir AfroLife gaafadhaa', ti: 'ኣባልነት Edir AfroLife ሕተቱ', so: 'Codso xubinnimada AfroLife Edir', ar: 'اطلب عضوية إدير في AfroLife', sw: 'Omba uanachama wa AfroLife Edir',
+  'Request AfroSherik Edir membership': {
+    am: 'የAfroSherik እድር አባልነት ይጠይቁ', om: 'Miseensummaa Edir AfroSherik gaafadhaa', ti: 'ኣባልነት Edir AfroSherik ሕተቱ', so: 'Codso xubinnimada AfroSherik Edir', ar: 'اطلب عضوية إدير في AfroSherik', sw: 'Omba uanachama wa AfroSherik Edir',
   },
   'After KYC verification, you can review the currently available community and financial products before requesting enrollment.': {
     am: 'ከKYC ማረጋገጫ በኋላ ምዝገባ ከመጠየቅዎ በፊት ያሉትን የማህበረሰብና የፋይናንስ ምርቶች ማየት ይችላሉ።',
@@ -716,8 +716,8 @@ const publicSurfaceTranslations = {
     ar: 'اختر إقليمًا أو اكتب اسم المنطقة.',
     sw: 'Chagua eneo au uandike jina la eneo.',
   },
-  'Join AfroLife Edir': {
-    am: 'AfroLife Edirን ይቀላቀሉ', om: 'AfroLife Edir waliin makamaa', ti: 'AfroLife Edir ተጸንበሩ', so: 'Ku biir AfroLife Edir', ar: 'انضم إلى AfroLife Edir', sw: 'Jiunge na AfroLife Edir',
+  'Join AfroSherik Edir': {
+    am: 'AfroSherik Edirን ይቀላቀሉ', om: 'AfroSherik Edir waliin makamaa', ti: 'AfroSherik Edir ተጸንበሩ', so: 'Ku biir AfroSherik Edir', ar: 'انضم إلى AfroSherik Edir', sw: 'Jiunge na AfroSherik Edir',
   },
   'Register an Edir': {
     am: 'እድር ይመዝግቡ', om: 'Edir galmeessaa', ti: 'Edir መዝግቡ', so: 'Diiwaangeli Edir', ar: 'سجّل إدير', sw: 'Sajili Edir',
@@ -773,13 +773,13 @@ const publicSurfaceTranslations = {
   'Consent to application review': {
     am: 'ለማመልከቻ ግምገማ ፈቃድ', om: 'Gamaaggama iyyannoo irratti walii galuu', ti: 'ፍቓድ ግምገማ መመልከቲ', so: 'Oggolaanshaha dib-u-eegista codsiga', ar: 'الموافقة على مراجعة الطلب', sw: 'Idhini ya ukaguzi wa ombi',
   },
-  'I authorize AfroLife Master Edir to use these organization and contact details to review this registration application. Approval does not replace the Edir’s own legal or governance obligations.': {
-    am: 'AfroLife Master Edir ይህን የድርጅትና የመገናኛ መረጃ የምዝገባ ማመልከቻውን ለመገምገም እንዲጠቀም ፈቅጃለሁ። ፈቃድ የእድሩን ሕጋዊና የአስተዳደር ግዴታዎች አይተካም።',
-    om: 'AfroLife Master Edir odeeffannoo dhaabbataa fi qunnamtii kana iyyannoo galmee kana gamaaggamuuf akka fayyadamu nan hayyama. Ragga’iinsi dirqama seeraa fi bulchiinsa Edir bakka hin bu’u.',
-    ti: 'AfroLife Master Edir ነዚ ሓበሬታ ትካልን ርክብን ንምግምጋም መመልከቲ ክጥቀመሉ እፈቅድ። ምፍቃድ ግዴታታት ሕጊን ምምሕዳርን ናይ Edir ኣይትክእን።',
-    so: 'Waxaan oggolaanayaa in AfroLife Master Edir u isticmaalo xogtan ururka iyo xiriirka si uu u eego codsigan. Oggolaanshuhu ma beddelayo waajibaadka sharci iyo maamul ee Edir-ka.',
-    ar: 'أفوّض AfroLife Master Edir باستخدام بيانات المؤسسة والتواصل هذه لمراجعة طلب التسجيل. ولا تحل الموافقة محل الالتزامات القانونية أو الحوكمية الخاصة بإدير.',
-    sw: 'Ninaidhinisha AfroLife Master Edir kutumia maelezo haya ya shirika na mawasiliano kukagua ombi hili. Idhini haibadilishi wajibu wa kisheria au utawala wa Edir yenyewe.',
+  'I authorize AfroSherik Master Edir to use these organization and contact details to review this registration application. Approval does not replace the Edir’s own legal or governance obligations.': {
+    am: 'AfroSherik Master Edir ይህን የድርጅትና የመገናኛ መረጃ የምዝገባ ማመልከቻውን ለመገምገም እንዲጠቀም ፈቅጃለሁ። ፈቃድ የእድሩን ሕጋዊና የአስተዳደር ግዴታዎች አይተካም።',
+    om: 'AfroSherik Master Edir odeeffannoo dhaabbataa fi qunnamtii kana iyyannoo galmee kana gamaaggamuuf akka fayyadamu nan hayyama. Ragga’iinsi dirqama seeraa fi bulchiinsa Edir bakka hin bu’u.',
+    ti: 'AfroSherik Master Edir ነዚ ሓበሬታ ትካልን ርክብን ንምግምጋም መመልከቲ ክጥቀመሉ እፈቅድ። ምፍቃድ ግዴታታት ሕጊን ምምሕዳርን ናይ Edir ኣይትክእን።',
+    so: 'Waxaan oggolaanayaa in AfroSherik Master Edir u isticmaalo xogtan ururka iyo xiriirka si uu u eego codsigan. Oggolaanshuhu ma beddelayo waajibaadka sharci iyo maamul ee Edir-ka.',
+    ar: 'أفوّض AfroSherik Master Edir باستخدام بيانات المؤسسة والتواصل هذه لمراجعة طلب التسجيل. ولا تحل الموافقة محل الالتزامات القانونية أو الحوكمية الخاصة بإدير.',
+    sw: 'Ninaidhinisha AfroSherik Master Edir kutumia maelezo haya ya shirika na mawasiliano kukagua ombi hili. Idhini haibadilishi wajibu wa kisheria au utawala wa Edir yenyewe.',
   },
   'Submit Edir registration application': {
     am: 'የእድር ምዝገባ ማመልከቻ ያስገቡ', om: 'Iyyannoo galmee Edir ergaa', ti: 'መመልከቲ ምዝገባ Edir ኣቕርቡ', so: 'Gudbi codsiga diiwaangelinta Edir', ar: 'إرسال طلب تسجيل إدير', sw: 'Wasilisha ombi la usajili wa Edir',
@@ -793,13 +793,13 @@ const publicSurfaceTranslations = {
   'Connection settings': {
     am: 'የግንኙነት ቅንብሮች', om: 'Qindaa’ina walqunnamtii', ti: 'ቅጥዕታት ርክብ', so: 'Dejinta xiriirka', ar: 'إعدادات الاتصال', sw: 'Mipangilio ya muunganisho',
   },
-  'Change the configured AfroLife server for this device. This affects only this app installation.': {
-    am: 'ለዚህ መሣሪያ የተዋቀረውን የAfroLife አገልጋይ ይቀይሩ። ይህ ለዚህ መተግበሪያ ጭነት ብቻ ይሠራል።',
-    om: 'Sarvarii AfroLife meeshaa kanaaf qindaa’e jijjiiraa. Jijjiiramni kun appii kana qofa irratti hojjeta.',
-    ti: 'ንዚ መሳርሒ ዝተዳለወ ሰርቨር AfroLife ቀይሩ። እዚ ነዚ ጥራይ ዝተጻዕነ መተግበሪ ይጸልዎ።',
-    so: 'Beddel server-ka AfroLife ee qalabkan loo dejiyey. Tani waxay saamaynaysaa rakibaaddan oo keliya.',
-    ar: 'غيّر خادم AfroLife المُعدّ لهذا الجهاز. يؤثر ذلك على تثبيت هذا التطبيق فقط.',
-    sw: 'Badilisha seva ya AfroLife iliyowekwa kwa kifaa hiki. Hili linaathiri usakinishaji huu wa programu pekee.',
+  'Change the configured AfroSherik server for this device. This affects only this app installation.': {
+    am: 'ለዚህ መሣሪያ የተዋቀረውን የAfroSherik አገልጋይ ይቀይሩ። ይህ ለዚህ መተግበሪያ ጭነት ብቻ ይሠራል።',
+    om: 'Sarvarii AfroSherik meeshaa kanaaf qindaa’e jijjiiraa. Jijjiiramni kun appii kana qofa irratti hojjeta.',
+    ti: 'ንዚ መሳርሒ ዝተዳለወ ሰርቨር AfroSherik ቀይሩ። እዚ ነዚ ጥራይ ዝተጻዕነ መተግበሪ ይጸልዎ።',
+    so: 'Beddel server-ka AfroSherik ee qalabkan loo dejiyey. Tani waxay saamaynaysaa rakibaaddan oo keliya.',
+    ar: 'غيّر خادم AfroSherik المُعدّ لهذا الجهاز. يؤثر ذلك على تثبيت هذا التطبيق فقط.',
+    sw: 'Badilisha seva ya AfroSherik iliyowekwa kwa kifaa hiki. Hili linaathiri usakinishaji huu wa programu pekee.',
   },
   'Workforce Management dashboard': {
     am: 'የሠራተኛ አስተዳደር ዳሽቦርድ', om: 'Daashboordii Bulchiinsa Hojjettootaa', ti: 'ዳሽቦርድ ምምሕዳር ሰራሕተኛ', so: 'Dashboard-ka Maamulka Shaqaalaha', ar: 'لوحة إدارة القوى العاملة', sw: 'Dashibodi ya Usimamizi wa Wafanyakazi',
@@ -1120,13 +1120,13 @@ const publicSurfaceTranslations = {
   'Select the required {{document}} file.': {
     am: 'የሚፈለገውን {{document}} ፋይል ይምረጡ።', om: 'Faayila {{document}} barbaachisu filadhaa.', ti: 'ዝድለ ፋይል {{document}} ምረጹ።', so: 'Dooro faylka {{document}} ee loo baahan yahay.', ar: 'اختر ملف {{document}} المطلوب.', sw: 'Chagua faili ya {{document}} inayohitajika.',
   },
-  'The application response did not include the secure upload details. Contact AfroLife support before submitting again.': {
-    am: 'የማመልከቻው ምላሽ ደህንነቱ የተጠበቀ የመጫኛ መረጃ አልያዘም። እንደገና ከማስገባትዎ በፊት የAfroLife ድጋፍን ያነጋግሩ።',
-    om: 'Deebiin iyyannoo odeeffannoo fe’iinsa nageenya qabu hin qabne. Irra deebi’anii erguu dura deeggarsa AfroLife qunnamaa.',
-    ti: 'መልሲ መመልከቲ ውሑስ ሓበሬታ ምጽዓን ኣይሓዘን። እንደገና ቅድሚ ምቕራብ ደገፍ AfroLife ርኸቡ።',
-    so: 'Jawaabta codsigu kuma jirin faahfaahinta rarista ammaan ah. La xiriir taageerada AfroLife ka hor intaadan mar kale gudbin.',
-    ar: 'لم يتضمن رد الطلب تفاصيل الرفع الآمن. اتصل بدعم AfroLife قبل إعادة الإرسال.',
-    sw: 'Jibu la ombi halikuwa na maelezo ya upakiaji salama. Wasiliana na usaidizi wa AfroLife kabla ya kutuma tena.',
+  'The application response did not include the secure upload details. Contact AfroSherik support before submitting again.': {
+    am: 'የማመልከቻው ምላሽ ደህንነቱ የተጠበቀ የመጫኛ መረጃ አልያዘም። እንደገና ከማስገባትዎ በፊት የAfroSherik ድጋፍን ያነጋግሩ።',
+    om: 'Deebiin iyyannoo odeeffannoo fe’iinsa nageenya qabu hin qabne. Irra deebi’anii erguu dura deeggarsa AfroSherik qunnamaa.',
+    ti: 'መልሲ መመልከቲ ውሑስ ሓበሬታ ምጽዓን ኣይሓዘን። እንደገና ቅድሚ ምቕራብ ደገፍ AfroSherik ርኸቡ።',
+    so: 'Jawaabta codsigu kuma jirin faahfaahinta rarista ammaan ah. La xiriir taageerada AfroSherik ka hor intaadan mar kale gudbin.',
+    ar: 'لم يتضمن رد الطلب تفاصيل الرفع الآمن. اتصل بدعم AfroSherik قبل إعادة الإرسال.',
+    sw: 'Jibu la ombi halikuwa na maelezo ya upakiaji salama. Wasiliana na usaidizi wa AfroSherik kabla ya kutuma tena.',
   },
   'Replacement document uploaded securely for compliance review.': {
     am: 'የምትክ ሰነዱ ለተገዢነት ግምገማ በደህንነት ተጭኗል።', om: 'Sanadni bakka bu’aa gamaaggamaaf nageenyaan fe’ameera.', ti: 'ምትክ ሰነድ ንግምገማ ብውሑስነት ተጸዒኑ።', so: 'Dukumentiga beddelka ah si ammaan ah ayaa loogu raray dib-u-eegista.', ar: 'تم رفع الوثيقة البديلة بأمان للمراجعة.', sw: 'Hati mbadala imepakiwa kwa usalama kwa ukaguzi.',
@@ -1158,8 +1158,8 @@ const publicSurfaceTranslations = {
   'Agent subscription plans': {
     am: 'የወኪል ምዝገባ ዕቅዶች', om: 'Karoorawwan galmee bakka bu’aa', ti: 'መደባት ምዝገባ ወኪል', so: 'Qorshayaasha rukumashada wakiilka', ar: 'خطط اشتراك الوكلاء', sw: 'Mipango ya usajili wa wakala',
   },
-  'Apply to join AfroLife': {
-    am: 'ወደ AfroLife ለመቀላቀል ያመልክቱ', om: 'AfroLife waliin makamuuf iyyadhaa', ti: 'ምስ AfroLife ንምጽንባር ኣመልክቱ', so: 'Codso inaad ku biirto AfroLife', ar: 'قدّم طلبًا للانضمام إلى AfroLife', sw: 'Omba kujiunga na AfroLife',
+  'Apply to join AfroSherik': {
+    am: 'ወደ AfroSherik ለመቀላቀል ያመልክቱ', om: 'AfroSherik waliin makamuuf iyyadhaa', ti: 'ምስ AfroSherik ንምጽንባር ኣመልክቱ', so: 'Codso inaad ku biirto AfroSherik', ar: 'قدّم طلبًا للانضمام إلى AfroSherik', sw: 'Omba kujiunga na AfroSherik',
   },
   'Request community membership after KYC. Available membership products and terms are shown in the Edir workspace.': {
     am: 'ከKYC በኋላ የማህበረሰብ አባልነት ይጠይቁ። ያሉ የአባልነት ምርቶችና ውሎች በእድር የሥራ ቦታ ይታያሉ።', om: 'KYC booda miseensummaa hawaasaa gaafadhaa. Oomishaa fi ulaagaaleen Edir keessatti mul’atu.', ti: 'ድሕሪ KYC ኣባልነት ማሕበረሰብ ሕተቱ። ዘለዉ ፍርያትን ውዕላትን ኣብ ቦታ Edir ይርከቡ።', so: 'Codso xubinnimada bulshada kadib KYC. Adeegyada iyo shuruudaha xubinnimada waxaa lagu muujiyaa goobta Edir.', ar: 'اطلب عضوية المجتمع بعد KYC. تظهر منتجات العضوية وشروطها المتاحة في مساحة عمل إدير.', sw: 'Omba uanachama wa jamii baada ya KYC. Bidhaa na masharti ya uanachama yanaonyeshwa kwenye nafasi ya Edir.',
@@ -1170,13 +1170,13 @@ const publicSurfaceTranslations = {
   'Services for work, homes, business, and community.': {
     am: 'ለሥራ፣ ለቤት፣ ለንግድና ለማህበረሰብ አገልግሎቶች።', om: 'Tajaajiloota hojii, mana, daldalaa fi hawaasaaf.', ti: 'ኣገልግሎታት ስራሕ፣ ገዛ፣ ንግዲን ማሕበረሰብን።', so: 'Adeegyada shaqada, guryaha, ganacsiga iyo bulshada.', ar: 'خدمات للعمل والمنازل والأعمال والمجتمع.', sw: 'Huduma za kazi, nyumba, biashara na jamii.',
   },
-  'Explore AfroLife’s connected services. Install the app for a home-screen shortcut and a cached public shell; sign in to access account-specific tools.': {
-    am: 'የAfroLife ተያያዥ አገልግሎቶችን ይመልከቱ። ለመነሻ ማያ አቋራጭና ለተቀመጠ የሕዝብ ገጽ መተግበሪያውን ይጫኑ፤ የመለያዎን መሣሪያዎች ለመጠቀም ይግቡ።',
-    om: 'Tajaajiloota walitti hidhaman AfroLife ilaalaa. Mallattoo fuula jalqabaa fi fuula uummataa kuufameef appii fe’aa; meeshaalee herrega keessaniif seenaa.',
-    ti: 'ኣገልግሎታት AfroLife ርኣዩ። ንመልክዕ መነሻን ዝተኻዘነ ገጽ ህዝብን መተግበሪ ጽዓኑ፤ ናይ ሕሳብ መሳርሒታት ንምጥቃም እቶ።',
-    so: 'Baadh adeegyada AfroLife ee isku xiran. Ku rakib app-ka si aad u hesho astaan shaashadda hore iyo bog dadweyne oo kaydsan; gal si aad u hesho qalabka akoonkaaga.',
-    ar: 'استكشف خدمات AfroLife المترابطة. ثبّت التطبيق لاختصار الشاشة الرئيسية والواجهة العامة المحفوظة؛ سجّل الدخول للوصول إلى أدوات حسابك.',
-    sw: 'Chunguza huduma zilizounganishwa za AfroLife. Sakinisha programu kwa njia ya mkato ya skrini ya nyumbani na ukurasa wa umma uliohifadhiwa; ingia ili kufikia zana za akaunti yako.',
+  'Explore AfroSherik’s connected services. Install the app for a home-screen shortcut and a cached public shell; sign in to access account-specific tools.': {
+    am: 'የAfroSherik ተያያዥ አገልግሎቶችን ይመልከቱ። ለመነሻ ማያ አቋራጭና ለተቀመጠ የሕዝብ ገጽ መተግበሪያውን ይጫኑ፤ የመለያዎን መሣሪያዎች ለመጠቀም ይግቡ።',
+    om: 'Tajaajiloota walitti hidhaman AfroSherik ilaalaa. Mallattoo fuula jalqabaa fi fuula uummataa kuufameef appii fe’aa; meeshaalee herrega keessaniif seenaa.',
+    ti: 'ኣገልግሎታት AfroSherik ርኣዩ። ንመልክዕ መነሻን ዝተኻዘነ ገጽ ህዝብን መተግበሪ ጽዓኑ፤ ናይ ሕሳብ መሳርሒታት ንምጥቃም እቶ።',
+    so: 'Baadh adeegyada AfroSherik ee isku xiran. Ku rakib app-ka si aad u hesho astaan shaashadda hore iyo bog dadweyne oo kaydsan; gal si aad u hesho qalabka akoonkaaga.',
+    ar: 'استكشف خدمات AfroSherik المترابطة. ثبّت التطبيق لاختصار الشاشة الرئيسية والواجهة العامة المحفوظة؛ سجّل الدخول للوصول إلى أدوات حسابك.',
+    sw: 'Chunguza huduma zilizounganishwa za AfroSherik. Sakinisha programu kwa njia ya mkato ya skrini ya nyumbani na ukurasa wa umma uliohifadhiwa; ingia ili kufikia zana za akaunti yako.',
   },
   'SERVICE MENU': {
     am: 'የአገልግሎት ምናሌ', om: 'TARREE TAJAAJILAA', ti: 'ምናሌ ኣገልግሎት', so: 'LIISKA ADEEGYADA', ar: 'قائمة الخدمات', sw: 'MENYU YA HUDUMA',
@@ -1205,8 +1205,8 @@ const publicSurfaceTranslations = {
   'Find work opportunities, verified worker profiles, and employer service requests.': {
     am: 'የሥራ ዕድሎችን፣ የተረጋገጡ የሠራተኛ መገለጫዎችንና የአሠሪ ጥያቄዎችን ያግኙ።', om: 'Carraa hojii, piroofaayila hojjettootaa mirkanaa’an fi gaaffii hojii kennitootaa argadhaa.', ti: 'ዕድላት ስራሕ፣ ዝተረጋገጹ መግለጺታት ሰራሕተኛን ሕቶታት ኣስራሕቲን ርኸቡ።', so: 'Hel fursadaha shaqada, xogta shaqaalaha la xaqiijiyey iyo codsiyada loo-shaqeeyaha.', ar: 'اعثر على فرص العمل وملفات العاملين المتحقق منهم وطلبات أصحاب العمل.', sw: 'Pata fursa za kazi, wasifu wa wafanyakazi waliothibitishwa na maombi ya waajiri.',
   },
-  'AfroLife Edir': {
-    am: 'AfroLife እድር', om: 'Edir AfroLife', ti: 'Edir AfroLife', so: 'AfroLife Edir', ar: 'إدير AfroLife', sw: 'AfroLife Edir',
+  'AfroSherik Edir': {
+    am: 'AfroSherik እድር', om: 'Edir AfroSherik', ti: 'Edir AfroSherik', so: 'AfroSherik Edir', ar: 'إدير AfroSherik', sw: 'AfroSherik Edir',
   },
   'SACCO / MFI': {
     am: 'ህብረት ሥራ ቁጠባ / ፋይናንስ ተቋም', om: 'SACCO / MFI', ti: 'SACCO / MFI', so: 'SACCO / MFI', ar: 'تعاونية ادخار وائتمان / مؤسسة تمويل أصغر', sw: 'SACCO / MFI',
@@ -1232,8 +1232,8 @@ const publicSurfaceTranslations = {
   'Assign entity access': {
     am: 'የድርጅት መዳረሻ መድብ', om: 'Hayyama dhaabbataa ramadi', ti: 'መእተዊ ትካል ምድባ', so: 'U qoondee gelitaanka hay’adda', ar: 'تعيين صلاحية الوصول إلى الكيان', sw: 'Weka ruhusa ya taasisi',
   },
-  'AfroLife user UUID': {
-    am: 'የAfroLife ተጠቃሚ UUID', om: 'UUID fayyadamaa AfroLife', ti: 'UUID ተጠቃሚ AfroLife', so: 'UUID-ga isticmaalaha AfroLife', ar: 'معرّف مستخدم AfroLife', sw: 'UUID ya mtumiaji wa AfroLife',
+  'AfroSherik user UUID': {
+    am: 'የAfroSherik ተጠቃሚ UUID', om: 'UUID fayyadamaa AfroSherik', ti: 'UUID ተጠቃሚ AfroSherik', so: 'UUID-ga isticmaalaha AfroSherik', ar: 'معرّف مستخدم AfroSherik', sw: 'UUID ya mtumiaji wa AfroSherik',
   },
   'Accounting role': {
     am: 'የሂሳብ ሚና', om: 'Gahee herregaa', ti: 'ሚና ሒሳብ', so: 'Doorka xisaabaadka', ar: 'الدور المحاسبي', sw: 'Jukumu la uhasibu',
@@ -1316,8 +1316,8 @@ const publicSurfaceTranslations = {
   'Rent & deposits': {
     am: 'ኪራይ እና ተቀማጭ', om: 'Kiraa fi wabii', ti: 'ክራይን ተቐማጢን', so: 'Kirada iyo deebaajiga', ar: 'الإيجار والودائع', sw: 'Kodi na amana',
   },
-  'AfroLife Edir': {
-    am: 'AfroLife እድር', om: 'Edir AfroLife', ti: 'Edir AfroLife', so: 'AfroLife Edir', ar: 'إدير AfroLife', sw: 'AfroLife Edir',
+  'AfroSherik Edir': {
+    am: 'AfroSherik እድር', om: 'Edir AfroSherik', ti: 'Edir AfroSherik', so: 'AfroSherik Edir', ar: 'إدير AfroSherik', sw: 'AfroSherik Edir',
   },
   'Privacy requests & incidents': {
     am: 'የግላዊነት ጥያቄዎች እና ክስተቶች', om: 'Gaaffii dhuunfaa fi taateewwan', ti: 'ሕቶታት ብሕታዊነትን ፍጻመታትን', so: 'Codsiyada gaarka ah iyo dhacdooyinka', ar: 'طلبات الخصوصية والحوادث', sw: 'Maombi ya faragha na matukio',
@@ -1328,8 +1328,8 @@ const publicSurfaceTranslations = {
   'SACCO / MFI workspace': {
     am: 'የSACCO / MFI የሥራ ቦታ', om: 'Iddoo hojii SACCO / MFI', ti: 'ቦታ ስራሕ SACCO / MFI', so: 'Goobta shaqada SACCO / MFI', ar: 'مساحة عمل SACCO / MFI', sw: 'Nafasi ya kazi ya SACCO / MFI',
   },
-  'AfroLife Edir workspace': {
-    am: 'የAfroLife Edir የሥራ ቦታ', om: 'Iddoo hojii Edir AfroLife', ti: 'ቦታ ስራሕ Edir AfroLife', so: 'Goobta shaqada AfroLife Edir', ar: 'مساحة عمل إدير AfroLife', sw: 'Nafasi ya kazi ya AfroLife Edir',
+  'AfroSherik Edir workspace': {
+    am: 'የAfroSherik Edir የሥራ ቦታ', om: 'Iddoo hojii Edir AfroSherik', ti: 'ቦታ ስራሕ Edir AfroSherik', so: 'Goobta shaqada AfroSherik Edir', ar: 'مساحة عمل إدير AfroSherik', sw: 'Nafasi ya kazi ya AfroSherik Edir',
   },
   'Insurance information': {
     am: 'የኢንሹራንስ መረጃ', om: 'Odeeffannoo inshuraansii', ti: 'ሓበሬታ ውሕስነት', so: 'Macluumaadka caymiska', ar: 'معلومات التأمين', sw: 'Taarifa za bima',
@@ -1367,13 +1367,13 @@ const publicSurfaceTranslations = {
   'Explore Edir membership and available benefits': {
     am: 'የእድር አባልነትንና ያሉ ጥቅሞችን ይመልከቱ', om: 'Miseensummaa Edir fi faayidaalee jiran qoradhaa', ti: 'ኣባልነት Edirን ዘለዉ ረብሓታትን ተዳህስሱ', so: 'Baadh xubinnimada Edir iyo faa’iidooyinka la heli karo', ar: 'استكشف عضوية إدير والمزايا المتاحة', sw: 'Chunguza uanachama wa Edir na manufaa yanayopatikana',
   },
-  'Open to verified AfroLife users across worker, employer, landlord, tenant, seller, and buyer services. Review active community, savings, share, and contribution options before requesting membership. Lending, insurance, and benefit payouts are not live in this pilot.': {
-    am: 'በሠራተኛ፣ በአሠሪ፣ በአከራይ፣ በተከራይ፣ በሻጭና በገዢ አገልግሎቶች ያሉ የተረጋገጡ የAfroLife ተጠቃሚዎች ማመልከት ይችላሉ። አባልነት ከመጠየቅዎ በፊት የሚሠሩ የማኅበረሰብ፣ የቁጠባ፣ የአክሲዮንና የመዋጮ አማራጮችን ይመልከቱ። በዚህ የሙከራ ፕሮግራም ብድር፣ ኢንሹራንስና የጥቅም ክፍያዎች አይሠሩም።',
-    om: 'Tajaajila hojjetaa, hojjechiisaa, abbaa mana kiraa, kireeffataa, gurguraa fi bitataa keessatti fayyadamtoonni AfroLife mirkanaaʼan iyyachuu dandaʼu. Miseensummaa gaafachuu dura filannoowwan hawaasaa, qusannoo, qooda fi gumaachaa hojii irra jiran ilaalaa. Pilootii kana keessatti liqiin, inshuraansiin fi kaffaltiin faayidaa hin hojjetan.',
-    ti: 'ኣብ ኣገልግሎት ሰራሕተኛ፣ ኣስራሒ፣ ኣካራዪ፣ ተኻራዪ፣ ሻየጣይን ገዛእን ዘለዉ ዝተረጋገጹ ተጠቀምቲ AfroLife ክሓቱ ይኽእሉ። ኣባልነት ቅድሚ ምሕታትኩም ንጡፋት ኣማራጺታት ማሕበረሰብ፣ ዕቋር፣ ኣክስዮንን ኣበርክቶን ርኣዩ። ኣብዚ ፓይሎት ልቓሕ፣ ውሕስነትን ክፍሊት ጥቕምን ገና ኣይሰርሑን።',
-    so: 'Isticmaalayaasha AfroLife ee la xaqiijiyey ee ka tirsan adeegyada shaqaalaha, loo-shaqeeyayaasha, mulkiilayaasha, kiraystayaasha, iibiyeyaasha iyo iibsadayaasha way codsan karaan. Ka hor codsiga xubinnimada, eeg adeegyada bulshada, kaydka, saamiyada iyo tabarucaadka ee shaqaynaya. Amaahda, caymiska iyo bixinta faa’iidooyinku kama shaqeeyaan tijaabadan.',
-    ar: 'الخدمة متاحة لمستخدمي AfroLife المعتمدين ضمن خدمات العمال وأصحاب العمل ومُلّاك العقارات والمستأجرين والبائعين والمشترين. راجع خيارات المجتمع والادخار والأسهم والمساهمات النشطة قبل طلب العضوية. الإقراض والتأمين وصرف المزايا غير متاح في هذه المرحلة التجريبية.',
-    sw: 'Watumiaji wa AfroLife waliothibitishwa katika huduma za wafanyakazi, waajiri, wamiliki wa nyumba, wapangaji, wauzaji na wanunuzi wanaweza kujiunga. Kagua chaguo za jamii, akiba, hisa na michango zinazotumika kabla ya kuomba uanachama. Mikopo, bima na malipo ya manufaa havipatikani katika majaribio haya.',
+  'Open to verified AfroSherik users across worker, employer, landlord, tenant, seller, and buyer services. Review active community, savings, share, and contribution options before requesting membership. Lending, insurance, and benefit payouts are not live in this pilot.': {
+    am: 'በሠራተኛ፣ በአሠሪ፣ በአከራይ፣ በተከራይ፣ በሻጭና በገዢ አገልግሎቶች ያሉ የተረጋገጡ የAfroSherik ተጠቃሚዎች ማመልከት ይችላሉ። አባልነት ከመጠየቅዎ በፊት የሚሠሩ የማኅበረሰብ፣ የቁጠባ፣ የአክሲዮንና የመዋጮ አማራጮችን ይመልከቱ። በዚህ የሙከራ ፕሮግራም ብድር፣ ኢንሹራንስና የጥቅም ክፍያዎች አይሠሩም።',
+    om: 'Tajaajila hojjetaa, hojjechiisaa, abbaa mana kiraa, kireeffataa, gurguraa fi bitataa keessatti fayyadamtoonni AfroSherik mirkanaaʼan iyyachuu dandaʼu. Miseensummaa gaafachuu dura filannoowwan hawaasaa, qusannoo, qooda fi gumaachaa hojii irra jiran ilaalaa. Pilootii kana keessatti liqiin, inshuraansiin fi kaffaltiin faayidaa hin hojjetan.',
+    ti: 'ኣብ ኣገልግሎት ሰራሕተኛ፣ ኣስራሒ፣ ኣካራዪ፣ ተኻራዪ፣ ሻየጣይን ገዛእን ዘለዉ ዝተረጋገጹ ተጠቀምቲ AfroSherik ክሓቱ ይኽእሉ። ኣባልነት ቅድሚ ምሕታትኩም ንጡፋት ኣማራጺታት ማሕበረሰብ፣ ዕቋር፣ ኣክስዮንን ኣበርክቶን ርኣዩ። ኣብዚ ፓይሎት ልቓሕ፣ ውሕስነትን ክፍሊት ጥቕምን ገና ኣይሰርሑን።',
+    so: 'Isticmaalayaasha AfroSherik ee la xaqiijiyey ee ka tirsan adeegyada shaqaalaha, loo-shaqeeyayaasha, mulkiilayaasha, kiraystayaasha, iibiyeyaasha iyo iibsadayaasha way codsan karaan. Ka hor codsiga xubinnimada, eeg adeegyada bulshada, kaydka, saamiyada iyo tabarucaadka ee shaqaynaya. Amaahda, caymiska iyo bixinta faa’iidooyinku kama shaqeeyaan tijaabadan.',
+    ar: 'الخدمة متاحة لمستخدمي AfroSherik المعتمدين ضمن خدمات العمال وأصحاب العمل ومُلّاك العقارات والمستأجرين والبائعين والمشترين. راجع خيارات المجتمع والادخار والأسهم والمساهمات النشطة قبل طلب العضوية. الإقراض والتأمين وصرف المزايا غير متاح في هذه المرحلة التجريبية.',
+    sw: 'Watumiaji wa AfroSherik waliothibitishwa katika huduma za wafanyakazi, waajiri, wamiliki wa nyumba, wapangaji, wauzaji na wanunuzi wanaweza kujiunga. Kagua chaguo za jamii, akiba, hisa na michango zinazotumika kabla ya kuomba uanachama. Mikopo, bima na malipo ya manufaa havipatikani katika majaribio haya.',
   },
   'Your service mini-apps': {
     am: 'የአገልግሎት ሚኒ-መተግበሪያዎችዎ', om: 'Mini-appoota tajaajilaa keessan', ti: 'ሚኒ-ኣፕሊኬሽናት ኣገልግሎትኩም', so: 'Barnaamijyada yaryar ee adeegyadaada', ar: 'تطبيقات الخدمات المصغّرة الخاصة بك', sw: 'Programu ndogo za huduma zako',
@@ -1412,8 +1412,8 @@ const publicSurfaceTranslations = {
   'Audience roles': {
     am: 'የታላሚ ሚናዎች', om: 'Gaheewwan dhaggeeffattootaa', ti: 'ሚናታት ተዓዘብቲ', so: 'Doorarka dadka loogu talagalay', ar: 'أدوار الجمهور المستهدف', sw: 'Majukumu ya hadhira',
   },
-  'AfroLife managed listing': {
-    am: 'በAfroLife የሚተዳደር ዝርዝር', om: 'Tarree AfroLife bulchuu', ti: 'ዝርዝር ብAfroLife ዝመሓደር', so: 'Liis uu maamulo AfroLife', ar: 'قائمة تديرها AfroLife', sw: 'Tangazo linalosimamiwa na AfroLife',
+  'AfroSherik managed listing': {
+    am: 'በAfroSherik የሚተዳደር ዝርዝር', om: 'Tarree AfroSherik bulchuu', ti: 'ዝርዝር ብAfroSherik ዝመሓደር', so: 'Liis uu maamulo AfroSherik', ar: 'قائمة تديرها AfroSherik', sw: 'Tangazo linalosimamiwa na AfroSherik',
   },
   'On Android, take or choose photos and videos. Media stays private and is shown only to authorized users.': {
     am: 'በAndroid ላይ ፎቶና ቪዲዮ ያንሱ ወይም ይምረጡ። ሚዲያው በግል ይቀመጣል፣ ለተፈቀዱ ተጠቃሚዎች ብቻ ይታያል።', om: 'Android irratti suuraa fi viidiyoo kaʼaa yookaan filadhaa. Meediyaan iccitiidhaan kuufama; fayyadamtoota hayyamamaniif qofa mulʼata.', ti: 'ኣብ Android ስእልን ቪድዮን ኣንስኡ ወይ ምረጹ። ሚድያ ብምስጢር ይቕመጥ፣ ንዝተፈቕደሎም ተጠቀምቲ ጥራይ ይርአ።', so: 'Android-ka ku qaad ama ka dooro sawirro iyo muuqaallo. Faylasha warbaahintu waa qarsoodi, waxaana arki kara oo keliya isticmaalayaasha loo oggolaaday.', ar: 'على Android، التقط الصور ومقاطع الفيديو أو اخترها. تبقى الوسائط خاصة ولا تظهر إلا للمستخدمين المصرّح لهم.', sw: 'Kwenye Android, piga au chagua picha na video. Midia huhifadhiwa kwa faragha na huonyeshwa kwa watumiaji walioidhinishwa pekee.',
@@ -1709,13 +1709,13 @@ const publicSurfaceTranslations = {
   'Save reporting basis': {
     am: 'የሪፖርት መሠረቱን ያስቀምጡ', om: 'Buʼuura gabaasaa olkaaʼaa', ti: 'መሰረት ሪፖርት ዓቅቡ', so: 'Kaydi habka warbixinta', ar: 'احفظ أساس التقارير', sw: 'Hifadhi msingi wa taarifa',
   },
-  'Accounting & Finance uses the same AfroLife mini-app subscription and payment review as other services. Subscription access is managed from Service subscriptions; this workspace is for accounting standards and books.': {
-    am: 'የሂሳብና ፋይናንስ አገልግሎት ከሌሎች አገልግሎቶች ጋር ተመሳሳይ የAfroLife ሚኒ-መተግበሪያ አባልነትና የክፍያ ግምገማ ይጠቀማል። የአባልነት መዳረሻ ከአገልግሎት አባልነቶች ይተዳደራል፤ ይህ የሥራ ቦታ ለሂሳብ ደረጃዎችና መዝገቦች ነው።',
-    om: 'Herregnii fi Faayinaansii tajaajiloota biroo wajjin miseensummaa mini-app AfroLife fi gamaaggama kaffaltii walfakkaataa fayyadama. Seensaan miseensummaa Tajaajila Miseensota irraa bulfama; iddoo hojii kun ulaagaalee herregaa fi galmeewwaniif qofa.',
-    ti: 'ሒሳብን ፋይናንስን ከም ካልኦት ኣገልግሎታት ተመሳሳሊ ኣባልነት ሚኒ-ኣፕ AfroLifeን ግምገማ ክፍሊትን ይጥቀም። መእተዊ ኣባልነት ካብ ኣባልነት ኣገልግሎታት ይመሓደር፤ እዚ ቦታ ስራሕ ንመለክዒታት ሒሳብን መዝገባትን እዩ።',
-    so: 'Xisaabaadka iyo Maaliyaddu waxay isticmaalaan rukhsadda mini-app-ka AfroLife iyo dib-u-eegista lacag-bixinta ee adeegyada kale. Gelitaanka rukhsadda waxaa laga maamulaa Rukhsadaha Adeegga; goobtan shaqadu waxay u gaar tahay halbeegyada xisaabaadka iyo buugaagta.',
-    ar: 'يستخدم قسم المحاسبة والمالية اشتراك تطبيق AfroLife المصغّر ومراجعة الدفع نفسيهما المستخدمين في الخدمات الأخرى. تُدار صلاحية الاشتراك من اشتراكات الخدمات؛ ومساحة العمل هذه مخصصة لمعايير المحاسبة ودفاترها.',
-    sw: 'Uhasibu na Fedha hutumia usajili huohuo wa programu ndogo ya AfroLife na ukaguzi wa malipo kama huduma nyingine. Ufikiaji wa usajili husimamiwa kwenye Usajili wa Huduma; eneo hili la kazi ni la viwango na vitabu vya uhasibu.',
+  'Accounting & Finance uses the same AfroSherik mini-app subscription and payment review as other services. Subscription access is managed from Service subscriptions; this workspace is for accounting standards and books.': {
+    am: 'የሂሳብና ፋይናንስ አገልግሎት ከሌሎች አገልግሎቶች ጋር ተመሳሳይ የAfroSherik ሚኒ-መተግበሪያ አባልነትና የክፍያ ግምገማ ይጠቀማል። የአባልነት መዳረሻ ከአገልግሎት አባልነቶች ይተዳደራል፤ ይህ የሥራ ቦታ ለሂሳብ ደረጃዎችና መዝገቦች ነው።',
+    om: 'Herregnii fi Faayinaansii tajaajiloota biroo wajjin miseensummaa mini-app AfroSherik fi gamaaggama kaffaltii walfakkaataa fayyadama. Seensaan miseensummaa Tajaajila Miseensota irraa bulfama; iddoo hojii kun ulaagaalee herregaa fi galmeewwaniif qofa.',
+    ti: 'ሒሳብን ፋይናንስን ከም ካልኦት ኣገልግሎታት ተመሳሳሊ ኣባልነት ሚኒ-ኣፕ AfroSherikን ግምገማ ክፍሊትን ይጥቀም። መእተዊ ኣባልነት ካብ ኣባልነት ኣገልግሎታት ይመሓደር፤ እዚ ቦታ ስራሕ ንመለክዒታት ሒሳብን መዝገባትን እዩ።',
+    so: 'Xisaabaadka iyo Maaliyaddu waxay isticmaalaan rukhsadda mini-app-ka AfroSherik iyo dib-u-eegista lacag-bixinta ee adeegyada kale. Gelitaanka rukhsadda waxaa laga maamulaa Rukhsadaha Adeegga; goobtan shaqadu waxay u gaar tahay halbeegyada xisaabaadka iyo buugaagta.',
+    ar: 'يستخدم قسم المحاسبة والمالية اشتراك تطبيق AfroSherik المصغّر ومراجعة الدفع نفسيهما المستخدمين في الخدمات الأخرى. تُدار صلاحية الاشتراك من اشتراكات الخدمات؛ ومساحة العمل هذه مخصصة لمعايير المحاسبة ودفاترها.',
+    sw: 'Uhasibu na Fedha hutumia usajili huohuo wa programu ndogo ya AfroSherik na ukaguzi wa malipo kama huduma nyingine. Ufikiaji wa usajili husimamiwa kwenye Usajili wa Huduma; eneo hili la kazi ni la viwango na vitabu vya uhasibu.',
   },
   'Submit for approval': {
     am: 'ለማጽደቅ ያቅርቡ', om: 'Raggaasiisuuf dhiyeessaa', ti: 'ንምጽዳቕ ኣቕርቡ', so: 'U gudbi ansixin', ar: 'أرسل للموافقة', sw: 'Wasilisha ili kuidhinishwa',
@@ -1735,21 +1735,21 @@ const publicSurfaceTranslations = {
   'Request information': {
     am: 'መረጃ ይጠይቁ', om: 'Odeeffannoo gaafadhaa', ti: 'ሓበሬታ ሕተቱ', so: 'Codso macluumaad', ar: 'اطلب معلومات', sw: 'Omba maelezo',
   },
-  'I consent to AfroLife forwarding this information request to the Insurance service team. This is not an application, policy, quote, or coverage confirmation.': {
-    am: 'AfroLife ይህን የመረጃ ጥያቄ ወደ ኢንሹራንስ አገልግሎት ቡድን እንዲያስተላልፍ ተስማምቻለሁ። ይህ ማመልከቻ፣ ፖሊሲ፣ የዋጋ ጥቅስ ወይም የሽፋን ማረጋገጫ አይደለም።',
-    om: 'AfroLife gaaffii odeeffannoo kana gara garee tajaajila inshuraansiitti akka dabarsu nan hayyama. Kun iyyata, poolisii, tilmaama gatii yookaan mirkaneessa inshuraansii miti.',
-    ti: 'AfroLife እዚ ሕቶ ሓበሬታ ናብ ጉጅለ ኣገልግሎት ውሕስነት ከመሓላልፎ ፈቒደ ኣለኹ። እዚ መመልከቲ፣ ፖሊሲ፣ ጥቕሲ ዋጋ ወይ ምርግጋጽ ሽፋን ኣይኮነን።',
-    so: 'Waxaan oggolahay in AfroLife codsigan macluumaadka u gudbiso kooxda adeegga Caymiska. Tani ma aha codsi caymis, caymis la soo saaray, qiime-soo-jeedin ama xaqiijin caymis.',
-    ar: 'أوافق على إحالة AfroLife لطلب المعلومات هذا إلى فريق خدمات التأمين. لا يُعد ذلك طلب تأمين أو وثيقة أو عرض سعر أو تأكيدًا للتغطية.',
-    sw: 'Ninakubali AfroLife kupeleka ombi hili la maelezo kwa timu ya huduma za Bima. Hili si ombi la bima, sera, makadirio ya bei wala uthibitisho wa bima.',
+  'I consent to AfroSherik forwarding this information request to the Insurance service team. This is not an application, policy, quote, or coverage confirmation.': {
+    am: 'AfroSherik ይህን የመረጃ ጥያቄ ወደ ኢንሹራንስ አገልግሎት ቡድን እንዲያስተላልፍ ተስማምቻለሁ። ይህ ማመልከቻ፣ ፖሊሲ፣ የዋጋ ጥቅስ ወይም የሽፋን ማረጋገጫ አይደለም።',
+    om: 'AfroSherik gaaffii odeeffannoo kana gara garee tajaajila inshuraansiitti akka dabarsu nan hayyama. Kun iyyata, poolisii, tilmaama gatii yookaan mirkaneessa inshuraansii miti.',
+    ti: 'AfroSherik እዚ ሕቶ ሓበሬታ ናብ ጉጅለ ኣገልግሎት ውሕስነት ከመሓላልፎ ፈቒደ ኣለኹ። እዚ መመልከቲ፣ ፖሊሲ፣ ጥቕሲ ዋጋ ወይ ምርግጋጽ ሽፋን ኣይኮነን።',
+    so: 'Waxaan oggolahay in AfroSherik codsigan macluumaadka u gudbiso kooxda adeegga Caymiska. Tani ma aha codsi caymis, caymis la soo saaray, qiime-soo-jeedin ama xaqiijin caymis.',
+    ar: 'أوافق على إحالة AfroSherik لطلب المعلومات هذا إلى فريق خدمات التأمين. لا يُعد ذلك طلب تأمين أو وثيقة أو عرض سعر أو تأكيدًا للتغطية.',
+    sw: 'Ninakubali AfroSherik kupeleka ombi hili la maelezo kwa timu ya huduma za Bima. Hili si ombi la bima, sera, makadirio ya bei wala uthibitisho wa bima.',
   },
-  'Optional: I consent to sharing my name, phone number, and selected topic with one assigned AfroLife Agent for non-binding follow-up and referral to the Insurance service team. The Agent cannot advise, quote, collect premiums, submit applications, or influence underwriting or claims.': {
-    am: 'አማራጭ፦ ስሜን፣ ስልክ ቁጥሬንና የመረጥኩትን ርዕስ ለአንድ የተመደበ የAfroLife ወኪል ለማጋራት ተስማምቻለሁ፤ ወኪሉ የማያስገድድ ክትትል ያደርጋልና ወደ ኢንሹራንስ አገልግሎት ቡድን ይመራል። ወኪሉ ምክር መስጠት፣ ዋጋ መጥቀስ፣ ፕሪሚየም መሰብሰብ፣ ማመልከቻ ማቅረብ ወይም በአደጋ ግምገማና በካሳ ውሳኔ ላይ ተጽዕኖ ማድረግ አይችልም።',
-    om: 'Filannoo: Maqaa, lakkoofsa bilbilaa fi mata-duree filattan bakka buʼaa AfroLife tokkoof akka qoodamu nan hayyama; inni hordoffii dirqama hin taane godhee gara garee inshuraansiitti isin qajeelcha. Bakka buʼaan gorsa, tilmaama gatii, walitti qabaa kaffaltii, dhiyeessa iyyataa yookaan murtii madaallii balaa fi gaaffii beenyaa irratti dhiibbaa gochuu hin dandaʼu.',
-    ti: 'ኣማራጺ፦ ስመይ፣ ቁጽሪ ስልከይን ዝመረጽክዎ ኣርእስትን ምስ ሓደ ዝተመደበ ወኪል AfroLife ክካፈል ፈቒደ ኣለኹ፤ እቲ ወኪል ዘይግድን ክትትል ገይሩ ናብ ጉጅለ ኣገልግሎት ውሕስነት ይመርሕ። ወኪል ምኽሪ፣ ጥቕሲ ዋጋ፣ ምእካብ ፕሪሚየም፣ ምቕራብ መመልከቲ ወይ ኣብ ግምገማ ስግኣትን ውሳነ ካሕሳን ጽልዋ ምግባር ኣይክእልን።',
-    so: 'Ikhtiyaari: Waxaan oggolahay in magacayga, lambarka telefoonka iyo mawduuca aan doortay lala wadaago hal Wakiil AfroLife oo la ii qoondeeyey si uu dabagal aan khasab ahayn u sameeyo iiguna gudbiyo kooxda adeegga Caymiska. Wakiilku ma bixin karo talo ama qiime, mana qaadi karo khidmad, gudbin karo codsi ama saamayn ku yeelan karo qiimaynta khatarta ama go’aamada sheegashada.',
-    ar: 'اختياري: أوافق على مشاركة اسمي ورقم هاتفي والموضوع الذي اخترته مع وكيل واحد معيّن من AfroLife للمتابعة غير الملزمة وإحالتي إلى فريق خدمات التأمين. لا يجوز للوكيل تقديم المشورة أو عرض سعر أو تحصيل أقساط أو تقديم طلبات أو التأثير في الاكتتاب أو المطالبات.',
-    sw: 'Hiari: Ninakubali jina langu, nambari yangu ya simu na mada niliyochagua kushirikiwa na Wakala mmoja wa AfroLife niliyekabidhiwa kwa ufuatiliaji usio wa lazima na kuelekezwa kwa timu ya huduma za Bima. Wakala haruhusiwi kutoa ushauri au bei, kukusanya ada, kutuma maombi, au kuathiri tathmini ya hatari au madai.',
+  'Optional: I consent to sharing my name, phone number, and selected topic with one assigned AfroSherik Agent for non-binding follow-up and referral to the Insurance service team. The Agent cannot advise, quote, collect premiums, submit applications, or influence underwriting or claims.': {
+    am: 'አማራጭ፦ ስሜን፣ ስልክ ቁጥሬንና የመረጥኩትን ርዕስ ለአንድ የተመደበ የAfroSherik ወኪል ለማጋራት ተስማምቻለሁ፤ ወኪሉ የማያስገድድ ክትትል ያደርጋልና ወደ ኢንሹራንስ አገልግሎት ቡድን ይመራል። ወኪሉ ምክር መስጠት፣ ዋጋ መጥቀስ፣ ፕሪሚየም መሰብሰብ፣ ማመልከቻ ማቅረብ ወይም በአደጋ ግምገማና በካሳ ውሳኔ ላይ ተጽዕኖ ማድረግ አይችልም።',
+    om: 'Filannoo: Maqaa, lakkoofsa bilbilaa fi mata-duree filattan bakka buʼaa AfroSherik tokkoof akka qoodamu nan hayyama; inni hordoffii dirqama hin taane godhee gara garee inshuraansiitti isin qajeelcha. Bakka buʼaan gorsa, tilmaama gatii, walitti qabaa kaffaltii, dhiyeessa iyyataa yookaan murtii madaallii balaa fi gaaffii beenyaa irratti dhiibbaa gochuu hin dandaʼu.',
+    ti: 'ኣማራጺ፦ ስመይ፣ ቁጽሪ ስልከይን ዝመረጽክዎ ኣርእስትን ምስ ሓደ ዝተመደበ ወኪል AfroSherik ክካፈል ፈቒደ ኣለኹ፤ እቲ ወኪል ዘይግድን ክትትል ገይሩ ናብ ጉጅለ ኣገልግሎት ውሕስነት ይመርሕ። ወኪል ምኽሪ፣ ጥቕሲ ዋጋ፣ ምእካብ ፕሪሚየም፣ ምቕራብ መመልከቲ ወይ ኣብ ግምገማ ስግኣትን ውሳነ ካሕሳን ጽልዋ ምግባር ኣይክእልን።',
+    so: 'Ikhtiyaari: Waxaan oggolahay in magacayga, lambarka telefoonka iyo mawduuca aan doortay lala wadaago hal Wakiil AfroSherik oo la ii qoondeeyey si uu dabagal aan khasab ahayn u sameeyo iiguna gudbiyo kooxda adeegga Caymiska. Wakiilku ma bixin karo talo ama qiime, mana qaadi karo khidmad, gudbin karo codsi ama saamayn ku yeelan karo qiimaynta khatarta ama go’aamada sheegashada.',
+    ar: 'اختياري: أوافق على مشاركة اسمي ورقم هاتفي والموضوع الذي اخترته مع وكيل واحد معيّن من AfroSherik للمتابعة غير الملزمة وإحالتي إلى فريق خدمات التأمين. لا يجوز للوكيل تقديم المشورة أو عرض سعر أو تحصيل أقساط أو تقديم طلبات أو التأثير في الاكتتاب أو المطالبات.',
+    sw: 'Hiari: Ninakubali jina langu, nambari yangu ya simu na mada niliyochagua kushirikiwa na Wakala mmoja wa AfroSherik niliyekabidhiwa kwa ufuatiliaji usio wa lazima na kuelekezwa kwa timu ya huduma za Bima. Wakala haruhusiwi kutoa ushauri au bei, kukusanya ada, kutuma maombi, au kuathiri tathmini ya hatari au madai.',
   },
   'Your requests and activity': {
     am: 'ጥያቄዎችዎና እንቅስቃሴዎ', om: 'Gaaffii fi sochii keessan', ti: 'ሕቶታትኩምን ንጥፈታትኩምን', so: 'Codsiyadaada iyo dhaqdhaqaaqaaga', ar: 'طلباتك ونشاطك', sw: 'Maombi na shughuli zako',
@@ -1876,13 +1876,13 @@ const publicSurfaceTranslations = {
   'Select each required KYC document before submitting.': {
     am: 'ከማስገባትዎ በፊት እያንዳንዱን የሚፈለግ የKYC ሰነድ ይምረጡ።', om: 'Dura erguu sanada KYC barbaachisu hunda filadhaa.', ti: 'ቅድሚ ምቕራብ ነፍሲ ወከፍ ዝድለ ሰነድ KYC ምረጹ።', so: 'Dooro dhammaan dukumentiyada KYC ee loo baahan yahay ka hor gudbinta.', ar: 'اختر كل مستندات KYC المطلوبة قبل الإرسال.', sw: 'Chagua kila hati ya KYC inayohitajika kabla ya kuwasilisha.',
   },
-  'Registration succeeded but a secure document-upload token was not issued. Contact AfroLife support.': {
-    am: 'ምዝገባው ተሳክቷል፣ ግን ደህንነቱ የተጠበቀ የሰነድ መጫኛ ቶከን አልተሰጠም። የAfroLife ድጋፍን ያነጋግሩ።',
-    om: 'Galmeen milkaaʼeera; garuu mallattoon nageenyaa sanada olkaaʼu hin kennamne. Deeggarsa AfroLife qunnamaa.',
-    ti: 'ምዝገባ ተሳኺዑ፣ ግን ውሑስ ምልክት ምጽዓን ሰነድ ኣይተዋህበን። ደገፍ AfroLife ርኸቡ።',
-    so: 'Diiwaangelintu way guulaysatay, balse lama bixin summaddii amniga ee dukumentiga lagu gelin lahaa. La xiriir taageerada AfroLife.',
-    ar: 'نجح التسجيل، لكن لم يصدر رمز آمن لرفع المستندات. تواصل مع دعم AfroLife.',
-    sw: 'Usajili umefaulu, lakini tokeni salama ya kupakia hati haikutolewa. Wasiliana na usaidizi wa AfroLife.',
+  'Registration succeeded but a secure document-upload token was not issued. Contact AfroSherik support.': {
+    am: 'ምዝገባው ተሳክቷል፣ ግን ደህንነቱ የተጠበቀ የሰነድ መጫኛ ቶከን አልተሰጠም። የAfroSherik ድጋፍን ያነጋግሩ።',
+    om: 'Galmeen milkaaʼeera; garuu mallattoon nageenyaa sanada olkaaʼu hin kennamne. Deeggarsa AfroSherik qunnamaa.',
+    ti: 'ምዝገባ ተሳኺዑ፣ ግን ውሑስ ምልክት ምጽዓን ሰነድ ኣይተዋህበን። ደገፍ AfroSherik ርኸቡ።',
+    so: 'Diiwaangelintu way guulaysatay, balse lama bixin summaddii amniga ee dukumentiga lagu gelin lahaa. La xiriir taageerada AfroSherik.',
+    ar: 'نجح التسجيل، لكن لم يصدر رمز آمن لرفع المستندات. تواصل مع دعم AfroSherik.',
+    sw: 'Usajili umefaulu, lakini tokeni salama ya kupakia hati haikutolewa. Wasiliana na usaidizi wa AfroSherik.',
   },
   'Use a valid HTTPS server URL. HTTP is allowed only for localhost development.': {
     am: 'ትክክለኛ የHTTPS አገልጋይ URL ይጠቀሙ። HTTP የሚፈቀደው ለlocalhost ልማት ብቻ ነው።',
@@ -1939,13 +1939,13 @@ const publicSurfaceTranslations = {
   'Category': {
     am: 'ምድብ', om: 'Ramaddii', ti: 'ምድብ', so: 'Qaybta', ar: 'الفئة', sw: 'Aina',
   },
-  'Optional: I consent to sharing my name, phone number, and selected topic with one assigned AfroLife Agent for non-binding follow-up and referral to the Insurance service team. The Agent cannot advise, quote, collect premiums, or issue or change a policy.': {
-    am: 'አማራጭ፦ ስሜን፣ ስልክ ቁጥሬንና የመረጥኩትን ርዕስ ለአንድ የተመደበ የAfroLife ወኪል ለማጋራት ተስማምቻለሁ፤ ወኪሉ የማያስገድድ ክትትል ያደርጋልና ወደ ኢንሹራንስ ቡድን ይመራል። ወኪሉ ምክር ወይም ዋጋ መስጠት፣ ፕሪሚየም መሰብሰብ፣ ፖሊሲ ማውጣት ወይም መቀየር አይችልም።',
-    om: 'Filannoo: Maqaa, lakkoofsa bilbilaa fi mata-duree filattan bakka buʼaa AfroLife tokkoof akka qoodamu nan hayyama; inni hordoffii dirqama hin taane godhee gara garee inshuraansiitti isin qajeelcha. Bakka buʼaan gorsa kennuu, gatii himuu, kaffaltii inshuraansii walitti qabuu yookaan poolisii baasuu fi jijjiiruu hin dandaʼu.',
-    ti: 'ኣማራጺ፦ ስመይ፣ ቁጽሪ ስልከይን ዝመረጽክዎ ኣርእስትን ምስ ሓደ ዝተመደበ ወኪል AfroLife ክካፈል ፈቒደ ኣለኹ፤ እቲ ወኪል ዘይግድን ክትትል ገይሩ ናብ ጉጅለ ውሕስነት ይመርሕ። ወኪል ምኽሪ ወይ ዋጋ ምሃብ፣ ፕሪሚየም ምእካብ፣ ፖሊሲ ምውጻእ ወይ ምቕያር ኣይክእልን።',
-    so: 'Ikhtiyaari: Waxaan oggolahay in magacayga, lambarka telefoonka iyo mawduuca aan doortay lala wadaago hal Wakiil AfroLife oo la ii qoondeeyey si uu dabagal aan khasab ahayn u sameeyo iiguna gudbiyo kooxda adeegga Caymiska. Wakiilku ma bixin karo talo ama qiime, ma qaadi karo khidmad, mana soo saari karo ama beddeli karo caymis.',
-    ar: 'اختياري: أوافق على مشاركة اسمي ورقم هاتفي والموضوع الذي اخترته مع وكيل واحد معيّن من AfroLife للمتابعة غير الملزمة وإحالتي إلى فريق التأمين. لا يجوز للوكيل تقديم المشورة أو عرض الأسعار أو تحصيل الأقساط أو إصدار وثيقة أو تعديلها.',
-    sw: 'Hiari: Ninakubali jina langu, nambari ya simu na mada niliyochagua kushirikiwa na Wakala mmoja wa AfroLife kwa ufuatiliaji usio wa lazima na kuelekezwa kwa timu ya Bima. Wakala haruhusiwi kutoa ushauri au bei, kukusanya ada, kutoa au kubadilisha sera.',
+  'Optional: I consent to sharing my name, phone number, and selected topic with one assigned AfroSherik Agent for non-binding follow-up and referral to the Insurance service team. The Agent cannot advise, quote, collect premiums, or issue or change a policy.': {
+    am: 'አማራጭ፦ ስሜን፣ ስልክ ቁጥሬንና የመረጥኩትን ርዕስ ለአንድ የተመደበ የAfroSherik ወኪል ለማጋራት ተስማምቻለሁ፤ ወኪሉ የማያስገድድ ክትትል ያደርጋልና ወደ ኢንሹራንስ ቡድን ይመራል። ወኪሉ ምክር ወይም ዋጋ መስጠት፣ ፕሪሚየም መሰብሰብ፣ ፖሊሲ ማውጣት ወይም መቀየር አይችልም።',
+    om: 'Filannoo: Maqaa, lakkoofsa bilbilaa fi mata-duree filattan bakka buʼaa AfroSherik tokkoof akka qoodamu nan hayyama; inni hordoffii dirqama hin taane godhee gara garee inshuraansiitti isin qajeelcha. Bakka buʼaan gorsa kennuu, gatii himuu, kaffaltii inshuraansii walitti qabuu yookaan poolisii baasuu fi jijjiiruu hin dandaʼu.',
+    ti: 'ኣማራጺ፦ ስመይ፣ ቁጽሪ ስልከይን ዝመረጽክዎ ኣርእስትን ምስ ሓደ ዝተመደበ ወኪል AfroSherik ክካፈል ፈቒደ ኣለኹ፤ እቲ ወኪል ዘይግድን ክትትል ገይሩ ናብ ጉጅለ ውሕስነት ይመርሕ። ወኪል ምኽሪ ወይ ዋጋ ምሃብ፣ ፕሪሚየም ምእካብ፣ ፖሊሲ ምውጻእ ወይ ምቕያር ኣይክእልን።',
+    so: 'Ikhtiyaari: Waxaan oggolahay in magacayga, lambarka telefoonka iyo mawduuca aan doortay lala wadaago hal Wakiil AfroSherik oo la ii qoondeeyey si uu dabagal aan khasab ahayn u sameeyo iiguna gudbiyo kooxda adeegga Caymiska. Wakiilku ma bixin karo talo ama qiime, ma qaadi karo khidmad, mana soo saari karo ama beddeli karo caymis.',
+    ar: 'اختياري: أوافق على مشاركة اسمي ورقم هاتفي والموضوع الذي اخترته مع وكيل واحد معيّن من AfroSherik للمتابعة غير الملزمة وإحالتي إلى فريق التأمين. لا يجوز للوكيل تقديم المشورة أو عرض الأسعار أو تحصيل الأقساط أو إصدار وثيقة أو تعديلها.',
+    sw: 'Hiari: Ninakubali jina langu, nambari ya simu na mada niliyochagua kushirikiwa na Wakala mmoja wa AfroSherik kwa ufuatiliaji usio wa lazima na kuelekezwa kwa timu ya Bima. Wakala haruhusiwi kutoa ushauri au bei, kukusanya ada, kutoa au kubadilisha sera.',
   },
   'Insurance information request review': {
     am: 'የኢንሹራንስ መረጃ ጥያቄ ግምገማ', om: 'Gamaaggama gaaffii odeeffannoo inshuraansii', ti: 'ግምገማ ሕቶ ሓበሬታ ውሕስነት', so: 'Dib-u-eegista codsiyada macluumaadka caymiska', ar: 'مراجعة طلبات معلومات التأمين', sw: 'Ukaguzi wa maombi ya maelezo ya bima',
@@ -2980,8 +2980,8 @@ const publicSurfaceTranslations = {
   'Engagement terms submitted for independent Finance review.': {
     am: 'የሥራ ተሳትፎ ውሎች ለገለልተኛ የፋይናንስ ግምገማ ቀርበዋል።', om: 'Haalotni hojii hirmaannaa gamaaggama Faayinaansii of dandaʼeef dhiyaataniiru.', ti: 'ውዕላት ስምምዕ ስራሕ ንናጻ ግምገማ ፋይናንስ ቀሪቦም።', so: 'Shuruudaha hawlgalka waxaa loo gudbiyey dib-u-eegis maaliyadeed oo madax-bannaan.', ar: 'أُرسلت شروط المشاركة لمراجعة مالية مستقلة.', sw: 'Masharti ya ushiriki yamewasilishwa kwa ukaguzi huru wa Fedha.',
   },
-  'Your support request was sent to AfroLife.': {
-    am: 'የድጋፍ ጥያቄዎ ወደ AfroLife ተልኳል።', om: 'Gaaffiin deeggarsaa keessan gara AfroLife ergameera.', ti: 'ሕቶ ደገፍኩም ናብ AfroLife ተላኢኹ።', so: 'Codsigaaga taageerada waxaa loo diray AfroLife.', ar: 'أُرسل طلب الدعم إلى AfroLife.', sw: 'Ombi lako la usaidizi limetumwa kwa AfroLife.',
+  'Your support request was sent to AfroSherik.': {
+    am: 'የድጋፍ ጥያቄዎ ወደ AfroSherik ተልኳል።', om: 'Gaaffiin deeggarsaa keessan gara AfroSherik ergameera.', ti: 'ሕቶ ደገፍኩም ናብ AfroSherik ተላኢኹ።', so: 'Codsigaaga taageerada waxaa loo diray AfroSherik.', ar: 'أُرسل طلب الدعم إلى AfroSherik.', sw: 'Ombi lako la usaidizi limetumwa kwa AfroSherik.',
   },
   'Your support case was submitted. Safety, fraud, privacy and legal cases are escalated as urgent.': {
     am: 'የድጋፍ ጉዳይዎ ቀርቧል። የደህንነት፣ የማጭበርበር፣ የግላዊነትና የሕግ ጉዳዮች አስቸኳይ ተብለው ይቀርባሉ።',
@@ -3829,13 +3829,13 @@ const publicSurfaceTranslations = {
     ar: 'مراجعة طلب الإيجار',
     sw: 'Ukaguzi wa ombi la upangaji',
   },
-  'Review applications manually. AfroLife does not run automated tenant screening. Rejections and requests for information require a reason.': {
-    am: 'ማመልከቻዎችን በእጅ ይገምግሙ። AfroLife ራስ-ሰር የተከራይ ምርመራ አያካሂድም። ውድቅ ማድረግ ወይም መረጃ መጠየቅ ምክንያት ይፈልጋል።',
-    om: 'Iyyannoowwan harkaan gamaaggamaa. AfroLife qorannoo kireeffataa ofumaan hin raawwatu. Diduun yookaan odeeffannoo gaafachuun sababaa barbaada.',
-    ti: 'ምልክታታት ብኢድ ገምግሙ። AfroLife ኣውቶማቲክ ምርመራ ተኻራዪ ኣይገብርን። ምንጻግ ወይ ሓበሬታ ምሕታት ምኽንያት የድሊ።',
-    so: 'Codsiyada gacanta ku eeg. AfroLife ma sameeyo baaritaan kirayste oo otomaatig ah. Diidmada iyo codsiga xog dheeraad ah sabab bay u baahan yihiin.',
-    ar: 'راجع الطلبات يدوياً. لا تجري AfroLife فحصاً آلياً للمستأجرين. يتطلب الرفض أو طلب المعلومات ذكر السبب.',
-    sw: 'Kagua maombi kwa mkono. AfroLife haifanyi uchunguzi wa wapangaji kiotomatiki. Kukataa au kuomba taarifa kunahitaji sababu.',
+  'Review applications manually. AfroSherik does not run automated tenant screening. Rejections and requests for information require a reason.': {
+    am: 'ማመልከቻዎችን በእጅ ይገምግሙ። AfroSherik ራስ-ሰር የተከራይ ምርመራ አያካሂድም። ውድቅ ማድረግ ወይም መረጃ መጠየቅ ምክንያት ይፈልጋል።',
+    om: 'Iyyannoowwan harkaan gamaaggamaa. AfroSherik qorannoo kireeffataa ofumaan hin raawwatu. Diduun yookaan odeeffannoo gaafachuun sababaa barbaada.',
+    ti: 'ምልክታታት ብኢድ ገምግሙ። AfroSherik ኣውቶማቲክ ምርመራ ተኻራዪ ኣይገብርን። ምንጻግ ወይ ሓበሬታ ምሕታት ምኽንያት የድሊ።',
+    so: 'Codsiyada gacanta ku eeg. AfroSherik ma sameeyo baaritaan kirayste oo otomaatig ah. Diidmada iyo codsiga xog dheeraad ah sabab bay u baahan yihiin.',
+    ar: 'راجع الطلبات يدوياً. لا تجري AfroSherik فحصاً آلياً للمستأجرين. يتطلب الرفض أو طلب المعلومات ذكر السبب.',
+    sw: 'Kagua maombi kwa mkono. AfroSherik haifanyi uchunguzi wa wapangaji kiotomatiki. Kukataa au kuomba taarifa kunahitaji sababu.',
   },
   'Accept application': {
     am: 'ማመልከቻውን ተቀበል',
@@ -3853,13 +3853,13 @@ const publicSurfaceTranslations = {
     ar: 'ارفض الطلب',
     sw: 'Kataa ombi',
   },
-  'AfroLife displays recorded operational information only. Payment records do not confirm that funds were paid to a landlord; tenant notices are not legal service or termination.': {
-    am: 'AfroLife የተመዘገበ የሥራ መረጃን ብቻ ያሳያል። የክፍያ መዝገቦች ገንዘብ ለአከራይ መከፈሉን አያረጋግጡም፤ የተከራይ ማሳወቂያዎችም ሕጋዊ ማስታወቂያ ወይም ውል ማቋረጥ አይደሉም።',
-    om: 'AfroLife odeeffannoo hojii galmaaʼe qofa agarsiisa. Galmeen kaffaltii maallaqni abbaa qabeenyaaf kaffalamuu hin mirkaneessu; beeksisni kireeffataa tajaajila seeraa yookaan waliigaltee xumuru miti.',
-    ti: 'AfroLife ዝተመዝገበ ናይ ስራሕ ሓበሬታ ጥራይ የርኢ። መዝገብ ክፍሊት ገንዘብ ንኣካራዪ ከም ዝተኸፍለ ኣየረጋግጽን፤ ማስታወቂያ ተኻራዪ ሕጋዊ ምልኣኽ ወይ ምቁራጽ ውዕል ኣይኮነን።',
-    so: 'AfroLife waxay muujisaa oo keliya xog hawleed la diiwaangeliyey. Diiwaanka lacag-bixintu ma xaqiijiyo in lacag loo diray mulkiilaha; ogeysiiska kiraystuhuna ma aha adeeg sharci ama joojin heshiis.',
-    ar: 'تعرض AfroLife المعلومات التشغيلية المسجلة فقط. سجلات الدفع لا تؤكد وصول الأموال إلى المالك؛ وإشعارات المستأجر ليست تبليغاً قانونياً ولا إنهاءً للعقد.',
-    sw: 'AfroLife huonyesha taarifa za shughuli zilizorekodiwa pekee. Rekodi za malipo hazithibitishi kuwa fedha zimelipwa kwa mwenye nyumba; taarifa za mpangaji si huduma ya kisheria wala kusitisha mkataba.',
+  'AfroSherik displays recorded operational information only. Payment records do not confirm that funds were paid to a landlord; tenant notices are not legal service or termination.': {
+    am: 'AfroSherik የተመዘገበ የሥራ መረጃን ብቻ ያሳያል። የክፍያ መዝገቦች ገንዘብ ለአከራይ መከፈሉን አያረጋግጡም፤ የተከራይ ማሳወቂያዎችም ሕጋዊ ማስታወቂያ ወይም ውል ማቋረጥ አይደሉም።',
+    om: 'AfroSherik odeeffannoo hojii galmaaʼe qofa agarsiisa. Galmeen kaffaltii maallaqni abbaa qabeenyaaf kaffalamuu hin mirkaneessu; beeksisni kireeffataa tajaajila seeraa yookaan waliigaltee xumuru miti.',
+    ti: 'AfroSherik ዝተመዝገበ ናይ ስራሕ ሓበሬታ ጥራይ የርኢ። መዝገብ ክፍሊት ገንዘብ ንኣካራዪ ከም ዝተኸፍለ ኣየረጋግጽን፤ ማስታወቂያ ተኻራዪ ሕጋዊ ምልኣኽ ወይ ምቁራጽ ውዕል ኣይኮነን።',
+    so: 'AfroSherik waxay muujisaa oo keliya xog hawleed la diiwaangeliyey. Diiwaanka lacag-bixintu ma xaqiijiyo in lacag loo diray mulkiilaha; ogeysiiska kiraystuhuna ma aha adeeg sharci ama joojin heshiis.',
+    ar: 'تعرض AfroSherik المعلومات التشغيلية المسجلة فقط. سجلات الدفع لا تؤكد وصول الأموال إلى المالك؛ وإشعارات المستأجر ليست تبليغاً قانونياً ولا إنهاءً للعقد.',
+    sw: 'AfroSherik huonyesha taarifa za shughuli zilizorekodiwa pekee. Rekodi za malipo hazithibitishi kuwa fedha zimelipwa kwa mwenye nyumba; taarifa za mpangaji si huduma ya kisheria wala kusitisha mkataba.',
   },
   'Charges': {
     am: 'ክፍያዎች',
@@ -4101,14 +4101,14 @@ const publicSurfaceTranslations = {
     ar: 'صف مستند التفويض الجديد المقدم (10 أحرف على الأقل).',
     sw: 'Eleza ushahidi mpya wa uwakilishi unaowasilishwa (angalau herufi 10).',
   },
-  'AfroLife Support': {
-    am: 'የAfroLife ድጋፍ', om: 'Deeggarsa AfroLife', ti: 'ደገፍ AfroLife', so: 'Taageerada AfroLife', ar: 'دعم AfroLife', sw: 'Usaidizi wa AfroLife',
+  'AfroSherik Support': {
+    am: 'የAfroSherik ድጋፍ', om: 'Deeggarsa AfroSherik', ti: 'ደገፍ AfroSherik', so: 'Taageerada AfroSherik', ar: 'دعم AfroSherik', sw: 'Usaidizi wa AfroSherik',
   },
   'Role-aware assistant and peer support': {
     am: 'ከእርስዎ ሚና ጋር የተያያዘ አጋዥና የባልደረባ ድጋፍ', om: 'Gargaaraa gahee keessanii fi deeggarsa ogeessaa', ti: 'ምስ ግደኹም ዝተኣሳሰር ሓጋዚን ደገፍ መሳርሕትን', so: 'Kaaliye ku xiran doorkaaga iyo taageerada shaqaalaha', ar: 'مساعد ودعم من موظفي الدعم وفقاً لدورك', sw: 'Msaidizi na usaidizi wa wafanyakazi kulingana na jukumu lako',
   },
-  'Your access and support options follow your AfroLife role.': {
-    am: 'የመዳረሻዎና የድጋፍ አማራጮችዎ በAfroLife ሚናዎ መሠረት ይወሰናሉ።', om: 'Seensaa fi filannoowwan deeggarsaa keessan gahee AfroLife keessaniin murtaa’u.', ti: 'መእተዊኹምን ኣማራጺታት ደገፍኩምን ብግደ AfroLife ይውሰኑ።', so: 'Helitaankaaga iyo ikhtiyaarrada taageeradu waxay ku xiran yihiin doorkaaga AfroLife.', ar: 'يتحدد وصولك وخيارات الدعم وفقاً لدورك في AfroLife.', sw: 'Ufikiaji na chaguo zako za usaidizi hutegemea jukumu lako la AfroLife.',
+  'Your access and support options follow your AfroSherik role.': {
+    am: 'የመዳረሻዎና የድጋፍ አማራጮችዎ በAfroSherik ሚናዎ መሠረት ይወሰናሉ።', om: 'Seensaa fi filannoowwan deeggarsaa keessan gahee AfroSherik keessaniin murtaa’u.', ti: 'መእተዊኹምን ኣማራጺታት ደገፍኩምን ብግደ AfroSherik ይውሰኑ።', so: 'Helitaankaaga iyo ikhtiyaarrada taageeradu waxay ku xiran yihiin doorkaaga AfroSherik.', ar: 'يتحدد وصولك وخيارات الدعم وفقاً لدورك في AfroSherik.', sw: 'Ufikiaji na chaguo zako za usaidizi hutegemea jukumu lako la AfroSherik.',
   },
   'Online support agents: {{count}}': {
     am: 'በመስመር ላይ ያሉ የድጋፍ ሰጪዎች፦ {{count}}', om: 'Ogeeyyii deeggarsa toora interneetii irra jiran: {{count}}', ti: 'ኣብ መስመር ዘለዉ ሰራሕተኛታት ደገፍ፦ {{count}}', so: 'Wakiillada taageerada ee khadka jooga: {{count}}', ar: 'موظفو الدعم المتصلون: {{count}}', sw: 'Wahudumu wa usaidizi walio mtandaoni: {{count}}',
@@ -4155,8 +4155,8 @@ const publicSurfaceTranslations = {
   'You': {
     am: 'እርስዎ', om: 'Isin', ti: 'ንስኹም', so: 'Adiga', ar: 'أنت', sw: 'Wewe',
   },
-  'AfroLife support': {
-    am: 'የAfroLife ድጋፍ', om: 'Deeggarsa AfroLife', ti: 'ደገፍ AfroLife', so: 'Taageerada AfroLife', ar: 'دعم AfroLife', sw: 'Usaidizi wa AfroLife',
+  'AfroSherik support': {
+    am: 'የAfroSherik ድጋፍ', om: 'Deeggarsa AfroSherik', ti: 'ደገፍ AfroSherik', so: 'Taageerada AfroSherik', ar: 'دعم AfroSherik', sw: 'Usaidizi wa AfroSherik',
   },
   'Open property services': {
     am: 'የንብረት አገልግሎቶችን ክፈት', om: 'Tajaajila qabeenyaa bani', ti: 'ኣገልግሎታት ንብረት ክፈት', so: 'Fur adeegyada hantida', ar: 'فتح خدمات العقارات', sw: 'Fungua huduma za mali',

@@ -7,20 +7,19 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="description" content="AfroLife connects people with services for work, homes, business, and community.">
+    <meta name="description" content="AfroSherik connects people with services for work, homes, business, and community.">
     <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="icon" href="/icon.svg?v=5" type="image/svg+xml">
-    <link rel="icon" href="/icons/afrolife-icon-192.png" type="image/png" sizes="192x192">
-    <link rel="apple-touch-icon" href="/icons/afrolife-icon-192.png">
+    <link rel="icon" href="/icons/afrosherik-icon-192.png" type="image/png" sizes="192x192">
+    <link rel="apple-touch-icon" href="/icons/afrosherik-icon-192.png">
     <link rel="stylesheet" href="/styles.css">
     <link rel="stylesheet" href="/financial-workspaces.css">
-    <title>AfroLife Agency | አፍሮ-ላይፍ ኤጄንሲ</title>
+    <title>AfroSherik | አፍሮ-ሸሪክ</title>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="topbar">
-      <a class="brand" href="/" aria-label="አፍሮ-ላይፍ ኤጄንሲ / AfroLife Agency">
-        <img src="/brand/afrolife-brand-lockup.svg" alt="" width="312" height="120">
+      <a class="brand" href="/" aria-label="AfroSherik">
+        <img src="/brand/afrosherik-brand-lockup.png" alt="AfroSherik — Connect · Access · Thrive" width="490" height="152">
       </a>
       <label class="language-picker">
         <span class="visually-hidden">Language</span>
@@ -34,7 +33,7 @@
           <option value="sw">Kiswahili</option>
         </select>
       </label>
-      <button id="install-app" class="button button-outline install-app" type="button" hidden>Install app</button>
+      <button id="install-app" class="button button-outline install-app" type="button" hidden>Install AfroSherik</button>
       <div id="account-tools" class="account-tools" hidden>
         <span id="account-name" class="account-name"></span>
         <button id="return-super-app" class="button button-outline" type="button">Super App</button>
@@ -45,12 +44,12 @@
     <main id="main-content">
       <section id="login-view" class="login-layout">
         <div class="welcome-panel">
-          <p class="eyebrow">PEOPLE · SERVICES · OPPORTUNITY</p>
+          <p class="eyebrow">CONNECT · ACCESS · THRIVE</p>
           <a class="welcome-signin-shortcut" href="#login-form">Sign in</a>
           <h1>One trusted place to get work moving.</h1>
           <p>Coordinate leads, verified workers and service requests with clear ownership at every step.</p>
           <figure class="brand-illustration">
-            <img src="/brand/afrolife-campaign-hero.png" alt="A woman in Addis Ababa beside the campaign message: More Opportunities. Stronger Communities." width="488" height="232">
+            <img src="/brand/afrosherik-campaign-hero.png" alt="AfroSherik campaign artwork showing a woman with a phone and the Addis Ababa skyline beside the message: More Opportunities. Stronger Communities." width="427" height="204">
           </figure>
           <div class="trust-points">
             <span><i></i> Verified workforce</span>
@@ -70,17 +69,17 @@
           <button class="button button-primary button-wide" type="submit">Sign in <span aria-hidden="true">→</span></button>
           <button id="create-account" class="button button-outline button-wide" type="button">Create account</button>
           <div class="login-registration-actions" aria-label="Choose an Edir registration path">
-            <button id="join-edir" class="button button-outline" type="button">Join AfroLife Edir</button>
+            <button id="join-edir" class="button button-outline" type="button">Join AfroSherik Edir</button>
             <button class="button button-outline" type="button" data-open-edir-registration>Register an Edir</button>
           </div>
           <div class="login-links">
             <button id="show-agent-plans" class="text-button" type="button">Agent subscription plans</button>
           </div>
-          <p class="fine-print">Access is limited to approved AfroLife accounts.</p>
+          <p class="fine-print">Access is limited to approved AfroSherik accounts.</p>
         </form>
         <form id="signup-form" class="panel signup-card" hidden>
-          <p class="eyebrow">ETHIOLIFE REGISTRATION</p>
-          <h2>Apply to join AfroLife</h2>
+          <p class="eyebrow">AFROSHERIK REGISTRATION</p>
+          <h2>Apply to join AfroSherik</h2>
           <p class="muted">Staff approval is required before sign-in. Your account will remain inactive until compliance review and activation are complete.</p>
           <label>Full name<input name="legal_name" autocomplete="name" required minlength="2" maxlength="160"></label>
           <label>Phone number<input name="phone" type="tel" autocomplete="tel" placeholder="+251 9…" required minlength="8"></label>
@@ -100,9 +99,9 @@
             <h3 id="signup-benefits-title">Service interests (no charge today)</h3>
           <label class="benefit-check" id="pension-interest-field" hidden><input type="checkbox" name="pension_match_interest"><span><strong>Ask about worker savings options</strong><small>Request information about currently configured worker savings services. No match or pension contribution is promised.</small></span></label>
             <label class="benefit-check" id="worker-enterprise-field" hidden><input type="checkbox" name="option_a_enterprise_interest"><span><strong>Enterprise Option A staff service</strong><small>For workers seeking an Option A placement with the Enterprise service pathway. Enrollment, employer terms, pension matching and Edir benefits require confirmation before activation.</small></span></label>
-            <label class="benefit-check"><input type="checkbox" name="edir_member_interest"><span><strong>Request AfroLife Edir membership</strong><small>After KYC verification, you can review the currently available community and financial products before requesting enrollment.</small></span></label>
+            <label class="benefit-check"><input type="checkbox" name="edir_member_interest"><span><strong>Request AfroSherik Edir membership</strong><small>After KYC verification, you can review the currently available community and financial products before requesting enrollment.</small></span></label>
             <label class="benefit-check"><input type="checkbox" name="edir_life_interest"><span><strong>Ask about future insurance services</strong><small>Insurance is not active in the current Edir pilot.</small></span></label>
-            <label class="benefit-check"><input type="checkbox" name="household_cover_interest"><span><strong>Ask about future household protection</strong><small>Household cover is not active in the current AfroLife service.</small></span></label>
+            <label class="benefit-check"><input type="checkbox" name="household_cover_interest"><span><strong>Ask about future household protection</strong><small>Household cover is not active in the current AfroSherik service.</small></span></label>
             <p class="benefit-disclaimer">These are non-binding requests for information. Selecting a benefit does not enroll you, collect money or start insurance coverage.</p>
           </section>
           </div>
@@ -120,8 +119,8 @@
           <label id="worker-date-of-birth-field" hidden>Date of birth (required for worker applicants)
             <input id="worker-date-of-birth" name="date_of_birth" type="date" autocomplete="bday">
           </label>
-          <label class="benefit-check" id="worker-document-consent-field" hidden><input id="worker-document-consent" type="checkbox" name="worker_document_consent"><span><strong>Consent to worker document review</strong><small>AfroLife may use my National ID and police-clearance documents to verify my identity and assess eligibility for workforce services. Authorized compliance staff will review these documents, which are stored privately.</small></span></label>
-          <p class="muted upload-help">Documents are stored privately and reviewed by AfroLife compliance staff.</p>
+          <label class="benefit-check" id="worker-document-consent-field" hidden><input id="worker-document-consent" type="checkbox" name="worker_document_consent"><span><strong>Consent to worker document review</strong><small>AfroSherik may use my National ID and police-clearance documents to verify my identity and assess eligibility for workforce services. Authorized compliance staff will review these documents, which are stored privately.</small></span></label>
+          <p class="muted upload-help">Documents are stored privately and reviewed by AfroSherik compliance staff.</p>
           <div id="agent-fields" hidden>
             <label>Agent type
               <select id="signup-agent-type" name="agent_type">
@@ -141,7 +140,7 @@
             </label>
           </div>
           <div id="service-plan-fields" hidden>
-            <label>AfroLife service plan
+            <label>AfroSherik service plan
               <select name="requested_plan" id="signup-plan">
                 <option value="free">Free</option>
                 <option value="pro">Pro</option>
@@ -150,7 +149,7 @@
             </label>
             <section class="plan-details" aria-live="polite">
               <strong id="signup-plan-title">Free service</strong>
-              <p id="signup-plan-description">Core AfroLife tools for your role, including lead, worker, request, contract and listing workflows.</p>
+              <p id="signup-plan-description">Core AfroSherik tools for your role, including lead, worker, request, contract and listing workflows.</p>
             </section>
             <p class="plan-notice">The plan is recorded as a request. Paid features remain inactive until billing and plan activation are configured.</p>
           </div>
@@ -171,25 +170,25 @@
         </form>
         <div id="server-setup-home">
         <section id="server-setup" class="panel form-card server-setup" hidden>
-          <h2>Connect to AfroLife</h2>
-          <p class="muted">Enter the HTTPS address of your organization’s AfroLife server.</p>
+          <h2>Connect to AfroSherik</h2>
+          <p class="muted">Enter the HTTPS address of your organization’s AfroSherik server.</p>
           <label>API server address<input id="api-server-url" type="url" inputmode="url" placeholder="https://afrolife-agency.duckdns.org" autocomplete="url" required></label>
           <p id="server-error" class="form-error" role="alert"></p>
           <button id="save-server" class="button button-primary button-wide" type="button">Save server address</button>
         </section>
       </section>
 
-      <section id="public-hub" class="public-hub" aria-label="AfroLife services and industry news">
+      <section id="public-hub" class="public-hub" aria-label="AfroSherik services and industry news">
         <div class="hub-heading">
           <div class="hub-copy">
-            <p class="eyebrow">PEOPLE · SERVICES · OPPORTUNITY</p>
+            <p class="eyebrow">CONNECT · ACCESS · THRIVE</p>
             <h2>Services for work, homes, business, and community.</h2>
-            <p>Explore AfroLife’s connected services. Install the app for a home-screen shortcut and a cached public shell; sign in to access account-specific tools.</p>
-            <div class="hub-actions"><a class="button button-primary" href="#login-form">Sign in</a><button id="public-create-account" class="button button-outline" type="button">Create account</button><button class="button button-outline" type="button" data-install-pwa>Install AfroLife</button></div>
+            <p>Explore AfroSherik’s connected services. Install the app for a home-screen shortcut and a cached public shell; sign in to access account-specific tools.</p>
+            <div class="hub-actions"><a class="button button-primary" href="#login-form">Sign in</a><button id="public-create-account" class="button button-outline" type="button">Create account</button><button class="button button-outline" type="button" data-install-pwa>Install AfroSherik</button></div>
             <p id="install-help" class="hub-caption" role="status" hidden>Open your browser menu and choose Install app or Add to Home Screen.</p>
           </div>
           <figure class="hub-campaign">
-            <div class="hub-service-network" role="img" aria-label="Work, homes, business, and community services connected through AfroLife">
+            <div class="hub-service-network" role="img" aria-label="Work, homes, business, and community services connected through AfroSherik">
               <span class="hub-network-orbit" aria-hidden="true"></span>
               <span class="hub-network-node hub-network-node--work" aria-hidden="true">Work</span>
               <span class="hub-network-node hub-network-node--homes" aria-hidden="true">Homes</span>
@@ -197,7 +196,7 @@
               <span class="hub-network-node hub-network-node--community" aria-hidden="true">Community</span>
               <span class="hub-network-center" aria-hidden="true">
                 <span class="hub-network-mark">+</span>
-                <strong>AfroLife</strong>
+                <strong>AfroSherik</strong>
                 <small>ONE PLATFORM</small>
               </span>
             </div>
@@ -229,7 +228,7 @@
             <a class="service-card" data-panel="properties" href="#login-form"><span class="service-icon">⌂</span><strong>Homes &amp; rentals</strong><span>Browse property listings, connect landlords and tenants, and manage rent workflows where enabled.</span><small>Property mini app →</small></a>
             <a class="service-card" data-panel="marketplace" href="#login-form"><span class="service-icon">◎</span><strong>Marketplace</strong><span>Discover products and services from registered sellers and local businesses.</span><small>Market mini app →</small></a>
             <a class="service-card" data-panel="workers" href="#login-form"><span class="service-icon">✳</span><strong>Workforce</strong><span>Find work opportunities, verified worker profiles, and employer service requests.</span><small>Jobs mini app →</small></a>
-            <a class="service-card" data-panel="edir" href="#login-form"><span class="service-icon">◉</span><strong>AfroLife Edir</strong><span>Request community membership after KYC. Available membership products and terms are shown in the Edir workspace.</span><small>Community mini app →</small></a>
+            <a class="service-card" data-panel="edir" href="#login-form"><span class="service-icon">◉</span><strong>AfroSherik Edir</strong><span>Request community membership after KYC. Available membership products and terms are shown in the Edir workspace.</span><small>Community mini app →</small></a>
             <a class="service-card" data-panel="mfi" href="#login-form"><span class="service-icon">▤</span><strong>SACCO / MFI</strong><span>Financial cooperative tools appear only when the organization enables the pilot for your account.</span><small>Finance mini app →</small></a>
             <a class="service-card" data-panel="agents" href="#login-form"><span class="service-icon">▣</span><strong>Agent services</strong><span>Manage referrals, service requests, contracts, and team activity based on your role.</span><small>Agency mini app →</small></a>
             <a class="service-card" data-panel="accounting" href="#login-form"><span class="service-icon">▤</span><strong>Accounting &amp; Finance</strong><span>Manage entity books, journals, financial operations, and entity-scoped reporting.</span><small>Accounting mini app →</small></a>
@@ -240,10 +239,10 @@
             <div class="member-benefits-intro">
               <p class="eyebrow">WORKER &amp; COMMUNITY BENEFITS</p>
               <h2 id="member-benefits-title">Build security together</h2>
-              <p>Community membership and savings options are managed through AfroLife Edir after review.</p>
+              <p>Community membership and savings options are managed through AfroSherik Edir after review.</p>
             </div>
             <div class="member-benefits-list">
-              <div class="benefit-item"><strong>AfroLife Edir membership</strong><span>Available to registered AfroLife users after KYC review. Membership requests are reviewed before activation.</span></div>
+              <div class="benefit-item"><strong>AfroSherik Edir membership</strong><span>Available to registered AfroSherik users after KYC review. Membership requests are reviewed before activation.</span></div>
               <div class="benefit-item"><strong>Community groups</strong><span>Active members can be assigned to an Edir group by an administrator.</span></div>
               <div class="benefit-item"><strong>Available products</strong><span>Approved savings, share, and contribution products appear in Edir when administrators activate them.</span></div>
               <div class="benefit-item"><strong>More services</strong><span>Lending, insurance, and benefit payouts are not active in the current pilot.</span></div>
@@ -254,7 +253,7 @@
         <section class="hub-section industry-news" aria-labelledby="industry-news-title">
           <div class="news-masthead">
             <div class="news-heading-copy">
-              <p class="eyebrow">THE AFROLIFE BRIEF · ETHIOPIA</p>
+              <p class="eyebrow">AFROSHERIK · ETHIOPIA</p>
               <h2 id="industry-news-title">Ethiopia, in the headlines</h2>
               <p>Recent reporting across business, housing, work, and technology.</p>
             </div>
@@ -299,7 +298,7 @@
             <a href="https://addisstandard.com/" target="_blank" rel="noopener noreferrer">Addis Standard</a>
             <a href="https://www.thereporterethiopia.com/" target="_blank" rel="noopener noreferrer">The Reporter Ethiopia</a>
           </div>
-          <p class="hub-disclaimer">Headlines, publisher names, and publication times are supplied by external news feeds. AfroLife does not endorse or verify third-party reporting.</p>
+          <p class="hub-disclaimer">Headlines, publisher names, and publication times are supplied by external news feeds. AfroSherik does not endorse or verify third-party reporting.</p>
         </section>
         <form id="edir-registration-form" class="panel form-card edir-registration-form" hidden>
           <p class="eyebrow">EDIR ONBOARDING</p>
@@ -319,7 +318,7 @@
             <label>Governance or bylaws document (PDF, JPEG or PNG · max 10 MB)
               <input id="edir-governance-charter-file" name="governance_charter_file" type="file" accept="application/pdf,image/jpeg,image/png" required>
             </label>
-            <label class="benefit-check span-2"><input type="checkbox" name="accept_review_terms" required><span><strong>Consent to application review</strong><small>I authorize AfroLife Master Edir to use these organization and contact details to review this registration application. Approval does not replace the Edir’s own legal or governance obligations.</small></span></label>
+            <label class="benefit-check span-2"><input type="checkbox" name="accept_review_terms" required><span><strong>Consent to application review</strong><small>I authorize AfroSherik Master Edir to use these organization and contact details to review this registration application. Approval does not replace the Edir’s own legal or governance obligations.</small></span></label>
           </div>
           <p id="edir-registration-error" class="form-error" role="alert"></p>
           <p id="edir-registration-success" class="alert" role="status" hidden></p>
@@ -330,7 +329,7 @@
 
       <section id="app-view" hidden>
         <div class="page-heading">
-          <div><p class="eyebrow">ETHIOLIFE OPERATIONS</p><h1 id="page-title">Your workspace</h1><p id="page-subtitle" class="muted"></p></div>
+          <div><p class="eyebrow">AFROSHERIK OPERATIONS</p><h1 id="page-title">Your workspace</h1><p id="page-subtitle" class="muted"></p></div>
           <button id="refresh" class="button button-outline" type="button">↻ <span>Refresh</span></button>
         </div>
         <div id="alert" class="alert" role="status" hidden></div>
@@ -368,7 +367,7 @@
               <button id="accounting-tab" class="tab" data-panel="accounting" type="button" hidden>Accounting &amp; Finance</button>
               <button id="global-bi-tab" class="tab" data-panel="global-bi" type="button" hidden>Global BI</button>
               <button id="tenant-data-admin-tab" class="tab" data-panel="tenant-data-admin" type="button" hidden>Tenant data administration</button>
-              <button id="edir-tab" class="tab" data-panel="edir" type="button" hidden>AfroLife Edir</button>
+              <button id="edir-tab" class="tab" data-panel="edir" type="button" hidden>AfroSherik Edir</button>
               <button id="insurance-tab" class="tab" data-panel="insurance" type="button">Insurance</button>
               <button id="status-tab" class="tab" data-panel="status" type="button">Service status</button>
             </section>
@@ -385,7 +384,7 @@
         <nav id="mobile-workspace-nav" class="mobile-workspace-nav" aria-label="Quick workspace navigation" hidden></nav>
       </section>
       <button id="assistant-launcher" class="assistant-launcher button button-primary" type="button" aria-haspopup="dialog" hidden>
-        AfroLife Support
+        AfroSherik Support
       </button>
       <dialog id="assistant-dialog" class="assistant-dialog" aria-labelledby="assistant-title">
         <div class="assistant-header">
@@ -452,7 +451,7 @@
         </div>
       </form>
     </dialog>
-    <footer><span>አፍሮ-ላይፍ ኤጄንሲ / AfroLife Agency</span><span>Secure operations · Addis Ababa, Ethiopia</span></footer>
+    <footer><span>አፍሮ-ሸሪክ | AfroSherik</span><span>Secure operations · Addis Ababa, Ethiopia</span></footer>
     <script type="module" src="/app.js"></script>
   </body>
 </html>

@@ -576,7 +576,7 @@ test('V11 rental applications require an approved vacant listing, explicit conse
   assert.match(propertyManagementRouter,/Property media upload is unavailable until the malware scanner is configured/);
   assert.match(publicApp,/form\.dataset\.form === 'rental-application'/);
   assert.match(publicApp,/I agree to share my account name and this message/);
-  assert.match(publicApp,/AfroLife does not run automated tenant screening/);
+  assert.match(publicApp,/AfroSherik does not run automated tenant screening/);
   assert.match(publicApp,/rental-application-review/);
 });
 
