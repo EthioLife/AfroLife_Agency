@@ -5792,10 +5792,17 @@ function renderRent() {
           button(`Download move-out evidence · ${evidence.mime}`, 'resident-move-out-evidence', 'button button-outline', { id: evidence.id }),
         );
       }
-      if (inspection.status === 'pending_review' && hasActivity('property.tenancy.manage')) {
-        item.append(button('Upload move-out evidence', 'move-out-evidence-upload', 'button button-outline', {
-          id: inspection.id, leaseId: lease.id,
-        }));
+      if (inspection.status === 'pending_review') {
+        item.append(node(
+          'p',
+          t('Evidence uploads require internet and are not saved offline. Keep the original file until the upload is confirmed.'),
+          'muted',
+        ));
+        if (hasActivity('property.tenancy.manage')) {
+          item.append(button('Upload move-out evidence', 'move-out-evidence-upload', 'button button-outline', {
+            id: inspection.id, leaseId: lease.id,
+          }));
+        }
       }
       if (inspection.status === 'pending_review' && hasActivity('property.tenancy.approve')
         && inspection.submitted_by !== state.user.id) {
@@ -9978,6 +9985,10 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (name === 'move-out-evidence-upload') {
+    if (!navigator.onLine) {
+      showAlert(t('Move-out evidence uploads require an internet connection. Evidence files are not saved offline; keep the original file and retry when connected.'), true);
+      return;
+    }
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'application/pdf,image/jpeg,image/png';
@@ -9988,13 +9999,29 @@ document.addEventListener('click', async (event) => {
         showAlert(t('Move-out evidence must be 10 MB or smaller.'), true);
         return;
       }
+      if (!navigator.onLine) {
+        showAlert(t('Connection was lost before upload was confirmed. The app does not keep an offline copy. Keep the original file; after reconnecting, check the evidence list before retrying.'), true);
+        return;
+      }
       try {
         await api(`/leases/${encodeURIComponent(action.dataset.leaseId)}/move-out-inspections/${encodeURIComponent(id)}/evidence`, {
           method: 'POST', headers: { 'content-type': file.type || 'application/octet-stream' }, body: file,
         });
-        await refresh();
         showAlert('Move-out evidence uploaded to private storage.');
-      } catch (error) { showAlert(error.message, true); }
+        try {
+          await refresh();
+        } catch (error) {
+          showAlert(t('Evidence was uploaded, but the inspection list could not be refreshed: {{error}}. Refresh to verify.', {
+            error: error instanceof Error ? error.message : String(error),
+          }), true);
+        }
+      } catch (error) {
+        if (!navigator.onLine || error instanceof TypeError) {
+          showAlert(t('Connection was lost before upload was confirmed. The app does not keep an offline copy. Keep the original file; after reconnecting, check the evidence list before retrying.'), true);
+        } else {
+          showAlert(error.message, true);
+        }
+      }
     }, { once: true });
     input.click();
     return;

@@ -32,6 +32,10 @@ test('lease closeout requires a versioned independent inspection and approved de
   assert.match(app, /Approve move-out inspection/);
   assert.match(app, /End lease after move-out review/);
   assert.match(app, /Upload move-out evidence/);
+  assert.match(app, /Evidence uploads require internet and are not saved offline/);
+  assert.match(app, /if \(!navigator\.onLine\)[\s\S]*Move-out evidence uploads require an internet connection/);
+  assert.match(app, /Connection was lost before upload was confirmed/);
+  assert.match(app, /Evidence was uploaded, but the inspection list could not be refreshed: \{\{error\}\}/);
 });
 
 test('lease closeout puts units into audited turnover before they can become vacant', async () => {
