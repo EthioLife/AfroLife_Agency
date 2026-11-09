@@ -88,7 +88,7 @@ test('public signup branding and worker-interest copy stay localized', () => {
     'Ask about future insurance services',
     'Insurance is not active in the current Edir pilot.',
     'Ask about future household protection',
-    'Household cover is not active in the current AfroLife service.',
+    'Household cover is not active in the current AfroSherik service.',
     'These are non-binding requests for information. Selecting a benefit does not enroll you, collect money or start insurance coverage.',
   ]) {
     assert.match(i18n, new RegExp(`'${message.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}':\\s*\\{\\s*am:\\s*'[^']+'`));
@@ -509,21 +509,18 @@ test('agent signup accepts typed territory names and offers seeded Ethiopian reg
 test('AfroSherik sign-in uses the supplied campaign and brand artwork', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
-  const logo = readFileSync(new URL('../public/icon.svg', import.meta.url), 'utf8');
+  const logo = readFileSync(new URL('../public/brand/afrosherik-brand-lockup.png', import.meta.url));
   const hero = readFileSync(new URL('../public/brand/afrosherik-campaign-hero.png', import.meta.url));
   const pngDimensions = (image) => {
     assert.equal(image.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
     return [image.readUInt32BE(16), image.readUInt32BE(20)];
   };
-  assert.match(html, /<a class="brand" href="\/"[^>]*>\s*<img src="\/icon\.svg" alt="" width="512" height="512">\s*<span class="brand-copy">[\s\S]*?<span class="brand-name">AfroSherik<\/span>[\s\S]*?<span lang="am">አፍሮ-ሸሪክ<\/span>[\s\S]*?<span class="brand-parent">An EthioLife service<\/span>/);
+  assert.match(html, /<a class="brand" href="\/" aria-label="AfroSherik">\s*<img src="\/brand\/afrosherik-brand-lockup\.png" alt="AfroSherik — Connect · Access · Thrive" width="312" height="104">/);
   assert.match(html, /<img src="\/brand\/afrosherik-campaign-hero\.png" alt="AfroSherik campaign artwork showing a woman with a phone and the Addis Ababa skyline beside the message: More Opportunities\. Stronger Communities\." width="427" height="204">/);
-  assert.match(logo, /<title[^>]*>AfroSherik mark/);
-  assert.match(logo, /#174b3d/i);
-  assert.match(logo, /#d7ad59/i);
+  assert.deepEqual(pngDimensions(logo), [490, 152]);
   assert.deepEqual(pngDimensions(hero), [427, 204]);
-  assert.equal(existsSync(new URL('../public/brand/afrolife-woven-knot.svg', import.meta.url)), false);
-  assert.match(styles, /\.topbar \.brand img\s*\{[^}]*flex:\s*0 0 50px;[^}]*width:\s*50px;[^}]*height:\s*50px;/s);
-  assert.match(styles, /@media \(max-width: 650px\) \{[\s\S]*?\.topbar \.brand img\s*\{[^}]*flex-basis:\s*44px;[^}]*width:\s*44px;[^}]*height:\s*44px;/);
+  assert.match(styles, /\.topbar \.brand img\s*\{[^}]*width:\s*312px;[^}]*height:\s*104px;[^}]*object-fit:\s*contain;/s);
+  assert.match(styles, /@media \(max-width: 650px\) \{[\s\S]*?\.topbar \.brand img\s*\{[^}]*width:\s*min\(312px, 100%\);[^}]*height:\s*auto;[^}]*max-height:\s*104px;/);
   assert.match(styles, /@media \(max-width: 920px\) and \(min-width: 651px\) \{\s*\.topbar\s*\{[^}]*grid-template-areas:\s*"brand language" "install account";/);
   assert.match(html, /class="welcome-signin-shortcut" href="#login-form">Sign in<\/a>/);
   assert.match(styles, /\.welcome-signin-shortcut\s*\{\s*display:\s*none;\s*\}/);
@@ -568,21 +565,15 @@ test('mobile sign-in places the campaign welcome before sign-in and signup forms
   assert.ok(loginView.indexOf('id="signup-form"') < loginView.indexOf('id="server-setup-home"'));
 });
 
-test('AfroSherik icon uses the supplied mark with matching PWA icons and mini-app tokens', () => {
+test('AfroSherik uses the matching emblem for favicon and PWA icons', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
-  const icon = readFileSync(new URL('../public/icon.svg', import.meta.url), 'utf8');
   const manifest = JSON.parse(readFileSync(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
-  assert.match(icon, /viewBox="0 0 512 512"/);
-  assert.doesNotMatch(icon, /<text\b/i);
-  assert.match(icon, /<desc[^>]*>Three service and community members connected through a shared opportunity hub\.<\/desc>/);
-  assert.match(icon, /#174b3d/i);
-  assert.match(icon, /#d7ad59/i);
   assert.match(html, /<link rel="icon" href="\/icons\/afrosherik-icon-192\.png" type="image\/png" sizes="192x192">/);
   assert.match(html, /<link rel="apple-touch-icon" href="\/icons\/afrosherik-icon-192\.png">/);
   assert.match(html, new RegExp(`<meta name="theme-color" content="${manifest.theme_color}">`));
   assert.equal(manifest.theme_color, '#174b3d');
-  assert.deepEqual(manifest.icons.slice(1, 4).map(({ src, sizes }) => [src, sizes]), [
+  assert.deepEqual(manifest.icons.map(({ src, sizes }) => [src, sizes]), [
     ['/icons/afrosherik-icon-192.png', '192x192'],
     ['/icons/afrosherik-icon-256.png', '256x256'],
     ['/icons/afrosherik-icon-512.png', '512x512'],
@@ -602,17 +593,19 @@ test('public and signed-in shell labels use AfroSherik without replacing product
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   for (const label of [
     'AFROSHERIK REGISTRATION',
-    'THE AFROSHERIK BRIEF · ETHIOPIA',
+    'AFROSHERIK · ETHIOPIA',
     'AFROSHERIK OPERATIONS',
   ]) assert.ok(html.includes(label), `expected visible brand label: ${label}`);
-  assert.doesNotMatch(html, /ETHIOLIFE REGISTRATION|THE AFROLIFE BRIEF · ETHIOPIA|ETHIOLIFE OPERATIONS/);
-  assert.match(html, /AfroLife Edir/);
+  assert.match(html, /<h1>One trusted place to get work moving\.<\/h1>/);
+  assert.doesNotMatch(html, /AfroLife Agency|AFROLIFE(?:\s|<)|afrolife-(?:brand|icon|campaign)/i);
+  assert.match(html, /AfroSherik Edir/);
 });
 
 test('public hub integrates the campaign artwork with the existing public actions', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
   const serviceWorker = readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8');
+  const manifest = JSON.parse(readFileSync(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
   assert.match(html, /<section id="public-hub"[\s\S]*?<div class="hub-heading">[\s\S]*?<p class="eyebrow">CONNECT · ACCESS · THRIVE<\/p>[\s\S]*?<h2>One platform for work, homes, business, and community\.<\/h2>[\s\S]*?<figure class="hub-campaign">[\s\S]*?<div class="hub-service-network" role="img" aria-label="Work, homes, business, and community services connected through AfroSherik">/);
   assert.match(html, /<a class="button button-primary" href="#login-form">Sign in<\/a>/);
   assert.match(html, /<button id="public-create-account" class="button button-outline" type="button">Create account<\/button>/);
@@ -631,12 +624,17 @@ test('public hub integrates the campaign artwork with the existing public action
   assert.match(styles, /@media \(max-width: 700px\) \{[\s\S]*?\.hub-service-network \{ min-height: 220px; \}/);
   assert.match(styles, /\.hub-heading \{ grid-template-columns: minmax\(0, 1fr\); gap:/);
   assert.match(styles, /#public-hub \.service-card\[data-panel\] \.service-icon\s*\{[^}]*background:\s*var\(--mini-app-tint\);[^}]*color:\s*var\(--mini-app-ink/s);
-  assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v39'/);
+  assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v42'/);
   assert.match(serviceWorker, /'\/tenant-data-admin\.js'/);
   for (const asset of [
     '/icons/afrosherik-icon-192.png', '/icons/afrosherik-icon-256.png', '/icons/afrosherik-icon-512.png',
-    '/icon.svg', '/brand/afrosherik-campaign-hero.png',
+    '/icon.svg', '/brand/afrosherik-campaign-hero.png', '/brand/afrosherik-brand-lockup.png',
   ]) assert.ok(serviceWorker.includes(`'${asset}'`), `service worker should cache ${asset}`);
+  const shellAssets = [...serviceWorker.matchAll(/const SHELL = \[([\s\S]*?)\];/g)][0]?.[1]
+    ?.match(/'([^']+)'/g).map((asset) => asset.slice(1, -1)) ?? [];
+  for (const asset of [...manifest.icons.map(({ src }) => src), ...shellAssets]) {
+    assert.ok(existsSync(new URL(`../public${asset}`, import.meta.url)), `public asset should exist: ${asset}`);
+  }
 });
 
 test('public landing page does not repeat raster artwork across visible image elements', () => {

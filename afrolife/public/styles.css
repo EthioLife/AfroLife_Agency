@@ -2264,11 +2264,13 @@ h1, h2, h3, .eyebrow {
 }
 
 .topbar .brand img {
-  flex: 0 0 50px;
-  width: 50px;
-  height: 50px;
-  max-height: none;
-  object-fit: cover;
+  flex: 0 1 auto;
+  width: 312px;
+  height: 104px;
+  max-height: 104px;
+  border-radius: 0;
+  object-fit: contain;
+  box-shadow: none;
 }
 
 .topbar .language-picker select {
@@ -2365,10 +2367,13 @@ h1, h2, h3, .eyebrow {
     background-color: var(--green-dark);
   }
   .topbar .brand img {
-    flex-basis: 44px;
-    width: 44px;
-    height: 44px;
-    max-height: none;
+    flex-basis: min(312px, 100%);
+    width: min(312px, 100%);
+    height: auto;
+    max-height: 104px;
+    border-radius: 0;
+    object-fit: contain;
+    box-shadow: none;
   }
 }
 
@@ -2433,9 +2438,8 @@ h1, h2, h3, .eyebrow {
 
 @media (max-width: 380px) {
   .topbar .brand img {
-    flex-basis: 40px;
-    width: 40px;
-    height: 40px;
+    flex-basis: min(280px, 100%);
+    width: min(280px, 100%);
   }
 }
 

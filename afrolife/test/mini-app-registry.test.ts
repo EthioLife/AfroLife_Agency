@@ -171,10 +171,9 @@ test('AfroSherik identity and install artwork stay aligned with the brand shell'
   assert.equal(manifest.short_name, 'AfroSherik');
   assert.equal(manifest.background_color, '#FAF8F1');
   assert.equal(manifest.theme_color, '#174b3d');
-  assert.equal(manifest.icons[0].src, '/icon.svg');
-  assert.equal(manifest.icons[0].sizes, 'any');
-  assert.equal(manifest.icons[0].type, 'image/svg+xml');
-  assert.ok(manifest.icons.slice(0, 2).every((entry: { purpose: string }) => entry.purpose === 'any'));
+  assert.equal(manifest.icons.length, 3);
+  assert.ok(manifest.icons.every((entry: { purpose: string; type: string }) =>
+    entry.purpose === 'any' && entry.type === 'image/png'));
   for (const size of [192, 256, 512]) {
     const iconPath = `/icons/afrosherik-icon-${size}.png`;
     const icon = readFileSync(new URL(`../public${iconPath}`, import.meta.url));
@@ -189,12 +188,16 @@ test('AfroSherik identity and install artwork stay aligned with the brand shell'
   assert.match(html, /<title>AfroSherik \| አፍሮ-ሸሪክ<\/title>/);
   assert.match(html, /<h2>Apply to join AfroSherik<\/h2>/);
   assert.match(html, /Access is limited to approved AfroSherik accounts\./);
-  assert.doesNotMatch(html, /Apply to join AfroLife|approved AfroLife accounts/);
-  assert.match(html, /src="\/icon\.svg"/);
-  assert.match(html, /rel="icon" href="\/icon\.svg" type="image\/svg\+xml"/);
-  assert.match(html, /lang="am">አፍሮ-ሸሪክ/);
-  assert.match(html, /An EthioLife service/);
-  assert.match(html, /afrosherik-icon-192\.png/);
+  assert.match(html, /src="\/brand\/afrosherik-brand-lockup\.png" alt="AfroSherik — Connect · Access · Thrive"/);
+  assert.match(html, /rel="icon" href="\/icons\/afrosherik-icon-192\.png" type="image\/png"/);
+  assert.doesNotMatch(html, /AfroLife Agency|AFROLIFE AGENCY|afrolife-brand/i);
+  for (const assetPath of [
+    '../public/brand/afrosherik-brand-lockup.png',
+    '../public/brand/afrosherik-campaign-hero.png',
+    '../public/icons/afrosherik-icon-192.png',
+    '../public/icons/afrosherik-icon-256.png',
+    '../public/icons/afrosherik-icon-512.png',
+  ]) assert.ok(readFileSync(new URL(assetPath, import.meta.url)).length > 0, `${assetPath} should exist`);
   assert.match(html, /placeholder="https:\/\/www\.afrolife\.com\.et"/);
   const manifestColor = html.match(/<meta name="theme-color" content="([^"]+)"/);
   assert.equal(manifestColor?.[1], manifest.theme_color);
