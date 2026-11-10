@@ -234,3 +234,44 @@ test('association amenity reservations enforce tenant scope, independent approva
   const server = await readFile(new URL('../src/server.ts', import.meta.url), 'utf8');
   assert.match(server, /err\?\.code === '23P01'\) return reply\(409/);
 });
+
+test('resident maintenance completion feedback is tenant-scoped, immutable, and non-blocking', async () => {
+  const migration = await readFile(
+    new URL('../migrations/137_property_resident_maintenance_feedback.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(migration, /CREATE TABLE maintenance_resident_feedback/);
+  assert.match(migration, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(migration, /FORCE ROW LEVEL SECURITY/);
+  assert.match(migration, /tenant_system_id=app_property_tenant_system_id\(\)/);
+  assert.match(migration, /maintenance\.resident_user_id=app_user_id\(\)/);
+  assert.match(migration, /maintenance\.status='completed'/);
+  assert.match(migration, /UNIQUE \(maintenance_request_id,completion_event_id\)/);
+  assert.match(migration, /UNIQUE \(submitted_by,idempotency_key\)/);
+  assert.match(migration, /maintenance_resident_feedback_immutable/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION submit_maintenance_resident_feedback/);
+  assert.match(migration, /event\.to_status='completed'/);
+  assert.match(migration, /previous\.payload_hash<>target_payload_hash/);
+  assert.match(migration, /FROM PUBLIC/);
+  const submitFunction = migration.slice(
+    migration.indexOf('CREATE OR REPLACE FUNCTION submit_maintenance_resident_feedback'),
+  );
+  assert.ok(submitFunction.indexOf('FOR UPDATE') < submitFunction.indexOf('SELECT * INTO previous'));
+  assert.doesNotMatch(submitFunction, /UPDATE maintenance_requests|UPDATE maintenance_resident_feedback/);
+
+  const operations = await readFile(new URL('../src/ops.ts', import.meta.url), 'utf8');
+  assert.match(operations, /ops\.post\('\/resident\/maintenance\/:id\/feedback'/);
+  assert.match(operations, /submit_maintenance_resident_feedback\(\$1,\$2,\$3,\$4,\$5\)/);
+  assert.match(operations, /maintenance_resident_feedback_submitted/);
+  assert.match(operations, /latest_completion_event_id/);
+  assert.match(operations, /AS resident_feedback/);
+
+  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.match(app, /resident-maintenance-feedback/);
+  assert.match(app, /Confirm completion/);
+  assert.match(app, /Report a remaining issue/);
+  assert.match(app, /does not reopen work or change charges/);
+
+  const serviceWorker = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
+  assert.match(serviceWorker, /afrolife-shell-v46/);
+});

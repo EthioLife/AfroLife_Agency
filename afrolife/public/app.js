@@ -4170,10 +4170,34 @@ function renderResidentPropertyPortal() {
     for (const event of request.events ?? []) {
       item.append(node('p', `${event.event_type.replaceAll('_', ' ')}${event.to_status ? ` · ${event.to_status.replaceAll('_', ' ')}` : ''} · ${new Date(event.created_at).toLocaleString(document.documentElement.lang)}`, 'muted'));
     }
+    const residentFeedback = request.resident_feedback ?? [];
+    for (const feedback of residentFeedback) {
+      const details = feedback.note
+        ? `${t(feedback.response === 'confirmed' ? 'Resident confirmed completion' : 'Resident reported a remaining issue')}: ${feedback.note}`
+        : t('Resident confirmed completion');
+      item.append(node('p', `${details} · ${new Date(feedback.created_at).toLocaleString(document.documentElement.lang)}`,
+        feedback.response === 'issue_reported' ? 'notice notice-warning' : 'muted'));
+    }
     for (const evidence of request.evidence ?? []) {
       item.append(button(`Download photo · ${evidence.mime}`, 'resident-maintenance-evidence', 'button button-outline', {
         id: evidence.id,
       }));
+    }
+    const latestCompletionEventId = request.latest_completion_event_id;
+    const hasLatestFeedback = latestCompletionEventId != null
+      && residentFeedback.some((feedback) => String(feedback.completion_event_id) === String(latestCompletionEventId));
+    if (request.status === 'completed' && !hasLatestFeedback && latestCompletionEventId != null) {
+      item.append(
+        node('p', t('Your response is recorded for follow-up only; it does not reopen work or change charges.'), 'muted'),
+        button(t('Confirm completion'), 'resident-maintenance-feedback', 'button button-outline', {
+          id: request.id,
+          response: 'confirmed',
+        }),
+        button(t('Report a remaining issue'), 'resident-maintenance-feedback', 'button button-outline', {
+          id: request.id,
+          response: 'issue_reported',
+        }),
+      );
     }
     if (!['completed','done','cancelled'].includes(request.status)) {
       const evidenceForm = node('form', undefined, 'inline-form');
@@ -10561,6 +10585,30 @@ document.addEventListener('click', async (event) => {
       for (const item of evidence) {
         await downloadAuthenticatedFile(`/maintenance/evidence/${encodeURIComponent(item.id)}/file`, `maintenance-evidence-${item.id}`);
       }
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
+  if (name === 'resident-maintenance-feedback') {
+    let note;
+    if (action.dataset.response === 'confirmed') {
+      if (!window.confirm(t('Confirm that the maintenance work is complete?'))) return;
+    } else {
+      note = window.prompt(t('Describe the remaining issue (at least 10 characters).'));
+      if (!note || note.trim().length < 10) return;
+      note = note.trim();
+    }
+    action.dataset.idempotencyKey ||= crypto.randomUUID();
+    try {
+      await api(`/resident/maintenance/${encodeURIComponent(id)}/feedback`, {
+        method: 'POST',
+        body: JSON.stringify({
+          idempotency_key: action.dataset.idempotencyKey,
+          response: action.dataset.response,
+          ...(note ? { note } : {}),
+        }),
+      });
+      await refresh();
+      showAlert(t('Your maintenance feedback was recorded for follow-up.'));
     } catch (error) { showAlert(error.message, true); }
     return;
   }

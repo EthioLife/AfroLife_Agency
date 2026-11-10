@@ -1482,7 +1482,17 @@ ops.get('/resident/property-workspace', requireRole('customer'), h(async (req, r
            COALESCE((SELECT json_agg(json_build_object(
              'id',evidence.id,'mime',evidence.mime,'created_at',evidence.created_at
            ) ORDER BY evidence.created_at,evidence.id) FROM maintenance_evidence evidence
-             WHERE evidence.maintenance_request_id=maintenance.id AND evidence.scan_status='clean'),'[]'::json) AS evidence
+             WHERE evidence.maintenance_request_id=maintenance.id AND evidence.scan_status='clean'),'[]'::json) AS evidence,
+           COALESCE((SELECT json_agg(json_build_object(
+             'id',feedback.id::text,'completion_event_id',feedback.completion_event_id::text,
+             'response',feedback.response,'note',feedback.note,'created_at',feedback.created_at
+           ) ORDER BY feedback.created_at,feedback.id)
+             FROM maintenance_resident_feedback feedback
+             WHERE feedback.tenant_system_id=maintenance.tenant_system_id
+               AND feedback.maintenance_request_id=maintenance.id),'[]'::json) AS resident_feedback,
+           (SELECT event.id::text FROM maintenance_request_events event
+            WHERE event.maintenance_request_id=maintenance.id AND event.to_status='completed'
+            ORDER BY event.created_at DESC,event.id DESC LIMIT 1) AS latest_completion_event_id
          FROM maintenance_requests maintenance
          JOIN properties property ON property.id=maintenance.property_id
          LEFT JOIN property_units unit ON unit.id=maintenance.unit_id
@@ -1615,6 +1625,45 @@ ops.post('/resident/maintenance', requireRole('customer'), h(async (req, res) =>
     return { row, replayed: false };
   });
   res.status(result.replayed ? 200 : 201).json({ ...result.row, replayed: result.replayed });
+}));
+
+ops.post('/resident/maintenance/:id/feedback', requireRole('customer'), h(async (req, res) => {
+  const maintenanceId = z.string().uuid().parse(req.params.id);
+  const body = z.object({
+    idempotency_key: z.string().uuid(),
+    response: z.enum(['confirmed','issue_reported']),
+    note: z.string().trim().min(1).max(1000).optional(),
+  }).strict().superRefine((value, context) => {
+    if (value.response === 'issue_reported' && (value.note?.length ?? 0) < 10) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['note'],
+        message: 'A reported issue needs at least 10 characters of detail',
+      });
+    }
+  }).parse(req.body);
+  const note = body.note ?? null;
+  const payloadHash = createHash('sha256').update(JSON.stringify({
+    maintenance_id: maintenanceId,
+    response: body.response,
+    note,
+  })).digest('hex');
+  const result = await withUser(req.user!, async (client) => {
+    const feedback = (await client.query(
+      `SELECT * FROM submit_maintenance_resident_feedback($1,$2,$3,$4,$5)`,
+      [maintenanceId,body.response,note,body.idempotency_key,payloadHash],
+    )).rows[0];
+    if (!feedback.replayed) {
+      await audit(client,req.user!.id,'maintenance_resident_feedback_submitted',
+        'maintenance_resident_feedback',feedback.feedback_id,null,{
+          maintenance_id: maintenanceId,
+          completion_event_id: feedback.completion_event_id,
+          response: feedback.response,
+        });
+    }
+    return feedback;
+  });
+  res.status(result.replayed ? 200 : 201).json(result);
 }));
 
 // ================= Leases and rent =================
@@ -3084,7 +3133,13 @@ ops.get('/maintenance', requireActivity('property.maintenance.manage'), h(async 
        latest.event_type AS latest_event_type, latest.note AS latest_event_note,
        latest.created_at AS latest_event_at,
        (SELECT count(*)::int FROM maintenance_evidence e
-        WHERE e.maintenance_request_id=m.id AND e.scan_status='clean') AS evidence_count
+        WHERE e.maintenance_request_id=m.id AND e.scan_status='clean') AS evidence_count,
+       COALESCE((SELECT json_agg(json_build_object(
+         'response',feedback.response,'note',feedback.note,'created_at',feedback.created_at
+       ) ORDER BY feedback.created_at,feedback.id)
+         FROM maintenance_resident_feedback feedback
+         WHERE feedback.tenant_system_id=m.tenant_system_id
+           AND feedback.maintenance_request_id=m.id),'[]'::json) AS resident_feedback
      FROM maintenance_requests m LEFT JOIN properties p ON p.id = m.property_id
      LEFT JOIN property_units u ON u.id=m.unit_id
      LEFT JOIN LATERAL app_property_agent_task_context(m.id) field_context ON true
