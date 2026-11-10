@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { assessMigrationReadiness, assertMigrationChecksum, migrationChecksum } from '../src/migration-checksums.js';
 
 const insuranceGrants = readFileSync(new URL('../migrations/039_insurance_ledger_runtime_grants.sql', import.meta.url), 'utf8');
@@ -16,6 +16,7 @@ const mfiWriteoffActorControls = readFileSync(new URL('../migrations/049_mfi_wri
 const mfiRouter = readFileSync(new URL('../src/mfi.ts', import.meta.url), 'utf8');
 const leadProtection = readFileSync(new URL('../migrations/052_lead_protection_and_attribution_history.sql', import.meta.url), 'utf8');
 const server = readFileSync(new URL('../src/server.ts', import.meta.url), 'utf8');
+const agencyOperations = readFileSync(new URL('../src/agency-operations.ts', import.meta.url), 'utf8');
 const mfiSandbox = readFileSync(new URL('../migrations/053_mfi_sandbox_simulations.sql', import.meta.url), 'utf8');
 const agentScopedStaffing = readFileSync(new URL('../migrations/054_agent_scoped_staffing_matches.sql', import.meta.url), 'utf8');
 const agentFinancialFacilitation = readFileSync(new URL('../migrations/055_agent_financial_facilitation.sql', import.meta.url), 'utf8');
@@ -141,6 +142,7 @@ test('migration runners persist and enforce immutable SQL checksums', () => {
     checksumsUnverified: 0,
     unexpectedMigrations: 0,
   });
+
   assert.deepEqual(
     assessMigrationReadiness(expected, [
       { name: '001_first.sql', checksum: migrationChecksum('SELECT 0;') },
@@ -178,6 +180,36 @@ test('migration runners persist and enforce immutable SQL checksums', () => {
   assert.match(accountingMigrator, /pg_advisory_lock\(71924211,2\)/);
   assert.match(server, /SELECT name, checksum FROM schema_migrations/);
   assert.match(server, /assessMigrationReadiness\(expectedMigrations, appliedRows\.rows\)/);
+});
+
+test('new core migrations use unique prefixes without renaming legacy migrations', () => {
+  const migrationNames = readdirSync(new URL('../migrations/', import.meta.url))
+    .filter((name) => name.endsWith('.sql'))
+    .sort();
+  assert.equal(new Set(migrationNames).size, migrationNames.length);
+  assert.ok(migrationNames.every((name) => /^\d{3}_[a-z0-9][a-z0-9_-]*\.sql$/.test(name)));
+
+  const prefixCounts = new Map<string, number>();
+  for (const name of migrationNames) {
+    const prefix = name.slice(0, 3);
+    prefixCounts.set(prefix, (prefixCounts.get(prefix) ?? 0) + 1);
+  }
+  const duplicatePrefixes = [...prefixCounts]
+    .filter(([, count]) => count > 1)
+    .map(([prefix]) => prefix)
+    .sort();
+  assert.deepEqual(duplicatePrefixes, ['094', '095', '096', '106', '115']);
+
+  const newMigrationNames = migrationNames.filter((name) => Number(name.slice(0, 3)) > 137);
+  const newPrefixes = newMigrationNames.map((name) => name.slice(0, 3));
+  assert.equal(new Set(newPrefixes).size, newPrefixes.length, 'new migrations must use unique prefixes greater than the legacy sequence');
+});
+
+test('Agency operations routes remain behind central authentication after extraction', () => {
+  assert.match(server, /api\.use\(authenticate\)[\s\S]*api\.use\(createAgencyOperationsRouter\(\)\)/);
+  assert.match(agencyOperations, /router\.post\('\/leads'/);
+  assert.match(agencyOperations, /router\.post\('\/contracts\/:id\/transition'/);
+  assert.match(agencyOperations, /router\.post\('\/commissions\/:id\/pay'/);
 });
 
 test('central Insurance ledger grants match service operations and identity sequences', () => {
@@ -325,13 +357,13 @@ test('lead ownership protection and reassignment are configurable, reasoned, and
   assert.match(leadProtection, /AFTER INSERT OR UPDATE ON leads/);
   assert.match(leadProtection, /Lead attribution history is append-only/);
   assert.match(leadProtection, /leads_platform_reassignment/);
-  assert.match(server, /INSERT INTO leads \(lead_type, name, phone, source_agent_id, protected_until\)/);
-  assert.match(server, /\/admin\/leads\/:id\/reassign/);
-  assert.match(server, /target_agent_id: z\.string\(\)\.uuid\(\), reason: z\.string\(\)\.trim\(\)\.min\(10\)/);
+  assert.match(agencyOperations, /INSERT INTO leads \(lead_type, name, phone, source_agent_id, protected_until\)/);
+  assert.match(agencyOperations, /\/admin\/leads\/:id\/reassign/);
+  assert.match(agencyOperations, /target_agent_id: z\.string\(\)\.uuid\(\), reason: z\.string\(\)\.trim\(\)\.min\(10\)/);
   assert.match(leadProtection, /lead_has_non_cancelled_contract\(uuid\)/);
   assert.match(leadProtection, /Platform administrator access is required/);
-  assert.match(server, /lead_has_non_cancelled_contract\(\$1\) AS has_contract/);
-  assert.match(server, /contract\.rows\[0\]\.has_contract\) throw new HttpError\(409, 'A lead with a non-cancelled contract cannot be reassigned'/);
+  assert.match(agencyOperations, /lead_has_non_cancelled_contract\(\$1\) AS has_contract/);
+  assert.match(agencyOperations, /contract\.rows\[0\]\.has_contract\) throw new HttpError\(409, 'A lead with a non-cancelled contract cannot be reassigned'/);
 });
 
 test('agent staffing lifecycle access is limited to the agent hierarchy', () => {

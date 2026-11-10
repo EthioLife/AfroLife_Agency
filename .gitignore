@@ -4,3 +4,6 @@ dist
 *.env.local
 *.env.*.local
 lib/
+/hs_err_pid*.log
+/replay_pid*.log
+/afrolife/artifacts/android-lan-setup.log

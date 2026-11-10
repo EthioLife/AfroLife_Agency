@@ -27,6 +27,20 @@ export type PropertyPeriodCloseCheck = {
   evidence_only: true;
 };
 
+export function isVendorInvoiceEligible(status: string): boolean {
+  return status === 'completed' || status === 'done';
+}
+
+export function canReconcileVendorPayment(input: {
+  invoiceApproverId: string | null;
+  paymentRecorderId: string | null;
+  reconcilerId: string;
+}): boolean {
+  return Boolean(input.invoiceApproverId && input.paymentRecorderId)
+    && input.reconcilerId !== input.invoiceApproverId
+    && input.reconcilerId !== input.paymentRecorderId;
+}
+
 export function propertyPeriodCloseCheck(input: {
   period: string;
   pendingReceipts: number;

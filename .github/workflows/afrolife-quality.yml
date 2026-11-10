@@ -47,7 +47,41 @@ jobs:
         run: npm run ios:sync
       - run: npm run build
       - run: npm run build:insurance
+      - run: npm run build:accounting
+      - run: npm run build:global-bi
       - run: npm run build:edir
       - run: npm run build:mfi
       - run: npm run build:agency-domains
       - run: npm run test:unit
+
+  disposable-database-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: afrolife
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d afrolife"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      MIGRATION_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5433/afrolife
+      JWT_SECRET: ci-only-integration-jwt-secret-not-for-deployments
+      MFA_ENC_KEY: ci-only-integration-mfa-key-not-for-deployments
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: afrolife/package-lock.json
+      - run: npm ci
+      - name: Run disposable PostgreSQL integration workflows
+        run: npm run test:finance:e2e:local

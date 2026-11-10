@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { PROPERTY_CHART_OF_ACCOUNTS, propertyPeriodCloseCheck } from '../src/property-accounting.js';
+import {
+  canReconcileVendorPayment,
+  isVendorInvoiceEligible,
+  PROPERTY_CHART_OF_ACCOUNTS,
+  propertyPeriodCloseCheck,
+} from '../src/property-accounting.js';
 import { toCsv } from '../src/csv.js';
 
 test('property chart template preserves legacy ledger labels and stays draft pending Finance approval', () => {
@@ -21,7 +26,9 @@ test('vendor bills and payments require separate maker-checker reconciliations b
   assert.match(vendorRoutes, /property-vendor-bills\/:id\/decision/);
   assert.match(vendorRoutes, /property-vendor-payments\/:id\/reconcile/);
   assert.match(vendorRoutes, /bill\.recorded_by===req\.user!\.id/);
-  assert.match(vendorRoutes, /bill\.payment_recorded_by===req\.user!\.id/);
+  assert.match(vendorRoutes, /invoiceApproverId: bill\.approved_by/);
+  assert.match(vendorRoutes, /paymentRecorderId: bill\.payment_recorded_by/);
+  assert.match(vendorRoutes, /Payment reconciliation requires a different Finance Manager/);
   assert.match(vendorRoutes, /source_account_code:'maintenance_expense'/);
   assert.match(vendorRoutes, /source_account_code:'accounts_payable'/);
   assert.match(vendorRoutes, /source_account_code:'cash'/);
@@ -29,6 +36,37 @@ test('vendor bills and payments require separate maker-checker reconciliations b
   assert.match(migration, /CHECK \(payment_reconciled_by IS NULL OR payment_reconciled_by <> payment_recorded_by\)/);
   assert.match(migration, /ALTER TABLE property_vendor_bills FORCE ROW LEVEL SECURITY/);
   assert.match(accessMigration, /property_maintenance_finance_read ON maintenance_requests FOR SELECT/);
+});
+
+test('vendor invoices require completed work and payment reconciliation is independent', async () => {
+  assert.equal(isVendorInvoiceEligible('completed'), true);
+  assert.equal(isVendorInvoiceEligible('done'), true);
+  for (const status of ['open', 'triaged', 'assigned', 'accepted', 'in_progress', 'awaiting_review', 'rework_required', 'cancelled']) {
+    assert.equal(isVendorInvoiceEligible(status), false, `${status} must not accept an invoice`);
+  }
+
+  const duties = {
+    invoiceApproverId: 'invoice-approver',
+    paymentRecorderId: 'payment-recorder',
+    reconcilerId: 'payment-reconciler',
+  };
+  assert.equal(canReconcileVendorPayment(duties), true);
+  assert.equal(canReconcileVendorPayment({ ...duties, reconcilerId: duties.invoiceApproverId }), false);
+  assert.equal(canReconcileVendorPayment({ ...duties, reconcilerId: duties.paymentRecorderId }), false);
+  assert.equal(canReconcileVendorPayment({ ...duties, invoiceApproverId: null }), false);
+  assert.equal(canReconcileVendorPayment({ ...duties, paymentRecorderId: null }), false);
+
+  const vendorRoutes = await readFile(new URL('../src/property-vendor-accounting.ts', import.meta.url), 'utf8');
+  assert.match(vendorRoutes, /isVendorInvoiceEligible\(maintenance\.status\)/);
+  assert.match(vendorRoutes, /canReconcileVendorPayment\(\{/);
+
+  const databaseGuard = await readFile(
+    new URL('../migrations/138_property_vendor_bill_work_completion_guard.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(databaseGuard, /BEFORE INSERT OR UPDATE OF maintenance_request_id ON property_vendor_bills/);
+  assert.match(databaseGuard, /FOR SHARE/);
+  assert.match(databaseGuard, /work_status NOT IN \('completed','done'\)/);
 });
 
 test('property period close is ready only when all report-only checks are clear', () => {
