@@ -289,8 +289,10 @@ the `legacy-property-operations` tenant; it requires an active user account
 before migration. New tenant records are provisioned by a Global Admin with an
 active initial tenant administrator. Tenant members select their operating
 tenant in the workspace; database row-level security enforces that selection
-for property data. Tenant membership must be explicitly assigned, and tenant
-records cannot be transferred by ordinary updates.
+for property data. Tenant membership must be explicitly assigned; only a
+Global Admin can assign tenant-administrator membership, while tenant admins
+can manage non-administrator roles in their tenant. Tenant records cannot be
+transferred by ordinary updates.
 
 Global Admin support access is not automatic: the administrator requests
 access for a selected tenant with a purpose and expiry of at most eight hours,

@@ -7,6 +7,10 @@ test('property operating tenant migration backfills legacy data and enforces row
     new URL('../migrations/118_property_operating_tenant_scope.sql', import.meta.url),
     'utf8',
   );
+  assert.doesNotMatch(
+    migration,
+    /REFERENCESproperty_operating_tenants|SETNOT NULL|tenant_system_idSET NOT NULL|ISNOT NULL|target_userIS DISTINCT|ELSENULL/,
+  );
   assert.match(migration, /legacy-property-operations/);
   assert.match(migration, /all_existing_property_records_to_one_legacy_tenant/);
   for (const table of ['properties', 'tenants', 'leases', 'maintenance_requests', 'rent_transactions', 'property_vendors']) {
@@ -101,6 +105,43 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(lifecycleValidationMigration, /decision_reason IS NULL OR length\(trim\(decision_reason\)\) NOT BETWEEN 10 AND 1000/);
   assert.match(lifecycleValidationMigration, /FROM property_operating_tenants tenant[\s\S]*WHERE tenant\.id=target_tenant[\s\S]*FOR UPDATE/);
   assert.match(lifecycleValidationMigration, /Export review must be for an active or suspended tenant/);
+
+  const membershipSupportHardening = await readFile(
+    new URL('../migrations/135_property_tenant_membership_and_support_reason_guards.sql', import.meta.url),
+    'utf8',
+  );
+  const assignmentFunction = membershipSupportHardening.slice(
+    membershipSupportHardening.indexOf('CREATE OR REPLACE FUNCTION assign_property_operating_tenant_member'),
+    membershipSupportHardening.indexOf('CREATE OR REPLACE FUNCTION set_property_operating_tenant_member_status'),
+  );
+  assert.match(assignmentFunction, /app_role\(\) IS DISTINCT FROM 'global_admin'[\s\S]*target_role='tenant_admin'/);
+  assert.match(assignmentFunction, /app_property_tenant_system_id\(\) IS DISTINCT FROM target_tenant/);
+  assert.match(assignmentFunction, /app_has_permission\('property\.tenancy\.manage'\) IS NOT TRUE/);
+  assert.match(assignmentFunction, /app_property_tenant_role_matches\(target_role,role\)/);
+
+  const memberStatusFunction = membershipSupportHardening.slice(
+    membershipSupportHardening.indexOf('CREATE OR REPLACE FUNCTION set_property_operating_tenant_member_status'),
+    membershipSupportHardening.indexOf('CREATE OR REPLACE FUNCTION decide_property_tenant_support_grant'),
+  );
+  assert.match(memberStatusFunction, /change_reason IS NULL OR length\(trim\(change_reason\)\) NOT BETWEEN 10 AND 1000/);
+  assert.match(memberStatusFunction, /next_status IS NULL OR next_status NOT IN/);
+
+  const supportDecisionFunction = membershipSupportHardening.slice(
+    membershipSupportHardening.indexOf('CREATE OR REPLACE FUNCTION decide_property_tenant_support_grant'),
+    membershipSupportHardening.indexOf('CREATE OR REPLACE FUNCTION revoke_property_tenant_support_grant'),
+  );
+  assert.match(supportDecisionFunction, /decision_reason IS NULL OR length\(trim\(decision_reason\)\) NOT BETWEEN 10 AND 1000/);
+  assert.match(supportDecisionFunction, /approve IS NULL/);
+  assert.match(supportDecisionFunction, /app_role\(\) IS DISTINCT FROM 'global_admin'/);
+
+  const supportRevocationFunction = membershipSupportHardening.slice(
+    membershipSupportHardening.indexOf('CREATE OR REPLACE FUNCTION revoke_property_tenant_support_grant'),
+    membershipSupportHardening.indexOf('REVOKE ALL ON FUNCTION assign_property_operating_tenant_member'),
+  );
+  assert.match(supportRevocationFunction, /revocation_reason IS NULL[\s\S]*length\(trim\(revocation_reason\)\) NOT BETWEEN 10 AND 1000/);
+  assert.match(supportRevocationFunction, /app_role\(\) IS DISTINCT FROM 'global_admin'/);
+  assert.match(membershipSupportHardening, /REVOKE ALL ON FUNCTION set_property_operating_tenant_member_status\(uuid,uuid,text,text\) FROM PUBLIC/);
+  assert.match(membershipSupportHardening, /GRANT EXECUTE ON FUNCTION revoke_property_tenant_support_grant\(uuid,text\) TO "\{\{role\}\}"/);
 
   const core = await readFile(new URL('../src/core.ts', import.meta.url), 'utf8');
   assert.match(core, /app\.property_tenant_system_id/);
