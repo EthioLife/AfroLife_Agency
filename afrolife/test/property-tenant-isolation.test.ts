@@ -185,3 +185,52 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(propertyRouter, /const salePrice = fieldAgent \? 'NULL::numeric AS sale_price'/);
   assert.match(propertyRouter, /const unitRent = fieldAgent \? 'NULL::numeric'/);
 });
+
+test('association amenity reservations enforce tenant scope, independent approval, cancellation, and conflict safety', async () => {
+  const migration = await readFile(
+    new URL('../migrations/136_property_association_amenity_reservations.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(migration, /CREATE TABLE property_association_amenity_reservations/);
+  assert.match(migration, /CREATE TABLE property_association_amenity_reservation_events/);
+  assert.match(migration, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(migration, /FORCE ROW LEVEL SECURITY/);
+  assert.match(migration, /property_association_amenity_reservations_scoped_read/);
+  assert.match(migration, /app_property_association_can_view\(tenant_system_id,property_id\)/);
+  assert.match(migration, /member\.tenant_role IN \('owner','resident'\)/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION guard_property_association_amenity_reservation_update/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION create_property_association_amenity_reservation/);
+  assert.match(migration, /newer\.policy_version>policy\.policy_version/);
+  assert.match(migration, /DROP POLICY IF EXISTS property_associations_scoped_read/);
+  assert.match(migration, /app_property_agent_can_manage\(\s*association_property\.tenant_system_id/);
+  assert.match(migration, /DROP POLICY IF EXISTS property_association_amenity_policies_scoped_read/);
+  assert.match(migration, /ends_at-starts_at<=interval '24 hours'/);
+  assert.match(migration, /target_starts_at>now\(\)\+interval '8760 hours'/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION decide_property_association_amenity_reservation/);
+  assert.match(migration, /reservation\.starts_at<=now\(\)/);
+  assert.match(migration, /reservation\.requester_user_id=actor/);
+  assert.match(migration, /pg_advisory_xact_lock\(hashtextextended/);
+  assert.match(migration, /existing\.starts_at<reservation\.ends_at/);
+  assert.match(migration, /existing\.ends_at>reservation\.starts_at/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION cancel_property_association_amenity_reservation/);
+  assert.match(migration, /reservation\.requester_user_id<>actor[\s\S]*app_property_agent_can_manage/);
+  assert.match(migration, /FROM PUBLIC/);
+  assert.match(migration, /reservation_events_immutable/);
+
+  const operations = await readFile(new URL('../src/ops.ts', import.meta.url), 'utf8');
+  assert.match(operations, /ops\.post\('\/property\/associations\/:id\/amenity-reservations'/);
+  assert.match(operations, /ops\.post\('\/property\/amenity-reservations\/:id\/decision'/);
+  assert.match(operations, /ops\.post\('\/property\/amenity-reservations\/:id\/cancel'/);
+  assert.match(operations, /starts_at: z\.string\(\)\.datetime\(\{ offset: true \}\)/);
+  assert.match(operations, /amenity_reservations: amenityReservations\.rows/);
+
+  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.match(app, /property-amenity-reservation/);
+  assert.match(app, /timeZone: 'UTC'/);
+  assert.match(app, /Maximum 24 hours; up to 365 days ahead/);
+  assert.match(app, /property-amenity-reservation-decision/);
+  assert.match(app, /property-amenity-reservation-cancel/);
+
+  const server = await readFile(new URL('../src/server.ts', import.meta.url), 'utf8');
+  assert.match(server, /err\?\.code === '23P01'\) return reply\(409/);
+});

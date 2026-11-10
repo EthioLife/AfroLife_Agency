@@ -1164,6 +1164,7 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof z.ZodError) return reply(400, { error: 'Invalid input', details: err.flatten() });
   if (err?.code === '22P02') return reply(400, { error: 'Invalid id or value' }); // e.g. a malformed UUID in the URL
   if (err?.code === '23505') return reply(409, { error: 'Duplicate record (e.g. phone already used, or commission already exists)' });
+  if (err?.code === '23P01') return reply(409, { error: err.message });
   if (err?.code === 'P0001' || err?.code === '23514') return reply(422, { error: err.message });
   console.error('API request failed [' + correlationId + ']', err);
   return reply(500, { error: 'Internal error' });

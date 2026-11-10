@@ -376,7 +376,7 @@ test('association amenity policies are tenant-scoped, admin-authored, and append
 
   const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
   assert.match(app, /property-association-amenity-policy/);
-  assert.match(app, /These versioned rules are reference text only; bookings and availability conflicts are not automated\./);
+  assert.match(app, /These versioned rules describe amenity use; reservations still require staff approval\./);
   const translations = await readFile(new URL('../public/i18n.js', import.meta.url), 'utf8');
   for (const message of [
     'Association calendar and amenity policies',

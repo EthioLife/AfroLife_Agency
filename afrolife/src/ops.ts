@@ -911,6 +911,48 @@ ops.get('/property/associations', h(async (req, res) => {
        ORDER BY cycle.period_start DESC,cycle.created_at DESC
        LIMIT 100`,
     );
+    const amenityReservations = await client.query(
+      `SELECT reservation.reservation_id,reservation.association_id,reservation.property_id,
+         property.address,reservation.amenity_name,reservation.starts_at,reservation.ends_at,
+         reservation.status,reservation.created_at,
+         (reservation.requester_user_id=app_user_id()) AS is_requester,
+         CASE WHEN app_property_agent_can_manage(
+           reservation.tenant_system_id,reservation.property_id
+         ) THEN requester.legal_name ELSE NULL END AS requester_name,
+         CASE WHEN reservation.requester_user_id=app_user_id()
+           OR app_property_agent_can_manage(reservation.tenant_system_id,reservation.property_id)
+           THEN reservation.decision_reason ELSE NULL END AS decision_reason,
+         CASE WHEN reservation.requester_user_id=app_user_id()
+           OR app_property_agent_can_manage(reservation.tenant_system_id,reservation.property_id)
+           THEN reservation.cancel_reason ELSE NULL END AS cancel_reason,
+         (reservation.requester_user_id<>app_user_id()
+           AND app_property_agent_can_manage(
+             reservation.tenant_system_id,reservation.property_id
+           )) AS can_decide,
+         (reservation.requester_user_id=app_user_id()
+           OR app_property_agent_can_manage(
+             reservation.tenant_system_id,reservation.property_id
+           )) AS can_cancel,
+         COALESCE((
+           SELECT jsonb_agg(jsonb_build_object(
+             'event_type',event.event_type,'reason',event.reason,'created_at',event.created_at
+           ) ORDER BY event.event_id)
+           FROM property_association_amenity_reservation_events event
+           WHERE event.tenant_system_id=reservation.tenant_system_id
+             AND event.reservation_id=reservation.reservation_id
+         ),'[]'::jsonb) AS events
+       FROM property_association_amenity_reservations reservation
+       JOIN properties property
+         ON property.id=reservation.property_id
+        AND property.tenant_system_id=reservation.tenant_system_id
+       JOIN users requester ON requester.id=reservation.requester_user_id
+       WHERE reservation.tenant_system_id=app_property_tenant_system_id()
+         AND (reservation.status='approved'
+           OR reservation.requester_user_id=app_user_id()
+           OR app_property_agent_can_manage(reservation.tenant_system_id,reservation.property_id))
+       ORDER BY reservation.starts_at,reservation.reservation_id
+       LIMIT 500`,
+    );
     return {
       currency: tenantCurrency,
       associations: associations.rows,
@@ -919,6 +961,7 @@ ops.get('/property/associations', h(async (req, res) => {
       amenity_policies: amenityPolicies.rows,
       dues_policies: duesPolicies.rows,
       dues_cycles: duesCycles.rows,
+      amenity_reservations: amenityReservations.rows,
     };
   });
   res.json(result);
@@ -1091,6 +1134,52 @@ ops.post('/property/associations/:id/amenity-policies', h(async (req, res) => {
     )
   ));
   res.status(201).json(result.rows[0]);
+}));
+
+ops.post('/property/associations/:id/amenity-reservations', h(async (req, res) => {
+  const associationId = z.string().uuid().parse(req.params.id);
+  const body = z.object({
+    property_id: z.string().uuid(),
+    amenity_name: z.string().trim().min(2).max(120),
+    starts_at: z.string().datetime({ offset: true }),
+    ends_at: z.string().datetime({ offset: true }),
+  }).strict().parse(req.body);
+  const result = await withUser(req.user!, async (client) => (
+    await client.query(
+      'SELECT create_property_association_amenity_reservation($1,$2,$3,$4,$5) AS id',
+      [associationId,body.property_id,body.amenity_name,body.starts_at,body.ends_at],
+    )
+  ));
+  res.status(201).json({ id: result.rows[0].id, status: 'pending' });
+}));
+
+ops.post('/property/amenity-reservations/:id/decision', h(async (req, res) => {
+  const reservationId = z.string().uuid().parse(req.params.id);
+  const body = z.object({
+    decision: z.enum(['approved','rejected']),
+    reason: z.string().trim().min(10).max(1000),
+  }).strict().parse(req.body);
+  await withUser(req.user!, async (client) => {
+    await client.query(
+      'SELECT decide_property_association_amenity_reservation($1,$2,$3)',
+      [reservationId,body.decision,body.reason],
+    );
+  });
+  res.status(204).end();
+}));
+
+ops.post('/property/amenity-reservations/:id/cancel', h(async (req, res) => {
+  const reservationId = z.string().uuid().parse(req.params.id);
+  const body = z.object({
+    reason: z.string().trim().min(10).max(1000),
+  }).strict().parse(req.body);
+  await withUser(req.user!, async (client) => {
+    await client.query(
+      'SELECT cancel_property_association_amenity_reservation($1,$2)',
+      [reservationId,body.reason],
+    );
+  });
+  res.status(204).end();
 }));
 
 ops.post('/property/associations/:id/assessments', h(async (req, res) => {

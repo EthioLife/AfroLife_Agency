@@ -45,7 +45,7 @@ const MINI_APP_PANELS = new Set([
   'insurance', 'privacy', 'global-bi',
 ]);
 const $ = (selector) => document.querySelector(selector);
-const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [] }, propertyAssociationReport: null, propertyMoveOutInspectionDrafts: [], propertyMoveOutInspectionSyncError: '', rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
+const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [], amenity_reservations: [] }, propertyAssociationReport: null, propertyMoveOutInspectionDrafts: [], propertyMoveOutInspectionSyncError: '', rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
 state.propertyTenantSupportGrantId = localStorage.getItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
 state.propertyTenantSupportGrants = [];
 state.propertyOperatingTenants = [];
@@ -1272,7 +1272,7 @@ function signOut({ revoke = true, message = '' } = {}) {
   workspaceSearchSequence += 1;
   loadedPanels.clear();
   Object.assign(state, {
-    leads: [], workers: [], workerDocumentExpiry: [], requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [] }, propertyAssociationReport: null, propertyMoveOutInspectionDrafts: [], propertyMoveOutInspectionSyncError: '', rentalApplications: [], maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [],
+    leads: [], workers: [], workerDocumentExpiry: [], requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [], amenity_reservations: [] }, propertyAssociationReport: null, propertyMoveOutInspectionDrafts: [], propertyMoveOutInspectionSyncError: '', rentalApplications: [], maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [],
     commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], notificationDeliveryStatus: [],
     roleAccess: null, learningContent: [], contracts: [], leases: [], tenants: [], pendingRent: [],
     platformServices: [], platformServicePackages: [], platformTenants: [], platformSuperAdmins: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [],
@@ -1690,11 +1690,11 @@ async function loadPanelData(panel) {
       state.propertyAssociations = activePropertyTenant
         ? await safeGet('/property/associations', {
           currency: null, associations: [], assessments: [], amenity_policies: [],
-          dues_policies: [], dues_cycles: [],
+          dues_policies: [], dues_cycles: [], amenity_reservations: [],
         })
         : {
           currency: null, associations: [], assessments: [], amenity_policies: [],
-          dues_policies: [], dues_cycles: [],
+          dues_policies: [], dues_cycles: [], amenity_reservations: [],
         };
       const propertyTenantMembership = state.propertyTenantMemberships.find((tenant) =>
         tenant.id === activePropertyTenant && tenant.status === 'active');
@@ -4291,7 +4291,7 @@ function renderPropertyAssociations() {
   );
   const data = state.propertyAssociations ?? {
     currency: null, associations: [], assessments: [], amenity_policies: [],
-    dues_policies: [], dues_cycles: [],
+    dues_policies: [], dues_cycles: [], amenity_reservations: [],
   };
   const membership = state.propertyTenantMemberships.find((tenant) =>
     tenant.id === state.propertyTenantContextId && tenant.status === 'active');
@@ -4411,10 +4411,43 @@ function renderPropertyAssociations() {
             rows: 4,
           }).label,
           status.label,
-          node('p', t('These versioned rules are reference text only; bookings and availability conflicts are not automated.'), 'muted'),
+          node('p', t('These versioned rules describe amenity use; reservations still require staff approval.'), 'muted'),
           button(t('Record policy version'), 'submit', 'button button-outline'),
         );
         item.append(form);
+      }
+      if (membership?.status === 'active'
+        && ['owner','resident'].includes(membership.tenant_role)
+        && association.status === 'active') {
+        const requestablePolicies = [...currentPolicies.values()]
+          .filter((policy) => policy.status === 'active');
+        if (requestablePolicies.length) {
+          const form = node('form', undefined, 'form-card inline-form');
+          form.dataset.form = 'property-amenity-reservation';
+          form.dataset.association = association.id;
+          form.dataset.property = property.property_id;
+          const amenity = field('Amenity', 'amenity_name', 'select', true);
+          for (const policy of requestablePolicies) {
+            amenity.input.append(new Option(
+              `${policy.amenity_name} · ${t('Policy version')} ${policy.policy_version}`,
+              policy.amenity_name,
+            ));
+          }
+          form.append(
+            amenity.label,
+            field('Start time (UTC)', 'starts_at', 'text', true, {
+              placeholder: 'YYYY-MM-DDTHH:mm',
+              pattern: '\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}',
+            }).label,
+            field('End time (UTC)', 'ends_at', 'text', true, {
+              placeholder: 'YYYY-MM-DDTHH:mm',
+              pattern: '\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}',
+            }).label,
+            node('p', t('Reservations require staff approval. Enter UTC time (YYYY-MM-DDTHH:mm). Maximum 24 hours; up to 365 days ahead.'), 'muted'),
+            button(t('Request amenity reservation'), 'submit', 'button button-outline'),
+          );
+          item.append(form);
+        }
       }
       const currentDuesPolicy = latestDuesPolicies.get(property.property_id);
       if (currentDuesPolicy) {
@@ -4639,6 +4672,55 @@ function renderPropertyAssociations() {
         );
       }
       item.append(violationCard);
+    }
+    const reservations = (data.amenity_reservations ?? [])
+      .filter((reservation) => reservation.association_id === association.id);
+    if (reservations.length) item.append(node('h4', t('Amenity reservations')));
+    for (const reservation of reservations) {
+      const start = new Date(reservation.starts_at).toLocaleString(document.documentElement.lang, {
+        timeZone: 'UTC',
+      });
+      const end = new Date(reservation.ends_at).toLocaleString(document.documentElement.lang, {
+        timeZone: 'UTC',
+      });
+      const reservationCard = card(
+        `${reservation.address} · ${reservation.amenity_name}`,
+        `${start} – ${end} UTC`,
+        t(reservation.status),
+      );
+      if (reservation.requester_name) {
+        reservationCard.append(node('p', `${t('Requested by')}: ${reservation.requester_name}`, 'muted'));
+      }
+      if (reservation.decision_reason) reservationCard.append(node('p', reservation.decision_reason, 'muted'));
+      if (reservation.cancel_reason) reservationCard.append(node('p', reservation.cancel_reason, 'muted'));
+      for (const event of reservation.events ?? []) {
+        reservationCard.append(node(
+          'p',
+          `${new Date(event.created_at).toLocaleString(document.documentElement.lang)} · ${t(event.event_type)} · ${event.reason}`,
+          'muted',
+        ));
+      }
+      if (reservation.status === 'pending' && reservation.can_decide) {
+        reservationCard.append(
+          button(t('Approve reservation'), 'property-amenity-reservation-decision', 'button button-primary', {
+            id: reservation.reservation_id,
+            decision: 'approved',
+          }),
+          button(t('Reject reservation'), 'property-amenity-reservation-decision', 'button button-outline', {
+            id: reservation.reservation_id,
+            decision: 'rejected',
+          }),
+        );
+      }
+      if (['pending','approved'].includes(reservation.status) && reservation.can_cancel) {
+        reservationCard.append(button(
+          t('Cancel reservation'),
+          'property-amenity-reservation-cancel',
+          'button button-outline',
+          { id: reservation.reservation_id },
+        ));
+      }
+      item.append(reservationCard);
     }
     wrap.append(item);
   }
@@ -8256,6 +8338,35 @@ async function submitForm(form) {
     showAlert('Association amenity policy version recorded.');
     return;
   }
+  if (form.dataset.form === 'property-amenity-reservation') {
+    const utcDateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+    if (!utcDateTimePattern.test(values.starts_at) || !utcDateTimePattern.test(values.ends_at)) {
+      throw new Error(t('Enter UTC time as YYYY-MM-DDTHH:mm.'));
+    }
+    const startsAt = new Date(`${values.starts_at}:00Z`);
+    const endsAt = new Date(`${values.ends_at}:00Z`);
+    if (!Number.isFinite(startsAt.getTime()) || !Number.isFinite(endsAt.getTime())
+      || startsAt.toISOString().slice(0, 16) !== values.starts_at
+      || endsAt.toISOString().slice(0, 16) !== values.ends_at
+      || endsAt <= startsAt || startsAt <= new Date()
+      || endsAt - startsAt > 24 * 60 * 60 * 1000
+      || startsAt - new Date() > 365 * 24 * 60 * 60 * 1000) {
+      throw new Error(t('Choose a valid future interval, no longer than 24 hours and no more than 365 days ahead.'));
+    }
+    await api(`/property/associations/${encodeURIComponent(form.dataset.association)}/amenity-reservations`, {
+      method: 'POST',
+      body: JSON.stringify({
+        property_id: form.dataset.property,
+        amenity_name: values.amenity_name,
+        starts_at: startsAt.toISOString(),
+        ends_at: endsAt.toISOString(),
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert(t('Amenity reservation request submitted for approval.'));
+    return;
+  }
   if (form.dataset.form === 'property-association-dues-policy') {
     await api(`/property/associations/${encodeURIComponent(form.dataset.association)}/dues-policies`, {
       method: 'POST',
@@ -10217,6 +10328,38 @@ document.addEventListener('click', async (event) => {
       showAlert(action.dataset.decision === 'reconciled'
         ? 'Association receipt reconciled and recorded.'
         : 'Association receipt evidence rejected with a recorded reason.');
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'property-amenity-reservation-decision') {
+    const reason = window.prompt(t('Document the independent reservation decision (at least 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/amenity-reservations/${encodeURIComponent(id)}/decision`, {
+        method: 'POST',
+        body: JSON.stringify({ decision: action.dataset.decision, reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(action.dataset.decision === 'approved'
+        ? t('Amenity reservation approved.')
+        : t('Amenity reservation request rejected with a recorded reason.'));
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'property-amenity-reservation-cancel') {
+    const reason = window.prompt(t('Document why this reservation is being cancelled (at least 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/amenity-reservations/${encodeURIComponent(id)}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(t('Amenity reservation cancelled.'));
     } catch (error) {
       showAlert(error.message, true);
     }
