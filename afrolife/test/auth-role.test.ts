@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { isPlatformAdminRole } from '../src/auth-types.js';
 import { requiresMfaEnrollment, requiresMfaForRoles } from '../src/auth-types.js';
 import { adminRouter, loginRouter } from '../src/admin.js';
@@ -93,7 +93,12 @@ test('passkey endpoints verify session-bound WebAuthn challenges and never retur
   assert.match(source, /authenticatorAttachment: 'platform'/);
   assert.match(source, /residentKey: 'required'/);
   assert.match(source, /session_id=\$2 AND consumed_at IS NULL AND expires_at>now\(\)/);
-  const migration = await readFile(new URL('../migrations/133_auth_passkeys.sql', import.meta.url), 'utf8');
+  const migrationName = '136_auth_passkeys.sql';
+  const migrations = await readdir(new URL('../migrations/', import.meta.url));
+  const migrationNumber = migrationName.match(/^\d+/)?.[0];
+  assert.ok(migrationNumber);
+  assert.equal(migrations.filter((name) => name.startsWith(`${migrationNumber}_`)).length, 1);
+  const migration = await readFile(new URL(`../migrations/${migrationName}`, import.meta.url), 'utf8');
   assert.match(migration, /auth_passkey_credentials ENABLE ROW LEVEL SECURITY/);
   assert.match(migration, /auth_passkey_credentials_self/);
   assert.match(migration, /auth_passkey_registration_challenges ENABLE ROW LEVEL SECURITY/);
