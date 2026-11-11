@@ -79,8 +79,8 @@ ORDER BY created_at,id
 LIMIT 1;
 
 INSERT INTO property_operating_tenant_members(tenant_system_id,user_id,tenant_role,assigned_by)
-SELECT tenant.id,user.id,
-  CASE user.role
+SELECT tenant.id,user_row.id,
+  CASE user_row.role
     WHEN 'super_admin' THEN 'tenant_admin'
     WHEN 'corporate_business_manager' THEN 'tenant_admin'
     WHEN 'master_agent' THEN 'master_agent'
@@ -93,11 +93,11 @@ SELECT tenant.id,user.id,
     WHEN 'finance_manager' THEN 'tenant_accountant'
     ELSE 'agent'
   END,
-  user.id
+  user_row.id
 FROM property_operating_tenants tenant
-CROSS JOIN users
-WHERE tenant.tenant_key='legacy-property-operations' AND users.active=true
-  AND users.role IN (
+CROSS JOIN users AS user_row
+WHERE tenant.tenant_key='legacy-property-operations' AND user_row.active=true
+  AND user_row.role IN (
     'super_admin','corporate_business_manager','master_agent','field_agent',
     'property_owner','customer','property_vendor','vendor','finance','finance_manager'
   );
