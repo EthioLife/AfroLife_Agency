@@ -39,6 +39,8 @@ CREATE INDEX maintenance_requests_internal_assignee_idx
 
 -- Avoid recursive vendor-membership policies while the migration owner backfills assignees.
 ALTER TABLE maintenance_requests NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE property_vendor_memberships NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE property_vendors NO FORCE ROW LEVEL SECURITY;
 
 INSERT INTO property_agent_scopes(
   tenant_system_id,property_id,user_id,tenant_role,assigned_by
@@ -75,6 +77,8 @@ WHERE maintenance.assigned_to ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89a
   );
 
 ALTER TABLE maintenance_requests FORCE ROW LEVEL SECURITY;
+ALTER TABLE property_vendor_memberships FORCE ROW LEVEL SECURITY;
+ALTER TABLE property_vendors FORCE ROW LEVEL SECURITY;
 
 CREATE OR REPLACE FUNCTION app_property_tenant_role_matches(target_tenant_role text,target_auth_role text)
 RETURNS boolean
