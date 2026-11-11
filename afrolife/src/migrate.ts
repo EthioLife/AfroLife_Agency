@@ -59,6 +59,7 @@ try {
       await client.query('COMMIT');
       console.log(`Applied ${name}`);
     } catch (error) {
+      console.error(`Migration ${name} failed.`);
       try {
         await client.query('ROLLBACK');
       } catch (rollbackError) {
