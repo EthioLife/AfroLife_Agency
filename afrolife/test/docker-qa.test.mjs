@@ -13,8 +13,10 @@ const apiServer = readFileSync(new URL('../src/server.ts', import.meta.url), 'ut
 const dockerIgnore = readFileSync(new URL('../.dockerignore', import.meta.url), 'utf8');
 const gitIgnore = readFileSync(new URL('../.gitignore', import.meta.url), 'utf8');
 const seedUsers = readFileSync(new URL('../scripts/seed-local-test-users.ts', import.meta.url), 'utf8');
+const mfiSeedUsers = readFileSync(new URL('../scripts/seed-local-mfi-e2e-users.ts', import.meta.url), 'utf8');
 const qaScript = readFileSync(new URL('../scripts/docker-qa.ps1', import.meta.url), 'utf8');
 const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+const qualityWorkflow = readFileSync(new URL('../../.github/workflows/afrolife-quality.yml', import.meta.url), 'utf8');
 
 test('Docker QA exposes one app port and keeps PostgreSQL on loopback', () => {
   assert.match(compose, /127\.0\.0\.1:\$\{AFROLIFE_HTTP_PORT:-3010\}:3010/);
@@ -103,12 +105,16 @@ test('Docker app health reflects full readiness, not only process/database liven
   assert.match(compose, /\/readyz/);
 });
 
-test('Docker QA user seeding is explicit and verifies loopback host mapping and private container identity', () => {
+test('Docker QA and CI seeders verify loopback host mapping and private container identity', () => {
   assert.match(qaScript, /\$env:AFROLIFE_DOCKER_QA = '1'/);
   assert.match(seedUsers, /process\.env\.AFROLIFE_DOCKER_QA === '1'/);
   assert.match(seedUsers, /dockerQaMode && disposableDatabaseUrl/);
-  assert.match(seedUsers, /dockerQaMode \|\| connectionPort === 5433/);
-  assert.match(seedUsers, /dockerQaMode && dockerPrivateAddress && Number\(identity\.port\) === 5432/);
+  assert.match(seedUsers, /process\.env\.AFROLIFE_TEST_POSTGRES_CONTAINER === '1'/);
+  assert.match(seedUsers, /dockerQaMode \|\| containerizedDisposableDatabase \|\| connectionPort === 5433/);
+  assert.match(seedUsers, /\(dockerQaMode \|\| containerizedDisposableDatabase\)\s*&& dockerPrivateAddress && Number\(identity\.port\) === 5432/);
+  assert.match(mfiSeedUsers, /process\.env\.AFROLIFE_TEST_POSTGRES_CONTAINER==='1'/);
+  assert.match(mfiSeedUsers, /disposableContainerPostgres=containerizedDisposableDatabase&&containerAddress&&Number\(identity\.port\)===5432/);
+  assert.match(qualityWorkflow, /AFROLIFE_TEST_POSTGRES_CONTAINER: '1'/);
   assert.match(seedUsers, /localUrl\.hostname/);
   assert.match(seedUsers, /identity\.database_user === 'postgres' && identity\.is_superuser/);
   assert.match(qaScript, /MIGRATION_DATABASE_URL/);

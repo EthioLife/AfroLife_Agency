@@ -84,7 +84,7 @@ test('Global BI tenant and central database boundaries are explicit', async () =
   const source = await readFile(new URL('../src/mini-app-access.ts', import.meta.url), 'utf8');
   assert.match(source, /case 'global-bi':\s*return user\.role === 'global_admin'/);
   const service = await readFile(new URL('../services/global-bi/access-control.ts', import.meta.url), 'utf8');
-  assert.match(service, /role !== 'global_admin'/);
+  assert.match(service, /!?\['global_admin',\s*'super_admin'\]\.includes\(role\)/);
   const router = await readFile(new URL('../services/global-bi/router.ts', import.meta.url), 'utf8');
   assert.match(router, /summarizeProjectionStatus/);
   const status = await readFile(new URL('../services/global-bi/projection-status.ts', import.meta.url), 'utf8');

@@ -258,7 +258,6 @@ test('resident maintenance completion feedback is tenant-scoped, immutable, and 
   );
   assert.ok(submitFunction.indexOf('FOR UPDATE') < submitFunction.indexOf('SELECT * INTO previous'));
   assert.doesNotMatch(submitFunction, /UPDATE maintenance_requests|UPDATE maintenance_resident_feedback/);
-
   const operations = await readFile(new URL('../src/ops.ts', import.meta.url), 'utf8');
   assert.match(operations, /ops\.post\('\/resident\/maintenance\/:id\/feedback'/);
   assert.match(operations, /submit_maintenance_resident_feedback\(\$1,\$2,\$3,\$4,\$5\)/);
@@ -274,4 +273,15 @@ test('resident maintenance completion feedback is tenant-scoped, immutable, and 
 
   const serviceWorker = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
   assert.match(serviceWorker, /afrolife-shell-v46/);
+});
+
+test('property tenant migration backfills members using an explicit users alias', async () => {
+  const migration = await readFile(
+    new URL('../migrations/118_property_operating_tenant_scope.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(migration, /CROSS JOIN users AS user_row/);
+  assert.match(migration, /SELECT tenant\.id,user_row\.id/);
+  assert.match(migration, /CASE user_row\.role/);
+  assert.match(migration, /WHERE tenant\.tenant_key='legacy-property-operations' AND user_row\.active=true/);
 });

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
@@ -35,17 +35,19 @@ const databaseName = `afrolife_test_finance_${suffix}`;
 const fixtureRole = `afrolife_fixture_${suffix}`;
 const runtimeRole = `afrolife_runtime_${suffix}`;
 const staffingRole = `afrolife_staffing_${suffix}`;
+const testDataDirectory = process.env.LOCALAPPDATA
+  ? join(process.env.LOCALAPPDATA, 'AfroLife')
+  : tmpdir();
+mkdirSync(testDataDirectory, { recursive: true });
 const fixturePassword = randomBytes(36).toString('base64url');
 const runtimePassword = randomBytes(36).toString('base64url');
 const staffingPassword = randomBytes(36).toString('base64url');
 const credentialsPath = join(
-  process.env.LOCALAPPDATA ?? tmpdir(),
-  'AfroLife',
+  testDataDirectory,
   `finance-e2e-users-${suffix}.txt`,
 );
 const mfiCredentialsPath = join(
-  process.env.LOCALAPPDATA ?? tmpdir(),
-  'AfroLife',
+  testDataDirectory,
   `mfi-e2e-users-${suffix}.txt`,
 );
 const storagePath = join(tmpdir(), `afrolife-finance-e2e-storage-${suffix}`);

@@ -8,12 +8,13 @@ import pg from 'pg';
 
 const localEnv = process.env.AFROLIFE_ENV_FILE
   ?? join(process.env.LOCALAPPDATA ?? '', 'AfroLife', 'afrolife.env');
-if (!existsSync(localEnv)) {
+if (!existsSync(localEnv) && !process.env.TEST_DATABASE_URL?.trim()) {
   throw new Error('The isolated local AfroLife environment file is required. Run the local database setup first.');
 }
-dotenv.config({ path: localEnv });
+if (existsSync(localEnv)) dotenv.config({ path: localEnv });
 const disposableDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 const dockerQaMode = process.env.AFROLIFE_DOCKER_QA === '1';
+const containerizedDisposableDatabase = process.env.AFROLIFE_TEST_POSTGRES_CONTAINER === '1';
 const connectionString = disposableDatabaseUrl ?? process.env.MIGRATION_DATABASE_URL;
 const credentialPath = process.env.AFROLIFE_TEST_USERS_FILE
   ?? join(process.env.LOCALAPPDATA ?? '', 'AfroLife', 'local-test-users.txt');
@@ -29,7 +30,7 @@ const connectionPort = Number(localUrl.port);
 const allowedConnectionPort = Number.isInteger(connectionPort)
   && connectionPort >= 1
   && connectionPort <= 65535
-  && (dockerQaMode || connectionPort === 5433);
+  && (dockerQaMode || containerizedDisposableDatabase || connectionPort === 5433);
 if (!['127.0.0.1', 'localhost', '::1'].includes(localUrl.hostname)
   || !allowedConnectionPort
   || (dockerQaMode && disposableDatabaseUrl)
@@ -63,7 +64,8 @@ try {
     || /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(identity.address)
     || /^(fc|fd)[0-9a-f:]*$/i.test(identity.address)
   );
-  const dockerPostgres = dockerQaMode && dockerPrivateAddress && Number(identity.port) === 5432;
+  const dockerPostgres = (dockerQaMode || containerizedDisposableDatabase)
+    && dockerPrivateAddress && Number(identity.port) === 5432;
   if ((!loopbackPostgres && !dockerPostgres)
     || (!allowedFixtureRole && !allowedExistingLocalSetup)) {
     throw new Error(`Refusing to seed users: unexpected local database identity ${JSON.stringify(identity)}.`);

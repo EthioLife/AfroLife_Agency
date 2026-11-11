@@ -45,6 +45,8 @@ jobs:
           node -e "for (const f of ['package.json','capacitor.config.json','public/manifest.webmanifest']) JSON.parse(require('node:fs').readFileSync(f,'utf8'))"
       - name: Sync iOS Capacitor project
         run: npm run ios:sync
+      - name: Sync Android Capacitor project
+        run: npx cap sync android
       - run: npm run build
       - run: npm run build:insurance
       - run: npm run build:accounting
@@ -75,6 +77,7 @@ jobs:
       MIGRATION_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5433/afrolife
       JWT_SECRET: ci-only-integration-jwt-secret-not-for-deployments
       MFA_ENC_KEY: ci-only-integration-mfa-key-not-for-deployments
+      AFROLIFE_TEST_POSTGRES_CONTAINER: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
