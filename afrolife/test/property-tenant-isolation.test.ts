@@ -52,6 +52,15 @@ test('property operating tenant migration backfills legacy data and enforces row
     'utf8',
   );
   assert.match(agentScopeMigration, /CREATE TABLE property_agent_scopes/);
+  const backfillStart = agentScopeMigration.indexOf('INSERT INTO property_agent_scopes(');
+  const backfillEnd = agentScopeMigration.indexOf('CREATE OR REPLACE FUNCTION app_property_tenant_role_matches');
+  const backfill = agentScopeMigration.slice(backfillStart, backfillEnd);
+  for (const table of ['maintenance_requests', 'property_vendor_memberships', 'property_vendors']) {
+    assert.match(agentScopeMigration, new RegExp(`ALTER TABLE ${table} DISABLE ROW LEVEL SECURITY`));
+    assert.match(backfill, new RegExp(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`));
+    assert.match(backfill, new RegExp(`ALTER TABLE ${table} FORCE ROW LEVEL SECURITY`));
+  }
+  assert.ok(backfillStart >= 0 && backfillEnd > backfillStart);
   assert.match(agentScopeMigration, /app_property_tenant_role_matches/);
   assert.match(agentScopeMigration, /WHEN 'field_agent' THEN target_auth_role='field_agent'/);
   assert.match(agentScopeMigration, /app_property_tenant_role_matches\(member\.tenant_role,user_row\.role\)/);
