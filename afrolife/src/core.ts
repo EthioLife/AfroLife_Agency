@@ -54,7 +54,7 @@ export async function withUser<T>(u: AuthUser, fn: (c: PoolClient) => Promise<T>
   }
 }
 
-export async function withService<T>(service: 'payment_webhook', fn: (c: PoolClient) => Promise<T>): Promise<T> {
+export async function withService<T>(service: 'payment_webhook' | 'messaging_webhook', fn: (c: PoolClient) => Promise<T>): Promise<T> {
   const c = await pool.connect();
   try {
     await c.query('BEGIN');

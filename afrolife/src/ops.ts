@@ -20,6 +20,7 @@ import { staffingAccounting } from './staffing-accounting.js';
 import { workforceOperations } from './workforce-operations.js';
 import { canTransitionMaintenance, requiresMaintenanceReview } from './maintenance-workflow.js';
 import { leaseMoneyToCents, normalizeLeaseMoney, validateLeaseRenewalTerm } from './lease-renewals.js';
+import { sendTelegramMessage } from './auth-integrations.js';
 
 export const ops = Router();
 ops.use(propertyVendorAccounting);
@@ -154,6 +155,48 @@ ops.post('/assistant/conversations/:id/messages', h(async (req, res) => {
     });
     return row;
   });
+  res.status(201).json(created);
+}));
+
+ops.post('/support/callback-requests', h(async (req, res) => {
+  const body = z.object({
+    purpose: z.literal('support'),
+    details: z.string().trim().max(1000).optional(),
+  }).strict().parse(req.body);
+  const created = await withUser(req.user!, async (client) => {
+    const category = 'general';
+    const subject = 'Support call request';
+    const description = [
+      `Callback requested via the AfroLife App/Web support assistant (${body.purpose}).`,
+      body.details ? `Customer notes: ${body.details}` : '',
+    ].filter(Boolean).join('\n');
+    const priority = 'normal';
+    const row = (await client.query(
+      `INSERT INTO support_cases (user_id,category,subject,description,priority)
+       VALUES ($1,$2,$3,$4,$5)
+       RETURNING id,category,subject,priority,status,created_at`,
+      [req.user!.id, category, subject, description, priority],
+    )).rows[0];
+    await client.query(
+      `INSERT INTO support_case_events (case_id,actor_id,event_type,new_status)
+       VALUES ($1,$2,'created','open')`,
+      [row.id, req.user!.id],
+    );
+    await audit(client, req.user!.id, 'support_callback_requested', 'support_case', row.id, null, {
+      purpose: body.purpose,
+    });
+    return row;
+  });
+  if (process.env.TELEGRAM_BOT_GROUP_CHAT_ID && process.env.TELEGRAM_BOT_TOKEN) {
+    try {
+      await sendTelegramMessage(
+        process.env.TELEGRAM_BOT_GROUP_CHAT_ID,
+        'AfroLife: a new support call-back request is waiting in the authenticated staff queue. Review it in the app; do not share customer details in this group.',
+      );
+    } catch (error) {
+      console.error('Support call-back Telegram group notification failed', error instanceof Error ? error.message : error);
+    }
+  }
   res.status(201).json(created);
 }));
 

@@ -31,6 +31,9 @@ import { getPublicSubscriptionCatalog, subscriptionRouter } from './subscription
 import { createIndustryNewsProvider, INDUSTRY_NEWS_REFRESH_INTERVAL_MS, startIndustryNewsRefreshSchedule } from './industry-news.js';
 import { assessMigrationReadiness, migrationChecksum } from './migration-checksums.js';
 import { createAgencyOperationsRouter } from './agency-operations.js';
+import { getMessagingStatus } from './auth-integrations.js';
+import { telegramWebhook, whatsappWebhook, whatsappWebhookVerify } from './messaging-webhooks.js';
+import { SUPPORT_FAQ } from './support-faq.js';
 
 const app = express();
 app.use(correlationIdMiddleware);
@@ -87,7 +90,18 @@ app.use((req, res, next) => {
 });
 if (!process.env.PAYMENT_WEBHOOK_SECRET) console.warn('PAYMENT_WEBHOOK_SECRET is not set: /webhooks/payments is disabled');
 if (process.env.PAYMENT_WEBHOOK_SECRET) app.post('/webhooks/payments', express.raw({ type: 'application/json', limit: '100kb' }), paymentWebhook(process.env.PAYMENT_WEBHOOK_SECRET));
+app.get('/webhooks/whatsapp', whatsappWebhookVerify);
+app.post('/webhooks/whatsapp', express.raw({ type: 'application/json', limit: '100kb' }), whatsappWebhook);
 app.use(express.json({ limit: '100kb' }));
+app.post('/webhooks/telegram', telegramWebhook);
+app.get('/api/public/support', (_req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.json(getMessagingStatus());
+});
+app.get('/api/public/support-faq', (_req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.json(SUPPORT_FAQ.map(({ question, answer }) => ({ question, answer })));
+});
 app.get('/healthz', (_req, res, next) => {
   pool.query('SELECT 1').then(
     () => res.json({ ok: true, database: 'connected' }),
@@ -353,6 +367,8 @@ const requirePropertyTenantContext: RequestHandler = (req, _res, next) => {
 };
 
 api.use(authenticate);
+api.post('/support/callback-requests', createApiRateLimiter('support-callback', 5));
+api.post('/auth/telegram/link', createApiRateLimiter('telegram-link', 5));
 api.get('/property/tenant-systems', requireRole('global_admin'), h(async (_req, res) => {
   res.json(await withUser(_req.user!, async (client) => (await client.query(
     `SELECT id,tenant_key,legal_name,jurisdiction,timezone,currency,status,created_at,updated_at

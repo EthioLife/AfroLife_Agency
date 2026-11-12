@@ -543,7 +543,9 @@ test('authentication uses an Ethiopia-first international phone entry and explic
   }).phone, '+14155550132');
   assert.match(html, /id="login-form"[\s\S]*?name="phone_country_code"[^>]*value="\+251"/);
   assert.match(html, /id="signup-form"[\s\S]*?name="phone_country_code"[^>]*value="\+251"/);
-  assert.match(html, /id="recovery-form"[\s\S]*?SMS password recovery is unavailable/);
+  assert.match(html, /id="recovery-form"[\s\S]*?WhatsApp recovery is available/);
+  assert.match(html, /data-recovery-request/);
+  assert.match(html, /name="code"[^>]*autocomplete="one-time-code"/);
   assert.match(html, /Fayda verification is unavailable[\s\S]*?not live Fayda verification/);
   assert.match(app, /canonicalPhonePayload\(form\)/);
   assert.match(app, /Device sign-in unavailable/);

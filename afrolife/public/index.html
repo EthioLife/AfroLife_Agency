@@ -60,6 +60,20 @@
             <li>Community</li>
           </ul>
           <p class="welcome-promise">Connect <span aria-hidden="true">•</span> Access <span aria-hidden="true">•</span> Thrive <span class="welcome-promise-note">Building a Prosperous Africa Together.</span></p>
+          <section class="public-support panel" aria-label="AfroLife support contact options">
+            <h2>Need help?</h2>
+            <p>Chat with support on WhatsApp, call our support line, or sign in for private App/Web chat.</p>
+            <div class="login-registration-actions">
+              <a class="button button-outline" data-support-whatsapp-link href="https://wa.me/251708076113">WhatsApp chat</a>
+              <a class="button button-outline" data-support-phone-link href="tel:+251708076113">Call <span data-support-phone-text>+251 708 076 113</span></a>
+              <a class="button button-quiet" href="#login-form">Sign in for private web chat</a>
+            </div>
+            <a data-support-telegram-link href="#" hidden>Telegram support bot</a>
+            <section class="support-faq" aria-labelledby="public-support-faq-title">
+              <h2 id="public-support-faq-title">AfroSherik User Support FAQs</h2>
+              <div id="support-faq-list"><p>Loading support answers…</p></div>
+            </section>
+          </section>
           <figure class="brand-illustration">
             <img src="/brand/afrosherik-campaign-hero.png" alt="AfroSherik campaign artwork showing a woman with a phone and the Addis Ababa skyline beside the message: More Opportunities. Stronger Communities." width="427" height="204">
           </figure>
@@ -128,9 +142,14 @@
             <label>National phone number<input name="phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="9…" required maxlength="20"></label>
           </div>
           <small id="recovery-code-help" class="field-hint">Choose from suggestions or type another international calling code.</small>
-          <p class="provider-notice" role="status">SMS password recovery is unavailable because delivery is not configured. No code was sent. Contact AfroSherik support to recover your account.</p>
+          <p class="provider-notice" role="status">WhatsApp recovery is available only after delivery is configured and for opted-in active accounts. Otherwise, contact support at +251 708 076 113.</p>
+          <label>Six-digit WhatsApp recovery code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required></label>
+          <label>New password<input name="next" type="password" autocomplete="new-password" minlength="10" maxlength="72" required></label>
           <p id="recovery-status" class="form-error" role="status" aria-live="polite"></p>
-          <button class="button button-primary button-wide" type="submit">Request recovery help</button>
+          <div class="login-registration-actions">
+            <button class="button button-outline" type="button" data-recovery-request>Send WhatsApp code</button>
+            <button class="button button-primary" type="submit">Update password</button>
+          </div>
           <button id="back-to-sign-in" class="text-button text-button-wide" type="button">Back to sign in</button>
         </form>
         <form id="signup-form" class="panel signup-card" hidden>
@@ -460,6 +479,15 @@
           <button id="assistant-presence-toggle" class="button button-outline" type="button" hidden></button>
         </div>
         <div id="assistant-role-actions" class="assistant-role-actions"></div>
+        <div class="assistant-contact-actions">
+          <a class="button button-outline" data-support-whatsapp-link href="https://wa.me/251708076113">WhatsApp support</a>
+          <a class="button button-outline" data-support-phone-link href="tel:+251708076113">Call <span data-support-phone-text>+251 708 076 113</span></a>
+          <button class="button button-outline" type="button" data-action="assistant-telegram-link" hidden>Link Telegram account</button>
+        </div>
+        <details class="assistant-faq">
+          <summary>Frequently asked support questions</summary>
+          <div id="assistant-support-faq-list"></div>
+        </details>
         <div class="assistant-content">
           <section class="assistant-conversations" aria-labelledby="assistant-conversations-title">
             <h3 id="assistant-conversations-title">My conversations</h3>
@@ -469,6 +497,19 @@
                 <textarea name="message" maxlength="4000" required></textarea>
               </label>
               <button class="button button-primary" type="submit">Send request</button>
+            </form>
+            <form id="assistant-callback-form" data-form="assistant-callback">
+              <h3>Request a call back</h3>
+              <label>What do you need?
+                <select name="purpose" required>
+                  <option value="support">User support call</option>
+                </select>
+              </label>
+              <label>Notes (optional)
+                <textarea name="details" maxlength="1000"></textarea>
+              </label>
+              <p class="fine-print">Do not include passwords, verification codes, payment details, or identity numbers.</p>
+              <button class="button button-outline" type="submit">Request call back</button>
             </form>
           </section>
           <section id="assistant-staff-queue" class="assistant-staff-queue" aria-labelledby="assistant-queue-title" hidden>

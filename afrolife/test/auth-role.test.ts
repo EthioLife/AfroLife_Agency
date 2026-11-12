@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { isPlatformAdminRole } from '../src/auth-types.js';
 import { requiresMfaEnrollment } from '../src/auth-types.js';
 import { adminRouter, loginRouter } from '../src/admin.js';
-import { getFaydaVerificationStatus, getSmsRecoveryStatus } from '../src/auth-integrations.js';
+import { getFaydaVerificationStatus, getSmsRecoveryStatus, getWhatsAppRecoveryStatus } from '../src/auth-integrations.js';
 import { learningRouter } from '../src/learning.js';
 import { getRoleActivity, hasRoleActivityAccess, isRoleActivityOverrides, ROLE_ACTIVITIES, ROLE_NAMES } from '../src/role-activities.js';
 
@@ -26,6 +26,7 @@ test('administrative roles always require MFA while regular accounts remain opti
 test('SMS recovery and Fayda remain unavailable even when feature flags are requested', () => {
   assert.equal(getSmsRecoveryStatus({ SMS_RECOVERY_ENABLED: '1' }).enabled, false);
   assert.equal(getSmsRecoveryStatus({ SMS_RECOVERY_ENABLED: '1' }).status, 'unavailable');
+  assert.equal(getWhatsAppRecoveryStatus({ WHATSAPP_RECOVERY_ENABLED: '1' }).enabled, false);
   assert.equal(getFaydaVerificationStatus({ FAYDA_VERIFICATION_ENABLED: '1' }).enabled, false);
   assert.equal(getFaydaVerificationStatus({ FAYDA_VERIFICATION_ENABLED: '1' }).status, 'unavailable');
   assert.equal(getFaydaVerificationStatus({ FAYDA_VERIFICATION_ENABLED: '0' }).status, 'disabled');
@@ -42,8 +43,12 @@ test('password recovery migration stores only hash material and limits challenge
   assert.doesNotMatch(migration, /\b(?:otp|code|token)\s+text\b/i);
 });
 
-test('password recovery endpoints return no-store 503 without creating a challenge or revealing accounts', async () => {
-  const invoke = (path: string) => {
+test('password recovery endpoints return no-store 503 without revealing accounts when WhatsApp is unavailable', async () => {
+  const invoke = (path: string, body: Record<string, string>) => new Promise<{
+    statusCode: number;
+    headers: Record<string, string>;
+    body: unknown;
+  }>((resolve, reject) => {
     const route = loginRouter.stack.find((layer) => layer.route?.path === path)?.route;
     assert.ok(route, `missing route ${path}`);
     const response = {
@@ -52,13 +57,27 @@ test('password recovery endpoints return no-store 503 without creating a challen
       body: undefined as unknown,
       setHeader(name: string, value: string) { this.headers[name.toLowerCase()] = value; return this; },
       status(code: number) { this.statusCode = code; return this; },
-      json(body: unknown) { this.body = body; return this; },
+      json(body: unknown) { this.body = body; resolve(this); return this; },
     };
-    route.stack[0].handle({} as never, response as never, () => { throw new Error('unexpected next()'); });
-    return response;
-  };
-  const request = invoke('/auth/password-recovery/request');
-  const complete = invoke('/auth/password-recovery/complete');
+    let index = 0;
+    const next = (error?: unknown) => {
+      if (error) return reject(error);
+      const layer = route.stack[index++];
+      if (layer) layer.handle({ body } as never, response as never, next);
+      else reject(new Error('route ended without a response'));
+    };
+    next();
+  });
+  const request = await invoke('/auth/password-recovery/request', {
+    phone_country_code: '+251',
+    phone_national_number: '708076113',
+  });
+  const complete = await invoke('/auth/password-recovery/complete', {
+    phone_country_code: '+251',
+    phone_national_number: '708076113',
+    code: '123456',
+    next: 'A new password',
+  });
   assert.equal(request.statusCode, 503);
   assert.equal(request.headers['cache-control'], 'no-store');
   assert.deepEqual(complete.body, request.body);

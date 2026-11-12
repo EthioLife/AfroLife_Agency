@@ -61,6 +61,7 @@ state.overviewDataErrors = [];
 state.overviewDataOmitted = [];
 state.overviewLoadedAt = null;
 state.assistant = { conversations: [], queue: [], selectedId: null, messages: [], available: false, onlineCount: 0 };
+state.supportMessaging = null;
 let workspaceSearchSequence = 0;
 let deferredInstallPrompt = null;
 let supportAccessExpiryTimer = null;
@@ -184,6 +185,9 @@ function renderAssistant() {
   const presenceButton = $('#assistant-presence-toggle');
   presenceButton.hidden = !ASSISTANT_SUPPORT_STAFF.has(state.user?.role);
   setLocalizedText(presenceButton, assistant.available ? 'Stop offering support' : 'Make me available');
+  for (const button of document.querySelectorAll('[data-action="assistant-telegram-link"]')) {
+    button.hidden = state.supportMessaging?.telegram !== 'available';
+  }
 
   const actions = $('#assistant-role-actions');
   actions.replaceChildren();
@@ -602,19 +606,85 @@ async function switchAccessMode(role) {
 async function requestPasswordRecovery(event) {
   event.preventDefault();
   const form = event.currentTarget;
-  const submit = form.querySelector('button[type="submit"]');
-  submit.disabled = true;
+  setLocalizedText($('#recovery-status'), '');
+  try {
+    await api('/auth/password-recovery/complete', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...canonicalPhonePayload(form),
+        code: form.elements.namedItem('code').value,
+        next: form.elements.namedItem('next').value,
+      }),
+    });
+    setLocalizedText($('#recovery-status'), 'Password updated successfully.');
+  } catch (error) {
+    setLocalizedText($('#recovery-status'), error.message);
+  }
+}
+
+async function requestWhatsAppRecoveryCode() {
+  const form = $('#recovery-form');
+  const button = form.querySelector('[data-recovery-request]');
+  button.disabled = true;
   setLocalizedText($('#recovery-status'), '');
   try {
     await api('/auth/password-recovery/request', {
       method: 'POST',
       body: JSON.stringify(canonicalPhonePayload(form)),
     });
-    setLocalizedText($('#recovery-status'), 'If recovery becomes available, instructions will be provided without confirming whether an account exists.');
+    setLocalizedText($('#recovery-status'), 'If this number is eligible, recovery instructions will be sent privately.');
   } catch (error) {
     setLocalizedText($('#recovery-status'), error.message);
   } finally {
-    submit.disabled = false;
+    button.disabled = false;
+  }
+}
+
+async function loadPublicSupportContact() {
+  try {
+    const apiBase = apiRoot().replace(/\/api\/v1$/, '');
+    const [contactResponse, faqResponse] = await Promise.all([
+      fetch(`${apiBase}/api/public/support`, { headers: { accept: 'application/json' } }),
+      fetch(`${apiBase}/api/public/support-faq`, { headers: { accept: 'application/json' } }),
+    ]);
+    if (!contactResponse.ok) throw new Error(`Support contact settings unavailable (${contactResponse.status})`);
+    if (!faqResponse.ok) throw new Error(`Support FAQs unavailable (${faqResponse.status})`);
+    const contact = await contactResponse.json();
+    const faq = await faqResponse.json();
+    state.supportMessaging = contact;
+    for (const link of document.querySelectorAll('[data-support-phone-link]')) {
+      link.href = `tel:${contact.supportPhone}`;
+    }
+    for (const text of document.querySelectorAll('[data-support-phone-text]')) {
+      text.textContent = contact.supportPhone;
+    }
+    for (const link of document.querySelectorAll('[data-support-whatsapp-link]')) {
+      link.href = contact.whatsappChatUrl;
+    }
+    for (const link of document.querySelectorAll('[data-support-telegram-link]')) {
+      link.hidden = contact.telegram !== 'available' || !contact.telegramChatUrl;
+      if (contact.telegramChatUrl) link.href = contact.telegramChatUrl;
+    }
+    renderSupportFaq('#support-faq-list', faq);
+    renderSupportFaq('#assistant-support-faq-list', faq);
+    renderAssistant();
+  } catch (error) {
+    console.error('Public support contacts could not be loaded.', error);
+  }
+}
+
+function renderSupportFaq(selector, faq) {
+  const faqList = $(selector);
+  if (!faqList) return;
+  faqList.replaceChildren();
+  for (const item of faq) {
+    const details = document.createElement('details');
+    const summary = document.createElement('summary');
+    summary.textContent = item.question;
+    const answer = document.createElement('p');
+    answer.textContent = item.answer;
+    details.append(summary, answer);
+    faqList.append(details);
   }
 }
 
@@ -7024,6 +7094,16 @@ function renderSecurity() {
   wrap.append(sectionHeading('Account security', 'Manage two-step verification and signed-in devices.'));
   const panel = node('section', undefined, 'panel form-card');
   panel.style.maxWidth = '620px';
+  panel.append(node('h3', 'WhatsApp password recovery'));
+  panel.append(node('p', 'If enabled by AfroLife, recovery codes can be sent only to your registered phone. You can withdraw this consent at any time.'));
+  const whatsappConsent = node('label');
+  whatsappConsent.className = 'check-row';
+  const whatsappConsentInput = document.createElement('input');
+  whatsappConsentInput.type = 'checkbox';
+  whatsappConsentInput.checked = Boolean(state.user.whatsapp_opt_in);
+  whatsappConsentInput.dataset.whatsappOptIn = 'true';
+  whatsappConsent.append(whatsappConsentInput, node('span', 'Allow WhatsApp messages for password recovery'));
+  panel.append(whatsappConsent);
   const mfaRequired = REQUIRED_MFA_ROLES.has(state.user.role);
   panel.append(node('h3', state.user.mfa_enabled ? 'Two-step verification is enabled' : 'Two-step verification'));
   panel.append(node('p', mfaRequired
@@ -7564,6 +7644,19 @@ async function submitForm(form) {
     form.reset();
     await refreshAssistant();
     showAlert('');
+    return;
+  }
+  if (form.dataset.form === 'assistant-callback') {
+    await api('/support/callback-requests', {
+      method: 'POST',
+      body: JSON.stringify({
+        purpose: values.purpose,
+        ...(values.details.trim() ? { details: values.details.trim() } : {}),
+      }),
+    });
+    form.reset();
+    await refreshAssistant();
+    showAlert('Your call-back request has been added to the secure support queue.');
     return;
   }
   if (form.dataset.form === 'worker-report-filters') {
@@ -9102,6 +9195,27 @@ document.addEventListener('submit', (event) => {
     });
 });
 
+document.addEventListener('change', async (event) => {
+  const checkbox = event.target.closest('input[data-whatsapp-opt-in]');
+  if (!checkbox || !state.user) return;
+  checkbox.disabled = true;
+  try {
+    const preference = await api('/auth/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify({ whatsapp_opt_in: checkbox.checked }),
+    });
+    state.user.whatsapp_opt_in = preference.whatsapp_opt_in;
+    showAlert(preference.whatsapp_opt_in
+      ? 'WhatsApp recovery consent saved. Recovery is still subject to service availability.'
+      : 'WhatsApp recovery consent withdrawn.');
+  } catch (error) {
+    checkbox.checked = !checkbox.checked;
+    showAlert(error.message, true);
+  } finally {
+    checkbox.disabled = false;
+  }
+});
+
 $('#assistant-dialog').addEventListener('close', () => {
   if (assistantRefreshTimer) clearInterval(assistantRefreshTimer);
   assistantRefreshTimer = null;
@@ -9144,6 +9258,9 @@ document.addEventListener('click', async (event) => {
       } else if (action === 'assistant-navigate') {
         $('#assistant-dialog').close();
         navigateToPanel(assistantAction.dataset.panel);
+      } else if (action === 'assistant-telegram-link') {
+        const result = await api('/auth/telegram/link', { method: 'POST', body: '{}' });
+        window.location.assign(result.url);
       }
     } catch (error) {
       showAlert(error.message, true);
@@ -10954,6 +11071,7 @@ $('#access-mode-apply').addEventListener('click', () => {
   void switchAccessMode($('#access-mode-select').value);
 });
 $('#recovery-form').addEventListener('submit', requestPasswordRecovery);
+document.querySelector('[data-recovery-request]').addEventListener('click', () => void requestWhatsAppRecoveryCode());
 $('#signup-form').addEventListener('submit', submitSignup);
 $('#signup-followup-upload').addEventListener('click', () => uploadSignupReplacement()
   .catch((error) => setLocalizedText($('#signup-error'), error.message)));
@@ -11127,6 +11245,7 @@ initializeLocale(() => {
 initializeNativeServer();
 syncEdirRegistrationRequirements();
 updateSignupFields();
+void loadPublicSupportContact();
 if (!isNativeApp || localStorage.getItem(API_URL_KEY)) void loadPublicSubscriptionCatalog();
 
 if (!isNativeApp && 'serviceWorker' in navigator) {

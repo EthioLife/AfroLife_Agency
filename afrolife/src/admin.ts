@@ -1,13 +1,13 @@
 ﻿import { Router, Request, Response, RequestHandler } from 'express';
 import express from 'express';
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { pool, withUser, requireRole, HttpError, JWT_SECRET, invalidateUser, invalidateRolePermissions } from './core.js';
 import { normalizePhone, normalizePhoneParts } from './phone.js';
 import { requiresMfaEnrollment } from './auth-types.js';
-import { getFaydaVerificationStatus, getSmsRecoveryStatus } from './auth-integrations.js';
+import { getFaydaVerificationStatus, getWhatsAppRecoveryStatus, sendWhatsAppRecoveryCode } from './auth-integrations.js';
 import { Phone } from './validators.js';
 import { audit, feeSnapshot } from './domain.js';
 import { mfaKeys, openAny, seal, passwordProblem, randomPassword } from './security.js';
@@ -177,13 +177,150 @@ loginRouter.post('/auth/login', h(async (req, res) => {
   res.json(await issue(u, undefined, req.get('user-agent')));
 }));
 
-const recoveryUnavailable = (_req: Request, res: Response) => {
+const noStore = (_req: Request, res: Response, next: () => void) => {
   res.setHeader('Cache-Control', 'no-store');
-  res.status(503).json({ error: getSmsRecoveryStatus().message });
+  next();
 };
+const recoveryUnavailable = (_req: Request, res: Response) => {
+  res.status(503).json({ error: getWhatsAppRecoveryStatus().message });
+};
+const recoveryHash = (phone: string, code: string) =>
+  createHmac('sha256', JWT_SECRET).update(`${phone}:${code}`).digest();
 
-loginRouter.post('/auth/password-recovery/request', recoveryUnavailable);
-loginRouter.post('/auth/password-recovery/complete', recoveryUnavailable);
+loginRouter.post('/auth/password-recovery/request', noStore, h(async (req, res) => {
+  const { phone: rawPhone, phone_country_code, phone_national_number } = z.object({
+    phone: z.string().optional(),
+    phone_country_code: z.string().optional(),
+    phone_national_number: z.string().optional(),
+  }).strict().parse(req.body);
+  const phone = phone_country_code && phone_national_number
+    ? normalizePhoneParts(phone_country_code, phone_national_number)
+    : rawPhone ? normalizePhone(rawPhone) : null;
+  if (!phone) throw new HttpError(422, 'Enter a valid phone number.');
+  if (!getWhatsAppRecoveryStatus().enabled) return recoveryUnavailable(req, res);
+
+  const user = (await pool.query(
+    `SELECT id FROM users
+     WHERE phone=$1 AND active=true AND whatsapp_opt_in=true
+     ORDER BY created_at DESC LIMIT 1`,
+    [phone],
+  )).rows[0];
+  if (!user) {
+    res.status(202).json({ message: 'If this number is eligible, recovery instructions will be sent privately.' });
+    return;
+  }
+
+  const code = String(randomInt(100_000, 1_000_000));
+  await pool.query(
+    `DELETE FROM auth_password_recovery_challenges
+     WHERE expires_at<now()-interval '1 day'
+        OR consumed_at<now()-interval '1 day'`,
+  );
+  await pool.query(
+    `UPDATE auth_password_recovery_challenges SET consumed_at=now()
+     WHERE phone=$1 AND consumed_at IS NULL`,
+    [phone],
+  );
+  const inserted = await pool.query(
+    `INSERT INTO auth_password_recovery_challenges (user_id,phone,code_hash,expires_at)
+     VALUES ($2,$1,$3,now()+interval '5 minutes')
+     RETURNING id`,
+    [phone, user.id, recoveryHash(phone, code)],
+  );
+  try {
+    await sendWhatsAppRecoveryCode(phone, code);
+  } catch (error) {
+    await pool.query(
+      'UPDATE auth_password_recovery_challenges SET consumed_at=now() WHERE id=$1 AND consumed_at IS NULL',
+      [inserted.rows[0].id],
+    );
+    console.error('WhatsApp password recovery delivery failed', error instanceof Error ? error.message : error);
+    res.status(202).json({ message: 'If this number is eligible, recovery instructions will be sent privately.' });
+    return;
+  }
+  res.status(202).json({ message: 'If this number is eligible, recovery instructions will be sent privately.' });
+}));
+
+loginRouter.post('/auth/password-recovery/complete', noStore, h(async (req, res) => {
+  const body = z.object({
+    phone: z.string().optional(),
+    phone_country_code: z.string().optional(),
+    phone_national_number: z.string().optional(),
+    code: z.string().regex(/^\d{6}$/),
+    next: z.string().min(1).max(72),
+  }).strict().parse(req.body);
+  const phone = body.phone_country_code && body.phone_national_number
+    ? normalizePhoneParts(body.phone_country_code, body.phone_national_number)
+    : body.phone ? normalizePhone(body.phone) : null;
+  if (!phone) throw new HttpError(422, 'Enter a valid phone number.');
+  if (!getWhatsAppRecoveryStatus().enabled) return recoveryUnavailable(req, res);
+  const bad = passwordProblem(body.next, phone);
+  if (bad) throw new HttpError(422, bad);
+
+  const client = await pool.connect();
+  let userId: string | undefined;
+  let invalidCode = false;
+  try {
+    await client.query('BEGIN');
+    const challenge = (await client.query(
+      `SELECT id,user_id,code_hash,failed_attempts
+       FROM auth_password_recovery_challenges
+       WHERE phone=$1 AND consumed_at IS NULL AND expires_at>now() AND failed_attempts<5
+       ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
+      [phone],
+    )).rows[0];
+    if (!challenge) throw new HttpError(400, 'The recovery code is invalid or expired. Request a new code.');
+    const expected = recoveryHash(phone, body.code);
+    const matches = challenge.code_hash.length === expected.length
+      && timingSafeEqual(challenge.code_hash, expected);
+    if (!matches) {
+      await client.query(
+        `UPDATE auth_password_recovery_challenges
+         SET failed_attempts=failed_attempts+1,
+             consumed_at=CASE WHEN failed_attempts>=4 THEN now() ELSE consumed_at END
+         WHERE id=$1`,
+        [challenge.id],
+      );
+      invalidCode = true;
+    } else {
+      const user = (await client.query(
+        'SELECT id,phone,password_hash FROM users WHERE id=$1 AND phone=$2 AND active=true AND whatsapp_opt_in=true FOR UPDATE',
+        [challenge.user_id, phone],
+      )).rows[0];
+      if (!user) throw new HttpError(400, 'The recovery code is invalid or expired. Request a new code.');
+      if (await bcrypt.compare(body.next, user.password_hash)) {
+        throw new HttpError(422, 'Choose a password you have not used just now.');
+      }
+      userId = user.id;
+      await client.query(
+        'UPDATE users SET password_hash=$2,must_change_password=false,failed_logins=0,locked_until=NULL WHERE id=$1',
+        [user.id, await bcrypt.hash(body.next, 12)],
+      );
+      await client.query(
+        'UPDATE auth_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL',
+        [user.id],
+      );
+      await client.query(
+        'UPDATE auth_password_recovery_challenges SET consumed_at=now() WHERE id=$1',
+        [challenge.id],
+      );
+      await client.query(
+        `INSERT INTO audit_logs (actor_id,action,entity,entity_id,new_value)
+         VALUES ($1,'password_recovered','user',$1,'{"channel":"whatsapp"}'::jsonb)`,
+        [user.id],
+      );
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+  if (userId) invalidateUser(userId);
+  if (invalidCode) throw new HttpError(400, 'The recovery code is invalid or expired. Request a new code.');
+  res.json({ message: 'Password updated. Sign in with your new password.' });
+}));
 
 loginRouter.get('/auth/signup/options', h(async (_req, res) => {
   const [territories, plans, accountOptions, kycOptions] = await Promise.all([
@@ -905,12 +1042,29 @@ adminRouter.get('/platform/my-business-tenant', requireRole('super_admin','maste
 adminRouter.post('/platform/tenants/:tenantId/admins', requirePlatformControlPlaneAdmin, h(async (req, res) => {
   const tenantId = z.string().uuid().parse(req.params.tenantId);
   const { user_id } = z.object({ user_id: z.string().uuid() }).strict().parse(req.body);
+  if (user_id === req.user!.id) {
+    throw new HttpError(409, 'Use another Global Admin to assign tenant Super Admin access.');
+  }
   await withUser(req.user!, async (client) => {
     if (!(await client.query('SELECT 1 FROM platform_tenants WHERE id=$1', [tenantId])).rowCount) {
       throw new HttpError(404, 'Tenant not found.');
     }
-    const user = (await client.query('SELECT id,role,active FROM users WHERE id=$1 FOR UPDATE', [user_id])).rows[0];
-    if (!user || user.role !== 'super_admin' || !user.active) throw new HttpError(422, 'Choose an active Super Admin account.');
+    const user = (await client.query(
+      `SELECT u.id,u.role,u.active,u.mfa_enabled,
+              role_grant.user_id AS scoped_super_admin_grant
+       FROM users u
+       LEFT JOIN user_admin_role_grants role_grant
+         ON role_grant.user_id=u.id AND role_grant.role_name='super_admin' AND role_grant.all_tenants=false
+       WHERE u.id=$1
+       FOR UPDATE OF u`,
+      [user_id],
+    )).rows[0];
+    const eligiblePrimarySuperAdmin = user?.role === 'super_admin' && user.active;
+    const eligibleScopedGlobalAdmin = user?.role === 'global_admin'
+      && user.active && user.mfa_enabled && user.scoped_super_admin_grant;
+    if (!eligiblePrimarySuperAdmin && !eligibleScopedGlobalAdmin) {
+      throw new HttpError(422, 'Choose an active Super Admin or an active, MFA-enabled Global Admin with tenant-scoped Super Admin access.');
+    }
     await client.query(
       'INSERT INTO platform_tenant_admins(tenant_id,user_id,assigned_by) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',
       [tenantId, user_id, req.user!.id],
@@ -1762,6 +1916,37 @@ adminRouter.post('/auth/logout', h(async (req, res) => {
     'UPDATE auth_sessions SET revoked_at=now() WHERE id=$1 AND user_id=$2 AND revoked_at IS NULL',
     [req.user!.sessionId, req.user!.id],
   );
+  res.sendStatus(204);
+}));
+
+adminRouter.post('/auth/telegram/link', h(async (req, res) => {
+  const username = process.env.TELEGRAM_BOT_USERNAME?.replace(/^@/, '');
+  if (!process.env.TELEGRAM_BOT_TOKEN || !username) {
+    throw new HttpError(503, 'Telegram account linking is not configured.');
+  }
+  const token = randomBytes(32).toString('hex');
+  await withUser(req.user!, async (client) => {
+    await client.query(
+      'DELETE FROM telegram_link_challenges WHERE user_id=$1 AND consumed_at IS NULL',
+      [req.user!.id],
+    );
+    await client.query(
+      `INSERT INTO telegram_link_challenges (user_id,token_hash,expires_at)
+       VALUES ($1,$2,now()+interval '10 minutes')`,
+      [req.user!.id, createHash('sha256').update(token).digest()],
+    );
+  });
+  res.json({ url: `https://t.me/${username}?start=${token}`, expires_in_seconds: 600 });
+}));
+
+adminRouter.delete('/auth/telegram/link', h(async (req, res) => {
+  await withUser(req.user!, async (client) => {
+    await client.query('DELETE FROM user_telegram_links WHERE user_id=$1', [req.user!.id]);
+    await client.query(
+      'DELETE FROM telegram_link_challenges WHERE user_id=$1 AND consumed_at IS NULL',
+      [req.user!.id],
+    );
+  });
   res.sendStatus(204);
 }));
 

@@ -2204,8 +2204,20 @@ footer {
 .assistant-conversation-item, .assistant-queue-item { display: grid; gap: 8px; margin: 8px 0; padding: 11px; border: 1px solid var(--line); border-radius: 9px; background: #fbfcfb; }
 .assistant-conversation-item .button, .assistant-queue-item .button { justify-self: start; }
 .assistant-content form, .assistant-thread form { margin-top: 15px; }
+.assistant-contact-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.assistant-faq { margin: 0 0 14px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: white; }
+.assistant-faq > summary { color: var(--green-dark); font-weight: 700; cursor: pointer; }
+.assistant-faq .support-faq { margin-top: 8px; }
 .assistant-content label, .assistant-thread label { margin-bottom: 9px; }
 .assistant-content textarea, .assistant-thread textarea { min-height: 82px; }
+.public-support { margin: 16px 0; padding: 14px; }
+.public-support h2 { margin: 0 0 6px; font-size: 17px; }
+.public-support p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+.support-faq { margin-top: 12px; }
+.support-faq h2 { color: var(--green-dark); font-size: 16px; }
+.support-faq details { padding: 9px 0; border-top: 1px solid var(--line); }
+.support-faq summary { color: var(--green-dark); font-weight: 650; cursor: pointer; }
+.support-faq details p { margin: 7px 0 0; line-height: 1.55; }
 .assistant-thread { margin-top: 14px; }
 .assistant-messages { display: grid; gap: 9px; max-height: 320px; overflow: auto; margin: 0; padding: 0; list-style: none; }
 .assistant-message { max-width: min(88%, 620px); padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: #f5f8f5; overflow-wrap: anywhere; }
