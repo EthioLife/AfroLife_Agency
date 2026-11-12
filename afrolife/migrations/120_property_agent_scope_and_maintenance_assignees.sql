@@ -42,6 +42,9 @@ ALTER TABLE maintenance_requests DISABLE ROW LEVEL SECURITY;
 ALTER TABLE property_vendor_memberships DISABLE ROW LEVEL SECURITY;
 ALTER TABLE property_vendors DISABLE ROW LEVEL SECURITY;
 
+DO $$
+BEGIN
+  BEGIN
 INSERT INTO property_agent_scopes(
   tenant_system_id,property_id,user_id,tenant_role,assigned_by
 )
@@ -60,6 +63,12 @@ JOIN property_operating_tenants tenant ON tenant.id=maintenance.tenant_system_id
 WHERE tenant.created_by IS NOT NULL
 ON CONFLICT (tenant_system_id,property_id,user_id) DO NOTHING;
 
+  EXCEPTION WHEN OTHERS THEN
+    RAISE EXCEPTION 'Property agent scope backfill failed.'
+      USING ERRCODE=SQLSTATE;
+  END;
+
+  BEGIN
 UPDATE maintenance_requests maintenance
 SET assigned_to_user_id=assignee.id
 FROM users assignee,property_operating_tenant_members member
@@ -75,6 +84,12 @@ WHERE maintenance.assigned_to ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89a
       AND scope.property_id=maintenance.property_id AND scope.user_id=assignee.id
       AND scope.status='active'
   );
+  EXCEPTION WHEN OTHERS THEN
+    RAISE EXCEPTION 'Maintenance assignee backfill failed.'
+      USING ERRCODE=SQLSTATE;
+  END;
+END
+$$;
 
 ALTER TABLE maintenance_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE maintenance_requests FORCE ROW LEVEL SECURITY;

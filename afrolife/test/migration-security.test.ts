@@ -174,7 +174,7 @@ test('migration runners persist and enforce immutable SQL checksums', () => {
   assert.match(aletcloudBootstrap, /ALETCLOUD_BOOTSTRAP_DATABASE_URL is required for a migrations-only bootstrap/);
   assert.match(aletcloudBootstrap, /migrationsOnly \? false : await seedFirstSuperAdmin/);
   assert.match(aletcloudBootstrap, /delete migrationEnv\.ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY/);
-  assert.match(aletcloudBootstrap, /Migration \(\[\^\\r\\n\]\+\) failed\\\./);
+  assert.match(aletcloudBootstrap, /Migration \(\[\^:\\r\\n\]\+\) failed/);
   assert.match(aletcloudBootstrap, /migration\.stdout\) process\.stdout\.write/);
   assert.match(aletcloudBootstrap, /runtime\.role\.slice\(0, 46\).*_afrolife_runtime/);
   assert.match(accountingMigrator, /ADD COLUMN IF NOT EXISTS checksum text/);

@@ -59,7 +59,8 @@ try {
       await client.query('COMMIT');
       console.log(`Applied ${name}`);
     } catch (error) {
-      console.error(`Migration ${name} failed.`);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Migration ${name} failed: ${message}`);
       try {
         await client.query('ROLLBACK');
       } catch (rollbackError) {
