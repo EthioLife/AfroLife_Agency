@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { getMessagingStatus, getWhatsAppRecoveryStatus } from '../src/auth-integrations.js';
+import { getMessagingStatus, getWhatsAppRecoveryStatus, sendWhatsAppRecoveryCode } from '../src/auth-integrations.js';
 import { SUPPORT_FAQ, supportFaqReply } from '../src/support-faq.js';
 
 test('public support contacts use the configured support phone and only expose configured bot links', () => {
@@ -32,6 +32,52 @@ test('WhatsApp password recovery requires explicit enablement and provider confi
     WHATSAPP_RECOVERY_TEMPLATE: 'password_recovery',
     WHATSAPP_GRAPH_API_VERSION: 'v23.0',
   }).enabled, true);
+});
+
+test('WhatsApp recovery sends the code to both authentication-template components', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestUrl = '';
+  let requestInit: RequestInit | undefined;
+  globalThis.fetch = async (input, init) => {
+    requestUrl = String(input);
+    requestInit = init;
+    return new Response(null, { status: 200 });
+  };
+
+  try {
+    await sendWhatsAppRecoveryCode('+251900000000', '123456', {
+      WHATSAPP_RECOVERY_ENABLED: '1',
+      WHATSAPP_PHONE_NUMBER_ID: 'phone-id',
+      WHATSAPP_ACCESS_TOKEN: 'test-token',
+      WHATSAPP_RECOVERY_TEMPLATE: 'afrolife_password_recovery',
+      WHATSAPP_RECOVERY_LANGUAGE: 'en_US',
+      WHATSAPP_GRAPH_API_VERSION: 'v27.0',
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(requestUrl, 'https://graph.facebook.com/v27.0/phone-id/messages');
+  assert.equal((requestInit?.headers as Record<string, string>).Authorization, 'Bearer test-token');
+  assert.deepEqual(JSON.parse(String(requestInit?.body)), {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: '251900000000',
+    type: 'template',
+    template: {
+      name: 'afrolife_password_recovery',
+      language: { code: 'en_US' },
+      components: [
+        { type: 'body', parameters: [{ type: 'text', text: '123456' }] },
+        {
+          type: 'button',
+          sub_type: 'url',
+          index: '0',
+          parameters: [{ type: 'text', text: '123456' }],
+        },
+      ],
+    },
+  });
 });
 
 test('bot FAQ is limited to user support and does not offer sales or buyer workflows', () => {
