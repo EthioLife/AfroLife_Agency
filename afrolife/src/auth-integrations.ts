@@ -14,7 +14,7 @@ function whatsappConfiguration(env: NodeJS.ProcessEnv) {
     phoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID,
     accessToken: env.WHATSAPP_ACCESS_TOKEN,
     template: env.WHATSAPP_RECOVERY_TEMPLATE,
-    language: env.WHATSAPP_RECOVERY_LANGUAGE ?? 'en',
+    language: env.WHATSAPP_RECOVERY_LANGUAGE ?? 'en_US',
     graphVersion: env.WHATSAPP_GRAPH_API_VERSION,
   };
 }
@@ -50,10 +50,18 @@ export async function sendWhatsAppRecoveryCode(phone: string, code: string, env:
         template: {
           name: config.template,
           language: { code: config.language },
-          components: [{
-            type: 'body',
-            parameters: [{ type: 'text', text: code }],
-          }],
+          components: [
+            {
+              type: 'body',
+              parameters: [{ type: 'text', text: code }],
+            },
+            {
+              type: 'button',
+              sub_type: 'url',
+              index: '0',
+              parameters: [{ type: 'text', text: code }],
+            },
+          ],
         },
       }),
       signal: AbortSignal.timeout(10_000),
