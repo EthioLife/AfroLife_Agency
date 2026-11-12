@@ -57,6 +57,12 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(agentScopeMigration, /DROP POLICY property_vendor_memberships_operating_tenant_scope ON property_vendor_memberships/);
   assert.match(agentScopeMigration, /USING \(app_property_vendor_matches_active_tenant\(vendor_id\)\)/);
   assert.match(agentScopeMigration, /WITH CHECK \(app_property_vendor_matches_active_tenant\(vendor_id\)\)/);
+  assert.match(agentScopeMigration, /ALTER TABLE properties DISABLE ROW LEVEL SECURITY/);
+  assert.match(agentScopeMigration, /ALTER TABLE property_units DISABLE ROW LEVEL SECURITY/);
+  assert.match(agentScopeMigration, /UPDATE property_units unit[\s\S]*SET tenant_system_id=property\.tenant_system_id/);
+  assert.match(agentScopeMigration, /FOREIGN KEY \(property_id,tenant_system_id\)[\s\S]*REFERENCES properties\(id,tenant_system_id\)/);
+  assert.match(agentScopeMigration, /CREATE POLICY property_units_operating_tenant_scope ON property_units AS RESTRICTIVE FOR ALL[\s\S]*USING \(tenant_system_id=app_property_tenant_system_id\(\)\)/);
+  assert.match(agentScopeMigration, /CREATE TRIGGER property_units_tenant_system_guard/);
   assert.match(agentScopeMigration, /MIGRATION_STAGE: agent scopes backfilled/);
   assert.match(agentScopeMigration, /MIGRATION_STAGE: maintenance assignees backfilled/);
   assert.match(agentScopeMigration, /MIGRATION_STAGE: vendor RLS restored/);
@@ -111,6 +117,16 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(hierarchyMigration, /app_role\(\)='master_agent'/);
   assert.match(hierarchyMigration, /CREATE POLICY properties_master_agent_scope_read/);
   assert.match(hierarchyMigration, /CREATE POLICY property_units_master_agent_scope_read/);
+  const masterAgentUnitsPolicyStart = hierarchyMigration.indexOf(
+    'CREATE POLICY property_units_master_agent_scope_read',
+  );
+  const masterAgentUnitsPolicyEnd = hierarchyMigration.indexOf(
+    'DROP POLICY property_agent_scopes_member_read',
+  );
+  const masterAgentUnitsPolicy = hierarchyMigration.slice(masterAgentUnitsPolicyStart, masterAgentUnitsPolicyEnd);
+  assert.ok(masterAgentUnitsPolicyStart >= 0 && masterAgentUnitsPolicyEnd > masterAgentUnitsPolicyStart);
+  assert.match(masterAgentUnitsPolicy, /manager_scope\.property_id=property_units\.property_id/);
+  assert.doesNotMatch(masterAgentUnitsPolicy, /FROM properties/);
   assert.match(hierarchyMigration, /Master agents may assign only field agents to properties in their active scope/);
   assert.match(hierarchyMigration, /Master agents may change only field-agent scopes in their active property assignment/);
   assert.match(hierarchyMigration, /CREATE OR REPLACE FUNCTION list_property_agent_candidates/);

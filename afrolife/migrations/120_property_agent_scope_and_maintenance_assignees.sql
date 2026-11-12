@@ -51,6 +51,35 @@ CREATE POLICY property_vendor_memberships_operating_tenant_scope ON property_ven
   USING (app_property_vendor_matches_active_tenant(vendor_id))
   WITH CHECK (app_property_vendor_matches_active_tenant(vendor_id));
 
+ALTER TABLE properties DISABLE ROW LEVEL SECURITY;
+ALTER TABLE property_units DISABLE ROW LEVEL SECURITY;
+ALTER TABLE property_units
+  ADD COLUMN tenant_system_id uuid REFERENCES property_operating_tenants(id);
+UPDATE property_units unit
+SET tenant_system_id=property.tenant_system_id
+FROM properties property
+WHERE property.id=unit.property_id;
+ALTER TABLE property_units ALTER COLUMN tenant_system_id SET NOT NULL;
+CREATE UNIQUE INDEX properties_id_tenant_system_unique
+  ON properties(id,tenant_system_id);
+CREATE INDEX property_units_tenant_system_idx
+  ON property_units(tenant_system_id,property_id,id);
+ALTER TABLE property_units
+  ADD CONSTRAINT property_units_property_tenant_system_fk
+  FOREIGN KEY (property_id,tenant_system_id)
+  REFERENCES properties(id,tenant_system_id);
+DROP POLICY property_units_operating_tenant_scope ON property_units;
+CREATE POLICY property_units_operating_tenant_scope ON property_units AS RESTRICTIVE FOR ALL
+  USING (tenant_system_id=app_property_tenant_system_id())
+  WITH CHECK (tenant_system_id=app_property_tenant_system_id());
+ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
+ALTER TABLE properties FORCE ROW LEVEL SECURITY;
+ALTER TABLE property_units ENABLE ROW LEVEL SECURITY;
+ALTER TABLE property_units FORCE ROW LEVEL SECURITY;
+CREATE TRIGGER property_units_tenant_system_guard
+  BEFORE INSERT OR UPDATE OF tenant_system_id ON property_units
+  FOR EACH ROW EXECUTE FUNCTION guard_property_tenant_system_id();
+
 ALTER TABLE maintenance_requests
   ADD COLUMN assigned_to_user_id uuid REFERENCES users(id);
 CREATE INDEX maintenance_requests_internal_assignee_idx

@@ -77,9 +77,14 @@ CREATE POLICY property_units_master_agent_scope_read ON property_units FOR SELEC
   USING (
     app_role()='master_agent'
     AND EXISTS (
-      SELECT 1 FROM properties property
-      WHERE property.id=property_units.property_id
-        AND app_property_agent_can_manage(property.tenant_system_id,property.id)
+      SELECT 1 FROM property_agent_scopes manager_scope
+      WHERE manager_scope.tenant_system_id=app_property_tenant_system_id()
+        AND manager_scope.property_id=property_units.property_id
+        AND manager_scope.user_id=app_user_id()
+        AND manager_scope.tenant_role='master_agent'
+        AND manager_scope.status='active'
+        AND manager_scope.effective_from<=current_date
+        AND (manager_scope.effective_to IS NULL OR manager_scope.effective_to>=current_date)
     )
   );
 
