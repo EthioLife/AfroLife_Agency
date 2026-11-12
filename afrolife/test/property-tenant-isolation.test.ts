@@ -52,6 +52,10 @@ test('property operating tenant migration backfills legacy data and enforces row
     'utf8',
   );
   assert.match(agentScopeMigration, /CREATE TABLE property_agent_scopes/);
+  assert.match(agentScopeMigration, /MIGRATION_STAGE: agent scopes backfilled/);
+  assert.match(agentScopeMigration, /MIGRATION_STAGE: maintenance assignees backfilled/);
+  assert.match(agentScopeMigration, /MIGRATION_STAGE: vendor RLS restored/);
+  assert.match(agentScopeMigration, /MIGRATION_STAGE: agent-scope policies created/);
   const backfillStart = agentScopeMigration.indexOf('INSERT INTO property_agent_scopes(');
   const backfillEnd = agentScopeMigration.indexOf('CREATE OR REPLACE FUNCTION app_property_tenant_role_matches');
   const backfill = agentScopeMigration.slice(backfillStart, backfillEnd);

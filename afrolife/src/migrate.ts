@@ -13,8 +13,16 @@ if (appRole && !/^[a-zA-Z_][a-zA-Z0-9_$]*$/.test(appRole)) {
 }
 const client = new pg.Client({ connectionString });
 const folder = join(import.meta.dirname, '..', 'migrations');
+let migrationStage: string | undefined;
 
 await client.connect();
+client.on('notice', (notice) => {
+  const stage = notice.message?.match(/^MIGRATION_STAGE: (.+)$/)?.[1];
+  if (stage) {
+    migrationStage = stage;
+    console.log(`Migration stage: ${stage}`);
+  }
+});
 try {
   await client.query("SELECT set_config('app.role', 'global_admin', false)");
   await client.query('SELECT pg_advisory_lock(71924211,1)');
@@ -25,6 +33,7 @@ try {
   )`);
   await client.query('ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS checksum text');
   for (const name of (await readdir(folder)).filter((x) => x.endsWith('.sql')).sort()) {
+    migrationStage = undefined;
     const originalSql = await readFile(join(folder, name), 'utf8');
     const checksum = migrationChecksum(originalSql);
     const applied = await client.query<{ checksum: string | null }>(
@@ -60,7 +69,9 @@ try {
       console.log(`Applied ${name}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`Migration ${name} failed: ${message}`);
+      console.error(
+        `Migration ${name} failed${migrationStage ? ` at stage "${migrationStage}"` : ''}: ${message}`,
+      );
       try {
         await client.query('ROLLBACK');
       } catch (rollbackError) {

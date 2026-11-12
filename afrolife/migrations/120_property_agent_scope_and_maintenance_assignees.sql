@@ -62,7 +62,7 @@ JOIN property_operating_tenant_members member
 JOIN property_operating_tenants tenant ON tenant.id=maintenance.tenant_system_id
 WHERE tenant.created_by IS NOT NULL
 ON CONFLICT (tenant_system_id,property_id,user_id) DO NOTHING;
-
+RAISE NOTICE 'MIGRATION_STAGE: agent scopes backfilled';
   EXCEPTION WHEN OTHERS THEN
     RAISE EXCEPTION 'Property agent scope backfill failed.'
       USING ERRCODE=SQLSTATE;
@@ -84,6 +84,7 @@ WHERE maintenance.assigned_to ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89a
       AND scope.property_id=maintenance.property_id AND scope.user_id=assignee.id
       AND scope.status='active'
   );
+    RAISE NOTICE 'MIGRATION_STAGE: maintenance assignees backfilled';
   EXCEPTION WHEN OTHERS THEN
     RAISE EXCEPTION 'Maintenance assignee backfill failed.'
       USING ERRCODE=SQLSTATE;
@@ -97,6 +98,11 @@ ALTER TABLE property_vendor_memberships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE property_vendor_memberships FORCE ROW LEVEL SECURITY;
 ALTER TABLE property_vendors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE property_vendors FORCE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  RAISE NOTICE 'MIGRATION_STAGE: vendor RLS restored';
+END
+$$;
 
 CREATE OR REPLACE FUNCTION app_property_tenant_role_matches(target_tenant_role text,target_auth_role text)
 RETURNS boolean
@@ -641,3 +647,8 @@ CREATE POLICY maintenance_evidence_field_agent_minimum_access ON maintenance_evi
     WHERE maintenance.id=maintenance_request_id
       AND maintenance.assigned_to_user_id=app_user_id()
   ));
+DO $$
+BEGIN
+  RAISE NOTICE 'MIGRATION_STAGE: agent-scope policies created';
+END
+$$;
