@@ -505,13 +505,11 @@ CREATE POLICY properties_field_agent_assigned_scope_read ON properties FOR SELEC
   ));
 CREATE POLICY property_units_field_agent_assigned_scope_read ON property_units FOR SELECT
   USING (app_role()='field_agent' AND EXISTS (
-    SELECT 1 FROM properties property
-    JOIN property_agent_scopes scope
-      ON scope.tenant_system_id=property.tenant_system_id
-     AND scope.property_id=property.id AND scope.user_id=app_user_id()
-     AND scope.status='active' AND scope.effective_from<=current_date
-     AND (scope.effective_to IS NULL OR scope.effective_to>=current_date)
-    WHERE property.id=property_units.property_id
+    SELECT 1 FROM property_agent_scopes scope
+    WHERE scope.tenant_system_id=app_property_tenant_system_id()
+      AND scope.property_id=property_units.property_id AND scope.user_id=app_user_id()
+      AND scope.status='active' AND scope.effective_from<=current_date
+      AND (scope.effective_to IS NULL OR scope.effective_to>=current_date)
   ));
 CREATE POLICY maintenance_requests_scoped_field_agent_read ON maintenance_requests FOR SELECT
   USING (app_role()='field_agent' AND assigned_to_user_id=app_user_id()

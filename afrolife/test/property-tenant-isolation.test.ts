@@ -76,6 +76,17 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(agentScopeMigration, /app_property_tenant_role_matches/);
   assert.match(agentScopeMigration, /WHEN 'field_agent' THEN target_auth_role='field_agent'/);
   assert.match(agentScopeMigration, /app_property_tenant_role_matches\(member\.tenant_role,user_row\.role\)/);
+  const fieldAgentUnitsPolicyStart = agentScopeMigration.indexOf(
+    'CREATE POLICY property_units_field_agent_assigned_scope_read',
+  );
+  const fieldAgentUnitsPolicyEnd = agentScopeMigration.indexOf(
+    'CREATE POLICY maintenance_requests_scoped_field_agent_read',
+  );
+  const fieldAgentUnitsPolicy = agentScopeMigration.slice(fieldAgentUnitsPolicyStart, fieldAgentUnitsPolicyEnd);
+  assert.ok(fieldAgentUnitsPolicyStart >= 0 && fieldAgentUnitsPolicyEnd > fieldAgentUnitsPolicyStart);
+  assert.match(fieldAgentUnitsPolicy, /scope\.tenant_system_id=app_property_tenant_system_id\(\)/);
+  assert.match(fieldAgentUnitsPolicy, /scope\.property_id=property_units\.property_id/);
+  assert.doesNotMatch(fieldAgentUnitsPolicy, /FROM properties/);
   assert.match(agentScopeMigration, /CREATE OR REPLACE FUNCTION assign_property_agent_scope/);
   assert.match(agentScopeMigration, /CREATE OR REPLACE FUNCTION set_property_agent_scope_status/);
   assert.match(agentScopeMigration, /NEW\.assigned_to_user_id/);
