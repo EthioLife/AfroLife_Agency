@@ -62,6 +62,8 @@ test('property operating tenant migration backfills legacy data and enforces row
   assert.match(agentScopeMigration, /UPDATE property_units unit[\s\S]*SET tenant_system_id=property\.tenant_system_id/);
   assert.match(agentScopeMigration, /FOREIGN KEY \(property_id,tenant_system_id\)[\s\S]*REFERENCES properties\(id,tenant_system_id\)/);
   assert.match(agentScopeMigration, /CREATE POLICY property_units_operating_tenant_scope ON property_units AS RESTRICTIVE FOR ALL[\s\S]*USING \(tenant_system_id=app_property_tenant_system_id\(\)\)/);
+  assert.match(agentScopeMigration, /ALTER TABLE properties NO FORCE ROW LEVEL SECURITY/);
+  assert.match(agentScopeMigration, /ALTER TABLE property_units NO FORCE ROW LEVEL SECURITY/);
   assert.match(agentScopeMigration, /CREATE TRIGGER property_units_tenant_system_guard/);
   assert.match(agentScopeMigration, /MIGRATION_STAGE: agent scopes backfilled/);
   assert.match(agentScopeMigration, /MIGRATION_STAGE: maintenance assignees backfilled/);

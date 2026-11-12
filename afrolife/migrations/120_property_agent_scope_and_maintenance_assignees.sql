@@ -72,10 +72,10 @@ DROP POLICY property_units_operating_tenant_scope ON property_units;
 CREATE POLICY property_units_operating_tenant_scope ON property_units AS RESTRICTIVE FOR ALL
   USING (tenant_system_id=app_property_tenant_system_id())
   WITH CHECK (tenant_system_id=app_property_tenant_system_id());
+ALTER TABLE properties NO FORCE ROW LEVEL SECURITY;
 ALTER TABLE properties ENABLE ROW LEVEL SECURITY;
-ALTER TABLE properties FORCE ROW LEVEL SECURITY;
+ALTER TABLE property_units NO FORCE ROW LEVEL SECURITY;
 ALTER TABLE property_units ENABLE ROW LEVEL SECURITY;
-ALTER TABLE property_units FORCE ROW LEVEL SECURITY;
 CREATE TRIGGER property_units_tenant_system_guard
   BEFORE INSERT OR UPDATE OF tenant_system_id ON property_units
   FOR EACH ROW EXECUTE FUNCTION guard_property_tenant_system_id();
