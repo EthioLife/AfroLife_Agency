@@ -52,6 +52,11 @@ test('property operating tenant migration backfills legacy data and enforces row
     'utf8',
   );
   assert.match(agentScopeMigration, /CREATE TABLE property_agent_scopes/);
+  assert.match(agentScopeMigration, /ALTER TABLE property_vendors NO FORCE ROW LEVEL SECURITY/);
+  assert.match(agentScopeMigration, /CREATE OR REPLACE FUNCTION app_property_vendor_matches_active_tenant\(target_vendor_id uuid\)[\s\S]*SECURITY DEFINER SET search_path=public,pg_temp/);
+  assert.match(agentScopeMigration, /DROP POLICY property_vendor_memberships_operating_tenant_scope ON property_vendor_memberships/);
+  assert.match(agentScopeMigration, /USING \(app_property_vendor_matches_active_tenant\(vendor_id\)\)/);
+  assert.match(agentScopeMigration, /WITH CHECK \(app_property_vendor_matches_active_tenant\(vendor_id\)\)/);
   assert.match(agentScopeMigration, /MIGRATION_STAGE: agent scopes backfilled/);
   assert.match(agentScopeMigration, /MIGRATION_STAGE: maintenance assignees backfilled/);
   assert.match(agentScopeMigration, /MIGRATION_STAGE: vendor RLS restored/);
@@ -59,11 +64,14 @@ test('property operating tenant migration backfills legacy data and enforces row
   const backfillStart = agentScopeMigration.indexOf('INSERT INTO property_agent_scopes(');
   const backfillEnd = agentScopeMigration.indexOf('CREATE OR REPLACE FUNCTION app_property_tenant_role_matches');
   const backfill = agentScopeMigration.slice(backfillStart, backfillEnd);
-  for (const table of ['maintenance_requests', 'property_vendor_memberships', 'property_vendors']) {
+  for (const table of ['maintenance_requests', 'property_vendor_memberships']) {
     assert.match(agentScopeMigration, new RegExp(`ALTER TABLE ${table} DISABLE ROW LEVEL SECURITY`));
     assert.match(backfill, new RegExp(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`));
     assert.match(backfill, new RegExp(`ALTER TABLE ${table} FORCE ROW LEVEL SECURITY`));
   }
+  assert.match(agentScopeMigration, /ALTER TABLE property_vendors DISABLE ROW LEVEL SECURITY/);
+  assert.match(backfill, /ALTER TABLE property_vendors ENABLE ROW LEVEL SECURITY/);
+  assert.doesNotMatch(backfill, /ALTER TABLE property_vendors FORCE ROW LEVEL SECURITY/);
   assert.ok(backfillStart >= 0 && backfillEnd > backfillStart);
   assert.match(agentScopeMigration, /app_property_tenant_role_matches/);
   assert.match(agentScopeMigration, /WHEN 'field_agent' THEN target_auth_role='field_agent'/);

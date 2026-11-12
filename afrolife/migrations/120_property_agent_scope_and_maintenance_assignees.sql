@@ -31,6 +31,26 @@ CREATE TRIGGER property_agent_scope_events_immutable
   BEFORE UPDATE OR DELETE ON property_agent_scope_events
   FOR EACH ROW EXECUTE FUNCTION prevent_platform_control_event_mutation();
 
+ALTER TABLE property_vendors NO FORCE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION app_property_vendor_matches_active_tenant(target_vendor_id uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,pg_temp
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM property_vendors vendor
+    WHERE vendor.id=target_vendor_id
+      AND vendor.tenant_system_id=app_property_tenant_system_id()
+  )
+$$;
+REVOKE ALL ON FUNCTION app_property_vendor_matches_active_tenant(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION app_property_vendor_matches_active_tenant(uuid) TO "{{role}}";
+
+DROP POLICY property_vendor_memberships_operating_tenant_scope ON property_vendor_memberships;
+CREATE POLICY property_vendor_memberships_operating_tenant_scope ON property_vendor_memberships AS RESTRICTIVE FOR ALL
+  USING (app_property_vendor_matches_active_tenant(vendor_id))
+  WITH CHECK (app_property_vendor_matches_active_tenant(vendor_id));
+
 ALTER TABLE maintenance_requests
   ADD COLUMN assigned_to_user_id uuid REFERENCES users(id);
 CREATE INDEX maintenance_requests_internal_assignee_idx
@@ -97,7 +117,6 @@ ALTER TABLE maintenance_requests FORCE ROW LEVEL SECURITY;
 ALTER TABLE property_vendor_memberships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE property_vendor_memberships FORCE ROW LEVEL SECURITY;
 ALTER TABLE property_vendors ENABLE ROW LEVEL SECURITY;
-ALTER TABLE property_vendors FORCE ROW LEVEL SECURITY;
 DO $$
 BEGIN
   RAISE NOTICE 'MIGRATION_STAGE: vendor RLS restored';

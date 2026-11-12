@@ -192,9 +192,9 @@ if (provisioningUrl) {
   }
   if (migration.status !== 0) {
     const migrationFailure = `${migration.stdout ?? ''}\n${migration.stderr ?? ''}`
-      .match(/Migration ([^:\r\n]+) failed(?:: ([^\r\n]+))?/);
+      .match(/Migration ([^:\r\n]+) failed(?: at stage "([^"\r\n]+)")?(?:: ([^\r\n]+))?/);
     throw new Error(
-      `${migrationFailure ? `Migration ${migrationFailure[1]} failed${migrationFailure[2] ? `: ${migrationFailure[2]}` : ''}; ` : ''}`
+      `${migrationFailure ? `Migration ${migrationFailure[1]} failed${migrationFailure[2] ? ` at stage "${migrationFailure[2]}"` : ''}${migrationFailure[3] ? `: ${migrationFailure[3]}` : ''}; ` : ''}`
       + `database migrations exited with code ${migration.status ?? 'unknown'}.`,
     );
   }
