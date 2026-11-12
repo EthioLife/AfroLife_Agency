@@ -181,12 +181,22 @@ if (provisioningUrl) {
     [fileURLToPath(new URL('./migrate.js', import.meta.url))],
     {
       env: migrationEnv,
-      stdio: 'inherit',
+      encoding: 'utf8',
+      maxBuffer: 10 * 1024 * 1024,
     },
   );
   if (migration.error) throw migration.error;
+  if (migration.status === 0) {
+    if (migration.stdout) process.stdout.write(migration.stdout);
+    if (migration.stderr) process.stderr.write(migration.stderr);
+  }
   if (migration.status !== 0) {
-    throw new Error(`Database migrations failed with exit code ${migration.status ?? 'unknown'}.`);
+    const migrationFailure = `${migration.stdout ?? ''}\n${migration.stderr ?? ''}`
+      .match(/Migration ([^\r\n]+) failed\./)?.[1];
+    throw new Error(
+      `${migrationFailure ? `Migration ${migrationFailure} failed; ` : ''}`
+      + `database migrations exited with code ${migration.status ?? 'unknown'}.`,
+    );
   }
 
   const adminCreated = migrationsOnly ? false : await seedFirstSuperAdmin(provisioningUrl);
