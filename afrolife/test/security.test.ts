@@ -24,7 +24,9 @@ test('webhook signatures: valid, wrong secret, tampered body, stale timestamp', 
 });
 
 test('password policy', () => {
-  assert.match(passwordProblem('short1', '+251911234567')!, /10 characters/);
+  assert.match(passwordProblem('short1', '+251911234567')!, /8 characters/);
+  assert.equal(passwordProblem('Abcdefg8', '+251911234567'), null);
+  assert.match(passwordProblem('Abcdef7', '+251911234567')!, /8 characters/);
   assert.match(passwordProblem('1234567890123', '+251911234567')!, /digits alone/);
   assert.match(passwordProblem('abc1234567xyz', '+251911234567')!, /phone/);
   assert.equal(passwordProblem('correct-horse-battery', '+251911234567'), null);

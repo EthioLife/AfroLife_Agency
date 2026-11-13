@@ -104,7 +104,7 @@ const rows = [
   ['Set a new password', 'አዲስ የይለፍ ቃል ያዘጋጁ', 'Jecha icciitii haaraa qopheessaa', 'ሓድሽ መሕለፊ ቃል ኣዳሉ'],
   ['Your account requires a password change before continuing.', 'ከመቀጠልዎ በፊት የይለፍ ቃልዎን መቀየር ያስፈልጋል።', 'Itti fufuu dura jecha icciitii jijjiiruu qabdu.', 'ቅድሚ ምቕጻልኩም መሕለፊ ቃልኩም ክትቅይሩ ኣለኩም።'],
   ['Temporary password', 'ጊዜያዊ የይለፍ ቃል', 'Jecha icciitii yeroo', 'ግዝያዊ መሕለፊ ቃል'],
-  ['New password (12+ characters)', 'አዲስ የይለፍ ቃል (12+ ቁምፊዎች)', 'Jecha icciitii haaraa (qubee 12+)', 'ሓድሽ መሕለፊ ቃል (12+ ፊደላት)'],
+  ['New password (8+ characters)', 'አዲስ የይለፍ ቃል (8+ ቁምፊዎች)', 'Jecha icciitii haaraa (qubee 8+)', 'ሓድሽ መሕለፊ ቃል (8+ ፊደላት)'],
   ['Update password', 'የይለፍ ቃል አዘምን', 'Jechoota icciitii haaromsi', 'መሕለፊ ቃል ኣሐድስ'],
   ['Account security', 'የመለያ ደህንነት', 'Nageenya herregaa', 'ድሕነት ሕሳብ'],
   ['Protect your account with an authenticator app.', 'በማረጋገጫ መተግበሪያ መለያዎን ይጠብቁ።', 'Appii mirkaneessaatiin herrega keessan eeggadhaa.', 'ብመተግበሪ መረጋገጺ ሕሳብኩም ሓልዉ።'],
@@ -218,7 +218,7 @@ const rows = [
   ['Select an account type', 'የመለያ ዓይነት ይምረጡ', 'Gosa herregaa filadhaa', 'ዓይነት ሕሳብ ምረጹ'],
   ['Select an agent type', 'የወኪል ዓይነት ይምረጡ', 'Gosa bakka bu’aa filadhaa', 'ዓይነት ወኪል ምረጹ'],
   ['Select your territory', 'ክልልዎን ይምረጡ', 'Naannoo keessan filadhaa', 'ከባቢኹም ምረጹ'],
-  ['Your password must be at least 12 characters.', 'የይለፍ ቃልዎ ቢያንስ 12 ቁምፊዎች መሆን አለበት።', 'Jechi icciitii keessan yoo xiqqaate qubee 12 qabaachuu qaba.', 'መሕለፊ ቃልኩም ብውሑዱ 12 ፊደላት ክህልዎ ኣለዎ።'],
+  ['Your password must be at least 8 characters.', 'የይለፍ ቃልዎ ቢያንስ 8 ቁምፊዎች መሆን አለበት።', 'Jechi icciitii keessan yoo xiqqaate qubee 8 qabaachuu qaba.', 'መሕለፊ ቃልኩም ብውሑዱ 8 ፊደላት ክህልዎ ኣለዎ።'],
   ['Password confirmation does not match.', 'የይለፍ ቃል ማረጋገጫው አይዛመድም።', 'Mirkaneessi jecha icciitii wal hin simne.', 'ምርግጋጽ መሕለፊ ቃል ኣይሰማማዕን።'],
   ['Password confirmation', 'የይለፍ ቃል ማረጋገጫ', 'Mirkaneessa jecha icciitii', 'ምርግጋጽ መሕለፊ ቃል'],
   ['Email (optional)', 'ኢሜይል (አማራጭ)', 'Imeelii (dirqama miti)', 'ኢመይል (ኣማራጺ)'],
@@ -922,6 +922,95 @@ addedLanguages.sw['Region'] = 'Mkoa'; addedLanguages.sw['City'] = 'Jiji'; addedL
 addedLanguages.sw['Pro plan — ETB {{amount}} per month'] = 'Mpango wa Pro — ETB {{amount}} kwa mwezi';
 addedLanguages.sw['Enterprise plan — ETB {{amount}} per month'] = 'Mpango wa Enterprise — ETB {{amount}} kwa mwezi';for (const [locale, messages] of Object.entries(addedLanguages)) Object.assign(catalogs[locale], messages);
 const publicSurfaceTranslations = {
+  'Agent': { am: 'ወኪል' },
+  'Use at least 8 characters.': {
+    am: 'ቢያንስ 8 ቁምፊዎችን ይጠቀሙ።',
+    om: 'Yoo xiqqaate qubee 8 fayyadamaa.',
+    ti: 'ብውሑዱ 8 ፊደላት ተጠቐሙ።',
+    so: 'Isticmaal ugu yaraan 8 xaraf.',
+    ar: 'استخدم 8 أحرف على الأقل.',
+    sw: 'Tumia angalau vibambo 8.',
+  },
+  'WhatsApp password recovery': {
+    am: 'የWhatsApp የይለፍ ቃል መልሶ ማግኛ',
+    om: 'Deebisanii argachuu jecha icciitii WhatsApp',
+    ti: 'ምምላስ መሕለፊ ቃል WhatsApp',
+    so: 'Soo celinta erayga sirta ah ee WhatsApp',
+    ar: 'استعادة كلمة المرور عبر واتساب',
+    sw: 'Urejeshaji wa nenosiri la WhatsApp',
+  },
+  'If enabled by AfroSherik, recovery codes can be sent only to your registered phone. You can withdraw this consent at any time.': {
+    am: 'በAfroSherik ከነቃ፣ የመልሶ ማግኛ ኮዶች ወደ ተመዘገበው ስልክዎ ብቻ ሊላኩ ይችላሉ። ይህን ፈቃድ በማንኛውም ጊዜ ማንሳት ይችላሉ።',
+    om: 'AfroSherik yoo dandeessise, koodiin deebisanii argachuu bilbila keessan galmaa’e qofaaf ergamuu danda’a. Eeyyama kana yeroo kamiyyuu haquu dandeessu.',
+    ti: 'ብAfroSherik እንተነቒሑ፣ ኮድ ምምላስ ናብ ዝተመዝገበ ስልክኹም ጥራይ ክለኣኽ ይኽእል። ነዚ ፍቓድ ኣብ ዝኾነ ግዜ ክትስሕብዎ ትኽእሉ።',
+    so: 'Haddii AfroSherik furo, koodhadhka soo celinta waxaa loo diri karaa oo keliya lambarka taleefankaaga diiwaangashan. Oggolaanshahan waad kala noqon kartaa wakhti kasta.',
+    ar: 'إذا فعّلت AfroSherik هذه الميزة، فلن تُرسل رموز الاستعادة إلا إلى رقم هاتفك المسجل. يمكنك سحب هذه الموافقة في أي وقت.',
+    sw: 'AfroSherik ikiwasha, misimbo ya urejeshaji inaweza kutumwa kwa nambari yako ya simu iliyosajiliwa pekee. Unaweza kuondoa idhini hii wakati wowote.',
+  },
+  'Allow WhatsApp messages for password recovery': {
+    am: 'ለይለፍ ቃል መልሶ ማግኛ የWhatsApp መልዕክቶችን ፍቀድ',
+    om: 'Ergaa WhatsApp deebisanii argachuu jecha icciitiif hayyami',
+    ti: 'ንምምላስ መሕለፊ ቃል መልእኽቲ WhatsApp ፍቀዱ',
+    so: 'Oggolow farriimaha WhatsApp ee soo celinta erayga sirta ah',
+    ar: 'السماح برسائل واتساب لاستعادة كلمة المرور',
+    sw: 'Ruhusu ujumbe wa WhatsApp kwa urejeshaji wa nenosiri',
+  },
+  'Seller / property owner': { am: 'ሻጭ / የንብረት ባለቤት' },
+  'Buyer / customer': { am: 'ገዢ / ደንበኛ' },
+  'Date of birth (required for worker applicants)': { am: 'የትውልድ ቀን (ለሠራተኛ አመልካቾች ያስፈልጋል)' },
+  'WhatsApp recovery is available only after delivery is configured and for opted-in active accounts. If it is unavailable, contact support at +251 708 076 113.': {
+    am: 'የWhatsApp መልሶ ማግኛ የሚገኘው የመላኪያ አገልግሎቱ ከተዘጋጀ እና ንቁ መለያዎች ፈቃድ ከሰጡ ብቻ ነው። ካልተገኘ በ+251 708 076 113 ድጋፍን ያግኙ።',
+  },
+  'Need help?': { am: 'እገዛ ይፈልጋሉ?' },
+  'Chat with support on WhatsApp, call our support line, or sign in for private App/Web chat.': {
+    am: 'በWhatsApp ከድጋፍ ጋር ይወያዩ፣ የድጋፍ መስመራችንን ይደውሉ ወይም ለግል App/Web ውይይት ይግቡ።',
+  },
+  'WhatsApp chat': { am: 'የWhatsApp ውይይት' },
+  'Call ': { am: 'ይደውሉ ' },
+  'Sign in for private web chat': { am: 'ለግል የድር ውይይት ይግቡ' },
+  'Telegram support bot': { am: 'የTelegram ድጋፍ ቦት' },
+  'AfroSherik User Support FAQs': { am: 'የAfroSherik የተጠቃሚ ድጋፍ ተደጋጋሚ ጥያቄዎች' },
+  'Loading support answers…': { am: 'የድጋፍ መልሶች በመጫን ላይ…' },
+  'How do I reset a forgotten password?': { am: 'የረሳሁትን የይለፍ ቃል እንዴት እመልሳለሁ?' },
+  'Choose Forgot password? on the AfroSherik sign-in page to open recovery and request a code. WhatsApp recovery works only when the service is configured, your account is active, and you opted in using the phone number registered on your account. The code expires after 5 minutes and is limited to 5 attempts. Telegram support cannot reset passwords. Never share your code.': {
+    am: 'መልሶ ማግኛን ለመክፈትና ኮድ ለመጠየቅ በAfroSherik መግቢያ ገጽ ላይ “የይለፍ ቃል ረሱ?” የሚለውን ይምረጡ። የWhatsApp መልሶ ማግኛ የሚሰራው አገልግሎቱ ከተዘጋጀ፣ መለያዎ ንቁ ከሆነ እና በመለያዎ ላይ በተመዘገበው ስልክ ቁጥር ፈቃድ ከሰጡ ብቻ ነው። ኮዱ ከ5 ደቂቃ በኋላ ያበቃል፤ እስከ 5 ጊዜ ብቻ ሊሞከር ይችላል። የTelegram ድጋፍ የይለፍ ቃልን ማስጀመር አይችልም። ኮድዎን ለማንም አያጋሩ።',
+  },
+  'How do I change my password while signed in?': { am: 'ከገባሁ በኋላ የይለፍ ቃሌን እንዴት እቀይራለሁ?' },
+  'Open your account security settings, choose Change password, and enter your current password and a new password. Use at least 8 characters and do not use digits alone. A password recovery ends all active sessions; a signed-in password change replaces the current sign-in session.': {
+    am: 'የመለያዎን የደህንነት ቅንብሮች ይክፈቱ፣ “የይለፍ ቃል ቀይር” ይምረጡ እና የአሁኑንና አዲሱን የይለፍ ቃል ያስገቡ። ቢያንስ 8 ቁምፊዎችን ይጠቀሙ፤ ቁጥሮችን ብቻ አይጠቀሙ። የይለፍ ቃል መልሶ ማግኘት ሁሉንም ንቁ ክፍለ ጊዜዎች ያቋርጣል፤ ከገቡ በኋላ የይለፍ ቃል መቀየር የአሁኑን የመግቢያ ክፍለ ጊዜ ይተካል።',
+  },
+  'Why can I not sign in after registering?': { am: 'ከተመዘገብኩ በኋላ ለምን መግባት አልቻልኩም?' },
+  'New applications remain inactive until the required identity and document review is complete and the account is approved for activation. Contact support if your application status needs review.': {
+    am: 'አዲስ ማመልከቻዎች የሚፈለገው የማንነትና የሰነድ ግምገማ እስኪጠናቀቅ እና መለያው እንዲነቃ እስኪፈቀድ ድረስ ንቁ አይሆኑም። የማመልከቻዎ ሁኔታ መገምገም ካለበት ድጋፍን ያግኙ።',
+  },
+  'How do I get human support or request a support call?': { am: 'ከሰው ድጋፍ እንዴት አገኛለሁ ወይም የድጋፍ ጥሪ እጠይቃለሁ?' },
+  'Sign in and open AfroLife Support to start a private App/Web chat or request a support call back. You can also call the support line at +251 708 076 113. The chat bots provide guidance; they do not place automated calls.': {
+    am: 'ይግቡና AfroLife Supportን ይክፈቱ፤ የግል App/Web ውይይት ይጀምሩ ወይም የድጋፍ መልሶ ጥሪ ይጠይቁ። በ+251 708 076 113 የድጋፍ መስመርም መደወል ይችላሉ። የውይይት ቦቶች መመሪያ ይሰጣሉ፤ በራስ-ሰር ጥሪ አያደርጉም።',
+  },
+  'Is my support conversation private?': { am: 'የድጋፍ ውይይቴ የግል ነው?' },
+  'App/Web support conversations are visible to you and the support staff member who claims your request. Do not send passwords, one-time codes, payment-card details, or national-ID numbers in chat or group messages.': {
+    am: 'የApp/Web ድጋፍ ውይይቶች ለእርስዎና ጥያቄዎን ለወሰደው የድጋፍ ሠራተኛ ብቻ ይታያሉ። በውይይት ወይም በቡድን መልዕክት ውስጥ የይለፍ ቃሎችን፣ የአንድ ጊዜ ኮዶችን፣ የክፍያ ካርድ ዝርዝሮችን ወይም የብሔራዊ መታወቂያ ቁጥሮችን አይላኩ።',
+  },
+  'Can I use Telegram to recover my password?': { am: 'የይለፍ ቃሌን ለመመለስ Telegramን መጠቀም እችላለሁ?' },
+  'No. Telegram is for support guidance only. You may link Telegram from your signed-in account; the one-time link expires after 10 minutes. Password recovery must use the WhatsApp code sent to your registered, opted-in phone number when recovery is enabled.': {
+    am: 'አይቻልም። Telegram ለድጋፍ መመሪያ ብቻ ነው። ከገቡ በኋላ Telegramን ከመለያዎ ጋር ማገናኘት ይችላሉ፤ የአንድ ጊዜ ማገናኛው ከ10 ደቂቃ በኋላ ያበቃል። መልሶ ማግኛ ሲነቃ የይለፍ ቃል መመለስ በተመዘገበና ፈቃድ በተሰጠበት ስልክ ቁጥር የሚላከውን የWhatsApp ኮድ መጠቀም አለበት።',
+  },
+  'Do WhatsApp or Telegram support bots make calls?': { am: 'የWhatsApp ወይም Telegram ድጋፍ ቦቶች ጥሪ ያደርጋሉ?' },
+  'The bots can explain how to contact support and direct you to call +251 708 076 113. They do not place or receive automated calls. You can request a human support call back from the signed-in App/Web support assistant.': {
+    am: 'ቦቶቹ ድጋፍን እንዴት ማግኘት እንደሚቻል ያብራራሉ እና ወደ +251 708 076 113 እንዲደውሉ ይመራሉ። በራስ-ሰር ጥሪ አያደርጉም ወይም አይቀበሉም። ከገቡ በኋላ በApp/Web ድጋፍ ረዳት በኩል የሰው ድጋፍ መልሶ ጥሪ መጠየቅ ይችላሉ።',
+  },
+  'How do I enable two-factor sign-in?': { am: 'ባለሁለት ደረጃ መግቢያን እንዴት አነቃለሁ?' },
+  'After signing in, open account security settings and set up an authenticator app. Administrative and other designated staff roles are required to enroll in MFA; other accounts may enable it voluntarily.': {
+    am: 'ከገቡ በኋላ የመለያ ደህንነት ቅንብሮችን ይክፈቱና የማረጋገጫ መተግበሪያ ያዘጋጁ። አስተዳደራዊና ሌሎች የተመደቡ የሠራተኛ ሚናዎች MFAን መመዝገብ አለባቸው፤ ሌሎች መለያዎች በፈቃደኝነት ሊያነቁት ይችላሉ።',
+  },
+  'If this number is eligible, recovery instructions will be sent privately.': {
+    am: 'ይህ ቁጥር ብቁ ከሆነ የመልሶ ማግኛ መመሪያዎች በግል ይላካሉ።',
+    om: 'Lakkoofsi kun ulaagaa yoo guute, qajeelfamni deebisanii argachuu dhuunfaadhaan ni ergama.',
+    ti: 'እዚ ቁጽሪ ብቑዕ እንተኾይኑ፣ መምርሒ ምምላስ ብሕታዊ ብዝኾነ መንገዲ ክለኣኽ እዩ።',
+    so: 'Haddii lambarkani u qalmo, tilmaamaha soo celinta si gaar ah ayaa loo diri doonaa.',
+    ar: 'إذا كان هذا الرقم مؤهلاً، فستُرسل تعليمات الاستعادة بشكل خاص.',
+    sw: 'Nambari hii ikistahili, maelekezo ya urejeshaji yatatumwa kwa faragha.',
+  },
   'AFROSHERIK REGISTRATION': {
     am: 'የAfroSherik ምዝገባ',
   },
@@ -954,9 +1043,6 @@ const publicSurfaceTranslations = {
   },
   'Forgot your password?': {
     am: 'የይለፍ ቃልዎን ረሱ?',
-  },
-  'Contact your organization’s administrator for help resetting your password. Self-service password reset is not available on this page.': {
-    am: 'የይለፍ ቃልዎን ለማስጀመር እገዛ ለማግኘት የድርጅትዎን አስተዳዳሪ ያነጋግሩ። በዚህ ገጽ ላይ በራስዎ የይለፍ ቃል ማስጀመር አይቻልም።',
   },
   'Skip to content': {
     am: 'ወደ ይዘቱ ይሂዱ', om: 'Gara qabiyyeetti darbi', ti: 'ናብ ትሕዝቶ ዝለል', so: 'U bood nuxurka', ar: 'انتقل إلى المحتوى', sw: 'Ruka hadi kwenye maudhui',

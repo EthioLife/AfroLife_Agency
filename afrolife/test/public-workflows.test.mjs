@@ -671,20 +671,58 @@ test('public subscription catalog includes the approved ETB 1,000 services', () 
   assert.deepEqual(subscriptionRequestPayload(['edir', 'edir', 'agent']), { services: ['edir', 'agent'] });
 });
 
-test('public sign-in flow opens password recovery and reliably returns to the form', () => {
+test('Forgot password opens the recovery flow and reliably returns to sign-in', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
   const i18n = readFileSync(new URL('../public/i18n.js', import.meta.url), 'utf8');
 
-  assert.equal([...html.matchAll(/id="show-password-recovery"/g)].length, 1);
+  assert.equal([...html.matchAll(/id="open-password-recovery"/g)].length, 1);
+  assert.match(html, /id="open-password-recovery"[^>]*>Forgot password\?</);
+  assert.doesNotMatch(html, /show-password-recovery|password-recovery-help|Contact your organization’s administrator/);
   assert.match(html, /id="recovery-form"[^>]*hidden/);
-  assert.match(app, /\$\('#show-password-recovery'\)\.addEventListener\('click',[\s\S]*?\$\('#login-form'\)\.hidden = true;[\s\S]*?\$\('#recovery-form'\)\.hidden = false;/);
+  assert.match(app, /\$\('#open-password-recovery'\)\.addEventListener\('click',[\s\S]*?\$\('#login-form'\)\.hidden = true;[\s\S]*?form\.hidden = false;[\s\S]*?form\.scrollIntoView/);
   assert.match(app, /\$\('#back-to-sign-in'\)\.addEventListener\('click',[\s\S]*?\$\('#recovery-form'\)\.hidden = true;[\s\S]*?\$\('#login-form'\)\.hidden = false;/);
   assert.match(app, /document\.querySelectorAll\('a\[href="#login-form"\]'\)/);
   assert.match(app, /loginForm\.scrollIntoView\(\{ behavior: reducedMotion \? 'auto' : 'smooth', block: 'start' \}\)/);
   assert.match(app, /loginForm\.querySelector\('input\[name="phone"\]'\)\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(html, /WhatsApp recovery is available only after delivery is configured and for opted-in active accounts\./);
+  assert.match(html, /If it is unavailable, contact support/);
   assert.match(styles, /#login-form \{ scroll-margin-block-start: 1rem; \}/);
   assert.match(i18n, /'One Platform\. Endless Possibilities\.':\s*\{\s*am: 'አንድ መድረክ። ወሰን የሌላቸው እድሎች።'/);
   assert.match(i18n, /'Forgot your password\?':\s*\{\s*am: 'የይለፍ ቃልዎን ረሱ\?'/);
+});
+
+test('public support FAQ and reported signup labels translate dynamically to Amharic', () => {
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const i18n = readFileSync(new URL('../public/i18n.js', import.meta.url), 'utf8');
+
+  assert.match(app, /summary\.textContent = t\(item\.question\)/);
+  assert.match(app, /answer\.textContent = t\(item\.answer\)/);
+  assert.match(app, /if \(state\.publicSupportFaq\) \{\s*renderSupportFaq\('#support-faq-list', state\.publicSupportFaq\)/);
+  for (const message of [
+    'Seller / property owner',
+    'Date of birth (required for worker applicants)',
+    'How do I reset a forgotten password?',
+    'How do I enable two-factor sign-in?',
+    'If this number is eligible, recovery instructions will be sent privately.',
+  ]) {
+    assert.match(i18n, new RegExp(`'${message.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}':\\s*\\{\\s*am:\\s*'[^']+'`));
+  }
+});
+
+test('signup and recovery password fields accept passwords from eight characters', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const api = readFileSync(new URL('../src/admin.ts', import.meta.url), 'utf8');
+
+  assert.match(html, /name="password"[^>]*minlength="8"/);
+  assert.match(html, /name="password_confirmation"[^>]*minlength="8"/);
+  assert.match(html, /name="next"[^>]*minlength="8"/);
+  assert.match(app, /New password \(8\+ characters\)[\s\S]*?minlength: '8'/);
+  assert.match(api, /password: z\.string\(\)\.min\(8\)\.max\(72\)/);
+  assert.match(api, /next: z\.string\(\)\.min\(8\)\.max\(72\)/);
+  assert.match(api, /current: z\.string\(\)\.min\(1\)\.max\(200\), next: z\.string\(\)\.min\(8\)\.max\(72\)/);
+  assert.match(readFileSync(new URL('../src/security.ts', import.meta.url), 'utf8'), /Use at least 8 characters\./);
+  assert.match(readFileSync(new URL('../src/support-faq.ts', import.meta.url), 'utf8'), /Use at least 8 characters/);
 });

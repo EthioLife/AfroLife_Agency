@@ -73,6 +73,8 @@ const tid = (await db.query("INSERT INTO territories (level, name) VALUES ('city
 const admin = await mkUser('super_admin', 1);
 const unassignedSuperAdmin = await mkUser('super_admin', 14);
 const globalAdmin = await mkUser('global_admin', 10);
+const ungrantedGlobalAdmin = await mkUser('global_admin', 15);
+const scopedGlobalAdmin = await mkUser('global_admin', 16);
 const compliance = await mkUser('compliance', 2);
 const complianceAlt = await mkUser('compliance', 13);
 const fin1 = await mkUser('finance', 3);
@@ -426,6 +428,26 @@ test('Global System Admin controls shared platform configuration while Super Adm
   assert.equal((await call(globalAdmin, 'POST', `/platform/tenants/${tenantResponse.body.id}/admins`, {
     user_id: admin.id,
   })).status, 204);
+  assert.equal((await call(globalAdmin, 'POST', `/platform/tenants/${tenantResponse.body.id}/admins`, {
+    user_id: globalAdmin.id,
+  })).status, 409);
+  assert.equal((await call(globalAdmin, 'POST', `/platform/tenants/${tenantResponse.body.id}/admins`, {
+    user_id: ungrantedGlobalAdmin.id,
+  })).status, 422);
+  await db.query('UPDATE users SET mfa_enabled=true WHERE id=$1', [scopedGlobalAdmin.id]);
+  await db.query(
+    `INSERT INTO user_admin_role_grants(user_id,role_name,module_keys,all_tenants,granted_by)
+     VALUES($1,'super_admin',ARRAY[]::text[],false,$2)`,
+    [scopedGlobalAdmin.id, globalAdmin.id],
+  );
+  assert.equal((await call(globalAdmin, 'POST', `/platform/tenants/${tenantResponse.body.id}/admins`, {
+    user_id: scopedGlobalAdmin.id,
+  })).status, 204);
+  const scopedAssignments = await db.query(
+    'SELECT tenant_id FROM platform_tenant_admins WHERE user_id=$1 ORDER BY tenant_id',
+    [scopedGlobalAdmin.id],
+  );
+  assert.deepEqual(scopedAssignments.rows.map((row) => row.tenant_id), [tenantResponse.body.id]);
   const assignedTenants = await call(admin, 'GET', '/platform/my-tenants');
   assert.equal(assignedTenants.status, 200);
   assert.deepEqual(assignedTenants.body[0].available_services, ['agency', 'workforce']);

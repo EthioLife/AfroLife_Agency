@@ -1,12 +1,12 @@
 export const SUPPORT_FAQ = [
   {
     question: 'How do I reset a forgotten password?',
-    answer: 'Use Password recovery on the AfroLife sign-in page and request a code. WhatsApp recovery works only when the service is configured, your account is active, and you opted in using the phone number registered on your account. The code expires after 5 minutes and is limited to 5 attempts. Telegram support cannot reset passwords. Never share your code.',
+    answer: 'Choose Forgot password? on the AfroSherik sign-in page to open recovery and request a code. WhatsApp recovery works only when the service is configured, your account is active, and you opted in using the phone number registered on your account. The code expires after 5 minutes and is limited to 5 attempts. Telegram support cannot reset passwords. Never share your code.',
     keywords: ['password', 'reset', 'forgot', 'recovery', 'code'],
   },
   {
     question: 'How do I change my password while signed in?',
-    answer: 'Open your account security settings, choose Change password, and enter your current password and a new password. Use at least 10 characters and do not use digits alone. A password recovery ends all active sessions; a signed-in password change replaces the current sign-in session.',
+    answer: 'Open your account security settings, choose Change password, and enter your current password and a new password. Use at least 8 characters and do not use digits alone. A password recovery ends all active sessions; a signed-in password change replaces the current sign-in session.',
     keywords: ['change password', 'change my password', 'new password', 'current password', 'while signed in', 'security', 'sign out'],
   },
   {

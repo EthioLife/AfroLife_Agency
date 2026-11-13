@@ -295,4 +295,37 @@ if (
   console.log('Recovered the configured Super Admin; a password change is required at first sign-in.');
 }
 
+const initialAdminBootstrapVariables = [
+  'INITIAL_AFROSHERIK_ADMIN_BOOTSTRAP_CONFIRM',
+  'INITIAL_AFROSHERIK_TENANT_KEY',
+  'INITIAL_DAWIT_ADMIN_PASSWORD',
+  'INITIAL_YALEMWORK_ADMIN_PASSWORD',
+  'INITIAL_AFROSHERIK_ADMIN_BOOTSTRAP_REASON',
+] as const;
+const initialAdminBootstrapEnabled = process.env.ALLOW_INITIAL_AFROSHERIK_ADMIN_BOOTSTRAP;
+if (initialAdminBootstrapEnabled !== undefined && !['0', '1', 'disabled'].includes(initialAdminBootstrapEnabled)) {
+  throw new Error('ALLOW_INITIAL_AFROSHERIK_ADMIN_BOOTSTRAP must be disabled, 0, or 1 when provided.');
+}
+if (initialAdminBootstrapEnabled === '1') {
+  const bootstrapEnvironment = { ...process.env };
+  for (const name of initialAdminBootstrapVariables) delete process.env[name];
+  delete process.env.ALLOW_INITIAL_AFROSHERIK_ADMIN_BOOTSTRAP;
+  const { bootstrapInitialAfroSherikAdmins, validateInitialPlatformAdminBootstrapConfig } =
+    await import('./initial-platform-admin-bootstrap.js');
+  const config = validateInitialPlatformAdminBootstrapConfig(bootstrapEnvironment);
+  for (const name of initialAdminBootstrapVariables) delete bootstrapEnvironment[name];
+  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for the initial AfroSherik admin bootstrap.');
+  const bootstrapPool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    const result = await bootstrapInitialAfroSherikAdmins(bootstrapPool, config);
+    if (result) {
+      console.log(`Completed the one-time AfroSherik platform administrator bootstrap (${result.created} accounts created).`);
+    } else {
+      console.log('The one-time AfroSherik platform administrator bootstrap has already completed.');
+    }
+  } finally {
+    await bootstrapPool.end();
+  }
+}
+
 await import('./server.js');

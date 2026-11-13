@@ -619,7 +619,7 @@ main { width: min(1360px, calc(100% - 48px)); }
   background: rgba(255, 255, 255, 0.96);
 }
 .login-card h2, .signup-card h2, .server-setup h2 { color: var(--green-dark); font-size: clamp(24px, 2.5vw, 30px); letter-spacing: -.045em; }
-.login-card > .muted, .signup-card > .muted, .server-setup > .muted { color: #718078; line-height: 1.7; }
+.login-card > .muted, .signup-card > .muted, .server-setup > .muted { color: #66736c; line-height: 1.7; }
 label { color: #344c43; font-size: 13px; }
 input, select, textarea {
   min-height: 48px;
@@ -2211,7 +2211,7 @@ footer {
 .assistant-content label, .assistant-thread label { margin-bottom: 9px; }
 .assistant-content textarea, .assistant-thread textarea { min-height: 82px; }
 .public-support { margin: 16px 0; padding: 14px; }
-.public-support h2 { margin: 0 0 6px; font-size: 17px; }
+.public-support h2 { margin: 0 0 6px; color: var(--green-dark); font-size: 17px; }
 .public-support p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
 .support-faq { margin-top: 12px; }
 .support-faq h2 { color: var(--green-dark); font-size: 16px; }
