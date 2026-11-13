@@ -247,7 +247,7 @@ loginRouter.post('/auth/password-recovery/complete', noStore, h(async (req, res)
     phone_country_code: z.string().optional(),
     phone_national_number: z.string().optional(),
     code: z.string().regex(/^\d{6}$/),
-    next: z.string().min(1).max(72),
+    next: z.string().min(8).max(72),
   }).strict().parse(req.body);
   const phone = body.phone_country_code && body.phone_national_number
     ? normalizePhoneParts(body.phone_country_code, body.phone_national_number)
@@ -360,8 +360,8 @@ loginRouter.post('/auth/signup', h(async (req, res) => {
     phone_country_code: z.string().optional(),
     phone_national_number: z.string().optional(),
     email: z.union([z.string().trim().email().max(254), z.literal('')]).optional(),
-    password: z.string().min(12).max(72),
-    password_confirmation: z.string(),
+    password: z.string().min(8).max(72),
+    password_confirmation: z.string().min(8).max(72),
     account_type: z.enum(['worker', 'customer', 'agent', 'property_owner']),
     pension_match_interest: z.boolean().default(false),
     edir_member_interest: z.boolean().default(false),
@@ -1951,7 +1951,7 @@ adminRouter.delete('/auth/telegram/link', h(async (req, res) => {
 }));
 
 adminRouter.post('/auth/change-password', h(async (req, res) => {
-  const b = z.object({ current: z.string().min(1).max(200), next: z.string().min(1).max(72) }).parse(req.body); // bcrypt only reads the first 72 bytes
+  const b = z.object({ current: z.string().min(1).max(200), next: z.string().min(8).max(72) }).parse(req.body); // bcrypt only reads the first 72 bytes
   const u = (await pool.query('SELECT id, role, phone, password_hash, mfa_enabled FROM users WHERE id = $1', [req.user!.id])).rows[0];
   if (!(await bcrypt.compare(b.current, u.password_hash))) throw new HttpError(401, 'Current password is incorrect');
   const bad = passwordProblem(b.next, u.phone);

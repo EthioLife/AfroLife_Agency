@@ -119,11 +119,9 @@
             <button class="button button-outline" type="button" data-open-edir-registration>Register an Edir</button>
           </div>
           <div class="login-links">
-            <button id="show-password-recovery" class="text-button" type="button" aria-expanded="false" aria-controls="password-recovery-help">Forgot password?</button>
-            <button id="open-password-recovery" class="text-button" type="button">Request recovery help</button>
+            <button id="open-password-recovery" class="text-button" type="button" aria-controls="recovery-form">Forgot password?</button>
             <button id="show-agent-plans" class="text-button" type="button">Agent subscription plans</button>
           </div>
-          <p id="password-recovery-help" class="fine-print" role="note" hidden>Contact your organization’s administrator for help resetting your password. Self-service password reset is not available on this page.</p>
           <p class="fine-print">Access is limited to approved AfroSherik accounts.</p>
         </form>
         <section id="access-mode-choice" class="panel login-card" hidden>
@@ -142,9 +140,9 @@
             <label>National phone number<input name="phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="9…" required maxlength="20"></label>
           </div>
           <small id="recovery-code-help" class="field-hint">Choose from suggestions or type another international calling code.</small>
-          <p class="provider-notice" role="status">WhatsApp recovery is available only after delivery is configured and for opted-in active accounts. Otherwise, contact support at +251 708 076 113.</p>
+          <p class="provider-notice" role="status">WhatsApp recovery is available only after delivery is configured and for opted-in active accounts. If it is unavailable, contact support at +251 708 076 113.</p>
           <label>Six-digit WhatsApp recovery code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required></label>
-          <label>New password<input name="next" type="password" autocomplete="new-password" minlength="10" maxlength="72" required></label>
+          <label>New password<input name="next" type="password" autocomplete="new-password" minlength="8" maxlength="72" required></label>
           <p id="recovery-status" class="form-error" role="status" aria-live="polite"></p>
           <div class="login-registration-actions">
             <button class="button button-outline" type="button" data-recovery-request>Send WhatsApp code</button>
@@ -163,8 +161,8 @@
           </div>
           <small id="signup-phone-code-help" class="field-hint">Choose from suggestions or type another international calling code.</small>
           <label>Email (optional)<input name="email" type="email" autocomplete="email"></label>
-          <label>Password<input name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="72"></label>
-          <label>Password confirmation<input name="password_confirmation" type="password" autocomplete="new-password" required minlength="12" maxlength="72"></label>
+          <label>Password<input name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="72"></label>
+          <label>Password confirmation<input name="password_confirmation" type="password" autocomplete="new-password" required minlength="8" maxlength="72"></label>
           <label>Choose account type
             <select id="signup-account-type" name="account_type" required>
               <option value="">Select an account type</option>

@@ -652,6 +652,7 @@ async function loadPublicSupportContact() {
     const contact = await contactResponse.json();
     const faq = await faqResponse.json();
     state.supportMessaging = contact;
+    state.publicSupportFaq = faq;
     for (const link of document.querySelectorAll('[data-support-phone-link]')) {
       link.href = `tel:${contact.supportPhone}`;
     }
@@ -680,9 +681,9 @@ function renderSupportFaq(selector, faq) {
   for (const item of faq) {
     const details = document.createElement('details');
     const summary = document.createElement('summary');
-    summary.textContent = item.question;
+    summary.textContent = t(item.question);
     const answer = document.createElement('p');
-    answer.textContent = item.answer;
+    answer.textContent = t(item.answer);
     details.append(summary, answer);
     faqList.append(details);
   }
@@ -7084,7 +7085,7 @@ function renderPasswordChange() {
   form.style.maxWidth = '480px';
   form.dataset.form = 'password';
   form.append(node('h3', 'Set a new password'), node('p', 'Your account requires a password change before continuing.'));
-  form.append(field('Temporary password', 'current', 'password').label, field('New password (12+ characters)', 'next', 'password', true, { minlength: '12', maxlength: '72' }).label);
+  form.append(field('Temporary password', 'current', 'password').label, field('New password (8+ characters)', 'next', 'password', true, { minlength: '8', maxlength: '72' }).label);
   form.append(button('Update password', 'submit', 'button button-primary'));
   return form;
 }
@@ -7095,7 +7096,7 @@ function renderSecurity() {
   const panel = node('section', undefined, 'panel form-card');
   panel.style.maxWidth = '620px';
   panel.append(node('h3', 'WhatsApp password recovery'));
-  panel.append(node('p', 'If enabled by AfroLife, recovery codes can be sent only to your registered phone. You can withdraw this consent at any time.'));
+  panel.append(node('p', 'If enabled by AfroSherik, recovery codes can be sent only to your registered phone. You can withdraw this consent at any time.'));
   const whatsappConsent = node('label');
   whatsappConsent.className = 'check-row';
   const whatsappConsentInput = document.createElement('input');
@@ -11114,18 +11115,14 @@ $('#create-account').addEventListener('click', () => openSignup(false));
 $('#public-create-account').addEventListener('click', () => openSignup(false));
 $('#join-edir').addEventListener('click', () => openSignup(false, true));
 $('#show-agent-plans').addEventListener('click', () => openSignup(true));
-$('#show-password-recovery').addEventListener('click', () => {
-  const button = $('#show-password-recovery');
-  const help = $('#password-recovery-help');
-  const expanded = button.getAttribute('aria-expanded') === 'true';
-  button.setAttribute('aria-expanded', String(!expanded));
-  help.hidden = expanded;
-});
 $('#open-password-recovery').addEventListener('click', () => {
   $('#login-form').hidden = true;
-  $('#recovery-form').hidden = false;
+  const form = $('#recovery-form');
+  form.hidden = false;
   setLocalizedText($('#recovery-status'), '');
-  $('#recovery-form [name="phone"]').focus({ preventScroll: true });
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  form.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+  form.querySelector('[name="phone"]').focus({ preventScroll: true });
 });
 $('#back-to-sign-in').addEventListener('click', () => {
   $('#recovery-form').hidden = true;
@@ -11228,6 +11225,10 @@ window.addEventListener('popstate', () => {
 initializeLocale(() => {
   renderSignupTerritoryOptions();
   updatePlanLabels();
+  if (state.publicSupportFaq) {
+    renderSupportFaq('#support-faq-list', state.publicSupportFaq);
+    renderSupportFaq('#assistant-support-faq-list', state.publicSupportFaq);
+  }
   document.querySelectorAll('[data-i18n-source]').forEach((element) => {
     element.textContent = t(element.dataset.i18nSource, JSON.parse(element.dataset.i18nValues ?? '{}'));
   });
