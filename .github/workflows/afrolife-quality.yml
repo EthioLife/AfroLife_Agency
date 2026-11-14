@@ -86,5 +86,5 @@ jobs:
           cache: npm
           cache-dependency-path: afrolife/package-lock.json
       - run: npm ci
-      - name: Run disposable PostgreSQL integration workflows
-        run: npm run test:finance:e2e:local
+      - name: Run integration workflows against disposable PostgreSQL service
+        run: node scripts/run-local-finance-e2e.mjs

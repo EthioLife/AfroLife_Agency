@@ -2,12 +2,11 @@ import { createHash } from 'node:crypto';
 
 const acceptedLegacyMigrationName = '114_property_resident_rls_recursion_fix.sql';
 const acceptedLegacyMigrationChecksum = '99372e3e6d9f8e7eb2717eaa65fdba9cf4c3b2166ad5738c43a6937d40596af5';
-const acceptedLegacyCurrentChecksum = '7522ab1fdbe1f5579308cbf27e87ba8bcb8d3d2d20184c3caf9377c35929b2c9';
+const acceptedLegacyCurrentChecksum = '8fe5b2e298c7780991704f30e07e8aa3940c56e1f862906abf2fd61df0296251';
 
 /**
- * This exact historical QA record is accepted because its original SQL
- * checksum could not be reconstructed from the available source history.
- * Keep this exception limited to this migration name and exact source checksum.
+ * The applied checksum was generated from CRLF source while Linux checks out
+ * the same immutable migration with LF. Accept only that exact source variant.
  * Do not update the historical schema_migrations record.
  */
 function isAcceptedLegacyMigrationChecksum(name: string, stored: string): boolean {
