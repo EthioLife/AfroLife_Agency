@@ -49,6 +49,7 @@ const payrollFailedRowRequeue = readFileSync(new URL('../migrations/112_workforc
 const propertyRentalApplications = readFileSync(new URL('../migrations/104_property_rental_applications.sql', import.meta.url), 'utf8');
 const propertyTenantSelfService = readFileSync(new URL('../migrations/105_property_tenant_self_service.sql', import.meta.url), 'utf8');
 const propertyOwnerAuthorityReview = readFileSync(new URL('../migrations/106_property_owner_authority_review.sql', import.meta.url), 'utf8');
+const propertyOwnerLeaseStatementAccess = readFileSync(new URL('../migrations/145_property_owner_lease_statement_access.sql', import.meta.url), 'utf8');
 const leaseRentStartDate = readFileSync(new URL('../migrations/107_lease_rent_start_date.sql', import.meta.url), 'utf8');
 const globalAdminPropertyAuthorityReview = readFileSync(new URL('../migrations/108_global_admin_property_authority_review.sql', import.meta.url), 'utf8');
 const maintenanceSlaEscalationIndex = readFileSync(new URL('../migrations/109_maintenance_sla_escalation_index.sql', import.meta.url), 'utf8');
@@ -169,10 +170,14 @@ test('migration runners persist and enforce immutable SQL checksums', () => {
   assert.match(coreMigrator, /REVOKE INSERT, UPDATE, DELETE ON TABLE schema_migrations FROM \$\{roleName\}/);
   assert.match(coreMigrator, /GRANT SELECT ON TABLE schema_migrations TO \$\{roleName\}/);
   assert.match(coreMigrator, /GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO \$\{roleName\}/);
+  assert.match(coreMigrator, /name === '118_property_operating_tenant_scope\.sql'[\s\S]*?seedInitialAdminBeforePropertyTenantMigration/);
+  assert.match(coreMigrator, /AFROLIFE_SEED_ADMIN_BEFORE_PROPERTY_TENANT_MIGRATION !== '1'/);
+  assert.match(coreMigrator, /password_hash, must_change_password[\s\S]*?true,\$3,true/);
   assert.match(aletcloudBootstrap, /async function seedFirstSuperAdmin[\s\S]*?await client\.query\('BEGIN'\)[\s\S]*?set_config\('app\.role', 'global_admin', true\)[\s\S]*?await client\.query\('COMMIT'\)/);
   assert.match(aletcloudBootstrap, /ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY must be set to 1/);
   assert.match(aletcloudBootstrap, /ALETCLOUD_BOOTSTRAP_DATABASE_URL is required for a migrations-only bootstrap/);
   assert.match(aletcloudBootstrap, /migrationsOnly \? false : await seedFirstSuperAdmin/);
+  assert.match(aletcloudBootstrap, /if \(migrationsOnly\)[\s\S]*?delete migrationEnv\.SEED_ADMIN_PASSWORD[\s\S]*?AFROLIFE_SEED_ADMIN_BEFORE_PROPERTY_TENANT_MIGRATION = '1'/);
   assert.match(aletcloudBootstrap, /delete migrationEnv\.ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY/);
   assert.match(aletcloudBootstrap, /runtime\.role\.slice\(0, 46\).*_afrolife_runtime/);
   assert.match(accountingMigrator, /ADD COLUMN IF NOT EXISTS checksum text/);
@@ -637,7 +642,7 @@ test('maintenance vendor access is assignment-scoped and invoice mismatches requ
   assert.match(maintenanceVendorFulfillment,/UPDATE property_vendor_bills bill/);
   assert.match(maintenanceVendorFulfillment,/assigned_vendor_id IS NULL/);
   assert.match(admin,/INSERT INTO user_signups\(user_id,account_type,payment_status,vendor_id\)/);
-  assert.match(admin,/INSERT INTO property_vendor_memberships\(vendor_id,user_id,created_by\)/);
+  assert.match(admin,/INSERT INTO property_vendor_memberships\(vendor_id,user_id,created_by,tenant_system_id\)/);
   assert.match(operations,/!body\.assigned_to && !body\.assigned_vendor_id/);
   assert.match(maintenanceVendorFulfillment,/CREATE POLICY maintenance_vendor_assigned_read/);
   assert.match(maintenanceVendorFulfillment,/CREATE POLICY maintenance_vendor_assigned_update/);
@@ -708,7 +713,7 @@ test('resident lease self-service requires a one-time claim and scopes property,
   assert.match(operations,/randomBytes\(32\)\.toString\('hex'\)/);
   assert.match(operations,/createHash\('sha256'\)\.update\(claimCode\.toLowerCase\(\)\)/);
   assert.match(operations,/tenant access invitation is invalid, expired, or already used/i);
-  assert.match(server,/api\.use\(\['\/resident'\], requirePlatformTenantService\('property'\), requireMiniAppAccess\('properties'\)\)/);
+  assert.match(server,/api\.use\(\['\/resident', '\/owner'\], requirePlatformTenantService\('property'\), requireMiniAppAccess\('properties'\)\)/);
   assert.match(propertyVendorPortal,/req\.user\?\.role === 'customer'\) return requireMiniAppAccess\('properties'\)/);
   assert.match(publicApp,/Resident self-service/);
   assert.match(publicApp,/resident-access-claim/);
@@ -741,6 +746,8 @@ test('property publication requires independent owner-authority review and scann
   assert.match(propertyOwnerAuthorityReview,/Property authority approval requires malware-scanned evidence/);
   assert.match(propertyOwnerAuthorityReview,/subject\.active = true AND subject\.kyc_status = 'verified'/);
   assert.match(propertyOwnerAuthorityReview,/p\.listing_review_status = 'approved' AND p\.authority_review_status = 'approved'/);
+  assert.match(propertyOwnerLeaseStatementAccess,/app_role\(\) = 'property_owner'/);
+  assert.match(propertyOwnerLeaseStatementAccess,/property\.owner_user_id = app_user_id\(\)/);
   assert.match(propertyManagementRouter,/scanWithClamAv\(file\)/);
   assert.match(propertyManagementRouter,/authority-evidence/);
   assert.match(propertyManagementRouter,/authority-resubmit/);

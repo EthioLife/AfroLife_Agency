@@ -82,7 +82,7 @@
     "perf:v7:local": "node scripts/v7-load-smoke.mjs",
     "verify:property-restore": "node scripts/property-restore-verify.mjs",
     "test:integration": "tsx --test test/api.test.ts test/supply.test.ts",
-    "test:finance:e2e:local": "node scripts/run-local-finance-e2e.mjs",
+    "test:finance:e2e:local": "node scripts/run-isolated-finance-e2e.mjs",
     "test": "npm run test:unit"
   },
   "dependencies": {

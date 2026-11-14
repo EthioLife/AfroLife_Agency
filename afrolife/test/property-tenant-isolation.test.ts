@@ -285,3 +285,48 @@ test('property tenant migration backfills members using an explicit users alias'
   assert.match(migration, /CASE user_row\.role/);
   assert.match(migration, /WHERE tenant\.tenant_key='legacy-property-operations' AND user_row\.active=true/);
 });
+
+test('property vendor tenant scope does not recurse through cross-table membership policies', async () => {
+  const migration = await readFile(
+    new URL('../migrations/139_property_vendor_membership_tenant_scope.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(migration, /ADD COLUMN tenant_system_id uuid REFERENCES property_operating_tenants\(id\)/);
+  assert.match(migration, /FOREIGN KEY \(tenant_system_id,vendor_id\)[\s\S]*REFERENCES property_vendors\(tenant_system_id,id\)/);
+  assert.match(migration, /USING \(tenant_system_id=app_property_tenant_system_id\(\)\)/);
+  assert.doesNotMatch(migration, /SELECT 1 FROM property_vendors/);
+});
+
+test('resident unit access avoids recursive lease row security evaluation', async () => {
+  const migration = await readFile(
+    new URL('../migrations/140_property_unit_resident_rls_recursion_fix.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(migration, /ALTER TABLE leases NO FORCE ROW LEVEL SECURITY/);
+  assert.match(migration, /ALTER TABLE property_units NO FORCE ROW LEVEL SECURITY/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION app_resident_has_active_lease_on_unit\(target_unit_id uuid\)/);
+  assert.match(migration, /SECURITY DEFINER\s+SET search_path = public, pg_temp\s+SET row_security = off/);
+  assert.match(migration, /lease\.unit_id = target_unit_id/);
+  assert.match(migration, /link\.user_id = app_user_id\(\)[\s\S]*link\.revoked_at IS NULL[\s\S]*lease\.status = 'active'/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION app_resident_has_active_lease_on_unit\(uuid\) FROM PUBLIC/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION app_resident_has_active_lease_on_unit\(uuid\) TO "\{\{role\}\}"/);
+  assert.match(migration, /DROP POLICY property_units_linked_resident_read ON property_units/);
+  assert.match(migration, /USING \(app_resident_has_active_lease_on_unit\(id\)\)/);
+  assert.doesNotMatch(migration, /ALTER TABLE (leases|property_units) DISABLE ROW LEVEL SECURITY/);
+});
+
+test('resident account-link tenant scope avoids recursive tenant row security evaluation', async () => {
+  const migration = await readFile(
+    new URL('../migrations/141_property_tenant_link_rls_recursion_fix.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(migration, /ALTER TABLE tenants NO FORCE ROW LEVEL SECURITY/);
+  assert.match(migration, /ADD COLUMN tenant_system_id uuid/);
+  assert.match(migration, /SET tenant_system_id = tenant\.tenant_system_id[\s\S]*FROM tenants tenant/);
+  assert.match(migration, /FOREIGN KEY \(tenant_id, tenant_system_id\)[\s\S]*REFERENCES tenants\(id, tenant_system_id\)/);
+  assert.match(migration, /SELECT invitation\.source_agent_id,invitation\.property_owner_user_id,tenant\.tenant_system_id/);
+  assert.match(migration, /NEW\.tenant_system_id := invite_tenant_system_id/);
+  assert.match(migration, /DROP POLICY property_tenant_links_operating_tenant_scope ON property_tenant_account_links/);
+  assert.match(migration, /USING \(tenant_system_id=app_property_tenant_system_id\(\)\)/);
+  assert.doesNotMatch(migration, /SELECT 1 FROM tenants/);
+});

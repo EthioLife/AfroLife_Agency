@@ -12,6 +12,7 @@ import jwt from 'jsonwebtoken';
 
 const API = (process.env.API_URL ?? 'http://localhost:3010') + '/api/v1';
 const SECRET = process.env.JWT_SECRET!;
+const platformTenantId = process.env.MFI_PLATFORM_TENANT_ID;
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 if (!testDatabaseUrl) throw new Error('TEST_DATABASE_URL must explicitly point to a disposable integration-test database');
 const testDatabaseName = decodeURIComponent(new URL(testDatabaseUrl).pathname.replace(/^\/+/, ''));
@@ -19,12 +20,27 @@ if (!/^(?:test[_-]|afrolife[_-]test(?:[_-]|$))/i.test(testDatabaseName)) {
   throw new Error('TEST_DATABASE_URL must target a database named test_* or afrolife_test*; refusing to modify a normal application database');
 }
 const db = new pg.Pool({ connectionString: testDatabaseUrl });
+const propertyTenantId = (await db.query(
+  "SELECT id FROM property_operating_tenants WHERE tenant_key='legacy-property-operations'",
+)).rows[0]?.id as string | undefined;
+if (!propertyTenantId) throw new Error('The legacy property tenant must exist before API tests run');
 const run = randomInt(0, 10_000_000).toString().padStart(7, '0');
 const uniquePhone = () => `+2519${randomInt(0, 100_000_000).toString().padStart(8, '0')}`;
 const PW = 'Passw0rd!test';
 const PNG = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from('kyc-test-image')]);
 
-type U = { id: string; role: string; phone: string; token: string };
+type U = { id: string; role: string; phone: string; token: string; propertyTenantId?: string };
+const propertyTenantRoles: Record<string, string> = {
+  super_admin: 'tenant_admin',
+  corporate_business_manager: 'tenant_admin',
+  finance: 'tenant_accountant',
+  finance_manager: 'tenant_accountant',
+  master_agent: 'master_agent',
+  field_agent: 'field_agent',
+  customer: 'resident',
+  property_owner: 'owner',
+};
+let propertyTenantAssigner: string | undefined;
 
 test('health endpoint confirms the database connection', async () => {
   const response = await fetch((process.env.API_URL ?? 'http://localhost:3010') + '/healthz');
@@ -39,13 +55,42 @@ async function mkUser(role: string, n: number): Promise<U> {
     [`${role}-${n}`, phone, role, bcrypt.hashSync(PW, 4)],
   );
   const id = r.rows[0].id as string;
+  const propertyRole = propertyTenantRoles[role];
+  if (propertyRole) {
+    await db.query(
+      `INSERT INTO property_operating_tenant_members(tenant_system_id,user_id,tenant_role,status,assigned_by)
+       VALUES($1,$2,$3,'active',$4)`,
+      [propertyTenantId, id, propertyRole, propertyTenantAssigner ?? id],
+    );
+    if (role === 'super_admin') propertyTenantAssigner ??= id;
+  }
   const sessionId = randomUUID();
-  await db.query('INSERT INTO auth_sessions (id,user_id,expires_at) VALUES ($1,$2,now()+interval \'8 hours\')', [sessionId, id]);
-  return { id, role, phone, token: jwt.sign({ sub: id, role, sid: sessionId }, SECRET, { expiresIn: '8h' }) };
+  await db.query('INSERT INTO auth_sessions (id,user_id,expires_at) VALUES ($1,$2,now()+interval \'30 days\')', [sessionId, id]);
+  if (role === 'super_admin' && platformTenantId) {
+    await db.query(
+      'INSERT INTO platform_tenant_admins(tenant_id,user_id,assigned_by) VALUES($1,$2,$2)',
+      [platformTenantId, id],
+    );
+  }
+  return {
+    id,
+    role,
+    phone,
+    token: jwt.sign({ sub: id, role, sid: sessionId }, SECRET, { expiresIn: '30d' }),
+    ...(propertyRole ? { propertyTenantId } : {}),
+  };
+}
+
+function authHeaders(u: Pick<U, 'token'> & Partial<Pick<U, 'propertyTenantId'>>) {
+  return {
+    authorization: 'Bearer ' + u.token,
+    ...(platformTenantId ? { 'x-afrolife-platform-tenant-id': platformTenantId } : {}),
+    ...(u.propertyTenantId ? { 'x-afrolife-property-tenant-id': u.propertyTenantId } : {}),
+  };
 }
 
 async function call(
-  u: Pick<U, 'token'>,
+  u: Pick<U, 'token'> & Partial<Pick<U, 'propertyTenantId'>>,
   method: string,
   path: string,
   body?: unknown,
@@ -53,16 +98,28 @@ async function call(
 ) {
   const r = await fetch(API + path, {
     method,
-    headers: { 'content-type': 'application/json', authorization: 'Bearer ' + u.token, ...extraHeaders },
+    headers: {
+      ...authHeaders(u),
+      'content-type': 'application/json',
+      ...extraHeaders,
+    },
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: r.status, body: (await r.json().catch(() => null)) as any };
 }
 
-async function callFile(u: Pick<U, 'token'>, path: string, file: Buffer, contentType = 'image/png') {
+async function callFile(
+  u: Pick<U, 'token'> & Partial<Pick<U, 'propertyTenantId'>>,
+  path: string,
+  file: Buffer,
+  contentType = 'image/png',
+) {
   const r = await fetch(API + path, {
     method: 'POST',
-    headers: { authorization: 'Bearer ' + u.token, 'content-type': contentType },
+    headers: {
+      ...authHeaders(u),
+      'content-type': contentType,
+    },
     body: new Uint8Array(file),
   });
   return { status: r.status, body: (await r.json().catch(() => null)) as any };
@@ -275,7 +332,8 @@ test('support complaints require independent sensitive access and structured res
   assert.ok(timeline.body.some((item:any)=>item.event_type==='appealed'));
   assert.ok(timeline.body.some((item:any)=>item.event_type==='appeal_reviewed'));
   await db.query(
-    `UPDATE support_case_access_requests SET expires_at=now()-interval '1 second'
+    `UPDATE support_case_access_requests
+     SET reviewed_at=now()-interval '2 minutes',expires_at=now()-interval '1 minute'
      WHERE case_id=$1 AND status='approved'`,
     [created.body.id],
   );
@@ -428,7 +486,9 @@ test('Global System Admin controls shared platform configuration while Super Adm
   })).status, 204);
   const assignedTenants = await call(admin, 'GET', '/platform/my-tenants');
   assert.equal(assignedTenants.status, 200);
-  assert.deepEqual(assignedTenants.body[0].available_services, ['agency', 'workforce']);
+  const assignedControlTenant = assignedTenants.body.find((tenant: any) => tenant.id === tenantResponse.body.id);
+  assert.ok(assignedControlTenant, 'The newly assigned control tenant should be listed');
+  assert.deepEqual(assignedControlTenant.available_services, ['agency', 'workforce']);
   assert.equal((await call(admin, 'PATCH', `/platform/tenants/${tenantResponse.body.id}`, {
     status: 'active',
   })).status, 403);
@@ -439,7 +499,9 @@ test('Global System Admin controls shared platform configuration while Super Adm
   });
   assert.equal(registration.status, 200, JSON.stringify(registration.body));
   const platformTenantContext = { 'x-afrolife-platform-tenant-id': tenantResponse.body.id as string };
-  assert.equal((await call(admin, 'GET', '/leads')).status, 403);
+  assert.equal((await call(admin, 'GET', '/leads', undefined, {
+    'x-afrolife-platform-tenant-id': '',
+  })).status, 403);
   assert.equal((await call(admin, 'GET', '/leads', undefined, platformTenantContext)).status, 403);
   assert.equal((await call(admin, 'GET', '/accounting', undefined, platformTenantContext)).status, 403);
   assert.equal((await call(unassignedSuperAdmin, 'GET', '/leads', undefined, platformTenantContext)).status, 403);
@@ -467,7 +529,9 @@ test('Global System Admin controls shared platform configuration while Super Adm
   });
   assert.equal(active.status, 200, JSON.stringify(active.body));
   assert.equal(active.body.status, 'active');
-  assert.equal((await call(admin, 'GET', '/leads')).status, 403);
+  assert.equal((await call(admin, 'GET', '/leads', undefined, {
+    'x-afrolife-platform-tenant-id': '',
+  })).status, 403);
   assert.equal((await call(unassignedSuperAdmin, 'GET', '/leads', undefined, platformTenantContext)).status, 403);
 
   const unscopedFeatures = await call(admin, 'GET', '/features');
@@ -651,7 +715,11 @@ test('account role updates persist safely within Global Admin and Super Admin sc
   )).rows[0];
   assert.deepEqual(storedMember, { role: 'worker', account_type: 'worker' });
   assert.equal((await call(admin, 'PATCH', `/users/${member.id}/role`, { role: 'customer' })).status, 404);
-  assert.equal((await call(globalAdmin, 'PATCH', `/users/${member.id}/role`, { role: 'super_admin' })).status, 422);
+  assert.equal((await call(globalAdmin, 'PATCH', `/users/${member.id}/role`, { role: 'super_admin' })).status, 400);
+
+  const ownedMember = await mkUser('customer', 97);
+  await db.query('UPDATE users SET created_by=$1 WHERE id=$2', [admin.id, ownedMember.id]);
+  assert.equal((await call(admin, 'PATCH', `/users/${ownedMember.id}/role`, { role: 'customer' })).status, 403);
 
   const ownedFieldAgent = await mkUser('field_agent', 94);
   await db.query('UPDATE users SET created_by=$1,territory_id=$2 WHERE id=$3', [admin.id, tid, ownedFieldAgent.id]);
@@ -1194,11 +1262,15 @@ test('lease defaults and maximum duration follow business rules', async () => {
     });
     assert.equal(property.status, 201);
     const unit = (await db.query('SELECT id FROM property_units WHERE property_id = $1', [property.body.id])).rows[0];
-    const tenant = await call(fa, 'POST', '/tenants', {
+    assert.equal((await call(fa, 'POST', '/tenants', {
+      name: 'Field Agent Tenant Registration Denied',
+      phone: uniquePhone(),
+    })).status, 403);
+    const tenant = await call(master, 'POST', '/tenants', {
       name: 'Rule Test Tenant',
       phone: `+2517${run}0`,
     });
-    assert.equal(tenant.status, 201);
+    assert.equal(tenant.status, 201, JSON.stringify(tenant.body));
     const lease = {
       unit_id: unit.id,
       tenant_id: tenant.body.id,
@@ -1206,8 +1278,8 @@ test('lease defaults and maximum duration follow business rules', async () => {
       start_date: '2030-01-01',
       months: 24,
     };
-    assert.equal((await call(fa, 'POST', '/leases', lease)).status, 422);
-    const created = await call(fa, 'POST', '/leases', { ...lease, months: 2 });
+    assert.equal((await call(master, 'POST', '/leases', lease)).status, 422);
+    const created = await call(master, 'POST', '/leases', { ...lease, months: 2 });
     assert.equal(created.status, 201);
     assert.equal(created.body.status, 'active');
     const leaseEvidence = await db.query(
@@ -1237,12 +1309,16 @@ test('opt-in lease lifecycle requires independent approval, signature evidence, 
   });
   assert.equal(property.status, 201);
   const unit = (await db.query('SELECT id FROM property_units WHERE property_id=$1', [property.body.id])).rows[0];
-  const tenant = await call(fa, 'POST', '/tenants', {
+  assert.equal((await call(fa, 'POST', '/tenants', {
+    name: 'Field Agent Tenant Registration Denied',
+    phone: uniquePhone(),
+  })).status, 403);
+  const tenant = await call(master, 'POST', '/tenants', {
     name: 'Workflow Test Tenant',
     phone: `+2517${run}1`,
   });
-  assert.equal(tenant.status, 201);
-  const lease = await call(fa, 'POST', '/leases/workflow', {
+  assert.equal(tenant.status, 201, JSON.stringify(tenant.body));
+  const lease = await call(master, 'POST', '/leases/workflow', {
     unit_id: unit.id,
     tenant_id: tenant.body.id,
     rent: 12000,
@@ -1256,18 +1332,19 @@ test('opt-in lease lifecycle requires independent approval, signature evidence, 
   assert.equal((await db.query('SELECT count(*)::int AS count FROM rent_charges WHERE lease_id=$1', [lease.body.id])).rows[0].count, 0);
 
   const reason = 'Terms reviewed for workflow UAT.';
-  assert.equal((await call(fa, 'POST', `/leases/${lease.body.id}/submit-for-approval`, { reason })).status, 200);
-  assert.equal((await call(fa, 'POST', `/leases/${lease.body.id}/approve`, { reason })).status, 403);
-  const approved = await call(compliance, 'POST', `/leases/${lease.body.id}/approve`, { reason });
+  assert.equal((await call(fa, 'GET', `/leases/${lease.body.id}`)).status, 404);
+  assert.equal((await call(master, 'POST', `/leases/${lease.body.id}/submit-for-approval`, { reason })).status, 200);
+  assert.equal((await call(master, 'POST', `/leases/${lease.body.id}/approve`, { reason })).status, 403);
+  const approved = await call(learningManager, 'POST', `/leases/${lease.body.id}/approve`, { reason });
   assert.equal(approved.status, 200, JSON.stringify(approved.body));
   assert.equal(approved.body.status, 'pending_signature');
 
   const handover = { reason, handover_date: '2031-01-01', move_in_inspection_completed: true };
-  assert.equal((await call(learningManager, 'POST', `/leases/${lease.body.id}/execute`, handover)).status, 409);
+  assert.equal((await call(admin, 'POST', `/leases/${lease.body.id}/execute`, handover)).status, 409);
   let signatureDocumentId: string | undefined;
   for (const party of ['tenant', 'owner']) {
     const uploaded = await callFile(
-      fa,
+      master,
       `/leases/${lease.body.id}/signature-documents?party=${party}&signer_name=${encodeURIComponent(party === 'tenant' ? tenant.body.name : 'Workflow Property Owner')}`,
       PNG,
     );
@@ -1277,7 +1354,7 @@ test('opt-in lease lifecycle requires independent approval, signature evidence, 
   }
   assert.ok(signatureDocumentId);
   const signatureDownload = await fetch(`${API}/lease-signature-documents/${signatureDocumentId}/file`, {
-    headers: { authorization: `Bearer ${fa.token}` },
+    headers: authHeaders(master),
   });
   assert.equal(signatureDownload.status, 200);
   assert.deepEqual(Buffer.from(await signatureDownload.arrayBuffer()), PNG);
@@ -1286,11 +1363,11 @@ test('opt-in lease lifecycle requires independent approval, signature evidence, 
      WHERE actor_id=$1 AND action='lease_signature_evidence_downloaded'
        AND entity='lease' AND entity_id=$2
        AND new_value->>'document_id'=$3`,
-    [fa.id, lease.body.id, signatureDocumentId],
+    [master.id, lease.body.id, signatureDocumentId],
   );
   assert.equal(downloadAudit.rowCount, 1, 'Lease signature evidence download must be auditable');
   assert.equal((await call(compliance, 'POST', `/leases/${lease.body.id}/execute`, handover)).status, 403);
-  const executed = await call(learningManager, 'POST', `/leases/${lease.body.id}/execute`, handover);
+  const executed = await call(admin, 'POST', `/leases/${lease.body.id}/execute`, handover);
   assert.equal(executed.status, 200, JSON.stringify(executed.body));
   assert.equal(executed.body.lease.status, 'active');
   assert.match(executed.body.lease.execution_hash, /^[0-9a-f]{64}$/);
@@ -1305,18 +1382,18 @@ test('opt-in lease lifecycle requires independent approval, signature evidence, 
     summary: 'Tenant reported an intended move-out date for review.',
   };
   assert.equal((await call(compliance, 'POST', `/leases/${lease.body.id}/notices`, notice)).status, 403);
-  const recordedNotice = await call(fa, 'POST', `/leases/${lease.body.id}/notices`, notice);
+  const recordedNotice = await call(master, 'POST', `/leases/${lease.body.id}/notices`, notice);
   assert.equal(recordedNotice.status, 201, JSON.stringify(recordedNotice.body));
   assert.equal(recordedNotice.body.legal_effect, 'record_only');
   assert.match(recordedNotice.body.notice_disclaimer, /does not verify service/);
-  assert.equal((await call(fa, 'POST', `/leases/${lease.body.id}/notices`, notice)).status, 200);
-  assert.equal((await call(fa, 'POST', `/leases/${lease.body.id}/notices`, {
+  assert.equal((await call(master, 'POST', `/leases/${lease.body.id}/notices`, notice)).status, 200);
+  assert.equal((await call(master, 'POST', `/leases/${lease.body.id}/notices`, {
     ...notice, summary: 'Changed content reusing the original request key.',
   })).status, 409);
-  const notices = await call(fa, 'GET', `/leases/${lease.body.id}/notices`);
+  const notices = await call(master, 'GET', `/leases/${lease.body.id}/notices`);
   assert.equal(notices.status, 200);
   assert.equal(notices.body.length, 1);
-  const leaseSummary = await call(fa, 'GET', '/leases');
+  const leaseSummary = await call(master, 'GET', '/leases');
   const leaseSummaryRow = leaseSummary.body.find((row: any) => row.id === lease.body.id);
   assert.equal(leaseSummaryRow.notice_type, 'tenant_to_owner');
   assert.equal(leaseSummaryRow.proposed_effective_on, '2032-01-01');
@@ -1341,12 +1418,12 @@ test('owner rent statement CSV is scoped and reconciled totals match recorded ev
   });
   assert.equal(property.status, 201, JSON.stringify(property.body));
   const unit = (await db.query('SELECT id FROM property_units WHERE property_id=$1', [property.body.id])).rows[0];
-  const tenant = await call(fa, 'POST', '/tenants', {
+  const tenant = await call(master, 'POST', '/tenants', {
     name: `Owner Statement Tenant ${run}`,
     phone: uniquePhone(),
   });
   assert.equal(tenant.status, 201, JSON.stringify(tenant.body));
-  const lease = await call(fa, 'POST', '/leases', {
+  const lease = await call(master, 'POST', '/leases', {
     unit_id: unit.id,
     tenant_id: tenant.body.id,
     rent: 15000,
@@ -1364,11 +1441,15 @@ test('owner rent statement CSV is scoped and reconciled totals match recorded ev
     [lease.body.id],
   )).rows;
   assert.equal(charges.length, 24);
-  const firstPayment = await call(fa, 'POST', `/charges/${charges[0].id}/pay`, {
+  assert.equal((await call(fa, 'POST', `/charges/${charges[0].id}/pay`, {
+    reference: `field-agent-rent-denied-${run}`,
+    channel: 'manual',
+  })).status, 403);
+  const firstPayment = await call(master, 'POST', `/charges/${charges[0].id}/pay`, {
     reference: `owner-statement-reconciled-${run}`,
     channel: 'manual',
   });
-  const secondPayment = await call(fa, 'POST', `/charges/${charges[1].id}/pay`, {
+  const secondPayment = await call(master, 'POST', `/charges/${charges[1].id}/pay`, {
     reference: `owner-statement-pending-${run}`,
     channel: 'manual',
   });
@@ -1385,7 +1466,7 @@ test('owner rent statement CSV is scoped and reconciled totals match recorded ev
   assert.match(json.body.note, /not a payout/);
 
   const csv = await fetch(`${API}/owner/statements?format=csv`, {
-    headers: { authorization: `Bearer ${owner.token}` },
+    headers: authHeaders(owner),
   });
   assert.equal(csv.status, 200);
   assert.match(csv.headers.get('content-type') ?? '', /text\/csv/);
@@ -1397,9 +1478,10 @@ test('owner rent statement CSV is scoped and reconciled totals match recorded ev
   const chart = await call(fin1, 'GET', '/finance/property-chart-of-accounts-template');
   assert.equal(chart.status, 200);
   assert.equal(chart.body.status, 'draft_requires_finance_signoff');
-  const close = await call(fin1, 'GET', '/finance/property-period-close?period=2032-03');
+  assert.equal((await call(fin1, 'GET', '/finance/property-period-close?period=2032-03')).status, 403);
+  const close = await call(fin2, 'GET', '/finance/property-period-close?period=2032-03');
   assert.equal(close.status, 200, JSON.stringify(close.body));
-  assert.ok(close.body.unpaid_rent_charges >= 1);
+  assert.ok(close.body.unpaid_rent_charges >= 1, JSON.stringify(close.body));
   assert.equal(close.body.ready_for_finance_review, false);
   assert.equal(close.body.evidence_only, true);
 });

@@ -5,13 +5,18 @@ import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import dotenv from 'dotenv';
 import pg from 'pg';
+import { totp } from '../dist/src/totp.js';
 
 dotenv.config({path:join(process.env.LOCALAPPDATA??'','AfroLife','afrolife.env')});
 
 const database = new URL(process.env.DATABASE_URL ?? '');
 const databaseName = decodeURIComponent(database.pathname.replace(/^\/+/, ''));
-assert.ok(['127.0.0.1','localhost','::1'].includes(database.hostname) && database.port === '5433'
-  && /^afrolife_test_[a-z0-9_-]+$/i.test(databaseName),
+const containerizedDisposableDatabase = process.env.AFROLIFE_TEST_POSTGRES_CONTAINER === '1'
+  && database.port === process.env.AFROLIFE_FINANCE_E2E_PORT
+  && /^afrolife_test_[a-z0-9_-]+$/i.test(databaseName);
+assert.ok(['127.0.0.1','localhost','::1'].includes(database.hostname)
+  && ((database.port === '5433' && /^afrolife_test_[a-z0-9_-]+$/i.test(databaseName))
+    || containerizedDisposableDatabase),
 'Property finance E2E requires a disposable local afrolife_test_* database');
 const usersFile=process.env.PROPERTY_E2E_USERS_FILE??join(process.env.LOCALAPPDATA??'','AfroLife','local-test-users.txt');
 const users=new Map();
@@ -20,7 +25,7 @@ for(const line of credentialsText.split(/\r?\n/)){
   const match=line.match(/^([^|]+?)\s*\|\s*(\+\d+)\s*\|\s*(.+)$/);
   if(match)users.set(match[1].trim(),{phone:match[2],password:match[3]});
 }
-for(const [role,phone] of [['finance_manager','+12025550106'],['finance','+12025550105'],['super_admin','+12025550101'],['super_admin (second account for four-eyes review)','+12025550102'],['field_agent','+12025550108'],['property_owner','+12025550111']])
+for(const [role,phone] of [['finance_manager','+12025550106'],['finance_manager (second account for four-eyes review)','+12025550112'],['finance_manager (independent payment reconciler)','+12025550113'],['finance','+12025550105'],['super_admin','+12025550101'],['super_admin (second account for four-eyes review)','+12025550102'],['field_agent','+12025550108'],['property_owner','+12025550111']])
   assert.equal(users.get(role)?.phone,phone,`Expected synthetic local ${role} identity`);
 
 const port=Number(process.env.PROPERTY_E2E_PORT??3317);
@@ -32,12 +37,25 @@ const child=spawn(process.execPath,['dist/src/server.js'],{cwd:process.cwd(),std
 }});
 async function waitForServer(){
   let lastHealth='no response';
-  for(let attempt=0;attempt<60;attempt++){
-    if(child.exitCode!==null)throw new Error(`Local API exited early with code ${child.exitCode}`);
+  for(let attempt=0;attempt<120;attempt++){
+    if(child.exitCode!==null||child.signalCode!==null)throw new Error(`Local API exited early with code ${child.exitCode} and signal ${child.signalCode}`);
     try{const response=await fetch(`http://127.0.0.1:${port}/healthz`);if(response.ok)return;lastHealth=`HTTP ${response.status}: ${(await response.text()).slice(0,300)}`;}catch(error){lastHealth=error instanceof Error?error.message:String(error);}
     await new Promise(resolve=>setTimeout(resolve,250));
   }
   throw new Error(`Local API did not become ready (${lastHealth})`);
+}
+async function stopServer(processHandle){
+  if(processHandle.exitCode!==null||processHandle.signalCode!==null)return;
+  const exited=new Promise(resolveExit=>processHandle.once('exit',resolveExit));
+  const stopped=new Promise(resolveStop=>{
+    const timer=setTimeout(()=>resolveStop(false),5000);
+    processHandle.once('exit',()=>{clearTimeout(timer);resolveStop(true);});
+  });
+  processHandle.kill('SIGTERM');
+  if(!await stopped){
+    processHandle.kill('SIGKILL');
+    await exited;
+  }
 }
 async function request(method,path,token,body,expected=200,tenantSystemId){
   const response=await fetch(api+path,{method,headers:{...(token?{authorization:`Bearer ${token}`}:{ }),...(tenantSystemId?{'x-afrolife-property-tenant-id':tenantSystemId}:{}),...(body===undefined?{}:{'content-type':'application/json'})},body:body===undefined?undefined:JSON.stringify(body)});
@@ -47,7 +65,13 @@ async function request(method,path,token,body,expected=200,tenantSystemId){
 }
 async function login(role){
   const response=await fetch(`${api}/auth/login`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(users.get(role))});
-  const data=await response.json();assert.equal(response.status,200,`${role} mock login failed: ${JSON.stringify(data)}`);return data.token;
+  const data=await response.json();assert.equal(response.status,200,`${role} mock login failed: ${JSON.stringify(data)}`);
+  if(data.restrict==='mfa'){
+    const setup=await request('POST','/auth/mfa/setup',data.token,{});
+    return (await request('POST','/auth/mfa/enable',data.token,{code:totp(setup.secret)})).token;
+  }
+  assert.equal(data.restrict,null,`${role} login has an unexpected security restriction`);
+  return data.token;
 }
 async function assignFieldAgentToProperty(propertyId){
   const fixtureDatabaseUrl=process.env.TEST_DATABASE_URL;
@@ -104,9 +128,11 @@ async function assignFieldAgentToProperty(propertyId){
 try{
   await waitForServer();
   const admin=await login('super_admin');
-  const reviewer=await login('super_admin (second account for four-eyes review)');
+  const propertyManager=await login('corporate_business_manager');
   const finance=await login('finance');
   const financeManager=await login('finance_manager');
+  const financeReviewer=await login('finance_manager (second account for four-eyes review)');
+  const financeReconciler=await login('finance_manager (independent payment reconciler)');
   const fieldAgent=await login('field_agent');
   const propertyOwner=await login('property_owner');
   const outboxBefore=(await request('GET','/accounting-event-outbox/status',financeManager)).length;
@@ -123,21 +149,21 @@ try{
   await request('POST','/maintenance',propertyOwner,{...maintenancePayload,description:'Changed content under an existing retry key'},409);
   const vendor=await request('POST','/property-vendors',financeManager,{name:`LOCAL QA Vendor ${suffix}`,tax_id:`QA-${suffix}`,phone:'+12025550999',email:`vendor-${suffix.toLowerCase()}@example.test`},201);
   const billPayload={vendor_id:vendor.id,invoice_reference:`INV-${suffix}`,amount:1250.50,invoice_date:new Date().toISOString().slice(0,10),due_date:new Date(Date.now()+86400000*30).toISOString().slice(0,10)};
-  await request('POST',`/maintenance/${maintenance.id}/update`,admin,{status:'triaged',sla_hours:24,resolution_note:'Synthetic maintenance triage for finance E2E'});
-  await request('POST',`/maintenance/${maintenance.id}/update`,admin,{status:'assigned',assigned_to:fieldAgentAssignment.fieldAgentId});
+  await request('POST',`/maintenance/${maintenance.id}/update`,propertyManager,{status:'triaged',sla_hours:24,resolution_note:'Synthetic maintenance triage for finance E2E'});
+  await request('POST',`/maintenance/${maintenance.id}/update`,propertyManager,{status:'assigned',assigned_to:fieldAgentAssignment.fieldAgentId});
   await request('POST',`/maintenance/${maintenance.id}/update`,fieldAgent,{status:'in_progress',resolution_note:'Synthetic maintenance work started'},200,fieldAgentAssignment.tenantSystemId);
   await request('POST',`/maintenance/${maintenance.id}/vendor-bills`,financeManager,billPayload,409);
   await request('POST',`/maintenance/${maintenance.id}/update`,fieldAgent,{status:'awaiting_review',resolution_note:'Synthetic maintenance work completed and submitted for review'},200,fieldAgentAssignment.tenantSystemId);
-  await request('POST',`/maintenance/${maintenance.id}/update`,reviewer,{status:'completed',cost:1250.50,review_note:'Independent review approved the completed synthetic work'});
+  await request('POST',`/maintenance/${maintenance.id}/update`,propertyManager,{status:'completed',cost:1250.50,review_note:'Independent review approved the completed synthetic work'});
   const bill=await request('POST',`/maintenance/${maintenance.id}/vendor-bills`,financeManager,billPayload,201);
   await request('POST',`/property-vendor-bills/${bill.id}/decision`,financeManager,{decision:'approve',reason:'Self approval must be rejected for the synthetic vendor invoice'},403);
-  const approved=await request('POST',`/property-vendor-bills/${bill.id}/decision`,reviewer,{decision:'approve',reason:'Independent review of synthetic vendor invoice and maintenance evidence'});
+  const approved=await request('POST',`/property-vendor-bills/${bill.id}/decision`,financeReviewer,{decision:'approve',reason:'Independent review of synthetic vendor invoice and maintenance evidence'});
   assert.equal(approved.status,'approved');
   let vendors=await request('GET','/property-vendors',financeManager);
   assert.equal(vendors.find(item=>item.id===vendor.id)?.accounts_payable,'1250.50');
   const payment=await request('POST',`/property-vendor-bills/${bill.id}/payments`,financeManager,{payment_reference:`BANK-${suffix}`,payment_channel:'bank_transfer',payment_date:new Date().toISOString().slice(0,10)},201);
   await request('POST',`/property-vendor-payments/${bill.id}/reconcile`,financeManager,{reason:'Payment maker cannot reconcile their own vendor payment'},403);
-  const paid=await request('POST',`/property-vendor-payments/${bill.id}/reconcile`,admin,{reason:'Independent review of synthetic payment reference and vendor invoice'});
+  const paid=await request('POST',`/property-vendor-payments/${bill.id}/reconcile`,financeReconciler,{reason:'Independent review of synthetic payment reference and vendor invoice'});
   assert.equal(paid.status,'paid');assert.equal(payment.status,'payment_pending');
   vendors=await request('GET','/property-vendors',financeManager);
   assert.equal(vendors.find(item=>item.id===vendor.id)?.accounts_payable,'0.00');
@@ -155,5 +181,5 @@ try{
     'Exactly two Accounting outbox events were created',
   ],synthetic_ids:{property_id:property.id,maintenance_id:maintenance.id,vendor_id:vendor.id,bill_id:bill.id},note:'All records use LOCAL QA identities and synthetic data on loopback PostgreSQL.'},null,2));
 }finally{
-  child.kill('SIGTERM');
+  await stopServer(child);
 }

@@ -112,6 +112,8 @@ test('Docker QA and CI seeders verify loopback host mapping and private containe
   assert.match(seedUsers, /process\.env\.AFROLIFE_TEST_POSTGRES_CONTAINER === '1'/);
   assert.match(seedUsers, /dockerQaMode \|\| containerizedDisposableDatabase \|\| connectionPort === 5433/);
   assert.match(seedUsers, /\(dockerQaMode \|\| containerizedDisposableDatabase\)\s*&& dockerPrivateAddress && Number\(identity\.port\) === 5432/);
+  assert.match(seedUsers, /INSERT INTO property_operating_tenant_members\(tenant_system_id,user_id,tenant_role,status,assigned_by\)/);
+  assert.match(seedUsers, /property_owner: 'owner'/);
   assert.match(mfiSeedUsers, /process\.env\.AFROLIFE_TEST_POSTGRES_CONTAINER==='1'/);
   assert.match(mfiSeedUsers, /disposableContainerPostgres=containerizedDisposableDatabase&&containerAddress&&Number\(identity\.port\)===5432/);
   assert.match(qualityWorkflow, /AFROLIFE_TEST_POSTGRES_CONTAINER: '1'/);

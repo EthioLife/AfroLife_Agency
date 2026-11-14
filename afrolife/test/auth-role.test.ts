@@ -160,10 +160,14 @@ test('role activity catalog grants default access and respects explicit override
   assert.equal(hasRoleActivityAccess('global_admin', reconcileRent), true);
   assert.equal(hasRoleActivityAccess('master_agent', 'workforce.workers.register'), true);
   assert.equal(hasRoleActivityAccess('worker', 'workforce.workers.register'), false);
+  assert.equal(hasRoleActivityAccess('field_agent', 'property.tenancy.manage'), false);
+  assert.equal(hasRoleActivityAccess('field_agent', 'rent.payments.submit'), false);
 
   assert.equal(hasRoleActivityAccess('master_agent', 'workforce.workers.register', { 'workforce.workers.register': false }), false);
   assert.equal(hasRoleActivityAccess('worker', 'workforce.documents.view', { 'workforce.documents.view': true }), true);
   assert.equal(hasRoleActivityAccess('customer', viewLearning, { [viewLearning]: false }), false);
+  assert.equal(hasRoleActivityAccess('field_agent', 'property.tenancy.manage', { 'property.tenancy.manage': true }), false);
+  assert.equal(hasRoleActivityAccess('field_agent', 'rent.payments.submit', { 'rent.payments.submit': true }), false);
 
   const definition = getRoleActivity(reconcileRent);
   assert.ok(definition);
@@ -206,11 +210,14 @@ test('SQL role activity defaults match the application catalog and preserve over
   const workforceDefaultsMigration = await readFile(new URL('../migrations/095_workforce_workflows.sql', import.meta.url), 'utf8');
   const maintenanceReviewMigration = await readFile(new URL('../migrations/100_maintenance_completion_review.sql', import.meta.url), 'utf8');
   const propertyVendorLearningMigration = await readFile(new URL('../migrations/111_property_vendor_learning_access.sql', import.meta.url), 'utf8');
-  const migration = `${defaultsMigration}\n${lifecycleMigration}\n${propertyOwnerMaintenanceMigration}\n${workforceDefaultsMigration}\n${maintenanceReviewMigration}\n${propertyVendorLearningMigration}`;
+  const fieldAgentRestrictionMigration = await readFile(new URL('../migrations/144_field_agent_tenant_finance_activity_restriction.sql', import.meta.url), 'utf8');
+  const migration = `${defaultsMigration}\n${lifecycleMigration}\n${propertyOwnerMaintenanceMigration}\n${workforceDefaultsMigration}\n${maintenanceReviewMigration}\n${propertyVendorLearningMigration}\n${fieldAgentRestrictionMigration}`;
   const seededDefaults = new Set(
     [...migration.matchAll(/\(\s*'([a-z_]+)'\s*,\s*'([a-z_.]+)'\s*,\s*true\s*\)/g)]
       .map((match) => `${match[1]}:${match[2]}`),
   );
+  seededDefaults.delete('field_agent:property.tenancy.manage');
+  seededDefaults.delete('field_agent:rent.payments.submit');
   let expectedDefaults = 0;
   for (const role of ROLE_NAMES) {
     for (const activity of ROLE_ACTIVITIES) {

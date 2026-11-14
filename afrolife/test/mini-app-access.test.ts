@@ -52,7 +52,7 @@ test('administrator service grants expose only the modules authorized for the se
 test('lease approvers and executors can reach the property and rent workflow', () => {
   assert.equal(hasMiniAppAccess(user('compliance'), 'rent'), true);
   assert.equal(hasMiniAppAccess(user('corporate_business_manager'), 'rent'), true);
-  assert.equal(hasMiniAppAccess(user('field_agent'), 'rent'), true);
+  assert.equal(hasMiniAppAccess(user('field_agent'), 'rent'), false);
 });
 
 test('allowed mini-apps intersect role ceiling, deployment modules and user grants', () => {
@@ -124,6 +124,7 @@ test('mini-app assignment storage is RLS-protected and its audit is append-only'
 
 test('worker self-service tables and participant access are protected by RLS', async () => {
   const migration = await readFile(new URL('../migrations/094_worker_self_service_portal.sql', import.meta.url), 'utf8');
+  const serviceBoundary = await readFile(new URL('../migrations/142_worker_self_service_rls_service_boundary.sql', import.meta.url), 'utf8');
   const staffing = await readFile(new URL('../src/staffing-accounting.ts', import.meta.url), 'utf8');
   assert.match(migration, /workforce_worker_self_read/);
   assert.match(migration, /staffing_engagement_worker_client_read/);
@@ -131,6 +132,10 @@ test('worker self-service tables and participant access are protected by RLS', a
   assert.match(migration, /staffing_settlement_worker_read/);
   assert.match(migration, /worker_support_requests_owner_read/);
   assert.match(migration, /worker_support_requests_support_update/);
+  assert.match(serviceBoundary, /CREATE OR REPLACE FUNCTION app_worker_owns_phone\(target_phone text\)[\s\S]*SECURITY DEFINER/);
+  assert.match(serviceBoundary, /SET row_security = off/);
+  assert.match(serviceBoundary, /REVOKE ALL ON FUNCTION app_worker_owns_phone\(text\) FROM PUBLIC/);
+  assert.match(serviceBoundary, /app_worker_owns_phone\(w\.phone\)/);
   assert.match(staffing, /staffing-settlements\/mine/);
   assert.match(staffing, /w\.phone=u\.phone AND s\.kind='worker_payment'/);
   assert.match(migration, /FORCE ROW LEVEL SECURITY/);

@@ -1870,9 +1870,6 @@ adminRouter.patch('/users/:id/role', requireRole('global_admin', 'super_admin'),
   }).strict().parse(req.body);
   const userId = z.string().uuid().parse(req.params.id);
   if (userId === req.user!.id) throw new HttpError(403, 'You cannot change your own account role.');
-  if (req.user!.role === 'super_admin' && !AGENT_ROLES.includes(body.role)) {
-    throw new HttpError(403, 'Super Admins may only assign Master Agent or Field Agent roles.');
-  }
 
   const result = await withUser(req.user!, async (c) => {
     const target = (await c.query(
@@ -1881,6 +1878,9 @@ adminRouter.patch('/users/:id/role', requireRole('global_admin', 'super_admin'),
       [userId, req.user!.role, req.user!.id],
     )).rows[0];
     if (!target) throw new HttpError(404, 'User not found.');
+    if (req.user!.role === 'super_admin' && !AGENT_ROLES.includes(body.role)) {
+      throw new HttpError(403, 'Super Admins may only assign Master Agent or Field Agent roles.');
+    }
     const currentGroup = accountRoleGroup(target.role);
     if (!currentGroup || currentGroup !== accountRoleGroup(body.role)) {
       throw new HttpError(422, 'Role changes must stay within the account’s existing role group.');
@@ -2377,14 +2377,14 @@ adminRouter.post('/users/:id/activate', requireRole('global_admin', 'super_admin
     }
     if (signup?.account_type === 'property_vendor') {
       const vendor = (await c.query(
-        'SELECT id FROM property_vendors WHERE id=$1 AND active FOR UPDATE',
+        'SELECT id,tenant_system_id FROM property_vendors WHERE id=$1 AND active FOR UPDATE',
         [signup.vendor_id],
       )).rows[0];
       if (!vendor) throw new HttpError(409, 'The property-vendor business is no longer active.');
       await c.query(
-        `INSERT INTO property_vendor_memberships(vendor_id,user_id,created_by)
-         VALUES($1,$2,$3)`,
-        [vendor.id, req.params.id, req.user!.id],
+        `INSERT INTO property_vendor_memberships(vendor_id,user_id,created_by,tenant_system_id)
+         VALUES($1,$2,$3,$4)`,
+        [vendor.id, req.params.id, req.user!.id, vendor.tenant_system_id],
       );
     }
     await c.query("SELECT set_config('app.access_change_reason',$1,true)", [reason]);

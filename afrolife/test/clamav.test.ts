@@ -32,6 +32,21 @@ test('ClamAV configuration rejects an absent host or invalid port', () => {
   assert.equal(isClamAvConfigured({ host: '127.0.0.1', port: '3310' }), true);
 });
 
+test('ClamAV configuration reads the documented environment variables', () => {
+  const priorHost = process.env.CLAMAV_HOST;
+  const priorPort = process.env.CLAMAV_PORT;
+  try {
+    process.env.CLAMAV_HOST = '127.0.0.1';
+    process.env.CLAMAV_PORT = '3310';
+    assert.equal(isClamAvConfigured(), true);
+  } finally {
+    if (priorHost === undefined) delete process.env.CLAMAV_HOST;
+    else process.env.CLAMAV_HOST = priorHost;
+    if (priorPort === undefined) delete process.env.CLAMAV_PORT;
+    else process.env.CLAMAV_PORT = priorPort;
+  }
+});
+
 test('ClamAV streaming scan sends framed bytes and accepts only a clean response', async () => {
   const content = Buffer.from('private evidence bytes');
   await withScanner('stream: OK\0', async (port, received) => {

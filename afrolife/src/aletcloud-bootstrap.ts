@@ -171,11 +171,15 @@ if (provisioningUrl) {
   const effectiveRuntimeUrl = await provisionRuntimeRole(provisioningUrl, runtimeUrl);
   process.env.DATABASE_URL = effectiveRuntimeUrl;
   const migrationEnv: NodeJS.ProcessEnv = { ...process.env, MIGRATION_DATABASE_URL: provisioningUrl };
+  if (migrationsOnly) {
+    delete migrationEnv.SEED_ADMIN_NAME;
+    delete migrationEnv.SEED_ADMIN_PHONE;
+    delete migrationEnv.SEED_ADMIN_PASSWORD;
+  } else {
+    migrationEnv.AFROLIFE_SEED_ADMIN_BEFORE_PROPERTY_TENANT_MIGRATION = '1';
+  }
   delete migrationEnv.ALETCLOUD_BOOTSTRAP_DATABASE_URL;
   delete migrationEnv.ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY;
-  delete migrationEnv.SEED_ADMIN_NAME;
-  delete migrationEnv.SEED_ADMIN_PHONE;
-  delete migrationEnv.SEED_ADMIN_PASSWORD;
   const migration = spawnSync(
     process.execPath,
     [fileURLToPath(new URL('./migrate.js', import.meta.url))],

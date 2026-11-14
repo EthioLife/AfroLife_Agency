@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
+import { totp } from '../src/totp.js';
 
 const credentialsFile = process.env.MFI_E2E_USERS_FILE
   ?? join(process.env.LOCALAPPDATA ?? '', 'AfroLife', 'local-test-users.txt');
@@ -20,13 +21,39 @@ const fixtureDbUrl = new URL(fixtureConnectionString);
 const migrationDbUrl = new URL(migrationConnectionString);
 const fixtureDatabase = decodeURIComponent(fixtureDbUrl.pathname.replace(/^\/+/, ''));
 const migrationDatabase = decodeURIComponent(migrationDbUrl.pathname.replace(/^\/+/, ''));
+const containerizedDisposableDatabase = process.env.AFROLIFE_TEST_POSTGRES_CONTAINER === '1'
+  && fixtureDbUrl.port === process.env.AFROLIFE_FINANCE_E2E_PORT
+  && migrationDbUrl.port === process.env.AFROLIFE_FINANCE_E2E_PORT
+  && fixtureDbUrl.username === 'postgres' && migrationDbUrl.username === 'postgres'
+  && /^afrolife_test_[a-z0-9_-]+$/i.test(fixtureDatabase);
 assert.ok(['127.0.0.1','localhost','::1'].includes(fixtureDbUrl.hostname)
   && ['127.0.0.1','localhost','::1'].includes(migrationDbUrl.hostname)
-  && fixtureDbUrl.port === '5433' && migrationDbUrl.port === '5433'
-  && /^afrolife_test_[a-z0-9_-]+$/i.test(fixtureDatabase)
-  && migrationDatabase === fixtureDatabase
-  && decodeURIComponent(migrationDbUrl.username) === 'postgres',
+  && ((fixtureDbUrl.port === '5433' && migrationDbUrl.port === '5433'
+      && /^afrolife_test_[a-z0-9_-]+$/i.test(fixtureDatabase))
+    || containerizedDisposableDatabase)
+  && migrationDatabase === fixtureDatabase,
   'Local SACCO E2E requires matching fixture and migration URLs for a loopback afrolife_test_* database');
+const migrationClient = new pg.Client({ connectionString: migrationDbUrl.toString() });
+try {
+  await migrationClient.connect();
+  const identity = (await migrationClient.query(`SELECT current_database() AS database,
+    host(inet_server_addr()) AS address,inet_server_port() AS port,
+    (SELECT rolsuper FROM pg_roles WHERE rolname=current_user) AS is_superuser`)).rows[0];
+  const containerAddress = identity.address && (
+    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(identity.address)
+    || /^192\.168\.\d{1,3}\.\d{1,3}$/.test(identity.address)
+    || /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(identity.address)
+    || /^(fc|fd)[0-9a-f:]*$/i.test(identity.address)
+  );
+  const loopbackPostgres = ['127.0.0.1','::1'].includes(identity.address) && Number(identity.port) === 5433;
+  const disposableContainerPostgres = process.env.AFROLIFE_TEST_POSTGRES_CONTAINER === '1'
+    && containerAddress && Number(identity.port) === 5432;
+  assert.ok(identity.database === fixtureDatabase && identity.is_superuser
+    && (loopbackPostgres || disposableContainerPostgres),
+  'Local SACCO E2E requires a loopback or explicitly disposable container superuser database');
+} finally {
+  await migrationClient.end();
+}
 const lines = readFileSync(credentialsFile, 'utf8').split(/\r?\n/);
 const credentials = new Map<string, { phone: string; password: string }>();
 for (const line of lines) {
@@ -34,20 +61,35 @@ for (const line of lines) {
   if (match) credentials.set(match[1].trim(), { phone: match[2], password: match[3] });
 }
 const api = `${apiBase.origin}/api/v1`;
+const platformTenantId = process.env.MFI_PLATFORM_TENANT_ID;
+assert.ok(platformTenantId, 'MFI_PLATFORM_TENANT_ID must identify the assigned local SACCO service tenant');
 async function login(role: string) {
   const account = credentials.get(role);
   assert.ok(account, `Missing local ${role} credentials`);
   const response = await fetch(`${api}/auth/login`, {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(account),
   });
-  const result = await response.json() as { token?: string; error?: string };
+  const result = await response.json() as { token?: string; error?: string; restrict?: string | null };
   assert.equal(response.status, 200, `${role} login: ${JSON.stringify(result)}`);
-  return { token: result.token! };
+  let token = result.token!;
+  if (result.restrict === 'mfa') {
+    const setup = await call<{ secret: string }>({ token }, 'POST', '/auth/mfa/setup', {});
+    token = (await call<{ token: string }>({ token }, 'POST', '/auth/mfa/enable', {
+      code: totp(setup.secret),
+    })).token;
+  } else {
+    assert.equal(result.restrict, null, `${role} login has an unexpected security restriction`);
+  }
+  return { token };
 }
 async function call<T = any>(user: { token: string }, method: string, path: string, body?: unknown, expected = 200): Promise<T> {
   const response = await fetch(api + path, {
     method,
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${user.token}` },
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${user.token}`,
+      'x-afrolife-platform-tenant-id': platformTenantId,
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const result = await response.json().catch(() => null) as any;
@@ -56,7 +98,13 @@ async function call<T = any>(user: { token: string }, method: string, path: stri
 }
 async function callRaw(user: { token: string }, method: string, path: string, body: Buffer, expected = 201): Promise<any> {
   const response = await fetch(api + path, {
-    method, headers: { authorization: `Bearer ${user.token}`, 'content-type': 'application/pdf' }, body,
+    method,
+    headers: {
+      authorization: `Bearer ${user.token}`,
+      'content-type': 'application/pdf',
+      'x-afrolife-platform-tenant-id': platformTenantId,
+    },
+    body,
   });
   const result = await response.json().catch(() => null) as any;
   assert.equal(response.status, expected, `${method} ${path}: expected ${expected}, got ${response.status}: ${JSON.stringify(result)}`);

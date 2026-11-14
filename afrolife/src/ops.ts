@@ -525,23 +525,36 @@ ops.get('/owner/statements', requireRole('property_owner'), h(async (req, res) =
   const statements = await withUser(req.user!, async (client) => (await client.query(
     `SELECT l.id AS lease_id,p.id AS property_id,p.address,u.unit_no,l.start_date,l.rent_start_on,l.end_date,l.status,
        l.rent::text AS monthly_rent,l.deposit::text AS agreed_deposit,
-       COALESCE((SELECT sum(c.amount) FROM rent_charges c WHERE c.lease_id=l.id AND c.status<>'waived'),0)::text AS rent_charged,
-       COALESCE((SELECT sum(t.amount) FROM rent_transactions t WHERE t.lease_id=l.id AND t.kind='rent' AND t.status='reconciled'),0)::text AS rent_reconciled,
-       COALESCE((SELECT sum(t.amount) FROM rent_transactions t WHERE t.lease_id=l.id AND t.kind='rent' AND t.status='pending'),0)::text AS rent_pending_reconciliation,
-       COALESCE((SELECT sum(t.amount) FROM rent_transactions t WHERE t.lease_id=l.id AND t.kind='deposit' AND t.status='reconciled'),0)::text AS deposit_reconciled,
-       COALESCE((SELECT sum(t.amount) FROM rent_transactions t WHERE t.lease_id=l.id AND t.kind='deposit_refund' AND t.status='reconciled'),0)::text AS deposit_refunded,
-       COALESCE((SELECT sum(t.amount) FROM rent_transactions t WHERE t.lease_id=l.id AND t.kind='deposit_refund' AND t.status='pending'),0)::text AS deposit_refund_pending,
-       COALESCE((SELECT inspection.deposit_deduction FROM lease_move_out_inspections inspection
-         WHERE inspection.lease_id=l.id AND inspection.status='approved'),0)::text AS approved_deposit_deduction,
+       charges.rent_charged,transactions.rent_reconciled,transactions.rent_pending_reconciliation,
+       transactions.deposit_reconciled,transactions.deposit_refunded,transactions.deposit_refund_pending,
+       inspection.approved_deposit_deduction,
        GREATEST(0,
-         COALESCE((SELECT sum(t.amount) FROM rent_transactions t WHERE t.lease_id=l.id AND t.kind='deposit' AND t.status='reconciled'),0)
-         - COALESCE((SELECT inspection.deposit_deduction FROM lease_move_out_inspections inspection
-           WHERE inspection.lease_id=l.id AND inspection.status='approved'),0)
-         - COALESCE((SELECT sum(t.amount) FROM rent_transactions t WHERE t.lease_id=l.id AND t.kind='deposit_refund' AND t.status<>'void'),0)
+         transactions.deposit_reconciled::numeric
+         - inspection.approved_deposit_deduction::numeric
+         - transactions.deposit_refund_recorded::numeric
        )::text AS approved_deposit_refund_remaining,
-       (SELECT max(t.reconciled_at) FROM rent_transactions t WHERE t.lease_id=l.id AND t.status='reconciled') AS last_reconciled_at
+       transactions.last_reconciled_at
      FROM leases l JOIN property_units u ON u.id=l.unit_id JOIN properties p ON p.id=u.property_id
-     WHERE p.owner_user_id=$1 ORDER BY l.created_at DESC LIMIT 500`,
+     LEFT JOIN LATERAL (
+       SELECT COALESCE(sum(c.amount) FILTER (WHERE c.status<>'waived'),0)::text AS rent_charged
+       FROM rent_charges c WHERE c.lease_id=l.id
+     ) charges ON true
+     LEFT JOIN LATERAL (
+       SELECT COALESCE(sum(t.amount) FILTER (WHERE t.kind='rent' AND t.status='reconciled'),0)::text AS rent_reconciled,
+         COALESCE(sum(t.amount) FILTER (WHERE t.kind='rent' AND t.status='pending'),0)::text AS rent_pending_reconciliation,
+         COALESCE(sum(t.amount) FILTER (WHERE t.kind='deposit' AND t.status='reconciled'),0)::text AS deposit_reconciled,
+         COALESCE(sum(t.amount) FILTER (WHERE t.kind='deposit_refund' AND t.status='reconciled'),0)::text AS deposit_refunded,
+         COALESCE(sum(t.amount) FILTER (WHERE t.kind='deposit_refund' AND t.status='pending'),0)::text AS deposit_refund_pending,
+         COALESCE(sum(t.amount) FILTER (WHERE t.kind='deposit_refund' AND t.status<>'void'),0)::text AS deposit_refund_recorded,
+         max(t.reconciled_at) FILTER (WHERE t.status='reconciled') AS last_reconciled_at
+       FROM rent_transactions t WHERE t.lease_id=l.id
+     ) transactions ON true
+     LEFT JOIN LATERAL (
+       SELECT COALESCE(max(i.deposit_deduction) FILTER (WHERE i.status='approved'),0)::text AS approved_deposit_deduction
+       FROM lease_move_out_inspections i WHERE i.lease_id=l.id
+     ) inspection ON true
+     WHERE p.owner_user_id=$1 AND l.tenant_system_id=app_property_tenant_system_id()
+     ORDER BY l.created_at DESC LIMIT 500`,
     [req.user!.id],
   )).rows);
   const note = 'Shows recorded lease charges and reconciled receipts. This is not a payout, remittance, or trust-account statement.';
@@ -2812,34 +2825,40 @@ ops.get('/finance/property-chart-of-accounts-template', requireRole('finance','f
   res.json(PROPERTY_CHART_OF_ACCOUNTS);
 }));
 
-ops.get('/finance/property-period-close', requireRole('finance','finance_manager','super_admin','global_admin'), h(async (req, res) => {
+ops.get('/finance/property-period-close', requireRole('finance_manager','super_admin','global_admin'), h(async (req, res) => {
   const { period } = z.object({ period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/) }).parse(req.query);
   const result = await withUser(req.user!, async (c) => {
     const pending = await c.query(
       `SELECT count(*)::int AS count FROM rent_transactions
-       WHERE created_at < (($1 || '-01')::date + interval '1 month')
+       WHERE tenant_system_id=app_property_tenant_system_id()
+         AND created_at < (($1 || '-01')::date + interval '1 month')
          AND (status='pending'
            OR (status='reconciled' AND reconciled_at >= (($1 || '-01')::date + interval '1 month'))
-           OR (status='void' AND voided_at >= (($1 || '-01')::date + interval '1 month')))`,
+           OR (status='void' AND voided_at >= (($1 || '-01')::date + interval '1 month')))` ,
       [period],
     );
     const unpaid = await c.query(
-      `SELECT count(*)::int AS count FROM rent_charges
-       WHERE due_on < (($1 || '-01')::date + interval '1 month')
-         AND (status='due' OR (status='paid' AND paid_at >= (($1 || '-01')::date + interval '1 month')))`,
+      `SELECT count(*)::int AS count FROM rent_charges charge
+       JOIN leases lease ON lease.id=charge.lease_id
+       WHERE lease.tenant_system_id=app_property_tenant_system_id()
+         AND charge.due_on < (($1 || '-01')::date + interval '1 month')
+         AND (charge.status='due' OR (charge.status='paid' AND charge.paid_at >= (($1 || '-01')::date + interval '1 month')))` ,
       [period],
     );
     const unbalanced = await c.query(
-      `SELECT count(*)::int AS count FROM (
-         SELECT entries.txn_id
-         FROM ledger_entries entries
+      `WITH period_transactions AS (
+         SELECT DISTINCT period_entries.txn_id
+         FROM ledger_entries period_entries
+         JOIN rent_transactions transaction_row ON transaction_row.id=period_entries.txn_id
+         WHERE period_entries.ref_type='rent_transaction'
+           AND period_entries.created_at >= ($1 || '-01')::date
+           AND period_entries.created_at < (($1 || '-01')::date + interval '1 month')
+           AND transaction_row.tenant_system_id=app_property_tenant_system_id()
+       )
+       SELECT count(*)::int AS count FROM (
+         SELECT entries.txn_id FROM ledger_entries entries
+         JOIN period_transactions period ON period.txn_id=entries.txn_id
          WHERE entries.ref_type='rent_transaction'
-           AND entries.txn_id IN (
-             SELECT period_entries.txn_id FROM ledger_entries period_entries
-             WHERE period_entries.ref_type='rent_transaction'
-               AND period_entries.created_at >= ($1 || '-01')::date
-               AND period_entries.created_at < (($1 || '-01')::date + interval '1 month')
-           )
          GROUP BY entries.txn_id HAVING sum(entries.debit) <> sum(entries.credit)
        ) invalid`,
       [period],
@@ -3268,9 +3287,9 @@ ops.post('/maintenance/:id/update', requireActivity('property.maintenance.manage
       throw new HttpError(409, 'Assigned vendors must accept the work in their portal before it can start');
     }
     const r = await c.query(`UPDATE maintenance_requests SET status=$2,
-      assigned_to=CASE WHEN $8 IS NOT NULL THEN NULL WHEN $3 IS NOT NULL THEN $3 ELSE assigned_to END,
-      assigned_to_user_id=CASE WHEN $8 IS NOT NULL THEN NULL WHEN $3 IS NOT NULL THEN $3::uuid ELSE assigned_to_user_id END,
-      assigned_vendor_id=CASE WHEN $3 IS NOT NULL THEN NULL WHEN $8 IS NOT NULL THEN $8 ELSE assigned_vendor_id END,
+      assigned_to=CASE WHEN $8::uuid IS NOT NULL THEN NULL WHEN $3::uuid IS NOT NULL THEN $3::uuid::text ELSE assigned_to END,
+      assigned_to_user_id=CASE WHEN $8::uuid IS NOT NULL THEN NULL WHEN $3::uuid IS NOT NULL THEN $3::uuid ELSE assigned_to_user_id END,
+      assigned_vendor_id=CASE WHEN $3::uuid IS NOT NULL THEN NULL WHEN $8::uuid IS NOT NULL THEN $8::uuid ELSE assigned_vendor_id END,
       sla_due_at=CASE WHEN $2='triaged' THEN now()+make_interval(hours=>$9) ELSE sla_due_at END,
       cost=COALESCE($4,cost), resolution_note=COALESCE($5,resolution_note),
       review_note=CASE WHEN $2='awaiting_review' THEN NULL ELSE COALESCE($6,review_note) END,

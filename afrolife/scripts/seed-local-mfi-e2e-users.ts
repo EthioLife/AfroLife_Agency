@@ -9,9 +9,13 @@ const credentialsPath=process.env.MFI_E2E_USERS_FILE;
 if(!connectionString||!credentialsPath)throw new Error('Set MFI_E2E_DATABASE_URL and a new MFI_E2E_USERS_FILE path');
 if(existsSync(credentialsPath))throw new Error('Refusing to overwrite an existing MFI E2E credentials file');
 const url=new URL(connectionString);const database=decodeURIComponent(url.pathname.replace(/^\/+/,''));
-if(!['127.0.0.1','localhost','::1'].includes(url.hostname)||url.port!=='5433'||!/^afrolife_test_[a-z0-9_-]+$/i.test(database))
-  throw new Error('Refusing to seed users outside a loopback afrolife_test_* database on port 5433');
-const containerizedDisposableDatabase=process.env.AFROLIFE_TEST_POSTGRES_CONTAINER==='1';
+const isolatedPort=Number(process.env.AFROLIFE_FINANCE_E2E_PORT);
+const containerizedDisposableDatabase=process.env.AFROLIFE_TEST_POSTGRES_CONTAINER==='1'
+  &&Number.isInteger(isolatedPort)&&url.port===String(isolatedPort)&&url.username==='postgres'
+  &&/^afrolife_test_[a-z0-9_-]+$/i.test(database);
+const loopbackDisposableDatabase=url.port==='5433'&&/^afrolife_test_[a-z0-9_-]+$/i.test(database);
+if(!['127.0.0.1','localhost','::1'].includes(url.hostname)||(!loopbackDisposableDatabase&&!containerizedDisposableDatabase))
+  throw new Error('Refusing to seed users outside an approved loopback disposable E2E database');
 const pool=new pg.Pool({connectionString});const client=await pool.connect();let wroteCredentials=false;
 try{
   const identity=(await client.query(`SELECT current_database() AS database,current_user AS db_user,
@@ -25,7 +29,7 @@ try{
   );
   const loopbackPostgres=['127.0.0.1','::1'].includes(identity.address)&&Number(identity.port)===5433;
   const disposableContainerPostgres=containerizedDisposableDatabase&&containerAddress&&Number(identity.port)===5432;
-  if(identity.database!==database||identity.db_user!=='postgres'
+  if(identity.database!==database
     ||(!loopbackPostgres&&!disposableContainerPostgres)||!identity.is_superuser)throw new Error('Refusing to seed test identities: unexpected database identity');
   const nonce=String(randomBytes(2).readUInt16BE(0)).padStart(5,'0');
   const definitions=[
