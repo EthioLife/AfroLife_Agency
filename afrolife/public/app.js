@@ -734,7 +734,7 @@ function renderPublicHelpTopics() {
     const topic = document.createElement('button');
     topic.type = 'button';
     topic.className = 'public-help-topic button button-outline';
-    topic.dataset.publicHelpQuestion = item.question;
+    topic.dataset.publicHelpQuestion = t(item.question);
     topic.textContent = t(item.question);
     topics.append(topic);
   }

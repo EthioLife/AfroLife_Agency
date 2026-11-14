@@ -756,6 +756,7 @@ test('public support is outside the welcome hero and includes an anonymous help 
   assert.match(html, /id="public-help-dialog"[^>]*aria-labelledby="public-help-title"/);
   assert.match(app, /\$\('#public-help-launcher'\)\.addEventListener\('click', \(\) => \$\('#public-help-dialog'\)\.showModal\(\)\)/);
   assert.match(app, /\$\('#public-help-close'\)\.addEventListener\('click', \(\) => \$\('#public-help-dialog'\)\.close\(\)\)/);
+  assert.match(app, /topic\.dataset\.publicHelpQuestion = t\(item\.question\)/);
 });
 
 test('anonymous FAQ responses are local, FAQ-backed, and safe when the API is unavailable', () => {
