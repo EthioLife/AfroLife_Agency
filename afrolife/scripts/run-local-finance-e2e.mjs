@@ -35,6 +35,12 @@ const temporaryContainerTarget = process.env.AFROLIFE_FINANCE_E2E_ISOLATED === '
   && adminDatabase === 'postgres'
   && adminUrl.username === 'postgres'
   && /^afrolife-finance-e2e-[0-9a-f]{16}$/.test(isolatedContainer);
+const githubActionsPostgresService = process.env.GITHUB_ACTIONS === 'true'
+  && process.env.AFROLIFE_TEST_POSTGRES_CONTAINER === '1'
+  && adminUrl.hostname === '127.0.0.1'
+  && adminUrl.port === '5433'
+  && adminDatabase === 'afrolife'
+  && adminUrl.username === 'postgres';
 const existingLocalTarget = adminUrl.port === '5433'
   && ['afrolife', 'postgres'].includes(adminDatabase);
 assert.ok(['127.0.0.1', 'localhost', '::1'].includes(adminUrl.hostname)
@@ -232,7 +238,10 @@ try {
     MFI_SERVICE_URL: '',
     MFI_E2E_DATABASE_URL: migrationUrl.toString(),
     MFI_E2E_USERS_FILE: mfiCredentialsPath,
-    AFROLIFE_TEST_POSTGRES_CONTAINER: temporaryContainerTarget ? '1' : '',
+    AFROLIFE_FINANCE_E2E_PORT: temporaryContainerTarget
+      ? String(isolatedPort)
+      : githubActionsPostgresService ? adminUrl.port : '',
+    AFROLIFE_TEST_POSTGRES_CONTAINER: temporaryContainerTarget || githubActionsPostgresService ? '1' : '',
     WORKFORCE_MANAGEMENT_SERVICE_URL: '',
     WORKER_MANAGEMENT_SERVICE_URL: '',
     STAFFING_SERVICE_URL: '',
