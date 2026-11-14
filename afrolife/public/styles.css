@@ -2234,6 +2234,55 @@ footer {
   .assistant-message { max-width: 96%; }
 }
 
+.password-control { display: flex; align-items: stretch; gap: 8px; margin: -8px 0 16px; }
+.password-control input { min-width: 0; flex: 1; margin: 0; }
+.password-toggle { flex: 0 0 auto; min-width: 74px; }
+.public-support-content { display: grid; grid-template-columns: minmax(240px, .75fr) minmax(0, 1.25fr); gap: clamp(20px, 4vw, 48px); align-items: start; }
+.public-support-options > p { max-width: 390px; margin-bottom: 12px; color: var(--muted); line-height: 1.65; }
+.public-support-options .login-registration-actions { justify-content: flex-start; }
+.public-support-faq { margin-top: 0; }
+.public-support-faq h3 { margin: 0 0 8px; color: var(--green-dark); font-size: 16px; }
+.public-help-launcher { position: fixed; z-index: 25; inset-inline-end: 20px; inset-block-end: max(20px, env(safe-area-inset-bottom)); box-shadow: 0 8px 26px rgba(16, 43, 39, .24); }
+.public-help-dialog {
+  width: min(580px, calc(100% - 28px));
+  max-width: 580px;
+  max-height: min(88vh, 760px);
+  overflow: auto;
+  padding: clamp(17px, 3vw, 25px);
+  border-color: var(--line);
+  border-radius: 17px;
+  background: #f8faf8;
+  color: var(--ink);
+}
+.public-help-dialog .assistant-header { align-items: flex-start; }
+.public-help-dialog .assistant-header h2 { margin: 0; color: var(--green-dark); font-size: 21px; }
+.public-help-dialog .assistant-header .eyebrow { margin-bottom: 6px; }
+.public-help-disclosure { margin: 15px 0; padding: 11px 13px; border-inline-start: 3px solid var(--gold); background: #fffaf0; color: #536258; font-size: 12px; line-height: 1.6; }
+.public-help-topic-section { margin: 0 0 14px; }
+.public-help-topic-section h3 { margin: 0 0 9px; color: var(--green-dark); font-size: 14px; }
+.public-help-topics { display: flex; flex-wrap: wrap; gap: 8px; }
+.public-help-topic { min-height: 36px; text-align: start; line-height: 1.45; }
+.public-help-messages { display: grid; gap: 8px; max-height: 250px; overflow: auto; margin: 0 0 13px; padding: 0; list-style: none; }
+.public-help-message { max-width: 92%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: white; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; white-space: pre-wrap; }
+.public-help-message[data-sender="visitor"] { justify-self: end; border-color: #b6d2c2; background: #edf7f0; }
+.public-help-message[data-sender="helper"] { justify-self: start; }
+.public-help-fallback { margin: 10px 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.public-help-form { margin-top: 15px; }
+.public-help-form > label { margin-bottom: 7px; color: var(--green-dark); font-weight: 700; }
+.public-help-input-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.public-help-input-row input { min-width: 0; }
+.public-help-contact { margin-top: 14px; }
+@media (max-width: 700px) {
+  .public-support-content { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .public-help-launcher { inset-inline-end: 12px; inset-block-end: max(14px, env(safe-area-inset-bottom)); }
+  .public-help-dialog { width: calc(100% - 16px); max-height: 92vh; padding: 15px; border-radius: 14px; }
+  .public-help-dialog .assistant-header h2 { font-size: 18px; }
+  .public-help-input-row { grid-template-columns: minmax(0, 1fr); }
+  .public-help-input-row .button { width: 100%; }
+}
+
 /* AfroSherik visual identity: preserve the existing workspace layout and controls. */
 body {
   color: var(--ink);

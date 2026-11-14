@@ -37,7 +37,9 @@ test('Accounting stays private behind the single port 3010 application gateway',
   assert.match(accountingDockerfile, /EXPOSE 3301/);
   assert.match(accountingDockerfile, /process\.env\.PORT\|\|3301/);
   assert.doesNotMatch(accountingDockerfile, /EXPOSE 3010/);
-  assert.match(compose, /ACCOUNTING_SERVICE_URL: http:\/\/accounting:3301/);
+  assert.match(compose, /ACCOUNTING_SERVICE_URL: http:\/\/afrolife-local-accounting:3301/);
+  assert.match(compose, /ACCOUNTING_SERVICE_HTTP_HOST: afrolife-local-accounting/);
+  assert.match(compose, /aliases:\s*\n\s+- afrolife-local-accounting/);
   assert.match(compose, /ACCOUNTING_AUTH_MODE: gateway/);
   assert.match(compose, /ACCOUNTING_DATABASE_URL: postgres:\/\/accounting_runtime:/);
   assert.match(compose, /ACCOUNTING_RUNTIME_DB_ROLE: accounting_runtime/);

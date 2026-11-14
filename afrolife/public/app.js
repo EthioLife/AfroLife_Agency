@@ -19,6 +19,7 @@ import { marketplaceListingPayload } from './marketplace-form.js';
 import { paginateRows } from './row-pagination.js';
 import { filterWorkerActivityReports, workerActivityReportsCsv } from './worker-activity-reports.js';
 import { phonePayload as canonicalPhonePayload } from './phone-input.js';
+import { matchPublicFaq } from './public-help.js';
 
 const WEB_API_ROOT = '/api/v1';
 let API_ROOT = WEB_API_ROOT;
@@ -62,6 +63,9 @@ state.overviewDataOmitted = [];
 state.overviewLoadedAt = null;
 state.assistant = { conversations: [], queue: [], selectedId: null, messages: [], available: false, onlineCount: 0 };
 state.supportMessaging = null;
+state.publicSupportFaq = null;
+state.publicHelpMessages = [];
+state.publicHelpFaqUnavailable = false;
 let workspaceSearchSequence = 0;
 let deferredInstallPrompt = null;
 let supportAccessExpiryTimer = null;
@@ -641,43 +645,62 @@ async function requestWhatsAppRecoveryCode() {
 }
 
 async function loadPublicSupportContact() {
-  try {
-    const apiBase = apiRoot().replace(/\/api\/v1$/, '');
-    const [contactResponse, faqResponse] = await Promise.all([
-      fetch(`${apiBase}/api/public/support`, { headers: { accept: 'application/json' } }),
-      fetch(`${apiBase}/api/public/support-faq`, { headers: { accept: 'application/json' } }),
-    ]);
-    if (!contactResponse.ok) throw new Error(`Support contact settings unavailable (${contactResponse.status})`);
-    if (!faqResponse.ok) throw new Error(`Support FAQs unavailable (${faqResponse.status})`);
-    const contact = await contactResponse.json();
-    const faq = await faqResponse.json();
-    state.supportMessaging = contact;
-    state.publicSupportFaq = faq;
-    for (const link of document.querySelectorAll('[data-support-phone-link]')) {
-      link.href = `tel:${contact.supportPhone}`;
+  const apiBase = apiRoot().replace(/\/api\/v1$/, '');
+  const loadContact = async () => {
+    try {
+      const response = await fetch(`${apiBase}/api/public/support`, { headers: { accept: 'application/json' } });
+      if (!response.ok) throw new Error(`Support contact settings unavailable (${response.status})`);
+      const contact = await response.json();
+      state.supportMessaging = contact;
+      for (const link of document.querySelectorAll('[data-support-phone-link]')) {
+        link.href = `tel:${contact.supportPhone}`;
+      }
+      for (const text of document.querySelectorAll('[data-support-phone-text]')) {
+        text.textContent = contact.supportPhone;
+      }
+      for (const link of document.querySelectorAll('[data-support-whatsapp-link]')) {
+        link.href = contact.whatsappChatUrl;
+      }
+      for (const link of document.querySelectorAll('[data-support-telegram-link]')) {
+        link.hidden = contact.telegram !== 'available' || !contact.telegramChatUrl;
+        if (contact.telegramChatUrl) link.href = contact.telegramChatUrl;
+      }
+    } catch (error) {
+      console.error('Public support contacts could not be loaded.', error);
     }
-    for (const text of document.querySelectorAll('[data-support-phone-text]')) {
-      text.textContent = contact.supportPhone;
+  };
+  const loadFaq = async () => {
+    try {
+      const response = await fetch(`${apiBase}/api/public/support-faq`, { headers: { accept: 'application/json' } });
+      if (!response.ok) throw new Error(`Support FAQs unavailable (${response.status})`);
+      const faq = await response.json();
+      if (!Array.isArray(faq)) throw new Error('Support FAQ content is invalid.');
+      state.publicSupportFaq = faq;
+      state.publicHelpFaqUnavailable = faq.length === 0;
+    } catch (error) {
+      console.error('Public support FAQs could not be loaded.', error);
+      state.publicSupportFaq = [];
+      state.publicHelpFaqUnavailable = true;
     }
-    for (const link of document.querySelectorAll('[data-support-whatsapp-link]')) {
-      link.href = contact.whatsappChatUrl;
-    }
-    for (const link of document.querySelectorAll('[data-support-telegram-link]')) {
-      link.hidden = contact.telegram !== 'available' || !contact.telegramChatUrl;
-      if (contact.telegramChatUrl) link.href = contact.telegramChatUrl;
-    }
-    renderSupportFaq('#support-faq-list', faq);
-    renderSupportFaq('#assistant-support-faq-list', faq);
-    renderAssistant();
-  } catch (error) {
-    console.error('Public support contacts could not be loaded.', error);
-  }
+    renderSupportFaq('#support-faq-list', state.publicSupportFaq);
+    renderSupportFaq('#assistant-support-faq-list', state.publicSupportFaq);
+    renderPublicHelpTopics();
+    renderPublicHelpMessages();
+  };
+  await Promise.all([loadContact(), loadFaq()]);
+  renderAssistant();
 }
 
 function renderSupportFaq(selector, faq) {
   const faqList = $(selector);
   if (!faqList) return;
   faqList.replaceChildren();
+  if (!Array.isArray(faq) || !faq.length) {
+    const empty = document.createElement('p');
+    empty.textContent = t('No published support answers are available right now.');
+    faqList.append(empty);
+    return;
+  }
   for (const item of faq) {
     const details = document.createElement('details');
     const summary = document.createElement('summary');
@@ -687,6 +710,67 @@ function renderSupportFaq(selector, faq) {
     details.append(summary, answer);
     faqList.append(details);
   }
+}
+
+function publicHelpFaqForLocale() {
+  const faq = Array.isArray(state.publicSupportFaq) ? state.publicSupportFaq : [];
+  return faq.flatMap((item) => [
+    item,
+    { question: t(item.question), answer: t(item.answer) },
+  ]);
+}
+
+function renderPublicHelpTopics() {
+  const topics = $('#public-help-topics');
+  if (!topics) return;
+  topics.replaceChildren();
+  if (!Array.isArray(state.publicSupportFaq) || !state.publicSupportFaq.length) {
+    const fallback = document.createElement('p');
+    fallback.textContent = t('Common answers are temporarily unavailable. You can still call support or contact the team on WhatsApp.');
+    topics.append(fallback);
+    return;
+  }
+  for (const item of state.publicSupportFaq.slice(0, 4)) {
+    const topic = document.createElement('button');
+    topic.type = 'button';
+    topic.className = 'public-help-topic button button-outline';
+    topic.dataset.publicHelpQuestion = item.question;
+    topic.textContent = t(item.question);
+    topics.append(topic);
+  }
+}
+
+function renderPublicHelpMessages() {
+  const messages = $('#public-help-messages');
+  if (!messages) return;
+  messages.replaceChildren();
+  for (const message of state.publicHelpMessages) {
+    const item = document.createElement('li');
+    item.className = 'public-help-message';
+    item.dataset.sender = message.sender;
+    item.textContent = message.sender === 'visitor' ? message.text : t(message.text);
+    messages.append(item);
+  }
+  const fallback = $('#public-help-fallback');
+  if (fallback) {
+    fallback.hidden = !state.publicHelpFaqUnavailable;
+    if (!fallback.hidden) {
+      setLocalizedText(fallback, 'FAQ answers may be unavailable, but you can still contact human support using the links below.');
+    }
+  }
+}
+
+function answerPublicHelpQuestion(question) {
+  const text = question.trim();
+  if (!text) return;
+  state.publicHelpMessages.push({ sender: 'visitor', text });
+  const match = matchPublicFaq(text, publicHelpFaqForLocale());
+  state.publicHelpMessages.push({
+    sender: 'helper',
+    text: match?.answer ?? 'I could not find a matching published FAQ. Try a common question above or contact human support using the links below.',
+  });
+  renderPublicHelpMessages();
+  $('#public-help-messages').lastElementChild?.scrollIntoView({ block: 'nearest' });
 }
 
 function territoryLabel(area) {
@@ -11068,6 +11152,36 @@ document.addEventListener('click', async (event) => {
 });
 
 $('#login-form').addEventListener('submit', login);
+$('#toggle-login-password').addEventListener('click', () => {
+  const password = $('#login-form [name="password"]');
+  const visible = password.type === 'password';
+  password.type = visible ? 'text' : 'password';
+  const toggle = $('#toggle-login-password');
+  toggle.setAttribute('aria-pressed', String(visible));
+  setLocalizedAttribute(toggle, 'aria-label', visible ? 'Hide password' : 'Show password');
+  setLocalizedText(toggle, visible ? 'Hide' : 'Show');
+});
+$('#public-help-launcher').addEventListener('click', () => $('#public-help-dialog').showModal());
+$('#public-help-close').addEventListener('click', () => $('#public-help-dialog').close());
+$('#public-help-dialog').addEventListener('close', () => {
+  state.publicHelpMessages = [];
+  $('#public-help-form').reset();
+  renderPublicHelpMessages();
+});
+$('#public-help-topics').addEventListener('click', (event) => {
+  const topic = event.target.closest('[data-public-help-question]');
+  if (topic) answerPublicHelpQuestion(topic.dataset.publicHelpQuestion);
+});
+$('#public-help-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const input = $('#public-help-input');
+  answerPublicHelpQuestion(input.value);
+  input.value = '';
+  input.focus();
+});
+$('#public-help-dialog').querySelectorAll('a[href="#login-form"]').forEach((link) => {
+  link.addEventListener('click', () => $('#public-help-dialog').close());
+});
 $('#access-mode-apply').addEventListener('click', () => {
   void switchAccessMode($('#access-mode-select').value);
 });
@@ -11228,6 +11342,8 @@ initializeLocale(() => {
   if (state.publicSupportFaq) {
     renderSupportFaq('#support-faq-list', state.publicSupportFaq);
     renderSupportFaq('#assistant-support-faq-list', state.publicSupportFaq);
+    renderPublicHelpTopics();
+    renderPublicHelpMessages();
   }
   document.querySelectorAll('[data-i18n-source]').forEach((element) => {
     element.textContent = t(element.dataset.i18nSource, JSON.parse(element.dataset.i18nValues ?? '{}'));

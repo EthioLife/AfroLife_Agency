@@ -60,20 +60,6 @@
             <li>Community</li>
           </ul>
           <p class="welcome-promise">Connect <span aria-hidden="true">•</span> Access <span aria-hidden="true">•</span> Thrive <span class="welcome-promise-note">Building a Prosperous Africa Together.</span></p>
-          <section class="public-support panel" aria-label="AfroLife support contact options">
-            <h2>Need help?</h2>
-            <p>Chat with support on WhatsApp, call our support line, or sign in for private App/Web chat.</p>
-            <div class="login-registration-actions">
-              <a class="button button-outline" data-support-whatsapp-link href="https://wa.me/251708076113">WhatsApp chat</a>
-              <a class="button button-outline" data-support-phone-link href="tel:+251708076113">Call <span data-support-phone-text>+251 708 076 113</span></a>
-              <a class="button button-quiet" href="#login-form">Sign in for private web chat</a>
-            </div>
-            <a data-support-telegram-link href="#" hidden>Telegram support bot</a>
-            <section class="support-faq" aria-labelledby="public-support-faq-title">
-              <h2 id="public-support-faq-title">AfroSherik User Support FAQs</h2>
-              <div id="support-faq-list"><p>Loading support answers…</p></div>
-            </section>
-          </section>
           <figure class="brand-illustration">
             <img src="/brand/afrosherik-campaign-hero.png" alt="AfroSherik campaign artwork showing a woman with a phone and the Addis Ababa skyline beside the message: More Opportunities. Stronger Communities." width="427" height="204">
           </figure>
@@ -108,7 +94,11 @@
             <label>National phone number<input name="phone" type="tel" inputmode="tel" autocomplete="username" placeholder="9…" required maxlength="20"></label>
           </div>
           <small id="phone-code-help" class="field-hint">Choose from suggestions or type another international calling code.</small>
-          <label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="200"></label>
+          <label for="login-password">Password</label>
+          <div class="password-control">
+            <input id="login-password" name="password" type="password" autocomplete="current-password" required maxlength="200">
+            <button id="toggle-login-password" class="button button-outline password-toggle" type="button" aria-label="Show password" aria-pressed="false">Show</button>
+          </div>
           <label id="mfa-field" hidden>Authenticator code<input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6"></label>
           <p id="login-error" class="form-error" role="alert"></p>
           <button id="retry-session" class="button button-outline button-wide" type="button" hidden>Retry workspace connection</button>
@@ -255,7 +245,6 @@
         </section>
         </div>
       </section>
-
       <section id="public-hub" class="public-hub" aria-label="AfroSherik services and industry news">
         <div class="hub-heading">
           <div class="hub-copy">
@@ -377,6 +366,33 @@
             <a href="https://www.thereporterethiopia.com/" target="_blank" rel="noopener noreferrer">The Reporter Ethiopia</a>
           </div>
           <p class="hub-disclaimer">Headlines, publisher names, and publication times are supplied by external news feeds. AfroSherik does not endorse or verify third-party reporting.</p>
+        </section>
+        <section id="public-support" class="public-support hub-section" aria-labelledby="public-support-title">
+          <div class="hub-section-heading">
+            <div>
+              <p class="eyebrow">AFROSHERIK SUPPORT</p>
+              <h2 id="public-support-title">Need help?</h2>
+              <p class="hub-caption">Browse common answers or contact the support team.</p>
+            </div>
+            <button id="public-help-launcher" class="button button-primary public-help-launcher" type="button" aria-haspopup="dialog" aria-controls="public-help-dialog">
+              Ask a question
+            </button>
+          </div>
+          <div class="public-support-content">
+            <div class="public-support-options">
+              <p>Chat with support on WhatsApp, call our support line, or sign in for private App/Web chat.</p>
+              <div class="login-registration-actions">
+                <a class="button button-outline" data-support-whatsapp-link href="https://wa.me/251708076113" rel="noopener noreferrer">WhatsApp chat</a>
+                <a class="button button-outline" data-support-phone-link href="tel:+251708076113">Call <span data-support-phone-text>+251 708 076 113</span></a>
+                <a class="button button-quiet" href="#login-form">Sign in for private web chat</a>
+              </div>
+              <a data-support-telegram-link href="#" rel="noopener noreferrer" hidden>Telegram support bot</a>
+            </div>
+            <section class="support-faq public-support-faq" aria-labelledby="public-support-faq-title">
+              <h3 id="public-support-faq-title">AfroSherik User Support FAQs</h3>
+              <div id="support-faq-list"><p>Loading support answers…</p></div>
+            </section>
+          </div>
         </section>
         <form id="edir-registration-form" class="panel form-card edir-registration-form" hidden>
           <p class="eyebrow">EDIR ONBOARDING</p>
@@ -526,6 +542,37 @@
           </form>
         </section>
         <p id="assistant-disclosure" class="assistant-disclosure"></p>
+      </dialog>
+      <dialog id="public-help-dialog" class="public-help-dialog" aria-labelledby="public-help-title">
+        <div class="assistant-header">
+          <div>
+            <p class="eyebrow">PUBLIC FAQ HELP</p>
+            <h2 id="public-help-title">AfroSherik quick help</h2>
+            <p class="muted">Ask a question to find a match in the published FAQs.</p>
+          </div>
+          <button id="public-help-close" class="button button-outline" type="button" autofocus>Close</button>
+        </div>
+        <p class="public-help-disclosure">This automated helper is not a person. Your message stays in this page and is not sent or stored. Never share passwords, verification codes, or sensitive identifiers.</p>
+        <section class="public-help-topic-section" aria-labelledby="public-help-topics-title">
+          <h3 id="public-help-topics-title">Common questions</h3>
+          <div id="public-help-topics" class="public-help-topics" aria-live="polite">
+            <p role="status">Loading common questions…</p>
+          </div>
+        </section>
+        <ol id="public-help-messages" class="public-help-messages" aria-label="Local help conversation" aria-live="polite"></ol>
+        <p id="public-help-fallback" class="public-help-fallback" role="status" hidden></p>
+        <form id="public-help-form" class="public-help-form" method="dialog">
+          <label for="public-help-input">Your question</label>
+          <div class="public-help-input-row">
+            <input id="public-help-input" name="question" type="text" maxlength="500" autocomplete="off" required>
+            <button class="button button-primary" type="submit">Find an answer</button>
+          </div>
+        </form>
+        <div class="assistant-contact-actions public-help-contact">
+          <a class="button button-outline" data-support-whatsapp-link href="https://wa.me/251708076113" rel="noopener noreferrer">WhatsApp support</a>
+          <a class="button button-outline" data-support-phone-link href="tel:+251708076113">Call <span data-support-phone-text>+251 708 076 113</span></a>
+          <a class="button button-quiet" href="#login-form">Sign in for private App/Web chat</a>
+        </div>
       </dialog>
     </main>
     <dialog id="workspace-more-dialog" class="workspace-more-dialog" aria-labelledby="workspace-more-title">

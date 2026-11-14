@@ -26,6 +26,7 @@ import {
 import { propertyOfferTerms } from '../public/property-offers.js';
 import { marketplaceListingPayload } from '../public/marketplace-form.js';
 import { filterWorkerActivityReports, workerActivityReportsCsv } from '../public/worker-activity-reports.js';
+import { matchPublicFaq } from '../public/public-help.js';
 
 test('submit buttons are handled by the delegated form workflow, not click actions', () => {
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
@@ -725,4 +726,65 @@ test('signup and recovery password fields accept passwords from eight characters
   assert.match(api, /current: z\.string\(\)\.min\(1\)\.max\(200\), next: z\.string\(\)\.min\(8\)\.max\(72\)/);
   assert.match(readFileSync(new URL('../src/security.ts', import.meta.url), 'utf8'), /Use at least 8 characters\./);
   assert.match(readFileSync(new URL('../src/support-faq.ts', import.meta.url), 'utf8'), /Use at least 8 characters/);
+});
+
+test('login password visibility toggles without submitting and exposes its state', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+
+  assert.match(html, /<input id="login-password" name="password" type="password"[^>]*autocomplete="current-password"[^>]*required/);
+  assert.match(html, /<button id="toggle-login-password"[^>]*type="button"[^>]*aria-label="Show password"[^>]*aria-pressed="false">Show<\/button>/);
+  const toggle = app.slice(app.indexOf("$('#toggle-login-password').addEventListener('click'"), app.indexOf("$('#public-help-launcher').addEventListener"));
+  assert.match(toggle, /password\.type = visible \? 'text' : 'password'/);
+  assert.match(toggle, /toggle\.setAttribute\('aria-pressed', String\(visible\)\)/);
+  assert.match(toggle, /setLocalizedAttribute\(toggle, 'aria-label', visible \? 'Hide password' : 'Show password'\)/);
+  assert.doesNotMatch(toggle, /requestSubmit|\.submit\(/);
+});
+
+test('public support is outside the welcome hero and includes an anonymous help launcher', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+
+  assert.ok(html.indexOf('id="public-support"') > html.indexOf('id="public-hub"'));
+  assert.ok(html.indexOf('id="public-support"') < html.indexOf('id="app-view"'));
+  const welcomePanel = html.slice(html.indexOf('<div class="welcome-panel">'), html.indexOf('<datalist id="phone-calling-codes">'));
+  assert.doesNotMatch(welcomePanel, /id="public-support"/);
+  assert.match(html, /data-support-whatsapp-link/);
+  assert.match(html, /data-support-phone-link/);
+  assert.match(html, /Sign in for private web chat/);
+  assert.match(html, /id="public-help-launcher"[^>]*aria-haspopup="dialog"[^>]*aria-controls="public-help-dialog"/);
+  assert.match(html, /id="public-help-dialog"[^>]*aria-labelledby="public-help-title"/);
+  assert.match(app, /\$\('#public-help-launcher'\)\.addEventListener\('click', \(\) => \$\('#public-help-dialog'\)\.showModal\(\)\)/);
+  assert.match(app, /\$\('#public-help-close'\)\.addEventListener\('click', \(\) => \$\('#public-help-dialog'\)\.close\(\)\)/);
+});
+
+test('anonymous FAQ responses are local, FAQ-backed, and safe when the API is unavailable', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const faq = [
+    { question: 'How do I reset a forgotten password?', answer: 'Choose Forgot password? to request a recovery code.' },
+    { question: 'How do I get human support or request a support call?', answer: 'Call the support line for human support.' },
+  ];
+
+  assert.equal(matchPublicFaq('forgot password', faq), faq[0]);
+  assert.equal(matchPublicFaq('request a human support call', faq), faq[1]);
+  const amharicFaq = [{
+    question: 'የረሳሁትን የይለፍ ቃል እንዴት እመልሳለሁ?',
+    answer: 'መልሶ ማግኛን ለመክፈት ይምረጡ።',
+  }];
+  assert.equal(matchPublicFaq('የረሳሁትን የይለፍ ቃል', amharicFaq), amharicFaq[0]);
+  assert.equal(matchPublicFaq('unrelated marketplace question', faq), null);
+  assert.equal(matchPublicFaq('password', null), null);
+  assert.match(html, /id="public-help-form"[^>]*method="dialog"/);
+  assert.match(html, /Your message stays in this page and is not sent or stored/);
+  assert.match(html, /Never share passwords, verification codes, or sensitive identifiers/);
+  const submitHandler = app.slice(app.indexOf("$('#public-help-form').addEventListener('submit'"), app.indexOf("$('#public-help-dialog').querySelectorAll"));
+  assert.match(submitHandler, /event\.preventDefault\(\)/);
+  assert.match(submitHandler, /answerPublicHelpQuestion\(input\.value\)/);
+  assert.doesNotMatch(submitHandler, /fetch\(|\bapi\(/);
+  const faqLoader = app.slice(app.indexOf('const loadFaq = async () =>'), app.indexOf('await Promise.all([loadContact(), loadFaq()])'));
+  assert.match(faqLoader, /state\.publicSupportFaq = \[\]/);
+  assert.match(faqLoader, /state\.publicHelpFaqUnavailable = true/);
+  assert.match(app, /Common answers are temporarily unavailable\. You can still call support or contact the team on WhatsApp\./);
+  assert.match(app, /FAQ answers may be unavailable, but you can still contact human support using the links below\./);
 });
