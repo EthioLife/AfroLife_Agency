@@ -14,8 +14,38 @@ export const SUPPORT_FAQ = [
   {
     category: 'Getting started',
     question: 'Which identity documents do I need, and how do I upload them?',
-    answer: 'Requirements depend on the service and role. Use the checklist shown in your application or account; it is the source of truth for required documents, file types, and any corrections. Upload documents only through the secure form that requests them. Do not send identity documents in the public chatbot, social media, or group messages.',
-    keywords: ['documents required', 'upload ID', 'identity verification', 'KYC documents', 'document rejected', 'replace document', 'ID upload', 'መታወቂያ ሰነድ', 'ሰነድ ጫን'],
+    answer: 'Requirements depend on the service and role. Use the checklist shown in your application or account; it is the source of truth for required documents and corrections. Signup uploads accept PDF, JPEG, or PNG files up to 10 MB each. Upload only through the secure form that requests the file. Do not send identity documents in the public chatbot, social media, or group messages.',
+    keywords: ['documents required', 'upload ID', 'identity verification', 'KYC documents', 'document rejected', 'replace document', 'ID upload', 'file type', 'file size', '10 MB', 'upload limit', 'document upload failed', 'መታወቂያ ሰነድ', 'ሰነድ ጫን'],
+  },
+  {
+    category: 'Getting started',
+    question: 'Which account type should I choose when I register?',
+    answer: 'Choose the role that describes how you will use AfroSherik: worker for work opportunities, buyer/customer for purchases or services, seller/property owner to list goods or property, or agent for referrals and agency workflows. Available services still depend on review, your organization, and enabled features. If you selected the wrong type or are unsure, contact support before creating another account.',
+    keywords: ['which account type', 'choose account type', 'select user role', 'worker or customer', 'buyer seller agent', 'wrong account type', 'registration role', 'የመለያ አይነት ይምረጡ'],
+  },
+  {
+    category: 'Getting started',
+    question: 'What happens after I submit my registration?',
+    answer: 'A new registration is a request, not an active account. Follow the on-screen document checklist and upload required files through the secure signup form. The follow-up panel shows received documents and any decision or correction requested by Compliance. Your account remains inactive until the required review and activation are complete; contact support with your application reference if the status needs attention.',
+    keywords: ['after registration', 'after I apply', 'what happens next', 'submitted application', 'signup complete', 'registration process', 'compliance review', 'documents awaiting review', 'account activation time', 'ማመልከቻ ከላክሁ በኋላ'],
+  },
+  {
+    category: 'Getting started',
+    question: 'What should I do if a document is returned or rejected?',
+    answer: 'Sign in if possible and review the document decision or note in the signup follow-up panel. Choose the returned or missing document, correct the issue described, and upload a replacement PDF, JPEG, or PNG file up to 10 MB. If the note is unclear or the replacement control is unavailable, contact support with your application reference. Do not post the document in chat.',
+    keywords: ['document rejected', 'document returned', 'replace KYC', 'replace identity document', 'compliance correction', 'document decision', 'resubmit document', 'rejected upload', 'ሰነድ ተመልሷል'],
+  },
+  {
+    category: 'Getting started',
+    question: 'Why does registration say my phone number is already in use?',
+    answer: 'AfroSherik accounts use a registered phone number for sign-in and recovery. Try signing in with that number or use Forgot password? if you cannot access the account. If the number belongs to you but you do not recognize the account, or you entered the wrong number, contact official support for identity verification. Do not create duplicate accounts or share verification codes.',
+    keywords: ['phone already registered', 'phone number already exists', 'number already in use', 'duplicate account', 'account already exists', 'cannot register same phone', 'already signed up', 'ቁጥር ተመዝግቧል'],
+  },
+  {
+    category: 'Account & security',
+    question: 'Why can I not sign in after registering?',
+    answer: 'Sign in with the country calling code and phone number used during registration. New applications remain inactive until the required review and activation are complete, so a pending application cannot sign in yet. If your account was already active, check the number format and password, then use Forgot password? if needed. Contact support with your application reference if the status or sign-in error persists; never send your password or code.',
+    keywords: ['cannot sign in', 'cant sign in', 'unable to login', 'login not working', 'sign in failed', 'account inactive', 'new account login', 'registered but cannot login', 'phone login', 'ከተመዘገብኩ በኋላ መግባት አልቻልኩም'],
   },
   {
     category: 'Account & security',
@@ -55,6 +85,12 @@ export const SUPPORT_FAQ = [
   },
   {
     category: 'Account & security',
+    question: 'How do I enter my international phone number?',
+    answer: 'Enter the country calling code, including the plus sign, in the first phone field and the national number in the second field. Use the number registered to your account when signing in or requesting recovery. Check that you have not repeated the country code in the national-number field. If the number has changed, use the account phone-number guidance or contact official support.',
+    keywords: ['international phone number', 'country code', 'calling code', 'phone format', 'phone number format', 'plus sign phone', 'phone number sign in format', 'የአገር መደወያ ኮድ'],
+  },
+  {
+    category: 'Account & security',
     question: 'How do I keep my account and personal information safe?',
     answer: 'Use a unique password, enable an authenticator when available, and never share passwords, one-time codes, payment details, or full identity numbers in chat. The public helper does not send or store your message. Signed-in support conversations are visible to you and the support staff member who claims the request. Upload sensitive documents only through the secure form that asks for them.',
     keywords: ['keep account safe', 'privacy', 'personal information', 'is chat private', 'protect my account', 'data security', 'የግል መረጃ', 'ግላዊነት'],
@@ -73,9 +109,15 @@ export const SUPPORT_FAQ = [
   },
   {
     category: 'Services & payments',
+    question: 'Why can I see a service on the public page but not use it?',
+    answer: 'The public page describes the platform, while signed-in tools are enabled by deployment, organization, role, approval status, and pilot availability. A service card is not confirmation that your account has access. Ask your organization administrator to check your role and enabled services; if access should be available, contact support with the service name and a non-sensitive screenshot.',
+    keywords: ['public page service unavailable', 'service card but cannot use', 'feature advertised', 'service not enabled', 'service access denied', 'not in my account', 'pilot service', 'feature not available', 'why cannot use service'],
+  },
+  {
+    category: 'Services & payments',
     question: 'How much does a service subscription cost, and when is it activated?',
     answer: 'The current public subscription catalog lists ETB 1,000 per month for each selected service; check the catalog in case terms change. Submitting a request does not charge you or activate a service. Payment is manual, and Finance confirms receipt before activation. Do not pay through instructions sent by an unverified person.',
-    keywords: ['subscription price', 'service cost', 'monthly fee', 'ETB 1000', 'subscribe', 'activate subscription', 'service activation', 'ምዝገባ ዋጋ', 'ወርሃዊ ክፍያ'],
+    keywords: ['subscription price', 'service cost', 'monthly fee', 'ETB 1000', 'subscribe', 'activate subscription', 'service activation', 'cancel subscription', 'subscription cancellation', 'refund request', 'subscription refund', 'payment reversed', 'charged twice', 'ምዝገባ ዋጋ', 'ወርሃዊ ክፍያ'],
   },
   {
     category: 'Services & payments',
@@ -133,6 +175,18 @@ export const SUPPORT_FAQ = [
   },
   {
     category: 'Support & technical help',
+    question: 'How do I change the app language?',
+    answer: 'Use the Language selector near the top of the public page and choose an available language. Some newly added or specialized content may remain in English until its translation is available. If a translation looks incorrect, contact support and include the screen or section name without sharing personal information.',
+    keywords: ['change language', 'select language', 'app language', 'translate app', 'switch language', 'Amharic language', 'app in Amharic', 'use the app in Amharic', 'language setting', 'ቋንቋ ቀይር'],
+  },
+  {
+    category: 'Support & technical help',
+    question: 'Can I install AfroSherik on my phone or use it offline?',
+    answer: 'On a supported browser, use Install AfroSherik or the browser menu option Add to Home Screen to create an app shortcut. The public shell may be cached, but signing in, loading current account information, uploading documents, and submitting requests require a working connection. Keep unsent work before refreshing or clearing browser data.',
+    keywords: ['install app', 'install on phone', 'add to home screen', 'PWA', 'offline mode', 'use without internet', 'internet connection', 'mobile app', 'home screen shortcut', 'አፍሮሸሪክ በስልክ ጫን'],
+  },
+  {
+    category: 'Support & technical help',
     question: 'How do I contact a person or request a support call back?',
     answer: 'Sign in and open AfroLife Support to start a private App/Web conversation or submit a call-back request. You can also call +251 708 076 113 or use the WhatsApp link on the public support section. A bot gives guidance and does not place calls. No response-time promise is published; include a request reference but not a password or verification code.',
     keywords: ['contact support', 'talk to a person', 'human agent', 'request callback', 'call support', 'support phone number', 'WhatsApp support', 'ድጋፍ ያግኙ', 'መልሶ ጥሪ'],
@@ -172,6 +226,9 @@ const stopWords = new Set([
 function normalizeFaqText(value: string) {
   return value.toLocaleLowerCase().normalize('NFKC')
     .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\bsign\s+in\b/g, 'signin')
+    .replace(/\b(log[\s-]?in)\b/g, 'signin')
+    .replace(/\b(two[\s-]?factor|2fa)\b/g, 'mfa')
     .replace(/[^\p{L}\p{N}+]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -181,10 +238,41 @@ function faqTokens(value: string) {
   return normalizeFaqText(value).split(' ').filter((word) => word.length > 1 && !stopWords.has(word));
 }
 
+function tokensMatch(left: string, right: string) {
+  if (left === right) return true;
+  const a = Array.from(left);
+  const b = Array.from(right);
+  if (Math.min(a.length, b.length) < 5 || Math.abs(a.length - b.length) > 1) return false;
+
+  let mismatches = 0;
+  let leftIndex = 0;
+  let rightIndex = 0;
+  while (leftIndex < a.length && rightIndex < b.length) {
+    if (a[leftIndex] === b[rightIndex]) {
+      leftIndex += 1;
+      rightIndex += 1;
+      continue;
+    }
+    mismatches += 1;
+    if (mismatches > 1) return false;
+    if (a.length > b.length) leftIndex += 1;
+    else if (b.length > a.length) rightIndex += 1;
+    else {
+      leftIndex += 1;
+      rightIndex += 1;
+    }
+  }
+  if (leftIndex < a.length || rightIndex < b.length) mismatches += 1;
+  return mismatches <= 1;
+}
+
+function hasTokenMatch(queryTokens: Set<string>, target: string) {
+  return [...queryTokens].some((queryToken) => tokensMatch(queryToken, target));
+}
+
 function supportFaqScore(message: string, item: typeof SUPPORT_FAQ[number]) {
   const query = normalizeFaqText(message);
   const queryTokens = new Set(faqTokens(message));
-  if (queryTokens.size < 2) return 0;
   const question = normalizeFaqText(item.question);
   if (query === question) return 100;
 
@@ -197,25 +285,43 @@ function supportFaqScore(message: string, item: typeof SUPPORT_FAQ[number]) {
     if (!phrase || !words.length) continue;
     if (` ${query} `.includes(` ${phrase} `)) {
       score += words.length > 1 ? 8 + Math.min(words.length - 2, 2) : 3;
-    } else if (words.length > 1 && words.every((word) => queryTokens.has(word))) {
+    } else if (words.length > 1 && words.every((word) => hasTokenMatch(queryTokens, word))) {
       score += 6;
     }
   }
 
   for (const word of new Set(faqTokens(item.question))) {
-    if (word.length > 3 && queryTokens.has(word)) score += 2;
+    if (word.length > 3 && hasTokenMatch(queryTokens, word)) score += 2;
   }
   return score;
 }
 
-function findSupportFaqMatch(message: string) {
-  const ranked = SUPPORT_FAQ
+function rankSupportFaq(message: string) {
+  return SUPPORT_FAQ
     .map((item) => ({ item, score: supportFaqScore(message, item) }))
     .sort((left, right) => right.score - left.score);
+}
+
+function findSupportFaqMatch(message: string) {
+  if (new Set(faqTokens(message)).size < 2) return null;
+  const ranked = rankSupportFaq(message);
   const best = ranked[0];
   const runnerUp = ranked[1];
   if (!best || best.score < 6 || (runnerUp && best.score - runnerUp.score < 2)) return null;
   return best.item;
+}
+
+function suggestedSupportFaqs(message: string, limit = 2) {
+  const seen = new Set<string>();
+  return rankSupportFaq(message)
+    .filter(({ score }) => score > 0)
+    .filter(({ item }) => {
+      if (seen.has(item.question)) return false;
+      seen.add(item.question);
+      return true;
+    })
+    .slice(0, limit)
+    .map(({ item }) => item);
 }
 
 export function supportFaqReply(message: string) {
@@ -224,7 +330,11 @@ export function supportFaqReply(message: string) {
     return `AfroLife User Support FAQs\n\n${SUPPORT_FAQ.map((item, index) => `${index + 1}. ${item.category}: ${item.question}`).join('\n')}\n\nAsk a question or call +251 708 076 113.`;
   }
   const match = findSupportFaqMatch(message);
-  return match
-    ? `${match.answer}\n\nMore help: call +251 708 076 113 or sign in to AfroLife App/Web Support.`
-    : 'I could not confidently match that question to a published answer. Try /faq, rephrase with the service or issue name, or contact support at +251 708 076 113. Never share passwords, one-time codes, or payment details in chat.';
+  if (match) return `${match.answer}\n\nMore help: call +251 708 076 113 or sign in to AfroLife App/Web Support.`;
+
+  const suggestions = suggestedSupportFaqs(message);
+  const guides = suggestions.length
+    ? `\n\nGuides that may help:\n${suggestions.map((item) => `${item.question}\n${item.answer}`).join('\n\n')}`
+    : '';
+  return `I can help with account access, applications and documents, service access or payments, work and property, marketplace, community products, and technical issues. Tell me the service and what you were trying to do, or ask for a human at +251 708 076 113.${guides}\n\nFor your security, do not send passwords, one-time codes, payment details, or identity documents in chat.`;
 }

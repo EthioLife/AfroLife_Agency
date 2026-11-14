@@ -19,10 +19,41 @@ function tokens(value) {
   return normalizeText(value).split(' ').filter((word) => word.length > 1 && !stopWords.has(word));
 }
 
+function tokensMatch(left, right) {
+  if (left === right) return true;
+  const a = Array.from(left);
+  const b = Array.from(right);
+  if (Math.min(a.length, b.length) < 5 || Math.abs(a.length - b.length) > 1) return false;
+
+  let mismatches = 0;
+  let leftIndex = 0;
+  let rightIndex = 0;
+  while (leftIndex < a.length && rightIndex < b.length) {
+    if (a[leftIndex] === b[rightIndex]) {
+      leftIndex += 1;
+      rightIndex += 1;
+      continue;
+    }
+    mismatches += 1;
+    if (mismatches > 1) return false;
+    if (a.length > b.length) leftIndex += 1;
+    else if (b.length > a.length) rightIndex += 1;
+    else {
+      leftIndex += 1;
+      rightIndex += 1;
+    }
+  }
+  if (leftIndex < a.length || rightIndex < b.length) mismatches += 1;
+  return mismatches <= 1;
+}
+
+function hasTokenMatch(queryTokens, target) {
+  return [...queryTokens].some((queryToken) => tokensMatch(queryToken, target));
+}
+
 function scoreFaq(query, item) {
   const queryText = normalizeText(query);
   const queryTokens = new Set(tokens(query));
-  if (queryTokens.size < 2) return 0;
   const question = normalizeText(item.question);
   if (queryText === question) return 100;
 
@@ -33,25 +64,44 @@ function scoreFaq(query, item) {
     if (!phrase || !words.length) continue;
     if (` ${queryText} `.includes(` ${phrase} `)) {
       score += words.length > 1 ? 8 + Math.min(words.length - 2, 2) : 3;
-    } else if (words.length > 1 && words.every((word) => queryTokens.has(word))) {
+    } else if (words.length > 1 && words.every((word) => hasTokenMatch(queryTokens, word))) {
       score += 6;
     }
   }
 
   for (const word of new Set(tokens(item.question))) {
-    if (word.length > 3 && queryTokens.has(word)) score += 2;
+    if (word.length > 3 && hasTokenMatch(queryTokens, word)) score += 2;
   }
   return score;
 }
 
-export function matchPublicFaq(query, faq) {
-  if (!Array.isArray(faq) || !faq.length) return null;
-  const ranked = faq
+function rankPublicFaq(query, faq) {
+  if (!Array.isArray(faq) || !faq.length) return [];
+  return faq
     .filter((item) => item && typeof item.question === 'string' && typeof item.answer === 'string')
     .map((item) => ({ item, score: scoreFaq(query, item) }))
     .sort((left, right) => right.score - left.score);
+}
+
+export function matchPublicFaq(query, faq) {
+  const ranked = rankPublicFaq(query, faq);
   const best = ranked[0];
   const runnerUp = ranked[1];
-  if (!best || best.score < 6 || (runnerUp && best.score - runnerUp.score < 2)) return null;
+  if (new Set(tokens(query)).size < 2 || !best || best.score < 6
+      || (runnerUp && best.score - runnerUp.score < 2)) return null;
   return best.item;
+}
+
+export function suggestPublicFaqs(query, faq, limit = 2) {
+  const seen = new Set();
+  return rankPublicFaq(query, faq)
+    .filter(({ score }) => score > 0)
+    .filter(({ item }) => {
+      const key = item.sourceQuestion ?? item.question;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, limit)
+    .map(({ item }) => item);
 }

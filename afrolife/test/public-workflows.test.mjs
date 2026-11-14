@@ -26,7 +26,7 @@ import {
 import { propertyOfferTerms } from '../public/property-offers.js';
 import { marketplaceListingPayload } from '../public/marketplace-form.js';
 import { filterWorkerActivityReports, workerActivityReportsCsv } from '../public/worker-activity-reports.js';
-import { matchPublicFaq } from '../public/public-help.js';
+import { matchPublicFaq, suggestPublicFaqs } from '../public/public-help.js';
 
 test('submit buttons are handled by the delegated form workflow, not click actions', () => {
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
@@ -781,12 +781,21 @@ test('anonymous FAQ responses are local, FAQ-backed, and safe when the API is un
       answer: 'Services depend on your organization and account role.',
       keywords: ['service unavailable', 'service missing', 'module not visible', 'accounting missing'],
     },
+    {
+      category: 'Account & security',
+      question: 'How do I change my password while signed in?',
+      answer: 'Open account security to change your password.',
+      keywords: ['change password', 'current password', 'new password'],
+    },
   ];
 
   assert.equal(matchPublicFaq('forgot password', faq), faq[0]);
   assert.equal(matchPublicFaq('request a human support call', faq), faq[1]);
   assert.equal(matchPublicFaq('accounting is missing from my workspace', faq), faq[2]);
   assert.equal(matchPublicFaq('password', faq), null, 'A vague query should not trigger an arbitrary answer');
+  assert.deepEqual(suggestPublicFaqs('password', faq), [faq[0], faq[3]], 'A vague query should offer relevant choices');
+  assert.equal(matchPublicFaq('I forgot my passwrd', faq), faq[0], 'A minor typo should still match the intended FAQ');
+  assert.deepEqual(suggestPublicFaqs('unrelated marketplace question', faq), []);
   const amharicFaq = [{
     question: 'የረሳሁትን የይለፍ ቃል እንዴት እመልሳለሁ?',
     answer: 'መልሶ ማግኛን ለመክፈት ይምረጡ።',
@@ -809,5 +818,42 @@ test('anonymous FAQ responses are local, FAQ-backed, and safe when the API is un
   assert.match(app, /FAQ answers may be unavailable, but you can still contact human support using the links below\./);
   assert.match(app, /const category = item\.category \|\| 'General support'/);
   assert.match(app, /topic\.dataset\.publicHelpQuestion = t\(item\.question\)/);
+  assert.match(app, /suggestPublicFaqs\(text, faq\)/);
+  assert.match(app, /I can help with account access, applications and documents/);
+  assert.doesNotMatch(app, /I could not find a matching published FAQ/);
   assert.match(app, /state\.publicSupportFaq\.slice\(0, 6\)/);
+});
+
+test('administrator access selection waits until required password and MFA setup are complete', () => {
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const login = app.slice(app.indexOf('async function login('), app.indexOf('function renderAccessModeChoice('));
+  assert.match(login, /if \(!result\.restrict && !state\.mfaRequired && state\.accessOptions\.length > 1\)/);
+
+  const workspaceStart = app.indexOf('async function loadWorkspace()');
+  const workspaceEnd = app.indexOf('\nfunction ', workspaceStart + 1);
+  const workspace = app.slice(workspaceStart, workspaceEnd);
+  const currentUserIndex = workspace.indexOf("state.user = await api('/auth/me')");
+  const passwordGuardIndex = workspace.indexOf('const passwordRequired =');
+  const restrictedDataIndex = workspace.indexOf("api('/property/tenant-systems/mine')");
+  assert.ok(currentUserIndex >= 0);
+  assert.ok(passwordGuardIndex > currentUserIndex);
+  assert.ok(restrictedDataIndex > passwordGuardIndex);
+  assert.match(workspace.slice(passwordGuardIndex, restrictedDataIndex), /if \(passwordRequired \|\| state\.mfaRequired\)/);
+});
+
+test('administrator access selection waits until required password and MFA setup are complete', () => {
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const login = app.slice(app.indexOf('async function login('), app.indexOf('function renderAccessModeChoice('));
+  assert.match(login, /if \(!result\.restrict && !state\.mfaRequired && state\.accessOptions\.length > 1\)/);
+
+  const workspaceStart = app.indexOf('async function loadWorkspace()');
+  const workspaceEnd = app.indexOf('\nfunction ', workspaceStart + 1);
+  const workspace = app.slice(workspaceStart, workspaceEnd);
+  const currentUserIndex = workspace.indexOf("state.user = await api('/auth/me')");
+  const passwordGuardIndex = workspace.indexOf('const passwordRequired =');
+  const firstRestrictedApiIndex = workspace.indexOf("api('/property/tenant-systems/mine')");
+  assert.ok(currentUserIndex >= 0);
+  assert.ok(passwordGuardIndex > currentUserIndex);
+  assert.ok(firstRestrictedApiIndex > passwordGuardIndex);
+  assert.match(workspace.slice(passwordGuardIndex, firstRestrictedApiIndex), /if \(passwordRequired \|\| state\.mfaRequired\)/);
 });

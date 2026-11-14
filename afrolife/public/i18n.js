@@ -5158,13 +5158,75 @@ const publicSurfaceTranslations = {
     ar: 'الإجابات الشائعة غير متاحة مؤقتاً. يمكنك الاتصال بالدعم أو التواصل معنا عبر واتساب.',
     sw: 'Majibu ya kawaida hayapatikani kwa sasa. Bado unaweza kupiga simu kwa usaidizi au kuwasiliana nasi kupitia WhatsApp.',
   },
-  'I could not find a matching published FAQ. Try a common question above or contact human support using the links below.': {
-    am: 'ተዛማጅ የታተመ ተደጋጋሚ ጥያቄ ማግኘት አልቻልኩም። ከላይ ያለውን የተለመደ ጥያቄ ይሞክሩ ወይም ከታች ባሉት አገናኞች የሰው ድጋፍን ያግኙ።',
-    om: 'Gaaffii deeggarsaa maxxanfame kan walsimu hin arganne. Gaaffii beekamaa armaan ol jiru yaalaa yookaan hidhaa armaan gadiitiin nama deeggarsa qunnamaa.',
-    ti: 'ዝሰማማዕ ዝተሓትመ ሕቶ ደገፍ ኣይረኸብኩን። ኣብ ላዕሊ ዘሎ ልሙድ ሕቶ ፈትኑ ወይ ኣብ ታሕቲ ብዘሎ መራኸቢ ሰብ ደገፍ ርኸቡ።',
-    so: 'Ma helin su’aal taageero oo la daabacay oo ku habboon. Isku day su’aal caadi ah oo kore ama kala xiriir taageerada bini’aadamka xiriirrada hoose.',
-    ar: 'لم أجد سؤالاً منشوراً يطابق طلبك. جرّب سؤالاً شائعاً أعلاه أو تواصل مع موظف الدعم عبر الروابط أدناه.',
-    sw: 'Sikupata swali la usaidizi lililochapishwa linalolingana. Jaribu swali la kawaida hapo juu au wasiliana na mhudumu wa usaidizi kupitia viungo hapa chini.',
+  'I can help with account access, applications and documents, service access or payments, work and property, marketplace, community products, and technical issues.': {
+    am: 'በመለያ መግቢያ፣ ማመልከቻና ሰነዶች፣ አገልግሎት መዳረሻ ወይም ክፍያዎች፣ ሥራና ንብረት፣ ገበያ፣ የማህበረሰብ ምርቶች እና ቴክኒካዊ ችግሮች ላይ ልረዳዎ እችላለሁ።',
+    om: 'Seensa herregaa, iyyannoo fi galmeewwan, tajaajila yookaan kaffaltii, hojii fi qabeenya, gabaa, oomishaalee hawaasaa fi rakkoolee teeknikaa irratti isin gargaaruu nan danda’a.',
+    ti: 'ብዛዕባ መእተዊ ሕሳብ፣ ምልክታን ሰነዳትን፣ ተበጻሕነት ኣገልግሎት ወይ ክፍሊት፣ ስራሕን ንብረትን፣ ዕዳጋ፣ ናይ ማሕበረሰብ ፍርያትን ቴክኒካዊ ጸገማትን ክሕግዘኩም እኽእል እየ።',
+    so: 'Waxaan kaa caawin karaa gelitaanka akoonka, codsiyada iyo dukumentiyada, adeegyada ama lacag-bixinta, shaqada iyo hantida, suuqa, adeegyada bulshada, iyo dhibaatooyinka farsamada.',
+    ar: 'يمكنني مساعدتك في الوصول إلى الحساب، والطلبات والمستندات، والخدمات أو المدفوعات، والعمل والعقارات، والسوق، وخدمات المجتمع، والمشكلات التقنية.',
+    sw: 'Naweza kukusaidia kuhusu kuingia kwenye akaunti, maombi na hati, huduma au malipo, kazi na mali, soko, huduma za jamii na matatizo ya kiufundi.',
+  },
+  'Guides that may help:': {
+    am: 'እነዚህ መመሪያዎች ሊረዱዎት ይችላሉ:',
+    om: 'Qajeelfamni armaan gadii isin gargaaruu danda’a:',
+    ti: 'እዞም መምርሒታት ክሕግዙኹም ይኽእሉ:',
+    so: 'Tilmaamahan ayaa ku caawin kara:',
+    ar: 'قد تساعدك الإرشادات التالية:',
+    sw: 'Mwongozo huu unaweza kusaidia:',
+  },
+  'Tell me the service and what you were trying to do, or ask a human using the support options below.': {
+    am: 'የትኛውን አገልግሎት እንደሚጠቀሙና ምን ለማድረግ እንደሞከሩ ይንገሩኝ፤ ወይም ከታች ባሉት የድጋፍ አማራጮች ሰውን ያነጋግሩ።',
+    om: 'Tajaajila kam akka fayyadamtanii fi maal gochuuf akka yaaltan natti himaa; yookaan karaa filannoo deeggarsaa armaan gadii nama qunnamaa.',
+    ti: 'እንታይ ኣገልግሎት ከምትጥቀሙን እንታይ ክትገብሩ ከምዝፈተንኩምን ንገሩኒ፤ ወይ ካብ ታሕቲ ዘለዉ ኣማራጺታት ደገፍ ሰብ ርኸቡ።',
+    so: 'Ii sheeg adeegga aad isticmaalayso iyo waxa aad isku dayaysay inaad samayso, ama qof kala xiriir xulashooyinka taageerada ee hoose.',
+    ar: 'أخبرني بالخدمة التي تستخدمها وما الذي كنت تحاول القيام به، أو تواصل مع موظف عبر خيارات الدعم أدناه.',
+    sw: 'Niambie unatumia huduma gani na ulikuwa unajaribu kufanya nini, au wasiliana na mtu kupitia chaguo za usaidizi hapa chini.',
+  },
+  'For your security, do not send passwords, one-time codes, payment details, or identity documents in chat.': {
+    am: 'ለደህንነትዎ የይለፍ ቃሎችን፣ የአንድ ጊዜ ኮዶችን፣ የክፍያ ዝርዝሮችን ወይም የመታወቂያ ሰነዶችን በውይይት አይላኩ።',
+    om: 'Nageenya keessaniif jechoota icciitii, koodii yeroo tokkoo, odeeffannoo kaffaltii yookaan galmee eenyummaa ergaa irratti hin erginaa.',
+    ti: 'ንድሕነትኩም ኣብ ውይይት መሕለፊ ቃላት፣ ናይ ሓደ ግዜ ኮዳት፣ ዝርዝር ክፍሊት ወይ ሰነዳት መንነት ኣይትልኣኹ።',
+    so: 'Amnigaaga awgiis, ha ku dirin wada sheekaysiga furaha sirta ah, koodhadh hal-mar ah, faahfaahinta lacag-bixinta ama dukumentiyada aqoonsiga.',
+    ar: 'لحمايتك، لا ترسل كلمات المرور أو الرموز لمرة واحدة أو بيانات الدفع أو مستندات الهوية عبر المحادثة.',
+    sw: 'Kwa usalama wako, usitume nenosiri, misimbo ya mara moja, maelezo ya malipo au hati za utambulisho kwenye mazungumzo.',
+  },
+  'Requirements depend on the service and role. Use the checklist shown in your application or account; it is the source of truth for required documents and corrections. Signup uploads accept PDF, JPEG, or PNG files up to 10 MB each. Upload only through the secure form that requests the file. Do not send identity documents in the public chatbot, social media, or group messages.': {
+    am: 'መስፈርቶቹ በአገልግሎቱና በሚናዎ ይለያያሉ። በማመልከቻዎ ወይም በመለያዎ የሚታየውን የሰነድ ዝርዝር ይከተሉ፤ የሚፈለጉ ሰነዶችንና ማስተካከያዎችን የሚወስነው እሱ ነው። የምዝገባ ሰነዶች PDF፣ JPEG ወይም PNG ሆነው እያንዳንዳቸው እስከ 10 MB ሊሆኑ ይችላሉ። ሰነዱን በሚጠይቀው ደህንነቱ በተጠበቀ ቅጽ ብቻ ይጫኑ። የመታወቂያ ሰነዶችን በህዝብ ቻትቦት፣ በማህበራዊ ሚዲያ ወይም በቡድን መልዕክት አይላኩ።',
+  },
+  'Which account type should I choose when I register?': { am: 'ሲመዘገብ የትኛውን የመለያ አይነት መምረጥ አለብኝ?' },
+  'Choose the role that describes how you will use AfroSherik: worker for work opportunities, buyer/customer for purchases or services, seller/property owner to list goods or property, or agent for referrals and agency workflows. Available services still depend on review, your organization, and enabled features. If you selected the wrong type or are unsure, contact support before creating another account.': {
+    am: 'AfroSherikን እንዴት እንደሚጠቀሙ የሚገልጸውን ሚና ይምረጡ፦ ለሥራ ዕድሎች ሠራተኛ፣ ለግዢ ወይም አገልግሎት ገዢ/ደንበኛ፣ ሸቀጥ ወይም ንብረት ለመዘርዘር ሻጭ/የንብረት ባለቤት፣ ወይም ለሪፈራልና የወኪል ሥራዎች ወኪል። የሚገኙ አገልግሎቶች አሁንም በግምገማ፣ በድርጅትዎና በነቁ ባህሪያት ይወሰናሉ። የተሳሳተ አይነት ከመረጡ ወይም እርግጠኛ ካልሆኑ፣ ሌላ መለያ ከመፍጠርዎ በፊት ድጋፍን ያግኙ።',
+  },
+  'What happens after I submit my registration?': { am: 'ምዝገባዬን ካስገባሁ በኋላ ምን ይከሰታል?' },
+  'A new registration is a request, not an active account. Follow the on-screen document checklist and upload required files through the secure signup form. The follow-up panel shows received documents and any decision or correction requested by Compliance. Your account remains inactive until the required review and activation are complete; contact support with your application reference if the status needs attention.': {
+    am: 'አዲስ ምዝገባ ጥያቄ ነው እንጂ ንቁ መለያ አይደለም። በማያ ላይ ያለውን የሰነድ ዝርዝር ይከተሉና የሚፈለጉትን ፋይሎች በደህንነቱ በተጠበቀው የምዝገባ ቅጽ ይጫኑ። የክትትል ገጹ የደረሱ ሰነዶችንና የCompliance ውሳኔዎችን ወይም የተጠየቁ ማስተካከያዎችን ያሳያል። የሚፈለገው ግምገማና ማንቃት እስኪጠናቀቅ መለያዎ ንቁ አይሆንም፤ ሁኔታው ክትትል ከፈለገ የማመልከቻ ማጣቀሻዎን ለድጋፍ ያቅርቡ።',
+  },
+  'What should I do if a document is returned or rejected?': { am: 'ሰነዴ ከተመለሰ ወይም ከተከለከለ ምን ማድረግ አለብኝ?' },
+  'Sign in if possible and review the document decision or note in the signup follow-up panel. Choose the returned or missing document, correct the issue described, and upload a replacement PDF, JPEG, or PNG file up to 10 MB. If the note is unclear or the replacement control is unavailable, contact support with your application reference. Do not post the document in chat.': {
+    am: 'ከተቻለ ይግቡና በምዝገባ ክትትል ገጹ ላይ የሰነዱን ውሳኔ ወይም ማስታወሻ ይመልከቱ። የተመለሰውን ወይም የጎደለውን ሰነድ ይምረጡ፣ የተጠቀሰውን ችግር ያስተካክሉና እስከ 10 MB የሆነ PDF፣ JPEG ወይም PNG ፋይል ይጫኑ። ማስታወሻው ግልጽ ካልሆነ ወይም መተኪያ ማስገቢያው ካልታየ፣ የማመልከቻ ማጣቀሻዎን ለድጋፍ ያቅርቡ። ሰነዱን በውይይት አይላኩ።',
+  },
+  'Why does registration say my phone number is already in use?': { am: 'ምዝገባው የስልክ ቁጥሬ አስቀድሞ እንደተጠቀመ ለምን ይናገራል?' },
+  'AfroSherik accounts use a registered phone number for sign-in and recovery. Try signing in with that number or use Forgot password? if you cannot access the account. If the number belongs to you but you do not recognize the account, or you entered the wrong number, contact official support for identity verification. Do not create duplicate accounts or share verification codes.': {
+    am: 'የAfroSherik መለያዎች ለመግቢያና ለመልሶ ማግኛ የተመዘገበ ስልክ ቁጥር ይጠቀማሉ። በዚያ ቁጥር ለመግባት ይሞክሩ፤ መለያውን ማግኘት ካልቻሉ “የይለፍ ቃል ረሱ?” ይጠቀሙ። ቁጥሩ የእርስዎ ሆኖ መለያውን ካላወቁ ወይም የተሳሳተ ቁጥር ካስገቡ፣ ማንነትን ለማረጋገጥ ኦፊሴላዊ ድጋፍን ያግኙ። ተደጋጋሚ መለያዎችን አይፍጠሩ ወይም የማረጋገጫ ኮዶችን አያጋሩ።',
+  },
+  'Sign in with the country calling code and phone number used during registration. New applications remain inactive until the required review and activation are complete, so a pending application cannot sign in yet. If your account was already active, check the number format and password, then use Forgot password? if needed. Contact support with your application reference if the status or sign-in error persists; never send your password or code.': {
+    am: 'በምዝገባ ጊዜ በተጠቀሙት የአገር መደወያ ኮድና ስልክ ቁጥር ይግቡ። አዲስ ማመልከቻዎች የሚፈለገው ግምገማና ማንቃት እስኪጠናቀቅ ንቁ አይሆኑም፤ ስለዚህ በግምገማ ላይ ያለ መለያ ገና መግባት አይችልም። መለያዎ አስቀድሞ ንቁ ከሆነ፣ የቁጥር ቅርጸቱንና የይለፍ ቃሉን ያረጋግጡ፤ ካስፈለገም “የይለፍ ቃል ረሱ?” ይጠቀሙ። ችግሩ ከቀጠለ የማመልከቻ ማጣቀሻዎን ለድጋፍ ያቅርቡ፤ የይለፍ ቃልዎን ወይም ኮድዎን በፍጹም አይላኩ።',
+  },
+  'How do I enter my international phone number?': { am: 'ዓለም አቀፍ የስልክ ቁጥሬን እንዴት ማስገባት አለብኝ?' },
+  'Enter the country calling code, including the plus sign, in the first phone field and the national number in the second field. Use the number registered to your account when signing in or requesting recovery. Check that you have not repeated the country code in the national-number field. If the number has changed, use the account phone-number guidance or contact official support.': {
+    am: 'በመጀመሪያው የስልክ መስክ የአገር መደወያ ኮዱን ከፕላስ ምልክቱ ጋር ያስገቡ፤ በሁለተኛው መስክ የአገር ውስጥ ቁጥሩን ያስገቡ። ለመግባት ወይም መልሶ ማግኛ ለመጠየቅ በመለያዎ የተመዘገበውን ቁጥር ይጠቀሙ። የአገር ኮዱን በሁለተኛው መስክ እንደገና እንዳላስገቡ ያረጋግጡ። ቁጥሩ ከተቀየረ፣ የመለያ ቁጥር መቀየር መመሪያውን ይከተሉ ወይም ኦፊሴላዊ ድጋፍን ያግኙ።',
+  },
+  'Why can I see a service on the public page but not use it?': { am: 'አገልግሎትን በህዝብ ገጽ ላይ እያየሁ ለምን መጠቀም አልችልም?' },
+  'The public page describes the platform, while signed-in tools are enabled by deployment, organization, role, approval status, and pilot availability. A service card is not confirmation that your account has access. Ask your organization administrator to check your role and enabled services; if access should be available, contact support with the service name and a non-sensitive screenshot.': {
+    am: 'የህዝብ ገጹ መድረኩን ያብራራል፤ ከገቡ በኋላ የሚታዩ መሣሪያዎች ግን በስርጭት፣ በድርጅት፣ በሚና፣ በማጽደቅ ሁኔታና በፓይለት መገኘት ይወሰናሉ። የአገልግሎት ካርድ መለያዎ መዳረሻ እንዳለው አያረጋግጥም። የድርጅትዎን አስተዳዳሪ ሚናዎንና የነቁ አገልግሎቶችን እንዲያረጋግጥ ይጠይቁ፤ መዳረሻ መኖር ካለበት የአገልግሎቱን ስምና ስሱ መረጃ የሌለበት ምስል ለድጋፍ ያቅርቡ።',
+  },
+  'How do I change the app language?': { am: 'የመተግበሪያውን ቋንቋ እንዴት እቀይራለሁ?' },
+  'Use the Language selector near the top of the public page and choose an available language. Some newly added or specialized content may remain in English until its translation is available. If a translation looks incorrect, contact support and include the screen or section name without sharing personal information.': {
+    am: 'በህዝብ ገጹ አናት አጠገብ ያለውን የቋንቋ መምረጫ ተጠቅመው ከሚገኙት ቋንቋዎች አንዱን ይምረጡ። አንዳንድ አዲስ ወይም ልዩ ይዘቶች ትርጉማቸው እስኪገኝ በእንግሊዝኛ ሊቆዩ ይችላሉ። ትርጉሙ ትክክል ካልሆነ የግል መረጃ ሳያጋሩ የማያውን ወይም የክፍሉን ስም በመጥቀስ ድጋፍን ያግኙ።',
+  },
+  'Can I install AfroSherik on my phone or use it offline?': { am: 'AfroSherikን በስልኬ ላይ መጫን ወይም ያለ ኢንተርኔት መጠቀም እችላለሁ?' },
+  'On a supported browser, use Install AfroSherik or the browser menu option Add to Home Screen to create an app shortcut. The public shell may be cached, but signing in, loading current account information, uploading documents, and submitting requests require a working connection. Keep unsent work before refreshing or clearing browser data.': {
+    am: 'በሚደገፍ አሳሽ ውስጥ የAfroSherik ጫን ወይም በአሳሹ ምናሌ ያለውን “ወደ መነሻ ማያ ጨምር” በመምረጥ የመተግበሪያ አቋራጭ ይፍጠሩ። የህዝብ ገጹ ሊቀመጥ ይችላል፤ ግን መግባት፣ የአሁኑን የመለያ መረጃ ማምጣት፣ ሰነዶችን መጫንና ጥያቄዎችን ማስገባት የሚሰራ ኢንተርኔት ይፈልጋሉ። አሳሹን ከማደስ ወይም የአሳሽ ውሂብን ከማጽዳት በፊት ያልተላከ ሥራዎን ያስቀምጡ።',
   },
   'FAQ answers may be unavailable, but you can still contact human support using the links below.': {
     am: 'የተደጋጋሚ ጥያቄ መልሶች ላይገኙ ይችላሉ፤ ነገር ግን ከታች ባሉት አገናኞች የሰው ድጋፍን ማግኘት ይችላሉ።',

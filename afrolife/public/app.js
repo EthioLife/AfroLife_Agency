@@ -19,7 +19,7 @@ import { marketplaceListingPayload } from './marketplace-form.js';
 import { paginateRows } from './row-pagination.js';
 import { filterWorkerActivityReports, workerActivityReportsCsv } from './worker-activity-reports.js';
 import { phonePayload as canonicalPhonePayload } from './phone-input.js';
-import { matchPublicFaq } from './public-help.js';
+import { matchPublicFaq, suggestPublicFaqs } from './public-help.js';
 
 const WEB_API_ROOT = '/api/v1';
 let API_ROOT = WEB_API_ROOT;
@@ -567,7 +567,7 @@ async function login(event) {
     sessionStorage.setItem(TOKEN_KEY, result.token);
     state.mfaRequired = result.restrict === 'mfa';
     state.accessOptions = Array.isArray(result.access_options) ? result.access_options : [];
-    if (!state.mfaRequired && state.accessOptions.length > 1) {
+    if (!result.restrict && !state.mfaRequired && state.accessOptions.length > 1) {
       renderAccessModeChoice(state.accessOptions);
       return;
     }
@@ -726,8 +726,14 @@ function renderSupportFaq(selector, faq) {
 function publicHelpFaqForLocale() {
   const faq = Array.isArray(state.publicSupportFaq) ? state.publicSupportFaq : [];
   return faq.flatMap((item) => [
-    item,
-    { ...item, category: t(item.category), question: t(item.question), answer: t(item.answer) },
+    { ...item, sourceQuestion: item.question },
+    {
+      ...item,
+      sourceQuestion: item.question,
+      category: t(item.category),
+      question: t(item.question),
+      answer: t(item.answer),
+    },
   ]);
 }
 
@@ -775,10 +781,22 @@ function answerPublicHelpQuestion(question) {
   const text = question.trim();
   if (!text) return;
   state.publicHelpMessages.push({ sender: 'visitor', text });
-  const match = matchPublicFaq(text, publicHelpFaqForLocale());
+  const faq = publicHelpFaqForLocale();
+  const match = matchPublicFaq(text, faq);
+  const suggestions = match ? [] : suggestPublicFaqs(text, faq);
+  const response = match
+    ? match.answer
+    : [
+      t('I can help with account access, applications and documents, service access or payments, work and property, marketplace, community products, and technical issues.'),
+      ...(suggestions.length
+        ? [t('Guides that may help:'), ...suggestions.map((item) => `${item.question}\n${item.answer}`)]
+        : []),
+      t('Tell me the service and what you were trying to do, or ask a human using the support options below.'),
+      t('For your security, do not send passwords, one-time codes, payment details, or identity documents in chat.'),
+    ].join('\n\n');
   state.publicHelpMessages.push({
     sender: 'helper',
-    text: match?.answer ?? 'I could not find a matching published FAQ. Try a common question above or contact human support using the links below.',
+    text: response,
   });
   renderPublicHelpMessages();
   $('#public-help-messages').lastElementChild?.scrollIntoView({ block: 'nearest' });
@@ -1507,6 +1525,29 @@ async function loadWorkspace() {
   state.accessOptions = Array.isArray(state.user.access_options)
     ? state.user.access_options
     : [state.user.role];
+  const featureFallback = { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] };
+  const passwordRequired = state.user.must_change_password || state.user.required_security_step === 'password';
+  state.mfaRequired = state.mfaRequired || state.user.required_security_step === 'mfa';
+  if (passwordRequired || state.mfaRequired) {
+    state.panel = passwordRequired ? 'password' : 'security';
+    history.replaceState(null, '', panelUrl(window.location.href, state.panel));
+    state.features = { ...featureFallback, allowedModules: [] };
+    state.myDataCapabilities = [];
+    $('#login-view').hidden = true;
+    $('#public-hub').hidden = true;
+    $('#app-view').hidden = false;
+    $('#assistant-launcher').hidden = true;
+    $('#mobile-workspace-nav').hidden = true;
+    $('#account-tools').hidden = true;
+    $('#access-mode-choice').hidden = true;
+    $('#account-name').textContent = `${state.user.legal_name} · ${roleLabel(state.user.role)}`;
+    $('#page-subtitle').textContent = t('Signed in as {{role}}. Your access is limited to your assigned role and territory.', { role: roleLabel(state.user.role) });
+    $('#login-error').textContent = '';
+    $('#retry-session').hidden = true;
+    document.querySelectorAll('.tab, .workspace-nav-group').forEach((element) => { element.hidden = true; });
+    renderPanel();
+    return;
+  }
   const accessModeTools = $('#access-mode-tools');
   const accessModeSelect = $('#access-mode-select');
   accessModeSelect.replaceChildren();
@@ -1544,28 +1585,6 @@ async function loadWorkspace() {
     localStorage.removeItem(PROPERTY_TENANT_KEY);
   }
   renderPropertyTenantContext();
-  const featureFallback = { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] };
-  const passwordRequired = state.user.must_change_password || state.user.required_security_step === 'password';
-  state.mfaRequired = state.mfaRequired || state.user.required_security_step === 'mfa';
-  if (passwordRequired || state.mfaRequired) {
-    state.panel = passwordRequired ? 'password' : 'security';
-    history.replaceState(null, '', panelUrl(window.location.href, state.panel));
-    state.features = { ...featureFallback, allowedModules: [] };
-    state.myDataCapabilities = [];
-    $('#login-view').hidden = true;
-    $('#public-hub').hidden = true;
-    $('#app-view').hidden = false;
-    $('#assistant-launcher').hidden = true;
-    $('#mobile-workspace-nav').hidden = true;
-    $('#account-tools').hidden = true;
-    $('#account-name').textContent = `${state.user.legal_name} · ${roleLabel(state.user.role)}`;
-    $('#page-subtitle').textContent = t('Signed in as {{role}}. Your access is limited to your assigned role and territory.', { role: roleLabel(state.user.role) });
-    $('#login-error').textContent = '';
-    $('#retry-session').hidden = true;
-    document.querySelectorAll('.tab, .workspace-nav-group').forEach((element) => { element.hidden = true; });
-    renderPanel();
-    return;
-  }
   const selfCapabilities = await getOptional('/platform/my-data-capabilities', []);
   state.myDataCapabilities = Array.isArray(selfCapabilities) ? selfCapabilities : [];
   const assignedDataTenantIds = state.myDataCapabilities.map((entry) => entry.tenant_id);
