@@ -972,12 +972,12 @@ const publicSurfaceTranslations = {
   'AfroSherik User Support FAQs': { am: 'የAfroSherik የተጠቃሚ ድጋፍ ተደጋጋሚ ጥያቄዎች' },
   'Loading support answers…': { am: 'የድጋፍ መልሶች በመጫን ላይ…' },
   'How do I reset a forgotten password?': { am: 'የረሳሁትን የይለፍ ቃል እንዴት እመልሳለሁ?' },
-  'Choose Forgot password? on the AfroSherik sign-in page to open recovery and request a code. WhatsApp recovery works only when the service is configured, your account is active, and you opted in using the phone number registered on your account. The code expires after 5 minutes and is limited to 5 attempts. Telegram support cannot reset passwords. Never share your code.': {
-    am: 'መልሶ ማግኛን ለመክፈትና ኮድ ለመጠየቅ በAfroSherik መግቢያ ገጽ ላይ “የይለፍ ቃል ረሱ?” የሚለውን ይምረጡ። የWhatsApp መልሶ ማግኛ የሚሰራው አገልግሎቱ ከተዘጋጀ፣ መለያዎ ንቁ ከሆነ እና በመለያዎ ላይ በተመዘገበው ስልክ ቁጥር ፈቃድ ከሰጡ ብቻ ነው። ኮዱ ከ5 ደቂቃ በኋላ ያበቃል፤ እስከ 5 ጊዜ ብቻ ሊሞከር ይችላል። የTelegram ድጋፍ የይለፍ ቃልን ማስጀመር አይችልም። ኮድዎን ለማንም አያጋሩ።',
+  'Choose Forgot password? on the AfroSherik sign-in page and follow the recovery instructions using the phone number registered to your account. WhatsApp recovery is available only when configured, for eligible active accounts that opted in. A recovery code expires after 5 minutes and has a limited number of attempts. Telegram cannot reset passwords. Never share a recovery code.': {
+    am: 'በAfroSherik መግቢያ ገጽ ላይ “የይለፍ ቃል ረሱ?” የሚለውን ይምረጡ እና በመለያዎ የተመዘገበውን ስልክ ቁጥር በመጠቀም የመልሶ ማግኛ መመሪያዎችን ይከተሉ። የWhatsApp መልሶ ማግኛ የሚገኘው አገልግሎቱ ከተዘጋጀ፣ ብቁ ንቁ መለያዎች ፈቃድ ከሰጡ ብቻ ነው። የመልሶ ማግኛ ኮድ ከ5 ደቂቃ በኋላ ያበቃል፣ ሙከራዎችም ውስን ናቸው። Telegram የይለፍ ቃል ማስጀመር አይችልም። የመልሶ ማግኛ ኮድዎን ለማንም አያጋሩ።',
   },
   'How do I change my password while signed in?': { am: 'ከገባሁ በኋላ የይለፍ ቃሌን እንዴት እቀይራለሁ?' },
-  'Open your account security settings, choose Change password, and enter your current password and a new password. Use at least 8 characters and do not use digits alone. A password recovery ends all active sessions; a signed-in password change replaces the current sign-in session.': {
-    am: 'የመለያዎን የደህንነት ቅንብሮች ይክፈቱ፣ “የይለፍ ቃል ቀይር” ይምረጡ እና የአሁኑንና አዲሱን የይለፍ ቃል ያስገቡ። ቢያንስ 8 ቁምፊዎችን ይጠቀሙ፤ ቁጥሮችን ብቻ አይጠቀሙ። የይለፍ ቃል መልሶ ማግኘት ሁሉንም ንቁ ክፍለ ጊዜዎች ያቋርጣል፤ ከገቡ በኋላ የይለፍ ቃል መቀየር የአሁኑን የመግቢያ ክፍለ ጊዜ ይተካል።',
+  'Open account security, choose Change password, and enter your current and new passwords. Use at least 8 characters and do not use digits alone. A signed-in password change replaces the current sign-in session. If you do not know the current password, use Forgot password? instead.': {
+    am: 'የመለያ ደህንነት ቅንብሮችን ይክፈቱ፣ “የይለፍ ቃል ቀይር” ይምረጡ፣ ከዚያ የአሁኑንና አዲሱን የይለፍ ቃል ያስገቡ። ቢያንስ 8 ቁምፊዎችን ይጠቀሙ፤ ቁጥሮችን ብቻ አይጠቀሙ። ከገቡ በኋላ የይለፍ ቃል መቀየር የአሁኑን የመግቢያ ክፍለ ጊዜ ይተካል። የአሁኑን የይለፍ ቃል ካላወቁ፣ “የይለፍ ቃል ረሱ?” የሚለውን ይጠቀሙ።',
   },
   'Why can I not sign in after registering?': { am: 'ከተመዘገብኩ በኋላ ለምን መግባት አልቻልኩም?' },
   'New applications remain inactive until the required identity and document review is complete and the account is approved for activation. Contact support if your application status needs review.': {
@@ -988,12 +988,12 @@ const publicSurfaceTranslations = {
     am: 'ይግቡና AfroLife Supportን ይክፈቱ፤ የግል App/Web ውይይት ይጀምሩ ወይም የድጋፍ መልሶ ጥሪ ይጠይቁ። በ+251 708 076 113 የድጋፍ መስመርም መደወል ይችላሉ። የውይይት ቦቶች መመሪያ ይሰጣሉ፤ በራስ-ሰር ጥሪ አያደርጉም።',
   },
   'Is my support conversation private?': { am: 'የድጋፍ ውይይቴ የግል ነው?' },
-  'App/Web support conversations are visible to you and the support staff member who claims your request. Do not send passwords, one-time codes, payment-card details, or national-ID numbers in chat or group messages.': {
-    am: 'የApp/Web ድጋፍ ውይይቶች ለእርስዎና ጥያቄዎን ለወሰደው የድጋፍ ሠራተኛ ብቻ ይታያሉ። በውይይት ወይም በቡድን መልዕክት ውስጥ የይለፍ ቃሎችን፣ የአንድ ጊዜ ኮዶችን፣ የክፍያ ካርድ ዝርዝሮችን ወይም የብሔራዊ መታወቂያ ቁጥሮችን አይላኩ።',
+  'Signed-in App/Web support conversations are visible to you and the support staff member who claims your request. The public chatbot message stays in your page and is not sent or stored. Do not send passwords, one-time codes, payment-card details, or full identity numbers in chat or group messages.': {
+    am: 'የApp/Web ድጋፍ ውይይቶች ለእርስዎና ጥያቄዎን ለወሰደው የድጋፍ ሠራተኛ ብቻ ይታያሉ። የህዝብ ቻትቦት መልዕክት በገጽዎ ላይ ይቆያል፤ አይላክም ወይም አይቀመጥም። በውይይት ወይም በቡድን መልዕክት ውስጥ የይለፍ ቃሎችን፣ የአንድ ጊዜ ኮዶችን፣ የክፍያ ካርድ ዝርዝሮችን ወይም ሙሉ የመታወቂያ ቁጥሮችን አይላኩ።',
   },
   'Can I use Telegram to recover my password?': { am: 'የይለፍ ቃሌን ለመመለስ Telegramን መጠቀም እችላለሁ?' },
-  'No. Telegram is for support guidance only. You may link Telegram from your signed-in account; the one-time link expires after 10 minutes. Password recovery must use the WhatsApp code sent to your registered, opted-in phone number when recovery is enabled.': {
-    am: 'አይቻልም። Telegram ለድጋፍ መመሪያ ብቻ ነው። ከገቡ በኋላ Telegramን ከመለያዎ ጋር ማገናኘት ይችላሉ፤ የአንድ ጊዜ ማገናኛው ከ10 ደቂቃ በኋላ ያበቃል። መልሶ ማግኛ ሲነቃ የይለፍ ቃል መመለስ በተመዘገበና ፈቃድ በተሰጠበት ስልክ ቁጥር የሚላከውን የWhatsApp ኮድ መጠቀም አለበት።',
+  'No. Telegram support cannot reset passwords; Telegram is for support guidance only. You may link Telegram from your signed-in account; the one-time link expires after 10 minutes. Password recovery must use the WhatsApp code sent to your registered, opted-in phone number when recovery is enabled.': {
+    am: 'አይቻልም። የTelegram ድጋፍ የይለፍ ቃሎችን ማስተካከል አይችልም፤ Telegram ለድጋፍ መመሪያ ብቻ ነው። ከገቡ በኋላ Telegramን ከመለያዎ ጋር ማገናኘት ይችላሉ፤ የአንድ ጊዜ ማገናኛው ከ10 ደቂቃ በኋላ ያበቃል። መልሶ ማግኛ ሲነቃ የይለፍ ቃል መመለስ በተመዘገበና ፈቃድ በተሰጠበት ስልክ ቁጥር የሚላከውን የWhatsApp ኮድ መጠቀም አለበት።',
   },
   'Do WhatsApp or Telegram support bots make calls?': { am: 'የWhatsApp ወይም Telegram ድጋፍ ቦቶች ጥሪ ያደርጋሉ?' },
   'The bots can explain how to contact support and direct you to call +251 708 076 113. They do not place or receive automated calls. You can request a human support call back from the signed-in App/Web support assistant.': {
@@ -1002,6 +1002,96 @@ const publicSurfaceTranslations = {
   'How do I enable two-factor sign-in?': { am: 'ባለሁለት ደረጃ መግቢያን እንዴት አነቃለሁ?' },
   'After signing in, open account security settings and set up an authenticator app. Administrative and other designated staff roles are required to enroll in MFA; other accounts may enable it voluntarily.': {
     am: 'ከገቡ በኋላ የመለያ ደህንነት ቅንብሮችን ይክፈቱና የማረጋገጫ መተግበሪያ ያዘጋጁ። አስተዳደራዊና ሌሎች የተመደቡ የሠራተኛ ሚናዎች MFAን መመዝገብ አለባቸው፤ ሌሎች መለያዎች በፈቃደኝነት ሊያነቁት ይችላሉ።',
+  },
+  'Getting started': { am: 'መጀመር' },
+  'Account & security': { am: 'መለያ እና ደህንነት' },
+  'Services & payments': { am: 'አገልግሎቶች እና ክፍያዎች' },
+  'Work, homes & marketplace': { am: 'ሥራ፣ ቤቶች እና ገበያ' },
+  'Community & protection': { am: 'ማህበረሰብ እና ጥበቃ' },
+  'Support & technical help': { am: 'ድጋፍ እና ቴክኒካዊ እገዛ' },
+  'How do I create an account or apply to AfroSherik?': { am: 'በAfroSherik እንዴት መለያ እፈጥራለሁ ወይም ማመልከቻ አቀርባለሁ?' },
+  'Choose Create account on the sign-in page, select the service or role that fits your request, and complete the fields and document checklist shown. Submitting an application does not activate an account, approve a service, or guarantee a job, property, loan, or other benefit. Support cannot approve an application through chat.': {
+    am: 'በመግቢያ ገጹ ላይ “መለያ ፍጠር” ይምረጡ፣ ለጥያቄዎ የሚስማማውን አገልግሎት ወይም ሚና ይምረጡ፣ ከዚያም የሚታዩትን መስኮችና የሰነድ ዝርዝር ይሙሉ። ማመልከቻ ማስገባት መለያን አያነቃም፣ አገልግሎትን አያጸድቅም፣ ሥራ፣ ንብረት፣ ብድር ወይም ሌላ ጥቅም አያረጋግጥም። ድጋፍ በውይይት በኩል ማመልከቻን ማጽደቅ አይችልም።',
+  },
+  'Why is my new account pending, and how can I check its status?': { am: 'አዲሱ መለያዬ ለምን በግምገማ ላይ ነው፣ ሁኔታውንስ እንዴት አያለሁ?' },
+  'New applications may remain pending while identity, documents, and eligibility are reviewed. Sign in if your account is active and check the application or document-review status shown there. If a correction is requested, follow that instruction. For a status that appears stuck, contact support with your registered phone number and application reference; never send passwords or verification codes.': {
+    am: 'የማንነት፣ የሰነድና የብቁነት ግምገማ እስኪጠናቀቅ አዲስ ማመልከቻዎች በግምገማ ላይ ሊቆዩ ይችላሉ። መለያዎ ንቁ ከሆነ ይግቡና የማመልከቻውን ወይም የሰነድ ግምገማውን ሁኔታ ይመልከቱ። ማስተካከያ ከተጠየቀ የተሰጠውን መመሪያ ይከተሉ። ሁኔታው ካልተቀየረ በተመዘገበው ስልክ ቁጥርና በማመልከቻ ማጣቀሻ ድጋፍን ያግኙ፤ የይለፍ ቃል ወይም የማረጋገጫ ኮድ በፍጹም አይላኩ።',
+  },
+  'Which identity documents do I need, and how do I upload them?': { am: 'ምን የመታወቂያ ሰነዶች ያስፈልጋሉ፣ እንዴትስ እጭናቸዋለሁ?' },
+  'Requirements depend on the service and role. Use the checklist shown in your application or account; it is the source of truth for required documents, file types, and any corrections. Upload documents only through the secure form that requests them. Do not send identity documents in the public chatbot, social media, or group messages.': {
+    am: 'የሚፈለጉት ሰነዶች በአገልግሎቱና በሚናው ይለያያሉ። በማመልከቻዎ ወይም በመለያዎ የሚታየውን ዝርዝር ይከተሉ፤ ለሰነዶች፣ ለፋይል አይነቶችና ለማስተካከያዎች ትክክለኛው መመሪያ እሱ ነው። ሰነዶችን የሚጠይቀውን ደህንነቱ የተጠበቀ ቅጽ ብቻ ይጠቀሙ። የመታወቂያ ሰነዶችን በሕዝብ ቻትቦት፣ በማህበራዊ ሚዲያ ወይም በቡድን መልዕክት አይላኩ።',
+  },
+  'Why did my verification or password-recovery code not arrive?': { am: 'የማረጋገጫ ወይም የይለፍ ቃል መመለሻ ኮድ ለምን አልደረሰኝም?' },
+  'Check that you entered the country code and phone number registered to your account, and confirm the number can receive WhatsApp messages if WhatsApp recovery is offered. Recovery depends on provider configuration, account eligibility, and your consent. Wait before requesting another code and respect the on-screen attempt limit. If it still fails, contact support; do not send your code to anyone.': {
+    am: 'የአገር መደወያ ኮዱንና በመለያዎ የተመዘገበውን ስልክ ቁጥር በትክክል እንዳስገቡ ያረጋግጡ። WhatsApp መልሶ ማግኛ ከቀረበ ቁጥሩ የWhatsApp መልዕክት መቀበል እንደሚችል ያረጋግጡ። መልሶ ማግኛ በአገልግሎቱ ቅንብር፣ በመለያዎ ብቁነትና በፈቃድዎ ላይ ይመረኮዛል። ሌላ ኮድ ከመጠየቅዎ በፊት ይጠብቁና በማያ ገጹ የተገለጸውን የሙከራ ገደብ ይከተሉ። ካልሰራ ድጋፍን ያግኙ፤ ኮድዎን ለማንም አይላኩ።',
+  },
+  'What should I do if I lost my authenticator or cannot pass MFA?': { am: 'የማረጋገጫ መተግበሪያዬን ካጣሁ ወይም MFA ማለፍ ካልቻልኩ ምን ላድርግ?' },
+  'Check that your device clock is set automatically and enter the current six-digit code from the authenticator app linked to your account. If you lost access to that app or device, contact official support for identity verification and recovery guidance. Staff cannot bypass MFA on request; never share an authenticator or recovery code.': {
+    am: 'የመሣሪያዎ ሰዓት በራስ-ሰር እንዲዘጋጅ ያረጋግጡና ከመለያዎ ጋር ከተገናኘው የማረጋገጫ መተግበሪያ የአሁኑን ስድስት አሃዝ ኮድ ያስገቡ። የመተግበሪያውን ወይም መሣሪያውን መዳረሻ ካጡ ለማንነት ማረጋገጫና ለመልሶ ማግኛ መመሪያ ይፋዊ ድጋፍን ያግኙ። ሠራተኞች MFAን በጥያቄ ብቻ ማለፍ አይችሉም፤ የማረጋገጫ ወይም የመልሶ ማግኛ ኮድ ለማንም አያጋሩ።',
+  },
+  'How can I change the phone number on my account?': { am: 'በመለያዬ ያለውን ስልክ ቁጥር እንዴት እቀይራለሁ?' },
+  'A phone number identifies your sign-in and recovery channel. If you can sign in, check account settings for an available change-number flow. If it is not offered or you have lost access to the old number, contact official support for identity verification. Do not create another account to bypass verification or send identity documents in public chat.': {
+    am: 'የስልክ ቁጥር ለመግቢያና ለመልሶ ማግኛ ይጠቅማል። መግባት ከቻሉ በመለያ ቅንብሮች ውስጥ ቁጥር የመቀየሪያ አማራጭ ካለ ይመልከቱ። አማራጩ ከሌለ ወይም የቀድሞውን ቁጥር መዳረሻ ካጡ ለማንነት ማረጋገጫ ይፋዊ ድጋፍን ያግኙ። ማረጋገጫን ለማለፍ ሌላ መለያ አይፍጠሩ፤ የመታወቂያ ሰነዶችንም በሕዝብ ቻት አይላኩ።',
+  },
+  'How do I keep my account and personal information safe?': { am: 'መለያዬንና የግል መረጃዬን እንዴት እጠብቃለሁ?' },
+  'Use a unique password, enable an authenticator when available, and never share passwords, one-time codes, payment details, or full identity numbers in chat. The public helper does not send or store your message. Signed-in support conversations are visible to you and the support staff member who claims the request. Upload sensitive documents only through the secure form that asks for them.': {
+    am: 'ለዚህ መለያ ብቻ የሚጠቀሙበትን የይለፍ ቃል ይምረጡ፣ ሲገኝም የማረጋገጫ መተግበሪያ ያንቁ። የይለፍ ቃሎችን፣ የአንድ ጊዜ ኮዶችን፣ የክፍያ ዝርዝሮችን ወይም ሙሉ የመታወቂያ ቁጥሮችን በውይይት አያጋሩ። የሕዝብ ረዳቱ መልዕክትዎን አይልክም ወይም አያስቀምጥም። የገቡበት የድጋፍ ውይይት ለእርስዎና ጥያቄዎን ለወሰደው የድጋፍ ሠራተኛ ይታያል። ስሱ ሰነዶችን የሚጠይቀውን ደህንነቱ የተጠበቀ ቅጽ ብቻ ይጠቀሙ።',
+  },
+  'Why is a service missing or unavailable in my workspace?': { am: 'አገልግሎት በሥራ ቦታዬ ለምን አይታይም ወይም አይገኝም?' },
+  'Services appear only when they are enabled for your organization, account role, and current deployment. Some products may be disabled or limited to a pilot. Ask your organization administrator to check access; if the service should be available, contact support with the service name and a screenshot that contains no personal or financial data. Do not assume a service is active because it appears in general product information.': {
+    am: 'አገልግሎቶች ለድርጅትዎ፣ ለመለያ ሚናዎና ለአሁኑ ስርጭት ሲነቁ ብቻ ይታያሉ። አንዳንድ ምርቶች ሊጠፉ ወይም በሙከራ ሊገደቡ ይችላሉ። የድርጅትዎን አስተዳዳሪ መዳረሻዎን እንዲያረጋግጥ ይጠይቁ። አገልግሎቱ መኖር ካለበት የአገልግሎቱን ስምና የግል ወይም የፋይናንስ መረጃ የሌለውን የማያ ገጽ ቅጂ ለድጋፍ ይላኩ። በአጠቃላይ የምርት መረጃ ላይ ስለታየ ብቻ አገልግሎቱ ንቁ ነው ብለው አያስቡ።',
+  },
+  'How much does a service subscription cost, and when is it activated?': { am: 'የአገልግሎት ወርሃዊ ክፍያ ስንት ነው፣ መቼስ ይነቃል?' },
+  'The current public subscription catalog lists ETB 1,000 per month for each selected service; check the catalog in case terms change. Submitting a request does not charge you or activate a service. Payment is manual, and Finance confirms receipt before activation. Do not pay through instructions sent by an unverified person.': {
+    am: 'አሁን ያለው የሕዝብ የደንበኝነት ካታሎግ ለእያንዳንዱ የተመረጠ አገልግሎት በወር ETB 1,000 ያሳያል፤ ውሎች ሊቀየሩ ስለሚችሉ ካታሎጉን ይመልከቱ። ጥያቄ ማስገባት ክፍያ አያስከፍልዎትም ወይም አገልግሎትን አያነቃም። ክፍያው በእጅ ይፈጸማል፤ ከማንቃት በፊት ፋይናንስ ደረሰኙን ያረጋግጣል። ባልተረጋገጠ ሰው በተላከ መመሪያ ክፍያ አይፈጽሙ።',
+  },
+  'I paid for a subscription but it still shows pending. What should I do?': { am: 'ለደንበኝነት ከፍያለሁ ግን አሁንም በግምገማ ላይ ነው፤ ምን ላድርግ?' },
+  'Subscription payments are confirmed manually by Finance before activation. Check the request status and use the receipt-submission instructions shown in your signed-in workspace, if available. If the status does not update, contact support with the request reference and payment date. Do not post receipts, bank details, card numbers, or one-time codes in public chat.': {
+    am: 'ከማንቃት በፊት የደንበኝነት ክፍያዎች በፋይናንስ በእጅ ይረጋገጣሉ። የጥያቄውን ሁኔታ ይመልከቱና ካለ በገቡበት የሥራ ቦታ የደረሰኝ ማስገቢያ መመሪያን ይጠቀሙ። ሁኔታው ካልተቀየረ የጥያቄ ማጣቀሻውንና የክፍያ ቀኑን ለድጋፍ ያቅርቡ። ደረሰኞችን፣ የባንክ ዝርዝሮችን፣ የካርድ ቁጥሮችን ወይም የአንድ ጊዜ ኮዶችን በሕዝብ ውይይት አያጋሩ።',
+  },
+  'Does registering as a worker guarantee a job or a placement?': { am: 'እንደ ሠራተኛ መመዝገብ ሥራ ወይም ምደባ ያረጋግጣል?' },
+  'No. Registration lets your application and required documents be reviewed for eligible workforce services; it is not a job offer or placement guarantee. Opportunities depend on availability, verification, employer requirements, and a separate agreement. Review the employer, duties, pay, and terms directly before accepting work. Report suspicious requests to support.': {
+    am: 'አይደለም። ምዝገባ ማመልከቻዎና የሚፈለጉ ሰነዶች ለብቁ የሠራተኛ አገልግሎቶች እንዲገመገሙ ያስችላል፤ የሥራ ቅጥር ወይም ምደባ ዋስትና አይደለም። ዕድሎች በመኖራቸው፣ በማረጋገጫ፣ በአሠሪው መስፈርቶችና በተለየ ስምምነት ላይ ይመረኮዛሉ። ሥራ ከመቀበልዎ በፊት አሠሪውን፣ ሥራውን፣ ክፍያውንና ውሎቹን በቀጥታ ያረጋግጡ። አጠራጣሪ ጥያቄዎችን ለድጋፍ ያሳውቁ።',
+  },
+  'How do employers and workers confirm a work arrangement?': { am: 'አሠሪዎችና ሠራተኞች የሥራ ስምምነትን እንዴት ያረጋግጣሉ?' },
+  'Use the workforce information and service requests available to your account, and verify that the people and organization are the intended parties. Confirm duties, location, pay, schedule, and other terms directly in an appropriate written agreement before work begins. AfroSherik registration or matching does not replace an employment agreement or guarantee payment.': {
+    am: 'ለመለያዎ የሚገኙትን የሠራተኛ መረጃና የአገልግሎት ጥያቄዎች ይጠቀሙ፤ ሰዎቹና ድርጅቱ ትክክለኛዎቹ መሆናቸውን ያረጋግጡ። ሥራ ከመጀመሩ በፊት ግዴታዎችን፣ ቦታን፣ ክፍያን፣ የጊዜ ሰሌዳንና ሌሎች ውሎችን በተገቢ የጽሑፍ ስምምነት በቀጥታ ያረጋግጡ። የAfroSherik ምዝገባ ወይም ማዛመድ የቅጥር ስምምነትን አይተካም፣ ክፍያንም አያረጋግጥም።',
+  },
+  'How do I list or rent a property, and are listings guaranteed?': { am: 'ንብረት እንዴት አስመዝግቤ አከራያለሁ፣ ዝርዝሮቹስ ዋስትና አላቸው?' },
+  'Use the property tools available to your account and review the listing details and any displayed verification status. Availability, price, deposits, lease terms, and ownership should be confirmed with the other party before you commit or pay. A listing is not a guarantee of availability or a substitute for checking the property and signing appropriate terms.': {
+    am: 'ለመለያዎ የሚገኙትን የንብረት መሣሪያዎች ይጠቀሙ፤ የዝርዝሩን ዝርዝር መረጃና የሚታይ የማረጋገጫ ሁኔታ ይመልከቱ። ከመወሰንዎ ወይም ከመክፈልዎ በፊት ተገኝነትን፣ ዋጋን፣ ቅድመ ክፍያን፣ የኪራይ ውሎችንና ባለቤትነትን ከሌላው ወገን ጋር ያረጋግጡ። ዝርዝር ማስታወቂያ ተገኝነትን አያረጋግጥም፤ ንብረቱን መመርመርንና ተገቢ ውሎችን መፈረምንም አይተካም።',
+  },
+  'How do I buy or sell through the marketplace safely?': { am: 'በገበያው በደህና እንዴት እገዛለሁ ወይም እሸጣለሁ?' },
+  'Review the seller, item or service description, price, delivery arrangements, and any terms before agreeing. Only use payment steps shown in an official AfroSherik workflow; verify the recipient before paying and keep your receipt. Do not share one-time codes or send money to someone who claims support can guarantee a sale, refund, or delivery.': {
+    am: 'ከመስማማትዎ በፊት ሻጩን፣ የእቃውን ወይም የአገልግሎቱን መግለጫ፣ ዋጋን፣ የማድረሻ ዝግጅትንና ሌሎች ውሎችን ይመልከቱ። በይፋዊ የAfroSherik ሂደት የሚታየውን የክፍያ መንገድ ብቻ ይጠቀሙ፤ ከመክፈልዎ በፊት ተቀባዩን ያረጋግጡና ደረሰኙን ይያዙ። አንድ ሰው ድጋፍ ሽያጭን፣ ተመላሽ ክፍያን ወይም ማድረስን ያረጋግጣል ብሎ ገንዘብ ከጠየቀ አይላኩ፤ የአንድ ጊዜ ኮድም አያጋሩ።',
+  },
+  'How do agent referrals and commissions work?': { am: 'የወኪል ሪፈራልና ኮሚሽን እንዴት ይሰራሉ?' },
+  'Available referral, team, and commission tools depend on your role, organization, enabled services, and the terms shown in your workspace. A referral is not a guaranteed sale or payout. Check the recorded status and applicable written terms; contact your organization administrator or support if a record appears incorrect. Never pay an agent to release a promised commission.': {
+    am: 'የሪፈራል፣ የቡድንና የኮሚሽን መሣሪያዎች በሚናዎ፣ በድርጅትዎ፣ በነቁ አገልግሎቶችና በሥራ ቦታዎ በሚታዩ ውሎች ላይ ይመረኮዛሉ። ሪፈራል ሽያጭን ወይም ክፍያን አያረጋግጥም። የተመዘገበውን ሁኔታና የጽሑፍ ውሎችን ይመልከቱ፤ መዝገቡ የተሳሳተ ከመሰለ የድርጅትዎን አስተዳዳሪ ወይም ድጋፍን ያግኙ። ኮሚሽን እንዲለቀቅ ለወኪል በፍጹም ክፍያ አይፈጽሙ።',
+  },
+  'How can I join AfroSherik Edir or register an independent Edir?': { am: 'AfroSherik እድርን እንዴት እቀላቀላለሁ ወይም ገለልተኛ እድር አስመዘግባለሁ?' },
+  'Use Join AfroSherik Edir to request membership after your account and required KYC checks are complete. Register an Edir is a separate application reviewed by the umbrella Master Edir. Review the available products and terms shown before requesting enrollment. An application is not approval; it does not collect dues or promise lending, insurance, or benefit payouts.': {
+    am: 'መለያዎና የሚፈለጉ የKYC ማረጋገጫዎች ከተጠናቀቁ በኋላ “AfroSherik Edirን ይቀላቀሉ” የሚለውን በመጠቀም አባልነት ይጠይቁ። “እድር ይመዝግቡ” የሚለው በዋናው Master Edir የሚገመገም የተለየ ማመልከቻ ነው። ከመመዝገብዎ በፊት የሚታዩትን ምርቶችና ውሎች ይመልከቱ። ማመልከቻ ማስገባት ማጽደቅ አይደለም፤ የአባልነት ክፍያ አይሰበስብም፣ ብድር፣ ኢንሹራንስ ወይም ጥቅም ክፍያም አያረጋግጥም።',
+  },
+  'Can I get a SACCO loan, savings product, or financial benefit?': { am: 'የSACCO ብድር፣ የቁጠባ ምርት ወይም የፋይናንስ ጥቅም ማግኘት እችላለሁ?' },
+  'Financial products are available only when the relevant organization and pilot are enabled and the product is explicitly listed with its current terms. A chatbot response or membership request is not a loan offer, eligibility decision, approval, or promise of payout. Review the product terms in the workspace and contact the responsible organization for an assessment.': {
+    am: 'የፋይናንስ ምርቶች የሚገኙት ተገቢው ድርጅትና ሙከራ ሲነቁ እና ምርቱ ከአሁኑ ውሎቹ ጋር በግልጽ ሲዘረዘር ብቻ ነው። የቻትቦት መልስ ወይም የአባልነት ጥያቄ የብድር አቅርቦት፣ የብቁነት ውሳኔ፣ ማጽደቅ ወይም የክፍያ ተስፋ አይደለም። በሥራ ቦታዎ የምርቱን ውሎች ይመልከቱና ለግምገማ ተጠያቂውን ድርጅት ያግኙ።',
+  },
+  'Does AfroSherik provide insurance coverage or decide claims?': { am: 'AfroSherik የኢንሹራንስ ሽፋን ይሰጣል ወይም የጥያቄ ውሳኔ ይሰጣል?' },
+  'Do not assume you have insurance coverage based on an inquiry, referral, or chatbot response. Coverage exists only when an insurer has issued a valid policy with terms that apply to you. Insurance tools and pilots may not be enabled for your organization. For coverage or claims, use the insurer and the policy documents; contact support for platform-access issues only.': {
+    am: 'በጥያቄ፣ በሪፈራል ወይም በቻትቦት መልስ ምክንያት የኢንሹራንስ ሽፋን አለኝ ብለው አያስቡ። ሽፋን የሚኖረው ኢንሹራንስ ሰጪው ለእርስዎ የሚሰራ ትክክለኛ ፖሊሲ ሲያወጣ ብቻ ነው። የኢንሹራንስ መሣሪያዎችና ሙከራዎች ለድርጅትዎ ላይነቁ ይችላሉ። ለሽፋን ወይም ለክስተት ጥያቄ ኢንሹራንስ ሰጪውንና የፖሊሲ ሰነዶቹን ይጠቀሙ፤ ለመድረኩ መዳረሻ ችግር ብቻ ድጋፍን ያግኙ።',
+  },
+  'How do I contact a person or request a support call back?': { am: 'ሰው የሆነ ድጋፍን እንዴት አገኛለሁ ወይም መልሶ ጥሪ እጠይቃለሁ?' },
+  'Sign in and open AfroLife Support to start a private App/Web conversation or submit a call-back request. You can also call +251 708 076 113 or use the WhatsApp link on the public support section. A bot gives guidance and does not place calls. No response-time promise is published; include a request reference but not a password or verification code.': {
+    am: 'ይግቡና AfroLife Supportን ይክፈቱ፤ የግል App/Web ውይይት ይጀምሩ ወይም መልሶ ጥሪ ይጠይቁ። በ+251 708 076 113 መደወል ወይም በሕዝብ የድጋፍ ክፍል ያለውን የWhatsApp አገናኝ መጠቀምም ይችላሉ። ቦት መመሪያ ይሰጣል፤ ጥሪ አያደርግም። የምላሽ ጊዜ ዋስትና አልተገለጸም፤ የጥያቄ ማጣቀሻ ያካትቱ እንጂ የይለፍ ቃል ወይም የማረጋገጫ ኮድ አይደለም።',
+  },
+  'What should I do if the app or a service is not loading?': { am: 'መተግበሪያው ወይም አገልግሎቱ ካልተከፈተ ምን ላድርግ?' },
+  'Check your internet connection, refresh the page, and try again in a current browser. If only one service fails, note its name and the time of the issue. If the problem continues, contact support with the error text or request reference. Do not clear browser data if you have unsynced work, and do not send credentials or sensitive records.': {
+    am: 'የኢንተርኔት ግንኙነትዎን ያረጋግጡ፣ ገጹን ያድሱና ዘመናዊ በሆነ አሳሽ እንደገና ይሞክሩ። አንድ አገልግሎት ብቻ ካልሰራ ስሙንና ችግሩ የተከሰተበትን ሰዓት ይመዝግቡ። ችግሩ ከቀጠለ የስህተት ጽሑፉን ወይም የጥያቄ ማጣቀሻውን ለድጋፍ ያቅርቡ። ያልተመሳሰለ ሥራ ካለዎት የአሳሽ ውሂብን አያጥፉ፤ የመግቢያ ማስረጃዎችን ወይም ስሱ መዝገቦችንም አይላኩ።',
+  },
+  'How do I report a suspicious listing, payment request, or user?': { am: 'አጠራጣሪ ዝርዝር፣ የክፍያ ጥያቄ ወይም ተጠቃሚ እንዴት ሪፖርት አደርጋለሁ?' },
+  'Do not send money, passwords, or verification codes in response to a suspicious request. Use the report or support option available on the listing or in your signed-in workspace. Share the listing or request reference and a short description; avoid posting identity or payment details in public channels. For immediate physical danger, contact local emergency services.': {
+    am: 'ለአጠራጣሪ ጥያቄ ምላሽ ገንዘብ፣ የይለፍ ቃል ወይም የማረጋገጫ ኮድ አይላኩ። በዝርዝሩ ወይም በገቡበት የሥራ ቦታ ያለውን የሪፖርት ወይም የድጋፍ አማራጭ ይጠቀሙ። የዝርዝሩን ወይም የጥያቄውን ማጣቀሻና አጭር መግለጫ ያቅርቡ፤ የመታወቂያ ወይም የክፍያ ዝርዝሮችን በሕዝብ ቻናሎች አያጋሩ። አስቸኳይ የአካል አደጋ ካለ የአካባቢዎን የአደጋ ጊዜ አገልግሎት ያግኙ።',
   },
   'If this number is eligible, recovery instructions will be sent privately.': {
     am: 'ይህ ቁጥር ብቁ ከሆነ የመልሶ ማግኛ መመሪያዎች በግል ይላካሉ።',

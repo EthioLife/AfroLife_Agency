@@ -701,14 +701,25 @@ function renderSupportFaq(selector, faq) {
     faqList.append(empty);
     return;
   }
+  const categories = new Map();
   for (const item of faq) {
+    const category = item.category || 'General support';
+    if (!categories.has(category)) {
+      const section = document.createElement('section');
+      section.className = 'support-faq-category';
+      const heading = document.createElement('h4');
+      heading.textContent = t(category);
+      section.append(heading);
+      categories.set(category, section);
+      faqList.append(section);
+    }
     const details = document.createElement('details');
     const summary = document.createElement('summary');
     summary.textContent = t(item.question);
     const answer = document.createElement('p');
     answer.textContent = t(item.answer);
     details.append(summary, answer);
-    faqList.append(details);
+    categories.get(category).append(details);
   }
 }
 
@@ -716,7 +727,7 @@ function publicHelpFaqForLocale() {
   const faq = Array.isArray(state.publicSupportFaq) ? state.publicSupportFaq : [];
   return faq.flatMap((item) => [
     item,
-    { question: t(item.question), answer: t(item.answer) },
+    { ...item, category: t(item.category), question: t(item.question), answer: t(item.answer) },
   ]);
 }
 
@@ -730,7 +741,7 @@ function renderPublicHelpTopics() {
     topics.append(fallback);
     return;
   }
-  for (const item of state.publicSupportFaq.slice(0, 4)) {
+  for (const item of state.publicSupportFaq.slice(0, 6)) {
     const topic = document.createElement('button');
     topic.type = 'button';
     topic.className = 'public-help-topic button button-outline';

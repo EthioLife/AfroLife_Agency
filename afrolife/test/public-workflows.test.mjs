@@ -763,17 +763,36 @@ test('anonymous FAQ responses are local, FAQ-backed, and safe when the API is un
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
   const faq = [
-    { question: 'How do I reset a forgotten password?', answer: 'Choose Forgot password? to request a recovery code.' },
-    { question: 'How do I get human support or request a support call?', answer: 'Call the support line for human support.' },
+    {
+      category: 'Account & security',
+      question: 'How do I reset a forgotten password?',
+      answer: 'Choose Forgot password? to request a recovery code.',
+      keywords: ['forgot password', 'reset password', 'password recovery'],
+    },
+    {
+      category: 'Support & technical help',
+      question: 'How do I get human support or request a support call?',
+      answer: 'Call the support line for human support.',
+      keywords: ['human support', 'call support', 'request callback'],
+    },
+    {
+      category: 'Services & payments',
+      question: 'Why is a service missing or unavailable in my workspace?',
+      answer: 'Services depend on your organization and account role.',
+      keywords: ['service unavailable', 'service missing', 'module not visible', 'accounting missing'],
+    },
   ];
 
   assert.equal(matchPublicFaq('forgot password', faq), faq[0]);
   assert.equal(matchPublicFaq('request a human support call', faq), faq[1]);
+  assert.equal(matchPublicFaq('accounting is missing from my workspace', faq), faq[2]);
+  assert.equal(matchPublicFaq('password', faq), null, 'A vague query should not trigger an arbitrary answer');
   const amharicFaq = [{
     question: 'የረሳሁትን የይለፍ ቃል እንዴት እመልሳለሁ?',
     answer: 'መልሶ ማግኛን ለመክፈት ይምረጡ።',
+    keywords: ['የይለፍ ቃል ረሳሁ', 'የይለፍ ቃል መመለስ'],
   }];
-  assert.equal(matchPublicFaq('የረሳሁትን የይለፍ ቃል', amharicFaq), amharicFaq[0]);
+  assert.equal(matchPublicFaq('የይለፍ ቃል ረሳሁ', amharicFaq), amharicFaq[0]);
   assert.equal(matchPublicFaq('unrelated marketplace question', faq), null);
   assert.equal(matchPublicFaq('password', null), null);
   assert.match(html, /id="public-help-form"[^>]*method="dialog"/);
@@ -788,4 +807,7 @@ test('anonymous FAQ responses are local, FAQ-backed, and safe when the API is un
   assert.match(faqLoader, /state\.publicHelpFaqUnavailable = true/);
   assert.match(app, /Common answers are temporarily unavailable\. You can still call support or contact the team on WhatsApp\./);
   assert.match(app, /FAQ answers may be unavailable, but you can still contact human support using the links below\./);
+  assert.match(app, /const category = item\.category \|\| 'General support'/);
+  assert.match(app, /topic\.dataset\.publicHelpQuestion = t\(item\.question\)/);
+  assert.match(app, /state\.publicSupportFaq\.slice\(0, 6\)/);
 });

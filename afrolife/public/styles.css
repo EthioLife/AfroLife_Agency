@@ -2215,6 +2215,8 @@ footer {
 .public-support p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
 .support-faq { margin-top: 12px; }
 .support-faq h2 { color: var(--green-dark); font-size: 16px; }
+.support-faq-category { margin: 0 0 14px; }
+.support-faq-category > h4 { margin: 12px 0 4px; color: var(--green-dark); font-size: 14px; }
 .support-faq details { padding: 9px 0; border-top: 1px solid var(--line); }
 .support-faq summary { color: var(--green-dark); font-weight: 650; cursor: pointer; }
 .support-faq details p { margin: 7px 0 0; line-height: 1.55; }

@@ -80,16 +80,31 @@ test('WhatsApp recovery sends the code to both authentication-template component
   });
 });
 
-test('bot FAQ is limited to user support and does not offer sales or buyer workflows', () => {
-  assert.ok(SUPPORT_FAQ.length >= 7);
+test('support library covers account, service, work, property, marketplace, and community journeys', () => {
+  assert.ok(SUPPORT_FAQ.length >= 20);
+  assert.deepEqual(new Set(SUPPORT_FAQ.map((item) => item.category)), new Set([
+    'Getting started',
+    'Account & security',
+    'Services & payments',
+    'Work, homes & marketplace',
+    'Community & protection',
+    'Support & technical help',
+  ]));
   const faq = supportFaqReply('/faq');
   assert.match(faq, /reset a forgotten password/i);
+  assert.match(faq, /How do I buy or sell through the marketplace safely/i);
+  assert.match(faq, /Can I get a SACCO loan/i);
   assert.match(faq, /support call/i);
-  assert.doesNotMatch(faq, /sales|buyer confirmation/i);
-  assert.match(supportFaqReply('How do I request a call?'), /\+251 708 076 113/);
-  assert.match(supportFaqReply('Can I link Telegram for support?'), /Telegram is for support guidance only/);
-  assert.match(supportFaqReply('How do I change my password while signed in?'), /enter your current password/);
-  assert.match(supportFaqReply('unknown question'), /do not share passwords or verification codes/i);
+  assert.match(supportFaqReply('my application is pending after registration'), /remain pending/i);
+  assert.match(supportFaqReply('I forgot my password'), /Choose Forgot password\?/i);
+  assert.match(supportFaqReply('I paid and my subscription is still pending'), /confirmed manually by Finance/i);
+  assert.match(supportFaqReply('Does registering as a worker guarantee a job?'), /not a job offer or placement guarantee/i);
+  assert.match(supportFaqReply('Can I get an insurance payout?'), /Do not assume you have insurance coverage/i);
+  assert.match(supportFaqReply('How do I request a call back?'), /\+251 708 076 113/);
+  assert.match(supportFaqReply('Can Telegram reset my password?'), /Telegram support cannot reset passwords/i);
+  assert.match(supportFaqReply('How do I change my password while signed in?'), /enter your current and new passwords/i);
+  assert.match(supportFaqReply('password'), /could not confidently match/i);
+  assert.match(supportFaqReply('unknown question'), /Never share passwords, one-time codes, or payment details/i);
 });
 
 test('Telegram identity links are short-lived, hashed, and scoped by row-level security', async () => {

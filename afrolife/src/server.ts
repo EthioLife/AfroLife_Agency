@@ -100,7 +100,9 @@ app.get('/api/public/support', (_req, res) => {
 });
 app.get('/api/public/support-faq', (_req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=300');
-  res.json(SUPPORT_FAQ.map(({ question, answer }) => ({ question, answer })));
+  res.json(SUPPORT_FAQ.map(({ category, question, answer, keywords }) => ({
+    category, question, answer, keywords,
+  })));
 });
 app.get('/healthz', (_req, res, next) => {
   pool.query('SELECT 1').then(

@@ -1,62 +1,230 @@
 export const SUPPORT_FAQ = [
   {
+    category: 'Getting started',
+    question: 'How do I create an account or apply to AfroSherik?',
+    answer: 'Choose Create account on the sign-in page, select the service or role that fits your request, and complete the fields and document checklist shown. Submitting an application does not activate an account, approve a service, or guarantee a job, property, loan, or other benefit. Support cannot approve an application through chat.',
+    keywords: ['create account', 'register for AfroSherik', 'new user', 'sign up', 'apply to join', 'start registration', 'መለያ ፍጠር', 'ተመዝገብ'],
+  },
+  {
+    category: 'Getting started',
+    question: 'Why is my new account pending, and how can I check its status?',
+    answer: 'New applications may remain pending while identity, documents, and eligibility are reviewed. Sign in if your account is active and check the application or document-review status shown there. If a correction is requested, follow that instruction. For a status that appears stuck, contact support with your registered phone number and application reference; never send passwords or verification codes.',
+    keywords: ['application pending', 'check application status', 'registration not approved', 'account inactive', 'account approval', 'signup status', 'ማመልከቻ ሁኔታ', 'በግምገማ ላይ'],
+  },
+  {
+    category: 'Getting started',
+    question: 'Which identity documents do I need, and how do I upload them?',
+    answer: 'Requirements depend on the service and role. Use the checklist shown in your application or account; it is the source of truth for required documents, file types, and any corrections. Upload documents only through the secure form that requests them. Do not send identity documents in the public chatbot, social media, or group messages.',
+    keywords: ['documents required', 'upload ID', 'identity verification', 'KYC documents', 'document rejected', 'replace document', 'ID upload', 'መታወቂያ ሰነድ', 'ሰነድ ጫን'],
+  },
+  {
+    category: 'Account & security',
     question: 'How do I reset a forgotten password?',
-    answer: 'Choose Forgot password? on the AfroSherik sign-in page to open recovery and request a code. WhatsApp recovery works only when the service is configured, your account is active, and you opted in using the phone number registered on your account. The code expires after 5 minutes and is limited to 5 attempts. Telegram support cannot reset passwords. Never share your code.',
-    keywords: ['password', 'reset', 'forgot', 'recovery', 'code'],
+    answer: 'Choose Forgot password? on the AfroSherik sign-in page and follow the recovery instructions using the phone number registered to your account. WhatsApp recovery is available only when configured, for eligible active accounts that opted in. A recovery code expires after 5 minutes and has a limited number of attempts. Telegram cannot reset passwords. Never share a recovery code.',
+    keywords: ['forgot password', 'reset password', 'password recovery', 'cannot remember password', 'lost password', 'የይለፍ ቃል ረሳሁ', 'የይለፍ ቃል መመለስ'],
   },
   {
+    category: 'Account & security',
+    question: 'Why did my verification or password-recovery code not arrive?',
+    answer: 'Check that you entered the country code and phone number registered to your account, and confirm the number can receive WhatsApp messages if WhatsApp recovery is offered. Recovery depends on provider configuration, account eligibility, and your consent. Wait before requesting another code and respect the on-screen attempt limit. If it still fails, contact support; do not send your code to anyone.',
+    keywords: ['code not received', 'OTP not arriving', 'verification code missing', 'WhatsApp code failed', 'recovery code delayed', 'SMS code', 'ኮድ አልደረሰም'],
+  },
+  {
+    category: 'Account & security',
     question: 'How do I change my password while signed in?',
-    answer: 'Open your account security settings, choose Change password, and enter your current password and a new password. Use at least 8 characters and do not use digits alone. A password recovery ends all active sessions; a signed-in password change replaces the current sign-in session.',
-    keywords: ['change password', 'change my password', 'new password', 'current password', 'while signed in', 'security', 'sign out'],
+    answer: 'Open account security, choose Change password, and enter your current and new passwords. Use at least 8 characters and do not use digits alone. A signed-in password change replaces the current sign-in session. If you do not know the current password, use Forgot password? instead.',
+    keywords: ['change password', 'new password', 'current password', 'password while signed in', 'update password', 'የይለፍ ቃል ቀይር'],
   },
   {
-    question: 'Why can I not sign in after registering?',
-    answer: 'New applications remain inactive until the required identity and document review is complete and the account is approved for activation. Contact support if your application status needs review.',
-    keywords: ['sign in', 'login', 'register', 'registration', 'inactive', 'application', 'approval'],
+    category: 'Account & security',
+    question: 'What should I do if I lost my authenticator or cannot pass MFA?',
+    answer: 'Check that your device clock is set automatically and enter the current six-digit code from the authenticator app linked to your account. If you lost access to that app or device, contact official support for identity verification and recovery guidance. Staff cannot bypass MFA on request; never share an authenticator or recovery code.',
+    keywords: ['lost authenticator', 'MFA locked out', '2FA code not working', 'authenticator phone lost', 'cannot pass MFA', 'two factor recovery', 'የማረጋገጫ መተግበሪያ ጠፋ'],
   },
   {
-    question: 'How do I get human support or request a support call?',
-    answer: 'Sign in and open AfroLife Support to start a private App/Web chat or request a support call back. You can also call the support line at +251 708 076 113. The chat bots provide guidance; they do not place automated calls.',
-    keywords: ['person', 'agent', 'human', 'call', 'callback', 'call back', 'phone'],
-  },
-  {
-    question: 'Is my support conversation private?',
-    answer: 'App/Web support conversations are visible to you and the support staff member who claims your request. Do not send passwords, one-time codes, payment-card details, or national-ID numbers in chat or group messages.',
-    keywords: ['private', 'privacy', 'secure', 'share', 'personal', 'group'],
-  },
-  {
-    question: 'Can I use Telegram to recover my password?',
-    answer: 'No. Telegram is for support guidance only. You may link Telegram from your signed-in account; the one-time link expires after 10 minutes. Password recovery must use the WhatsApp code sent to your registered, opted-in phone number when recovery is enabled.',
-    keywords: ['telegram', 'link', 'bot', 'recover'],
-  },
-  {
-    question: 'Do WhatsApp or Telegram support bots make calls?',
-    answer: 'The bots can explain how to contact support and direct you to call +251 708 076 113. They do not place or receive automated calls. You can request a human support call back from the signed-in App/Web support assistant.',
-    keywords: ['whatsapp', 'automated call', 'voice', 'make calls', 'bot call'],
-  },
-  {
+    category: 'Account & security',
     question: 'How do I enable two-factor sign-in?',
     answer: 'After signing in, open account security settings and set up an authenticator app. Administrative and other designated staff roles are required to enroll in MFA; other accounts may enable it voluntarily.',
-    keywords: ['two factor', '2fa', 'mfa', 'authenticator', 'verification'],
+    keywords: ['enable two factor', 'set up MFA', 'authenticator setup', 'turn on 2FA', 'two-step verification', 'ባለሁለት ደረጃ መግቢያ'],
+  },
+  {
+    category: 'Account & security',
+    question: 'How can I change the phone number on my account?',
+    answer: 'A phone number identifies your sign-in and recovery channel. If you can sign in, check account settings for an available change-number flow. If it is not offered or you have lost access to the old number, contact official support for identity verification. Do not create another account to bypass verification or send identity documents in public chat.',
+    keywords: ['change phone number', 'new phone number', 'changed phone number', 'update registered phone', 'lost old number', 'update mobile', 'number on account', 'ቁጥር ቀይር', 'አዲስ ስልክ'],
+  },
+  {
+    category: 'Account & security',
+    question: 'How do I keep my account and personal information safe?',
+    answer: 'Use a unique password, enable an authenticator when available, and never share passwords, one-time codes, payment details, or full identity numbers in chat. The public helper does not send or store your message. Signed-in support conversations are visible to you and the support staff member who claims the request. Upload sensitive documents only through the secure form that asks for them.',
+    keywords: ['keep account safe', 'privacy', 'personal information', 'is chat private', 'protect my account', 'data security', 'የግል መረጃ', 'ግላዊነት'],
+  },
+  {
+    category: 'Account & security',
+    question: 'Is my support conversation private?',
+    answer: 'Signed-in App/Web support conversations are visible to you and the support staff member who claims your request. The public chatbot message stays in your page and is not sent or stored. Do not send passwords, one-time codes, payment-card details, or full identity numbers in chat or group messages.',
+    keywords: ['support chat private', 'private support conversation', 'who can see my chat', 'support message privacy', 'የድጋፍ ውይይት የግል'],
+  },
+  {
+    category: 'Services & payments',
+    question: 'Why is a service missing or unavailable in my workspace?',
+    answer: 'Services appear only when they are enabled for your organization, account role, and current deployment. Some products may be disabled or limited to a pilot. Ask your organization administrator to check access; if the service should be available, contact support with the service name and a screenshot that contains no personal or financial data. Do not assume a service is active because it appears in general product information.',
+    keywords: ['service unavailable', 'service missing', 'cannot access service', 'feature disabled', 'workspace access', 'role permissions', 'module not visible', 'accounting missing', 'insurance missing', 'Edir missing', 'MFI missing', 'አገልግሎት አይታይም'],
+  },
+  {
+    category: 'Services & payments',
+    question: 'How much does a service subscription cost, and when is it activated?',
+    answer: 'The current public subscription catalog lists ETB 1,000 per month for each selected service; check the catalog in case terms change. Submitting a request does not charge you or activate a service. Payment is manual, and Finance confirms receipt before activation. Do not pay through instructions sent by an unverified person.',
+    keywords: ['subscription price', 'service cost', 'monthly fee', 'ETB 1000', 'subscribe', 'activate subscription', 'service activation', 'ምዝገባ ዋጋ', 'ወርሃዊ ክፍያ'],
+  },
+  {
+    category: 'Services & payments',
+    question: 'I paid for a subscription but it still shows pending. What should I do?',
+    answer: 'Subscription payments are confirmed manually by Finance before activation. Check the request status and use the receipt-submission instructions shown in your signed-in workspace, if available. If the status does not update, contact support with the request reference and payment date. Do not post receipts, bank details, card numbers, or one-time codes in public chat.',
+    keywords: ['payment pending', 'subscription not activated', 'payment receipt', 'finance confirmation', 'paid but pending', 'paid and still pending', 'payment status', 'ክፍያ በግምገማ ላይ'],
+  },
+  {
+    category: 'Work, homes & marketplace',
+    question: 'Does registering as a worker guarantee a job or a placement?',
+    answer: 'No. Registration lets your application and required documents be reviewed for eligible workforce services; it is not a job offer or placement guarantee. Opportunities depend on availability, verification, employer requirements, and a separate agreement. Review the employer, duties, pay, and terms directly before accepting work. Report suspicious requests to support.',
+    keywords: ['find a job', 'worker placement', 'job guarantee', 'employment application', 'work opportunity', 'employer offer', 'መቀጠር', 'የሥራ ዕድል'],
+  },
+  {
+    category: 'Work, homes & marketplace',
+    question: 'How do employers and workers confirm a work arrangement?',
+    answer: 'Use the workforce information and service requests available to your account, and verify that the people and organization are the intended parties. Confirm duties, location, pay, schedule, and other terms directly in an appropriate written agreement before work begins. AfroSherik registration or matching does not replace an employment agreement or guarantee payment.',
+    keywords: ['hire workers', 'employer request', 'work agreement', 'worker terms', 'pay schedule', 'staffing request', 'employer worker', 'ሠራተኛ መቅጠር'],
+  },
+  {
+    category: 'Work, homes & marketplace',
+    question: 'How do I list or rent a property, and are listings guaranteed?',
+    answer: 'Use the property tools available to your account and review the listing details and any displayed verification status. Availability, price, deposits, lease terms, and ownership should be confirmed with the other party before you commit or pay. A listing is not a guarantee of availability or a substitute for checking the property and signing appropriate terms.',
+    keywords: ['property listing', 'list my property', 'rent a home', 'tenant landlord', 'property availability', 'rental listing availability', 'is rental available', 'lease terms', 'house rental', 'ቤት ኪራይ', 'ንብረት ዝርዝር'],
+  },
+  {
+    category: 'Work, homes & marketplace',
+    question: 'How do I buy or sell through the marketplace safely?',
+    answer: 'Review the seller, item or service description, price, delivery arrangements, and any terms before agreeing. Only use payment steps shown in an official AfroSherik workflow; verify the recipient before paying and keep your receipt. Do not share one-time codes or send money to someone who claims support can guarantee a sale, refund, or delivery.',
+    keywords: ['marketplace purchase', 'sell an item', 'buyer seller', 'listing scam', 'delivery payment', 'marketplace fraud', 'pay outside app', 'asked me to pay outside app', 'buy safely', 'ገበያ መግዛት'],
+  },
+  {
+    category: 'Work, homes & marketplace',
+    question: 'How do agent referrals and commissions work?',
+    answer: 'Available referral, team, and commission tools depend on your role, organization, enabled services, and the terms shown in your workspace. A referral is not a guaranteed sale or payout. Check the recorded status and applicable written terms; contact your organization administrator or support if a record appears incorrect. Never pay an agent to release a promised commission.',
+    keywords: ['agent referral', 'commission payment', 'agent payout', 'referral status', 'team activity', 'commission terms', 'የወኪል ኮሚሽን'],
+  },
+  {
+    category: 'Community & protection',
+    question: 'How can I join AfroSherik Edir or register an independent Edir?',
+    answer: 'Use Join AfroSherik Edir to request membership after your account and required KYC checks are complete. Register an Edir is a separate application reviewed by the umbrella Master Edir. Review the available products and terms shown before requesting enrollment. An application is not approval; it does not collect dues or promise lending, insurance, or benefit payouts.',
+    keywords: ['join Edir', 'Edir membership', 'register independent Edir', 'Edir application', 'community membership', 'KYC Edir', 'እድር አባልነት'],
+  },
+  {
+    category: 'Community & protection',
+    question: 'Can I get a SACCO loan, savings product, or financial benefit?',
+    answer: 'Financial products are available only when the relevant organization and pilot are enabled and the product is explicitly listed with its current terms. A chatbot response or membership request is not a loan offer, eligibility decision, approval, or promise of payout. Review the product terms in the workspace and contact the responsible organization for an assessment.',
+    keywords: ['SACCO loan', 'SACCO loans', 'loan availability', 'MFI loan', 'borrow money', 'savings product', 'financial benefit', 'loan eligibility', 'credit application', 'ብድር', 'ቁጠባ'],
+  },
+  {
+    category: 'Community & protection',
+    question: 'Does AfroSherik provide insurance coverage or decide claims?',
+    answer: 'Do not assume you have insurance coverage based on an inquiry, referral, or chatbot response. Coverage exists only when an insurer has issued a valid policy with terms that apply to you. Insurance tools and pilots may not be enabled for your organization. For coverage or claims, use the insurer and the policy documents; contact support for platform-access issues only.',
+    keywords: ['insurance policy', 'insurance coverage', 'insurance payout', 'claim payout', 'claim status', 'insurance claim', 'premium', 'covered', 'policy issued', 'የኢንሹራንስ ሽፋን'],
+  },
+  {
+    category: 'Support & technical help',
+    question: 'How do I contact a person or request a support call back?',
+    answer: 'Sign in and open AfroLife Support to start a private App/Web conversation or submit a call-back request. You can also call +251 708 076 113 or use the WhatsApp link on the public support section. A bot gives guidance and does not place calls. No response-time promise is published; include a request reference but not a password or verification code.',
+    keywords: ['contact support', 'talk to a person', 'human agent', 'request callback', 'call support', 'support phone number', 'WhatsApp support', 'ድጋፍ ያግኙ', 'መልሶ ጥሪ'],
+  },
+  {
+    category: 'Support & technical help',
+    question: 'Can I use Telegram to recover my password?',
+    answer: 'No. Telegram support cannot reset passwords; Telegram is for support guidance only. You may link Telegram from your signed-in account; the one-time link expires after 10 minutes. Password recovery must use the WhatsApp code sent to your registered, opted-in phone number when recovery is enabled.',
+    keywords: ['telegram password reset', 'telegram reset password', 'reset password telegram', 'telegram password recovery', 'recover password telegram', 'telegram support', 'link Telegram', 'Telegram link', 'ቴሌግራም የይለፍ ቃል'],
+  },
+  {
+    category: 'Support & technical help',
+    question: 'Do WhatsApp or Telegram support bots make calls?',
+    answer: 'The bots can explain how to contact support and direct you to call +251 708 076 113. They do not place or receive automated calls. You can request a human support call back from the signed-in App/Web support assistant.',
+    keywords: ['bot call me', 'WhatsApp bot calls', 'automated support call', 'make calls', 'voice call', 'bots call', 'ቦት ጥሪ ያደርጋል'],
+  },
+  {
+    category: 'Support & technical help',
+    question: 'What should I do if the app or a service is not loading?',
+    answer: 'Check your internet connection, refresh the page, and try again in a current browser. If only one service fails, note its name and the time of the issue. If the problem continues, contact support with the error text or request reference. Do not clear browser data if you have unsynced work, and do not send credentials or sensitive records.',
+    keywords: ['app not loading', 'page blank', 'website error', 'service not working', 'cannot open workspace', 'technical problem', 'application stuck', 'page keeps loading', 'loading indefinitely', 'refresh app', 'መተግበሪያ አይከፈትም'],
+  },
+  {
+    category: 'Support & technical help',
+    question: 'How do I report a suspicious listing, payment request, or user?',
+    answer: 'Do not send money, passwords, or verification codes in response to a suspicious request. Use the report or support option available on the listing or in your signed-in workspace. Share the listing or request reference and a short description; avoid posting identity or payment details in public channels. For immediate physical danger, contact local emergency services.',
+    keywords: ['report scam', 'suspicious listing', 'fraud', 'unsafe user', 'payment scam', 'report abuse', 'fake agent', 'pay to release commission', 'ማጭበርበር ሪፖርት'],
   },
 ] as const;
 
-export function supportFaqReply(message: string) {
-  const normalized = message.toLowerCase().replace(/[^a-z0-9+ ]/g, ' ');
-  if (/^\s*\/?(start|help|faq|menu)\s*$/.test(normalized)) {
-    return `AfroLife User Support FAQs\n\n${SUPPORT_FAQ.map((item, index) => `${index + 1}. ${item.question}`).join('\n')}\n\nAsk a question or call +251 708 076 113.`;
+const stopWords = new Set([
+  'a', 'an', 'and', 'are', 'can', 'do', 'does', 'for', 'how', 'i', 'in',
+  'is', 'it', 'me', 'my', 'of', 'on', 'or', 'the', 'to', 'what', 'when',
+  'where', 'which', 'who', 'why', 'with',
+]);
+
+function normalizeFaqText(value: string) {
+  return value.toLocaleLowerCase().normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/[^\p{L}\p{N}+]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function faqTokens(value: string) {
+  return normalizeFaqText(value).split(' ').filter((word) => word.length > 1 && !stopWords.has(word));
+}
+
+function supportFaqScore(message: string, item: typeof SUPPORT_FAQ[number]) {
+  const query = normalizeFaqText(message);
+  const queryTokens = new Set(faqTokens(message));
+  if (queryTokens.size < 2) return 0;
+  const question = normalizeFaqText(item.question);
+  if (query === question) return 100;
+
+  let score = 0;
+  if (question.includes(query) && query.length >= 8) score += 12;
+
+  for (const keyword of item.keywords) {
+    const phrase = normalizeFaqText(keyword);
+    const words = faqTokens(keyword);
+    if (!phrase || !words.length) continue;
+    if (` ${query} `.includes(` ${phrase} `)) {
+      score += words.length > 1 ? 8 + Math.min(words.length - 2, 2) : 3;
+    } else if (words.length > 1 && words.every((word) => queryTokens.has(word))) {
+      score += 6;
+    }
   }
-  const match = SUPPORT_FAQ
-    .map((item) => ({
-      item,
-      score: item.keywords.reduce(
-        (score, keyword) => score + (normalized.includes(keyword) ? keyword.length : 0),
-        0,
-      ),
-    }))
-    .filter(({ score }) => score > 0)
-    .sort((left, right) => right.score - left.score)[0]?.item;
+
+  for (const word of new Set(faqTokens(item.question))) {
+    if (word.length > 3 && queryTokens.has(word)) score += 2;
+  }
+  return score;
+}
+
+function findSupportFaqMatch(message: string) {
+  const ranked = SUPPORT_FAQ
+    .map((item) => ({ item, score: supportFaqScore(message, item) }))
+    .sort((left, right) => right.score - left.score);
+  const best = ranked[0];
+  const runnerUp = ranked[1];
+  if (!best || best.score < 6 || (runnerUp && best.score - runnerUp.score < 2)) return null;
+  return best.item;
+}
+
+export function supportFaqReply(message: string) {
+  const normalized = normalizeFaqText(message);
+  if (/^(start|help|faq|menu)$/.test(normalized)) {
+    return `AfroLife User Support FAQs\n\n${SUPPORT_FAQ.map((item, index) => `${index + 1}. ${item.category}: ${item.question}`).join('\n')}\n\nAsk a question or call +251 708 076 113.`;
+  }
+  const match = findSupportFaqMatch(message);
   return match
     ? `${match.answer}\n\nMore help: call +251 708 076 113 or sign in to AfroLife App/Web Support.`
-    : 'I can help with account access, password recovery, MFA, privacy, and contacting AfroLife User Support. Send /faq to see common questions, call +251 708 076 113, or sign in to open a private App/Web chat. Please do not share passwords or verification codes.';
+    : 'I could not confidently match that question to a published answer. Try /faq, rephrase with the service or issue name, or contact support at +251 708 076 113. Never share passwords, one-time codes, or payment details in chat.';
 }

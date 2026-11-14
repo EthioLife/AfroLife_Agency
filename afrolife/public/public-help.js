@@ -1,45 +1,57 @@
 const stopWords = new Set([
-  'about', 'after', 'are', 'can', 'did', 'does', 'for', 'from', 'get', 'how',
-  'i', 'in', 'is', 'it', 'me', 'my', 'of', 'on', 'or', 'please', 'the',
-  'to', 'what', 'when', 'where', 'which', 'while', 'who', 'why', 'with',
+  'a', 'an', 'and', 'are', 'can', 'do', 'does', 'for', 'how', 'i', 'in',
+  'is', 'it', 'me', 'my', 'of', 'on', 'or', 'the', 'to', 'what', 'when',
+  'where', 'which', 'who', 'why', 'with',
 ]);
 
-function normalizedWords(value) {
-  return String(value ?? '')
-    .toLowerCase()
+function normalizeText(value) {
+  return String(value ?? '').toLocaleLowerCase().normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
     .replace(/\bsign\s+in\b/g, 'signin')
     .replace(/\b(log[\s-]?in)\b/g, 'signin')
     .replace(/\b(two[\s-]?factor|2fa)\b/g, 'mfa')
-    .replace(/[^\p{L}\p{N}+ ]/gu, ' ')
-    .split(/\s+/)
-    .filter((word) => word.length > 2 && !stopWords.has(word));
+    .replace(/[^\p{L}\p{N}+]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function tokens(value) {
+  return normalizeText(value).split(' ').filter((word) => word.length > 1 && !stopWords.has(word));
+}
+
+function scoreFaq(query, item) {
+  const queryText = normalizeText(query);
+  const queryTokens = new Set(tokens(query));
+  if (queryTokens.size < 2) return 0;
+  const question = normalizeText(item.question);
+  if (queryText === question) return 100;
+
+  let score = question.includes(queryText) && queryText.length >= 8 ? 12 : 0;
+  for (const keyword of Array.isArray(item.keywords) ? item.keywords : []) {
+    const phrase = normalizeText(keyword);
+    const words = tokens(keyword);
+    if (!phrase || !words.length) continue;
+    if (` ${queryText} `.includes(` ${phrase} `)) {
+      score += words.length > 1 ? 8 + Math.min(words.length - 2, 2) : 3;
+    } else if (words.length > 1 && words.every((word) => queryTokens.has(word))) {
+      score += 6;
+    }
+  }
+
+  for (const word of new Set(tokens(item.question))) {
+    if (word.length > 3 && queryTokens.has(word)) score += 2;
+  }
+  return score;
 }
 
 export function matchPublicFaq(query, faq) {
   if (!Array.isArray(faq) || !faq.length) return null;
-  const words = normalizedWords(query);
-  if (!words.length) return null;
-  const normalizedQuery = words.join(' ');
-  let bestMatch = null;
-  let bestScore = 0;
-
-  for (const item of faq) {
-    if (!item || typeof item.question !== 'string' || typeof item.answer !== 'string') continue;
-    const question = normalizedWords(item.question);
-    const answer = normalizedWords(item.answer);
-    const questionText = question.join(' ');
-    const answerText = answer.join(' ');
-    let score = 0;
-    for (const word of new Set(words)) {
-      if (question.includes(word)) score += 3;
-      if (answer.includes(word)) score += 1;
-    }
-    if (normalizedQuery.length > 5 && questionText.includes(normalizedQuery)) score += 6;
-    if (score > bestScore) {
-      bestScore = score;
-      bestMatch = item;
-    }
-  }
-
-  return bestMatch;
+  const ranked = faq
+    .filter((item) => item && typeof item.question === 'string' && typeof item.answer === 'string')
+    .map((item) => ({ item, score: scoreFaq(query, item) }))
+    .sort((left, right) => right.score - left.score);
+  const best = ranked[0];
+  const runnerUp = ranked[1];
+  if (!best || best.score < 6 || (runnerUp && best.score - runnerUp.score < 2)) return null;
+  return best.item;
 }
