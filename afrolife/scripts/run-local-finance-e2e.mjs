@@ -262,6 +262,7 @@ try {
 
   runNode(['node_modules/typescript/bin/tsc', '-p', 'tsconfig.json'], testEnv, 'API build');
   runNode(['node_modules/typescript/bin/tsc', '-p', 'services/staffing/tsconfig.json'], testEnv, 'Staffing service build');
+  runNode(['scripts/copy-migrations.mjs'], testEnv, 'Migration asset copy');
   runNode(['--import', 'tsx', 'src/migrate.ts'], testEnv, 'Disposable database migrations');
   const fixtureGrants = new pg.Client({ connectionString: migrationUrl.toString() });
   try {
