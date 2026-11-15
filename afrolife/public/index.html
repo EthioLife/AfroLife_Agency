@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-portal-mode="__PORTAL_MODE__">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -86,9 +86,11 @@
           <option value="+971" label="United Arab Emirates"></option><option value="+974" label="Qatar"></option>
         </datalist>
         <form id="login-form" class="panel login-card">
-          <p class="eyebrow">SECURE WORKSPACE</p>
+          <p class="eyebrow public-portal-copy">SECURE WORKSPACE</p>
+          <p class="eyebrow admin-portal-copy">ADMIN &amp; STAFF PORTAL</p>
           <h2>Welcome back</h2>
           <p class="muted">Sign in with your registered phone number. Ethiopia is selected first; international numbers are supported.</p>
+          <p class="provider-notice admin-portal-copy">For approved staff and administrator accounts only. Privileged roles require an authenticator code. First-time administrators will be guided through password change and authenticator setup.</p>
           <div class="phone-input-group">
             <label>Country calling code<input name="phone_country_code" type="text" inputmode="tel" autocomplete="tel-country-code" list="phone-calling-codes" value="+251" pattern="\+[1-9][0-9]{0,2}" required aria-describedby="phone-code-help"></label>
             <label>National phone number<input name="phone" type="tel" inputmode="tel" autocomplete="username" placeholder="9…" required maxlength="20"></label>
@@ -100,6 +102,7 @@
             <button id="toggle-login-password" class="button button-outline password-toggle" type="button" aria-label="Show password" aria-pressed="false">Show</button>
           </div>
           <label id="mfa-field" hidden>Authenticator code<input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6"></label>
+          <label id="trust-device-field" class="check-row" hidden><input name="trust_device" type="checkbox" value="on"><span>Trust this browser for 30 days after verifying this code</span></label>
           <p id="login-error" class="form-error" role="alert"></p>
           <button id="retry-session" class="button button-outline button-wide" type="button" hidden>Retry workspace connection</button>
           <button class="button button-primary button-wide" type="submit">Sign in <span aria-hidden="true">→</span></button>
@@ -110,6 +113,7 @@
           </div>
           <div class="login-links">
             <button id="open-password-recovery" class="text-button" type="button" aria-controls="recovery-form">Forgot password?</button>
+            <a id="admin-portal-link" class="text-button" href="__ADMIN_PORTAL_URL__" __ADMIN_PORTAL_LINK_HIDDEN__>Admin &amp; Staff portal</a>
             <button id="show-agent-plans" class="text-button" type="button">Agent subscription plans</button>
           </div>
           <p class="fine-print">Access is limited to approved AfroSherik accounts.</p>

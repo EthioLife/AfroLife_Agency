@@ -14,11 +14,24 @@ const rows = [
   ['Accountable agent network', 'ተጠያቂነት ያለው የወኪሎች መረብ', 'Neetworkii bakka bu’oota itti gaafatamummaa qabu', 'ተሓታትነት ዘለዎ መርበብ ወከልቲ'],
   ['Central matching oversight', 'ማዕከላዊ የማዛመድ ቁጥጥር', 'To’annoo walitti fiduu giddugaleessaa', 'ማእከላዊ ቁጽጽር ምዝማድ'],
   ['SECURE WORKSPACE', 'ደህንነቱ የተጠበቀ የሥራ ቦታ', 'Iddoo hojii nageenya qabu', 'ውሑስ ቦታ ስራሕ'],
+  ['ADMIN & STAFF PORTAL', 'የአስተዳደር እና ሰራተኞች መግቢያ', 'Seensa bulchiinsaa fi hojjettootaa', 'መእተዊ ምምሕዳርን ሰራሕተኛታትን'],
+  ['For approved staff and administrator accounts only. Privileged roles require an authenticator code. First-time administrators will be guided through password change and authenticator setup.', 'ለተፈቀዱ የሰራተኛ እና የአስተዳዳሪ መለያዎች ብቻ። የተለየ ፈቃድ ያላቸው ሚናዎች የማረጋገጫ ኮድ ይፈልጋሉ። አዲስ አስተዳዳሪዎች የይለፍ ቃል እንዲቀይሩ እና ማረጋገጫ እንዲያዘጋጁ ይመራሉ።', 'Herrega hojjettootaa fi bulchitootaa hayyamame qofaaf. Gaheen mirga addaa qabu koodii mirkaneessaa barbaada. Bulchitoonni haaraan jecha icciitii jijjiiruu fi mirkaneessaa qopheessuu keessatti ni qajeelfamu.', 'ንዝተፈቕደሎም ሕሳባት ሰራሕተኛታትን ኣስተዳደርትን ጥራይ። ፍሉይ መሰል ዘለዎም ግደታት ኮድ መረጋገጺ የድልዮም። ሓደስቲ ኣስተዳደርቲ መሕለፊ ቃል ክቕይሩን መረጋገጺ ከዳልዉን ክምርሑ እዮም።'],
+  ['Admin & Staff portal', 'የአስተዳደር እና ሰራተኞች ፖርታል', 'Poortaala bulchiinsaa fi hojjettootaa', 'ፖርታል ምምሕዳርን ሰራሕተኛታትን'],
   ['Welcome back', 'እንኳን ደህና መጡ', 'Baga nagaan deebiitan', 'እንቋዕ ብደሓን ተመለስኩም'],
   ['Sign in with your registered Ethiopian phone number.', 'በተመዘገበው የኢትዮጵያ ስልክ ቁጥርዎ ይግቡ።', 'Lakkoofsa bilbilaa Itoophiyaa galmeessitan fayyadamuun seenaa.', 'ብዝተመዝገበ ቁጽሪ ስልኪ ኢትዮጵያ እቶ።'],
   ['Phone number', 'ስልክ ቁጥር', 'Lakkoofsa bilbilaa', 'ቁጽሪ ስልኪ'],
   ['Password', 'የይለፍ ቃል', 'Jecha icciitii', 'መሕለፊ ቃል'],
   ['Authenticator code', 'የማረጋገጫ ኮድ', 'Koodii mirkaneessaa', 'ኮድ መረጋገጺ'],
+  ['Trust this browser for 30 days after verifying this code', 'ይህን ኮድ ካረጋገጡ በኋላ ይህን አሳሽ ለ30 ቀናት ይመኑት', 'Koodii kana erga mirkaneessitanii booda biraawzara kana guyyaa 30f amanaa', 'ነዚ ኮድ ድሕሪ ምርግጋጽ ነዚ መርበብ ሓበሬታ ን30 መዓልቲ ኣሚንኩም ምረጹ'],
+  ['Trusted browsers', 'የታመኑ አሳሾች', 'Biraawzaroota amanamoo', 'ዝተኣመኑ መርበባት ሓበሬታ'],
+  ['This browser', 'ይህ አሳሽ', 'Biraawzara kana', 'እዚ መርበብ ሓበሬታ'],
+  ['A trusted browser skips repeat authenticator codes for up to 30 days. It does not extend your sign-in session. You can revoke a browser here.', 'የታመነ አሳሽ እስከ 30 ቀናት ድረስ ተደጋጋሚ የማረጋገጫ ኮድ አይጠይቅም። የመግቢያ ክፍለ ጊዜዎን አያራዝምም። አሳሹን ከዚህ ማቋረጥ ይችላሉ።', 'Biraawzari amanamaan hanga guyyaa 30tti koodii mirkaneessaa irra deddeebi’amee hin gaafatu. Yeroo seensaa keessan hin dheeressu. Biraawzara asitti haqachuu dandeessu.', 'መርበብ ሓበሬታ ዝተኣመነ ክሳብ 30 መዓልቲ ደጋጊሙ ኮድ መረጋገጺ ኣይሓትትን። እዚ ናይ መእተዊ ግዜኹም ኣየንውሕን። ነዚ መርበብ ሓበሬታ ኣብዚ ከተሰርዝዎ ትኽእሉ።'],
+  ['No trusted browsers.', 'የታመኑ አሳሾች የሉም።', 'Biraawzaroonni amanamoon hin jiran.', 'ዝተኣመኑ መርበባት ሓበሬታ የለዉን።'],
+  ['Last used {{lastUsed}} · Expires {{expires}}', 'መጨረሻ የተጠቀመበት {{lastUsed}} · የሚያበቃው {{expires}}', 'Yeroo dhumaa itti fayyadame {{lastUsed}} · Yeroon isaa xumurama {{expires}}', 'ናይ መወዳእታ ኣጠቓቕማ {{lastUsed}} · ግዜኡ ዝውዳእ {{expires}}'],
+  ['Revoke trusted browser', 'የታመነውን አሳሽ ሰርዝ', 'Biraawzara amanamaa haqaa', 'ነቲ ዝተኣመነ መርበብ ሓበሬታ ሰርዝ'],
+  ['Revoke this trusted browser? It will need an authenticator code at the next sign-in.', 'ይህን የታመነ አሳሽ ሰርዘው? በሚቀጥለው ጊዜ ሲገቡ የማረጋገጫ ኮድ ያስፈልጋል።', 'Biraawzara amanamaa kana haa haqnu? Yeroo itti aanu seentan koodii mirkaneessaa barbaada.', 'ነዚ ዝተኣመነ መርበብ ሓበሬታ ንሰርዞ? ኣብ ዝቕጽል ግዜ ክትኣትዉ ኮድ መረጋገጺ የድሊ።'],
+  ['Trusted browser revoked.', 'የታመነው አሳሽ ተሰርዟል።', 'Biraawzari amanamaan haqameera.', 'እቲ ዝተኣመነ መርበብ ሓበሬታ ተሰሪዙ።'],
+  ['Revoked or expired', 'ተሰርዟል ወይም ጊዜው አልፏል', 'Haqameera yookaan yeroon isaa darbeera', 'ተሰሪዙ ወይ ግዜኡ ሓሊፉ'],
   ['Sign in', 'ግባ', 'Seeni', 'እቶ'],
   ['Access is limited to approved AfroSherik accounts.', 'መዳረሻው ለተፈቀዱ የAfroSherik መለያዎች ብቻ ነው።', 'Seensaan herrega AfroSherik hayyamame qofaaf daangeffama.', 'መእተዊ ንዝተፈቕደሎም ሕሳባት AfroSherik ጥራይ ዝተወሰነ እዩ።'],
   ['API server address', 'የAPI አገልጋይ አድራሻ', 'Teessoo sarvarii API', 'ኣድራሻ ሰርቨር API'],
@@ -626,6 +639,9 @@ const addedLanguages = {
   }
 };
 Object.assign(addedLanguages.so, {
+  'ADMIN & STAFF PORTAL': 'BOORTAALKA MAAMULKA IYO SHAQAALAHA',
+  'For approved staff and administrator accounts only. Privileged roles require an authenticator code. First-time administrators will be guided through password change and authenticator setup.': 'Waxaa loogu talagalay oo keliya akoonnada shaqaalaha iyo maamulayaasha la oggolaaday. Doorarka mudnaanta leh waxay u baahan yihiin koodh xaqiijin. Maamulayaasha cusub waxaa lagu hagi doonaa beddelka erayga sirta ah iyo dejinta xaqiijinta.',
+  'Admin & Staff portal': 'Barta Maamulka iyo Shaqaalaha',
   'Approve': 'Ansixi',
   'Reject': 'Diid',
   'Purpose-bound property support access': 'Gelitaanka taageerada hantida oo ujeeddo ku xaddidan',
@@ -664,6 +680,9 @@ Object.assign(addedLanguages.so, {
   'A retry export was created for only the selected failed rows. The export has not been filed or paid.': 'Fayl dib loogu diro safafka fashilmay ee la doortay oo keliya ayaa la sameeyay. Faylka lama gudbin, lamana bixin.',
 });
 Object.assign(addedLanguages.ar, {
+  'ADMIN & STAFF PORTAL': 'بوابة الإدارة والموظفين',
+  'For approved staff and administrator accounts only. Privileged roles require an authenticator code. First-time administrators will be guided through password change and authenticator setup.': 'للحسابات المعتمدة للموظفين والمسؤولين فقط. تتطلب الأدوار ذات الامتيازات رمزًا من تطبيق المصادقة. سيتم إرشاد المسؤولين الجدد لتغيير كلمة المرور وإعداد تطبيق المصادقة.',
+  'Admin & Staff portal': 'بوابة الإدارة والموظفين',
   'Approve': 'موافقة',
   'Reject': 'رفض',
   'Purpose-bound property support access': 'وصول دعم العقارات لغرض محدد',
@@ -702,6 +721,9 @@ Object.assign(addedLanguages.ar, {
   'A retry export was created for only the selected failed rows. The export has not been filed or paid.': 'تم إنشاء ملف إعادة محاولة للصفوف الفاشلة المحددة فقط. لم يتم تقديم الملف أو دفع الرواتب.',
 });
 Object.assign(addedLanguages.sw, {
+  'ADMIN & STAFF PORTAL': 'TOVUTI YA WASIMAMIZI NA WAFANYAKAZI',
+  'For approved staff and administrator accounts only. Privileged roles require an authenticator code. First-time administrators will be guided through password change and authenticator setup.': 'Kwa akaunti za wafanyakazi na wasimamizi walioidhinishwa pekee. Majukumu yenye haki za juu yanahitaji msimbo wa programu ya uthibitishaji. Wasimamizi wapya wataelekezwa kubadilisha nenosiri na kusanidi uthibitishaji.',
+  'Admin & Staff portal': 'Tovuti ya Wasimamizi na Wafanyakazi',
   'Approve': 'Idhinisha',
   'Reject': 'Kataa',
   'Purpose-bound property support access': 'Ufikiaji wa usaidizi wa mali kwa madhumuni maalum',

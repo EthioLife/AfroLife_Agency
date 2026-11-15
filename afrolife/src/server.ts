@@ -1,12 +1,13 @@
 import './env.js';
 import express, { Request, Response, NextFunction, RequestHandler } from 'express';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { PoolClient } from 'pg';
 import helmet from 'helmet';
 import { z } from 'zod';
 import { pool, withUser, authenticate, requireRole, HttpError, JWT_SECRET, assertRuntimeDatabaseSafety } from './core.js';
-import { loadRuntimeConfig, workspaceModulesForServices } from './runtime-config.js';
+import { isAdminPortalHost, loadRuntimeConfig, workspaceModulesForServices } from './runtime-config.js';
 import { apiMetricsMiddleware, checkWorkspaceServices, createWorkspaceServiceStatusCache, flushApiMetrics, readPersistedApiMetrics, startApiMetricsPersistence, type ServiceProbe } from './workspace-status.js';
 import { createApiRateLimiter } from './rate-limit-store.js';
 import { audit } from './domain.js';
@@ -174,6 +175,19 @@ const staticDirs = ['../../public', '../public', '../../web']
   .map((dir) => fileURLToPath(new URL(dir, import.meta.url)))
   .filter((dir) => existsSync(dir));
 if (!staticDirs.length) throw new Error('Web assets were not found; expected a public/ or web/ directory');
+const indexHtmlPath = staticDirs.map((dir) => join(dir, 'index.html')).find(existsSync);
+if (!indexHtmlPath) throw new Error('Web assets were found without an index.html entry point');
+const indexHtmlTemplate = readFileSync(indexHtmlPath, 'utf8');
+app.get(['/', '/index.html'], (req, res) => {
+  const adminPortal = isAdminPortalHost(req.hostname, runtimeConfig.adminPortal);
+  const html = indexHtmlTemplate
+    .replace('data-portal-mode="__PORTAL_MODE__"', `data-portal-mode="${adminPortal ? 'admin' : 'public'}"`)
+    .replace('href="__ADMIN_PORTAL_URL__"', `href="${runtimeConfig.adminPortal?.url ?? '#'}"`)
+    .replace('__ADMIN_PORTAL_LINK_HIDDEN__', runtimeConfig.adminPortal ? '' : 'hidden');
+  res.setHeader('Cache-Control', 'no-store');
+  res.vary('Host');
+  res.type('html').send(html);
+});
 for (const dir of staticDirs) app.use(express.static(dir));
 
 const h = (fn: (req: Request, res: Response) => Promise<unknown>): RequestHandler => (req, res, next) => { fn(req, res).catch(next); };
@@ -186,6 +200,10 @@ app.get('/api/public/industry-news', h(async (_req, res) => {
 const AGENT = ['master_agent', 'field_agent'];
 const api = express.Router();
 api.use(apiMetricsMiddleware);
+api.use((req, res, next) => {
+  res.locals.adminPortal = isAdminPortalHost(req.hostname, runtimeConfig.adminPortal);
+  next();
+});
 
 // ---- Auth (lockout, mandatory administrative MFA, and recovery boundary live in admin.ts) ----
 api.post('/auth/login', createApiRateLimiter('login', Number(process.env.LOGIN_RATE_LIMIT ?? 20)));

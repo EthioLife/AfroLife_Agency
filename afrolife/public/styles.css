@@ -91,6 +91,21 @@ button { cursor: pointer; }
 main { width: min(1180px, calc(100% - 40px)); min-height: calc(100vh - 134px); margin: 0 auto; }
 .login-layout { min-height: 670px; display: grid; grid-template-columns: 1fr 420px; align-items: center; gap: clamp(40px, 9vw, 120px); padding: 66px 5%; }
 #login-form { scroll-margin-block-start: 1rem; }
+.admin-portal-copy { display: none; }
+html[data-portal-mode="admin"] .login-layout {
+  grid-template-columns: minmax(0, 520px);
+  justify-content: center;
+  min-height: calc(100vh - 134px);
+}
+html[data-portal-mode="admin"] .welcome-panel,
+html[data-portal-mode="admin"] #install-app,
+html[data-portal-mode="admin"] #create-account,
+html[data-portal-mode="admin"] #login-form .login-registration-actions,
+html[data-portal-mode="admin"] #show-agent-plans,
+html[data-portal-mode="admin"] #admin-portal-link,
+html[data-portal-mode="admin"] #signup-form,
+html[data-portal-mode="admin"] .public-hub { display: none !important; }
+html[data-portal-mode="admin"] .admin-portal-copy { display: block; }
 .public-hub { padding: 30px 0 72px; }
 .hub-heading {
   position: relative;

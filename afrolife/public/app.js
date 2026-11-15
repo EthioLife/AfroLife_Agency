@@ -46,7 +46,7 @@ const MINI_APP_PANELS = new Set([
   'insurance', 'privacy', 'global-bi',
 ]);
 const $ = (selector) => document.querySelector(selector);
-const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [], amenity_reservations: [] }, propertyAssociationReport: null, propertyMoveOutInspectionDrafts: [], propertyMoveOutInspectionSyncError: '', rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
+const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], trustedDevices: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [], amenity_reservations: [] }, propertyAssociationReport: null, propertyMoveOutInspectionDrafts: [], propertyMoveOutInspectionSyncError: '', rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
 state.propertyTenantSupportGrantId = localStorage.getItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
 state.propertyTenantSupportGrants = [];
 state.propertyOperatingTenants = [];
@@ -560,6 +560,7 @@ async function login(event) {
     const result = await api('/auth/login', { method: 'POST', body: JSON.stringify(payload) });
     if (result.mfa_required) {
       $('#mfa-field').hidden = false;
+      $('#trust-device-field').hidden = false;
       setLocalizedText(error, 'Enter the six-digit code from your authenticator app.');
       return;
     }
@@ -1490,6 +1491,7 @@ function signOut({ revoke = true, message = '' } = {}) {
   $('#login-form').hidden = false;
   state.accessOptions = [];
   $('#mfa-field').hidden = true;
+  $('#trust-device-field').hidden = true;
   $('#retry-session').hidden = true;
   $('#login-error').textContent = message;
   showAlert('');
@@ -2053,7 +2055,10 @@ async function loadPanelData(panel) {
         ? await safeGet('/support/access-requests',[]) : [];
       break;
     case 'security':
-      await load('authSessions', '/auth/sessions');
+      await Promise.all([
+        load('authSessions', '/auth/sessions'),
+        load('trustedDevices', '/auth/trusted-devices'),
+      ]);
       break;
     default:
       break;
@@ -7243,7 +7248,13 @@ function renderSecurity() {
     const form = node('form', undefined, 'inline-form');
     form.dataset.form = 'mfa-enable';
     const code = field('Six-digit authenticator code', 'code', 'text', true, { inputMode: 'numeric', pattern: '[0-9]{6}', maxLength: 6 });
-    form.append(code.label, button('Verify and enable', 'submit', 'button button-primary'));
+    const trustLabel = node('label', undefined, 'check-row');
+    const trustInput = document.createElement('input');
+    trustInput.type = 'checkbox';
+    trustInput.name = 'trust_device';
+    trustInput.value = 'on';
+    trustLabel.append(trustInput, node('span', 'Trust this browser for 30 days after verifying this code'));
+    form.append(code.label, trustLabel, button('Verify and enable', 'submit', 'button button-primary'));
     panel.append(form);
   } else if (state.user.mfa_enabled && !mfaRequired) {
     const form = node('form', undefined, 'inline-form');
@@ -7253,6 +7264,28 @@ function renderSecurity() {
     form.append(field('Six-digit authenticator code', 'code', 'text', true, { inputMode: 'numeric', pattern: '[0-9]{6}', maxLength: 6 }).label);
     form.append(button('Turn off two-step verification', 'submit', 'button button-outline'));
     panel.append(form);
+  }
+  const trustedDevices = node('section', undefined, 'panel');
+  trustedDevices.append(node('h3', 'Trusted browsers'));
+  trustedDevices.append(node('p', 'A trusted browser skips repeat authenticator codes for up to 30 days. It does not extend your sign-in session. You can revoke a browser here.', 'muted'));
+  if (!state.trustedDevices.length) {
+    trustedDevices.append(empty('No trusted browsers.'));
+  } else {
+    const list = node('div', undefined, 'record-list');
+    for (const device of state.trustedDevices) {
+      const item = node('article', undefined, 'record-card');
+      item.append(node('h4', device.current ? 'This browser' : device.user_agent || 'Browser details unavailable'));
+      const dates = node('p', undefined, 'muted');
+      setLocalizedText(dates, 'Last used {{lastUsed}} · Expires {{expires}}', {
+        lastUsed: new Date(device.last_used_at).toLocaleString(),
+        expires: new Date(device.expires_at).toLocaleString(),
+      });
+      item.append(dates);
+      item.append(node('p', device.active ? 'Active' : 'Revoked or expired', 'muted'));
+      if (device.active) item.append(button('Revoke trusted browser', 'revoke-trusted-device', 'button button-outline', { id: device.id }));
+      list.append(item);
+    }
+    trustedDevices.append(list);
   }
   panel.append(node('h3', 'Passkeys and device sign-in'));
   panel.append(node('p', 'Unavailable until secure WebAuthn support is configured. If enabled later, your device may use biometrics or a PIN; AfroSherik will not collect biometric data.'));
@@ -7266,6 +7299,7 @@ function renderSecurity() {
   passkeyNote.className = 'sr-only';
   panel.append(passkeyNote);
   wrap.append(panel);
+  wrap.append(trustedDevices);
   const sessions = node('section', undefined, 'panel');
   sessions.append(node('h3', 'Signed-in sessions'));
   sessions.append(node('p', 'Review recent sessions for your account and end any session you do not recognize.', 'muted'));
@@ -10459,6 +10493,21 @@ document.addEventListener('click', async (event) => {
         : entry);
       renderPanel();
       showAlert('Session ended.');
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'revoke-trusted-device') {
+    const device = state.trustedDevices.find((entry) => entry.id === id);
+    if (!device || !window.confirm(t('Revoke this trusted browser? It will need an authenticator code at the next sign-in.'))) return;
+    try {
+      await api(`/auth/trusted-devices/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      state.trustedDevices = state.trustedDevices.map((entry) => entry.id === id
+        ? { ...entry, active: false, revoked_at: new Date().toISOString() }
+        : entry);
+      renderPanel();
+      showAlert(t('Trusted browser revoked.'));
     } catch (error) {
       showAlert(error.message, true);
     }

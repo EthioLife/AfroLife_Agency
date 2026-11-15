@@ -1,17 +1,69 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { isPlatformAdminRole } from '../src/auth-types.js';
-import { requiresMfaEnrollment } from '../src/auth-types.js';
+import { canAccessAdminPortal, isPlatformAdminRole, requiresMfaEnrollment } from '../src/auth-types.js';
 import { adminRouter, loginRouter } from '../src/admin.js';
+import { requireRole } from '../src/core.js';
 import { getFaydaVerificationStatus, getSmsRecoveryStatus, getWhatsAppRecoveryStatus } from '../src/auth-integrations.js';
 import { learningRouter } from '../src/learning.js';
 import { getRoleActivity, hasRoleActivityAccess, isRoleActivityOverrides, ROLE_ACTIVITIES, ROLE_NAMES } from '../src/role-activities.js';
+import {
+  clearTrustedDeviceCookie,
+  createTrustedDeviceToken,
+  hashTrustedDeviceToken,
+  readTrustedDeviceToken,
+  TRUSTED_DEVICE_COOKIE,
+  TRUSTED_DEVICE_MAX_AGE_SECONDS,
+  trustedDeviceCookie,
+} from '../src/trusted-devices.js';
+
+test('trusted-device cookies use opaque tokens and strict host-only security flags', () => {
+  const token = createTrustedDeviceToken();
+  const cookie = trustedDeviceCookie(token);
+  assert.match(token, /^[A-Za-z0-9_-]{43}$/);
+  assert.equal(hashTrustedDeviceToken(token).length, 32);
+  assert.equal(readTrustedDeviceToken(`${TRUSTED_DEVICE_COOKIE}=${token}`), token);
+  assert.equal(readTrustedDeviceToken(`${TRUSTED_DEVICE_COOKIE}=bad; ${TRUSTED_DEVICE_COOKIE}=${token}`), undefined);
+  assert.equal(readTrustedDeviceToken(`${TRUSTED_DEVICE_COOKIE}=invalid!`), undefined);
+  assert.ok(cookie.includes(`Max-Age=${TRUSTED_DEVICE_MAX_AGE_SECONDS}`));
+  assert.match(cookie, /; Path=\/; .*HttpOnly; Secure; SameSite=Strict$/);
+  assert.match(clearTrustedDeviceCookie(), /Max-Age=0; Expires=/);
+  assert.doesNotMatch(cookie, /Domain=/i);
+});
+
+test('trusted-device migration stores only token hashes and enforces row security', async () => {
+  const migration = await readFile(new URL('../migrations/140_auth_trusted_devices.sql', import.meta.url), 'utf8');
+  assert.match(migration, /token_hash bytea NOT NULL UNIQUE CHECK \(octet_length\(token_hash\) = 32\)/);
+  assert.match(migration, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(migration, /FORCE ROW LEVEL SECURITY/);
+  assert.match(migration, /user_id = app_user_id\(\)/);
+  assert.match(migration, /app_role\(\) IN \('global_admin','super_admin'\)/);
+  assert.doesNotMatch(migration, /\btoken\s+text\b/i);
+  const routes = adminRouter.stack.flatMap((layer) => layer.route ? [layer.route] : []);
+  assert.ok(routes.some((route) => route.path === '/auth/trusted-devices' && route.methods.get));
+  assert.ok(routes.some((route) => route.path === '/auth/trusted-devices/:deviceId' && route.methods.delete));
+});
 
 test('Global Admin and Super Admin share platform-administration classification', () => {
   assert.equal(isPlatformAdminRole('global_admin'), true);
   assert.equal(isPlatformAdminRole('super_admin'), true);
   assert.equal(isPlatformAdminRole('finance'), false);
+});
+
+test('Global Admin may use Super Admin routes, but not vice versa', () => {
+  const allow = (role: string, ...needed: string[]) => {
+    let denied: unknown;
+    const middleware = requireRole(...needed);
+    middleware({ user: { role } } as any, {} as any, (error?: unknown) => { denied = error; });
+    return denied;
+  };
+
+  assert.equal(allow('global_admin', 'super_admin'), undefined);
+  assert.equal((allow('super_admin', 'global_admin') as { status?: number })?.status, 403);
+  assert.equal(allow('global_admin', 'global_admin'), undefined);
+  assert.equal(allow('super_admin', 'super_admin'), undefined);
+  assert.equal((allow('finance', 'global_admin') as { status?: number })?.status, 403);
+  assert.equal((allow('finance', 'super_admin') as { status?: number })?.status, 403);
 });
 
 test('administrative roles always require MFA while regular accounts remain optional', () => {
@@ -21,6 +73,13 @@ test('administrative roles always require MFA while regular accounts remain opti
   for (const role of ['customer', 'worker', 'property_owner', 'master_agent', 'field_agent']) {
     assert.equal(requiresMfaEnrollment(role), false, `${role} keeps optional MFA`);
   }
+});
+
+test('Admin/Staff portal access requires an assigned staff or administrator role', () => {
+  assert.equal(canAccessAdminPortal(['customer']), false);
+  assert.equal(canAccessAdminPortal(['customer', 'global_admin']), true);
+  assert.equal(canAccessAdminPortal(['corporate_business_manager']), true);
+  assert.equal(canAccessAdminPortal(['worker', 'field_agent']), false);
 });
 
 test('SMS recovery and Fayda remain unavailable even when feature flags are requested', () => {

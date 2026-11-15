@@ -318,15 +318,22 @@ test('property vendor portal exposes assigned work only and requires scanned evi
   assert.match(server,/api\.post\('\/maintenance\/vendor\/:id\/evidence', express\.raw/);
 });
 
-test('account security exposes session listing and session revocation', () => {
+test('account security exposes session and trusted-browser listing and revocation', () => {
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
   const admin = readFileSync(new URL('../src/admin.ts', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   assert.match(app, /load\('authSessions', '\/auth\/sessions'\)/);
   assert.match(app, /Signed-in sessions/);
   assert.match(app, /data-action|revoke-session/);
   assert.match(admin, /adminRouter\.get\('\/auth\/sessions'/);
   assert.match(admin, /adminRouter\.delete\('\/auth\/sessions\/:sessionId'/);
   assert.match(admin, /WHERE id=\$1 AND user_id=\$2 AND revoked_at IS NULL AND expires_at>now\(\)/);
+  assert.match(html, /id="trust-device-field"[^>]*hidden/);
+  assert.match(app, /if \(result\.mfa_required\) \{[\s\S]*?\$\('#trust-device-field'\)\.hidden = false/);
+  assert.match(app, /load\('trustedDevices', '\/auth\/trusted-devices'\)/);
+  assert.match(app, /revoke-trusted-device/);
+  assert.match(admin, /adminRouter\.get\('\/auth\/trusted-devices'/);
+  assert.match(admin, /adminRouter\.delete\('\/auth\/trusted-devices\/:deviceId'/);
   assert.match(admin, /session_revoked/);
 });
 
@@ -839,6 +846,18 @@ test('administrator access selection waits until required password and MFA setup
   assert.ok(passwordGuardIndex > currentUserIndex);
   assert.ok(restrictedDataIndex > passwordGuardIndex);
   assert.match(workspace.slice(passwordGuardIndex, restrictedDataIndex), /if \(passwordRequired \|\| state\.mfaRequired\)/);
+});
+
+test('Admin/Staff portal has a host-specific entry and enforces eligible roles at login', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const server = readFileSync(new URL('../src/server.ts', import.meta.url), 'utf8');
+  const auth = readFileSync(new URL('../src/admin.ts', import.meta.url), 'utf8');
+  assert.match(html, /data-portal-mode="__PORTAL_MODE__"/);
+  assert.match(html, /href="__ADMIN_PORTAL_URL__"/);
+  assert.match(html, />Admin &amp; Staff portal</);
+  assert.match(server, /app\.get\(\['\/', '\/index\.html'\]/);
+  assert.match(server, /isAdminPortalHost\(req\.hostname, runtimeConfig\.adminPortal\)/);
+  assert.match(auth, /res\.locals\.adminPortal && !canAccessAdminPortal\(accessOptions\)/);
 });
 
 test('administrator access selection waits until required password and MFA setup are complete', () => {

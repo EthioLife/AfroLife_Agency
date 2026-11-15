@@ -52,10 +52,37 @@ Same-origin TypeScript/Express API and installable web app for AfroLife agency o
 PWA and API. All configured services, including Accounting, are reached through
 this gateway; their private listener ports are not browser-facing.
 The optional local Nginx preview on `http://localhost:8080` only proxies to
-that same app and is not needed for `npm run dev`. Users always open this
-single app URL (or the single public hostname in deployment); they do not open
+that same app and is not needed for `npm run dev`. Public users always open this
+single app URL (or the public hostname in deployment); they do not open
 service-specific ports. Extracted backends remain private behind the central
 API gateway, which routes each feature internally.
+
+An optional separate Admin/Staff entry hostname can be enabled with
+`ADMIN_PORTAL_URL=https://<your-admin-host>`. Configure DNS and the AletCloud
+host mapping to route that hostname to this same core app, then set the
+environment variable and redeploy. The public sign-in page will show an
+Admin/Staff link, and the admin hostname will hide public registration and
+present the staff sign-in flow. The login endpoint rejects accounts without an
+assigned role that requires MFA; password change and authenticator enrollment
+remain in the existing restricted-session flow. API role checks remain the
+security boundary. This separates the entry experience, not the API process or
+database; a standalone frontend deployment would additionally need a secured
+API proxy/origin configuration and is not enabled by this setting.
+For the Development deployment, the selected URL is
+`https://admin.afrosherik.app.aletcloud.com`. It is not enabled until AletCloud
+routes that hostname to the existing core app and provisions HTTPS; a public
+connectivity check could not reach it yet. Leave `ADMIN_PORTAL_URL` unset until
+that mapping is confirmed to avoid exposing a broken sign-in link.
+
+After a successful authenticator challenge, a user may opt to trust that
+browser for 30 days over HTTPS. The browser receives a host-only, secure, HTTP-only cookie;
+the database stores only its token hash. This skips repeat authenticator codes
+on that browser but does not extend the eight-hour sign-in session. Users can
+review and revoke trusted browsers from Account security. Password changes and
+resets, MFA changes and resets, and account deactivation revoke trusted devices.
+Administrator MFA remains required on every untrusted browser.
+When TLS terminates at a reverse proxy, configure `TRUST_PROXY` to the trusted
+proxy hop count so Express can verify that the request is HTTPS.
 
 For a containerized local QA environment, start Docker Desktop and run
 `npm run qa:docker:up` from `afrolife/`. This builds the application, starts an

@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { pool, withUser, requireRole, HttpError, JWT_SECRET, invalidateUser, invalidateRolePermissions } from './core.js';
 import { normalizePhone, normalizePhoneParts } from './phone.js';
-import { requiresMfaEnrollment } from './auth-types.js';
+import { canAccessAdminPortal, requiresMfaEnrollment } from './auth-types.js';
 import { getFaydaVerificationStatus, getWhatsAppRecoveryStatus, sendWhatsAppRecoveryCode } from './auth-integrations.js';
 import { Phone } from './validators.js';
 import { audit, feeSnapshot } from './domain.js';
@@ -28,6 +28,13 @@ import {
 } from './platform-data-admin.js';
 import { getMyTenantDataScopes, getTenantDataScope, requireTenantDataCapability } from './tenant-data-access.js';
 import { getKycRequirements, requiredKycDocuments, ConfigScope, validateMarketplaceConfig, loadMarketplaceConfig } from './marketplace-config.js';
+import {
+  clearTrustedDeviceCookie,
+  createTrustedDeviceToken,
+  hashTrustedDeviceToken,
+  readTrustedDeviceToken,
+  trustedDeviceCookie,
+} from './trusted-devices.js';
 
 const h = (fn: (req: Request, res: Response) => Promise<unknown>): RequestHandler => (req, res, next) => { fn(req, res).catch(next); };
 const STAFF = ['global_admin', 'super_admin', 'compliance', 'finance', 'finance_manager'];
@@ -89,21 +96,27 @@ const openSecret = (sealed: string) => openAny(sealed, MFA_KEYS);
 // Compared against when the phone is unknown, so response time does not reveal which numbers have accounts.
 const DUMMY_HASH = bcrypt.hashSync('no-such-user-placeholder', 12);
 
+async function getAccessOptions(userId: string, role: string): Promise<string[]> {
+  const grants = await withUser({ id: userId, role }, async (client) => {
+    const result = await client.query(
+      'SELECT role_name FROM user_admin_role_grants WHERE user_id=$1 ORDER BY role_name',
+      [userId],
+    );
+    return result.rows.map((row) => row.role_name as string);
+  });
+  return [...new Set([role, ...grants])];
+}
+
 /** A restricted token can only reach the security step it must complete (see the guard in server.ts). */
 async function issue(
   u: { id: string; role: string; must_change_password: boolean; mfa_enabled: boolean },
   replaceSessionId?: string,
   userAgent?: string,
+  accessOptions?: string[],
 ) {
-  const accessOptions = await withUser({ id: u.id, role: u.role }, async (client) => {
-    const grants = await client.query(
-      'SELECT role_name FROM user_admin_role_grants WHERE user_id=$1 ORDER BY role_name',
-      [u.id],
-    );
-    return [...new Set([u.role, ...grants.rows.map((row) => row.role_name as string)])];
-  });
-  const hasStaffAccess = accessOptions.some((role) => MFA_STAFF.includes(role));
-  const hasMfaRequiredAccess = accessOptions.some(requiresMfaEnrollment);
+  const resolvedAccessOptions = accessOptions ?? await getAccessOptions(u.id, u.role);
+  const hasStaffAccess = resolvedAccessOptions.some((role) => MFA_STAFF.includes(role));
+  const hasMfaRequiredAccess = resolvedAccessOptions.some(requiresMfaEnrollment);
   const rst = u.must_change_password ? 'password'
     : (hasMfaRequiredAccess || (process.env.REQUIRE_MFA_FOR_STAFF === '1' && hasStaffAccess))
       && !u.mfa_enabled ? 'mfa' : null;
@@ -126,7 +139,7 @@ async function issue(
   return {
     token: jwt.sign({ sub: u.id, sid: sessionId, role: u.role, ...(rst ? { rst } : {}) }, JWT_SECRET, { expiresIn: '8h' }),
     restrict: rst,
-    access_options: accessOptions,
+    access_options: resolvedAccessOptions,
   };
 }
 
@@ -148,6 +161,7 @@ loginRouter.post('/auth/login', h(async (req, res) => {
     phone_national_number: z.string().optional(),
     password: z.string().min(1).max(200),
     code: z.string().optional(),
+    trust_device: z.literal('on').optional(),
   }).parse(req.body);
   const canonicalPhone = b.phone_country_code && b.phone_national_number
     ? normalizePhoneParts(b.phone_country_code, b.phone_national_number)
@@ -163,18 +177,57 @@ loginRouter.post('/auth/login', h(async (req, res) => {
     if (u) await recordFailure(u.id);
     throw new HttpError(401, 'Invalid credentials or inactive account');
   }
+  const accessOptions = await getAccessOptions(u.id, u.role);
+  if (res.locals.adminPortal && !canAccessAdminPortal(accessOptions)) {
+    throw new HttpError(401, 'Invalid credentials or inactive account');
+  }
+  let trustedDeviceToken: string | undefined;
   if (u.mfa_enabled) {
-    if (!b.code) return res.json({ mfa_required: true });
-    const step = verifyTotpStep(openSecret(u.mfa_secret), b.code);
-    if (step === null) { await recordFailure(u.id); throw new HttpError(401, 'Invalid code'); }
-    const consumed = await pool.query(
-      'UPDATE users SET mfa_last_step = $2 WHERE id = $1 AND mfa_last_step < $2',
-      [u.id, step],
-    );
-    if (!consumed.rowCount) { await recordFailure(u.id); throw new HttpError(401, 'Invalid code'); }
+    const cookieToken = readTrustedDeviceToken(req.get('cookie'));
+    let trusted = false;
+    if (cookieToken) {
+      const device = await withUser({ id: u.id, role: u.role }, async (client) => (await client.query(
+        `UPDATE auth_trusted_devices SET last_used_at=now()
+         WHERE user_id=$1 AND token_hash=$2 AND revoked_at IS NULL AND expires_at>now()
+         RETURNING id`,
+        [u.id, hashTrustedDeviceToken(cookieToken)],
+      )).rows[0]);
+      trusted = Boolean(device);
+    }
+    if (!trusted) {
+      if (!b.code) return res.json({ mfa_required: true });
+      if (b.trust_device && !req.secure) throw new HttpError(400, 'Trusted browsers can only be enabled over HTTPS.');
+      if (!u.mfa_secret) throw new HttpError(401, 'Invalid credentials or inactive account');
+      const step = verifyTotpStep(openSecret(u.mfa_secret), b.code);
+      if (step === null) { await recordFailure(u.id); throw new HttpError(401, 'Invalid code'); }
+      const consumed = await pool.query(
+        'UPDATE users SET mfa_last_step = $2 WHERE id = $1 AND mfa_last_step < $2',
+        [u.id, step],
+      );
+      if (!consumed.rowCount) { await recordFailure(u.id); throw new HttpError(401, 'Invalid code'); }
+      if (b.trust_device) {
+        const token = createTrustedDeviceToken();
+        trustedDeviceToken = token;
+        await withUser({ id: u.id, role: u.role }, async (client) => {
+          await client.query(
+            `DELETE FROM auth_trusted_devices
+             WHERE user_id=$1 AND (expires_at<now()-interval '30 days' OR revoked_at<now()-interval '30 days')`,
+            [u.id],
+          );
+          const deviceId = randomUUID();
+          await client.query(
+            `INSERT INTO auth_trusted_devices (id,user_id,token_hash,user_agent,expires_at)
+             VALUES ($1,$2,$3,$4,now()+interval '30 days')`,
+            [deviceId, u.id, hashTrustedDeviceToken(token), req.get('user-agent')?.slice(0, 512) ?? null],
+          );
+          await audit(client, u.id, 'trusted_device_added', 'auth_trusted_device', deviceId, null, { expires_in_days: 30 });
+        });
+      }
+    }
   }
   await pool.query('UPDATE users SET failed_logins = 0, locked_until = NULL WHERE id = $1', [u.id]);
-  res.json(await issue(u, undefined, req.get('user-agent')));
+  if (trustedDeviceToken) res.append('Set-Cookie', trustedDeviceCookie(trustedDeviceToken));
+  res.json(await issue(u, undefined, req.get('user-agent'), accessOptions));
 }));
 
 const noStore = (_req: Request, res: Response, next: () => void) => {
@@ -284,7 +337,7 @@ loginRouter.post('/auth/password-recovery/complete', noStore, h(async (req, res)
       invalidCode = true;
     } else {
       const user = (await client.query(
-        'SELECT id,phone,password_hash FROM users WHERE id=$1 AND phone=$2 AND active=true AND whatsapp_opt_in=true FOR UPDATE',
+        'SELECT id,phone,password_hash,role FROM users WHERE id=$1 AND phone=$2 AND active=true AND whatsapp_opt_in=true FOR UPDATE',
         [challenge.user_id, phone],
       )).rows[0];
       if (!user) throw new HttpError(400, 'The recovery code is invalid or expired. Request a new code.');
@@ -298,6 +351,14 @@ loginRouter.post('/auth/password-recovery/complete', noStore, h(async (req, res)
       );
       await client.query(
         'UPDATE auth_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL',
+        [user.id],
+      );
+      await client.query(
+        "SELECT set_config('app.user_id',$1,true), set_config('app.role',$2,true)",
+        [user.id, user.role],
+      );
+      await client.query(
+        'UPDATE auth_trusted_devices SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL',
         [user.id],
       );
       await client.query(
@@ -654,6 +715,7 @@ adminRouter.put('/users/:id/admin-access', requireRole('global_admin'), h(async 
         [userId, req.user!.id],
       );
     }
+    await client.query('UPDATE auth_trusted_devices SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [userId]);
     await audit(client, req.user!.id, 'administrator_access_updated', 'user', userId, null, {
       primary_role: target.role,
       grants,
@@ -1895,6 +1957,39 @@ adminRouter.get('/auth/sessions', h(async (req, res) => {
   })));
 }));
 
+adminRouter.get('/auth/trusted-devices', h(async (req, res) => {
+  const token = readTrustedDeviceToken(req.get('cookie'));
+  const devices = await withUser(req.user!, async (client) => (await client.query(
+    `SELECT id,created_at,last_used_at,expires_at,revoked_at,user_agent,token_hash=$2 AS current
+     FROM auth_trusted_devices
+     WHERE user_id=$1 AND (expires_at>now() OR revoked_at>now()-interval '30 days')
+     ORDER BY created_at DESC LIMIT 100`,
+    [req.user!.id, token ? hashTrustedDeviceToken(token) : null],
+  )).rows);
+  res.json(devices.map((device) => ({
+    ...device,
+    active: !device.revoked_at && new Date(device.expires_at) > new Date(),
+  })));
+}));
+
+adminRouter.delete('/auth/trusted-devices/:deviceId', h(async (req, res) => {
+  const deviceId = z.string().uuid().parse(req.params.deviceId);
+  const token = readTrustedDeviceToken(req.get('cookie'));
+  const revoked = await withUser(req.user!, async (client) => {
+    const row = (await client.query(
+      `UPDATE auth_trusted_devices SET revoked_at=now()
+       WHERE id=$1 AND user_id=$2 AND revoked_at IS NULL AND expires_at>now()
+       RETURNING token_hash=$3 AS current_browser`,
+      [deviceId, req.user!.id, token ? hashTrustedDeviceToken(token) : null],
+    )).rows[0];
+    if (row) await audit(client, req.user!.id, 'trusted_device_revoked', 'auth_trusted_device', deviceId);
+    return row;
+  });
+  if (!revoked) throw new HttpError(404, 'Active trusted device not found');
+  if (revoked.current_browser) res.append('Set-Cookie', clearTrustedDeviceCookie());
+  res.sendStatus(204);
+}));
+
 adminRouter.delete('/auth/sessions/:sessionId', h(async (req, res) => {
   const sessionId = z.string().uuid().parse(req.params.sessionId);
   await withUser(req.user!, async (client) => {
@@ -1959,8 +2054,10 @@ adminRouter.post('/auth/change-password', h(async (req, res) => {
   if (await bcrypt.compare(b.next, u.password_hash)) throw new HttpError(422, 'Choose a password you have not used just now.');
   await withUser(req.user!, async (c) => {
     await c.query('UPDATE users SET password_hash = $2, must_change_password = false WHERE id = $1', [u.id, await bcrypt.hash(b.next, 12)]);
+    await c.query('UPDATE auth_trusted_devices SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [u.id]);
     await audit(c, u.id, 'password_changed', 'user', u.id);
   });
+  res.append('Set-Cookie', clearTrustedDeviceCookie());
   res.json(await issue({ ...u, must_change_password: false }, req.user!.sessionId, req.get('user-agent')));
 }));
 
@@ -1973,19 +2070,38 @@ adminRouter.post('/auth/mfa/setup', h(async (req, res) => {
 }));
 
 adminRouter.post('/auth/mfa/enable', h(async (req, res) => {
-  const { code } = z.object({ code: z.string() }).parse(req.body);
+  const { code, trust_device } = z.object({ code: z.string(), trust_device: z.literal('on').optional() }).parse(req.body);
   const u = (await pool.query('SELECT id, role, mfa_secret, must_change_password FROM users WHERE id = $1', [req.user!.id])).rows[0];
   if (!u.mfa_secret) throw new HttpError(409, 'Start setup first');
+  if (trust_device && !req.secure) throw new HttpError(400, 'Trusted browsers can only be enabled over HTTPS.');
   const step = verifyTotpStep(openSecret(u.mfa_secret), code);
   if (step === null) throw new HttpError(422, 'That code is not right. Check the time on your phone and try again.');
+  let trustedDeviceToken: string | undefined;
   await withUser(req.user!, async (c) => {
     const enabled = await c.query(
       'UPDATE users SET mfa_enabled = true, mfa_last_step = $2 WHERE id = $1 AND mfa_enabled = false AND mfa_secret = $3',
       [u.id, step, u.mfa_secret],
     );
     if (!enabled.rowCount) throw new HttpError(409, 'Two-factor setup changed. Start setup again.');
+    if (trust_device) {
+      const token = createTrustedDeviceToken();
+      trustedDeviceToken = token;
+      await c.query(
+        `DELETE FROM auth_trusted_devices
+         WHERE user_id=$1 AND (expires_at<now()-interval '30 days' OR revoked_at<now()-interval '30 days')`,
+        [u.id],
+      );
+      const deviceId = randomUUID();
+      await c.query(
+        `INSERT INTO auth_trusted_devices (id,user_id,token_hash,user_agent,expires_at)
+         VALUES ($1,$2,$3,$4,now()+interval '30 days')`,
+        [deviceId, u.id, hashTrustedDeviceToken(token), req.get('user-agent')?.slice(0, 512) ?? null],
+      );
+      await audit(c, u.id, 'trusted_device_added', 'auth_trusted_device', deviceId, null, { expires_in_days: 30 });
+    }
     await audit(c, u.id, 'mfa_enabled', 'user', u.id);
   });
+  if (trustedDeviceToken) res.append('Set-Cookie', trustedDeviceCookie(trustedDeviceToken));
   res.json(await issue({ ...u, mfa_enabled: true }, req.user!.sessionId, req.get('user-agent')));
 }));
 
@@ -2002,8 +2118,10 @@ adminRouter.post('/auth/mfa/disable', h(async (req, res) => {
       [u.id, step],
     );
     if (!disabled.rowCount) throw new HttpError(401, 'Password or code is incorrect');
+    await c.query('UPDATE auth_trusted_devices SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [u.id]);
     await audit(c, u.id, 'mfa_disabled', 'user', u.id);
   });
+  res.append('Set-Cookie', clearTrustedDeviceCookie());
   res.json({ ok: true });
 }));
 
@@ -2130,6 +2248,7 @@ adminRouter.patch('/users/:id/role', requireRole('global_admin', 'super_admin'),
       'UPDATE users SET role=$2 WHERE id=$1 RETURNING id,legal_name,phone,role,territory_id,active,created_by',
       [userId, body.role],
     )).rows[0];
+    await c.query('UPDATE auth_trusted_devices SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [userId]);
     await audit(c, req.user!.id, 'user_role_updated', 'user', userId, { role: target.role }, { role: body.role });
     return { user: updated, changed: true };
   });
@@ -2222,6 +2341,7 @@ async function decideGlobalAdminPromotion(req: Request, decision: 'approved' | '
     if (decision === 'approved') {
       await c.query("SELECT set_config('app.access_change_reason',$1,true)", [reason]);
       await c.query("UPDATE users SET role = 'global_admin' WHERE id = $1", [target.id]);
+      await c.query('UPDATE auth_trusted_devices SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [target.id]);
     }
     const updated = (await c.query(
       `UPDATE global_admin_role_change_requests
@@ -2601,6 +2721,7 @@ adminRouter.post('/users/:id/deactivate', requireRole('global_admin'), h(async (
     await c.query("SELECT set_config('app.access_change_reason',$1,true)", [reason ?? 'Account deactivated through the authorized Super Admin workflow']);
     const r = await c.query('UPDATE users SET active = false WHERE id = $1 RETURNING id, active', [req.params.id]);
     if (!r.rowCount) throw new HttpError(404, 'User not found');
+    await c.query('UPDATE auth_trusted_devices SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [req.params.id]);
     await audit(c, req.user!.id, 'user_deactivated', 'user', String(req.params.id));
     return r.rows[0];
   }));
@@ -2619,6 +2740,7 @@ adminRouter.post('/users/:id/mfa/reset', requireRole('global_admin'), h(async (r
     const r = await c.query('UPDATE users SET mfa_enabled = false, mfa_secret = NULL, mfa_last_step = -1 WHERE id = $1 RETURNING id, role', [req.params.id]);
     if (!r.rowCount) throw new HttpError(404, 'User not found');
     await c.query('UPDATE auth_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [req.params.id]);
+    await c.query('UPDATE auth_trusted_devices SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [req.params.id]);
     await audit(c, req.user!.id, 'mfa_reset', 'user', String(req.params.id));
     return { ok: true };
   });
@@ -2638,6 +2760,7 @@ adminRouter.post('/users/:id/reset-password', requireRole('global_admin'), h(asy
     const r = await c.query('UPDATE users SET password_hash = $2, must_change_password = true, failed_logins = 0, locked_until = NULL WHERE id = $1', [req.params.id, await bcrypt.hash(temp, 12)]);
     if (!r.rowCount) throw new HttpError(404, 'User not found');
     await c.query('UPDATE auth_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [req.params.id]);
+    await c.query('UPDATE auth_trusted_devices SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [req.params.id]);
     await audit(c, req.user!.id, 'password_reset', 'user', String(req.params.id));
   });
   invalidateUser(String(req.params.id));

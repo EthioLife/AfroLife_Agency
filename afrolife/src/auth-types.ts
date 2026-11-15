@@ -34,6 +34,10 @@ export function requiresMfaEnrollment(role: string): boolean {
   return MFA_REQUIRED_ROLES.has(role);
 }
 
+export function canAccessAdminPortal(accessOptions: readonly string[]): boolean {
+  return accessOptions.some((role) => requiresMfaEnrollment(role));
+}
+
 declare global {
   namespace Express {
     interface Request { user?: AuthUser }
