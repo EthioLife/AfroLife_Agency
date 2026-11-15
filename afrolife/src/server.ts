@@ -641,8 +641,9 @@ api.use(
     '/property/association-report',
     '/property/association-assessments', '/property/association-receipts',
     '/property/association-violations',
-    '/tenants', '/leases', '/lease-signature-documents', '/releases',
-    '/rent-transactions', '/maintenance', '/resident', '/rent',
+    '/tenants', '/leases', '/lease-signature-documents',
+    '/rent-transactions', '/charges', '/maintenance', '/resident', '/owner', '/rent',
+    '/finance/property-chart-of-accounts-template', '/finance/property-period-close',
     '/property-vendors', '/property-vendor-bills', '/property-vendor-payments'],
   requirePropertyTenantContext,
 );
@@ -713,12 +714,13 @@ api.use('/privacy', requirePlatformTenantService('privacy'), requireMiniAppAcces
 api.use('/rent', requirePlatformTenantService('property'), requireMiniAppAccess('rent'));
 api.use('/global-bi', requirePlatformTenantService('global_bi'), requireMiniAppAccess('global-bi'));
 api.use(
-  ['/tenants', '/leases', '/lease-signature-documents', '/releases', '/rent-transactions'],
+  ['/tenants', '/leases', '/lease-signature-documents', '/releases', '/rent-transactions', '/charges',
+    '/finance/property-chart-of-accounts-template', '/finance/property-period-close'],
   requirePlatformTenantService('property'),
   requireAnyMiniAppAccess('properties', 'rent'),
 );
 api.use(['/maintenance'], requirePlatformTenantService('property', 'accounting'), requireAnyMiniAppAccess('properties', 'accounting'));
-api.use(['/resident'], requirePlatformTenantService('property'), requireMiniAppAccess('properties'));
+api.use(['/resident', '/owner'], requirePlatformTenantService('property'), requireMiniAppAccess('properties'));
 api.use((req, _res, next) => {
   const organizationId = req.get('x-afrolife-edir-id');
   if (organizationId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(organizationId)) {
@@ -743,6 +745,7 @@ api.use((req, _res, next) => {
   }).then(() => next(), next);
 });
 api.use('/subscriptions', subscriptionRouter);
+api.use('/leads', requirePlatformTenantService('agency'));
 api.get('/features', h(async (req, res) => {
   let enabledModules = runtimeConfig.enabledModules;
   let platformTenantId: string | null = null;
