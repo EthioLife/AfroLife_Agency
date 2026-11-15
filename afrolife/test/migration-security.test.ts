@@ -181,6 +181,7 @@ test('migration runners persist and enforce immutable SQL checksums', () => {
   assert.match(aletcloudBootstrap, /ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY must be set to 1/);
   assert.match(aletcloudBootstrap, /ALETCLOUD_BOOTSTRAP_DATABASE_URL is required for a migrations-only bootstrap/);
   assert.match(aletcloudBootstrap, /migrationsOnly \? false : await seedFirstSuperAdmin/);
+  assert.match(aletcloudBootstrap, /ALTER ROLE \$\{roleName\} WITH LOGIN PASSWORD \$\{quoteLiteral\(runtime\.password\)\}/);
   assert.match(aletcloudBootstrap, /if \(migrationsOnly\)[\s\S]*?delete migrationEnv\.SEED_ADMIN_PASSWORD[\s\S]*?AFROLIFE_SEED_ADMIN_BEFORE_PROPERTY_TENANT_MIGRATION = '1'/);
   assert.match(aletcloudBootstrap, /delete migrationEnv\.ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY/);
   assert.match(aletcloudBootstrap, /runtime\.role\.slice\(0, 46\).*_afrolife_runtime/);

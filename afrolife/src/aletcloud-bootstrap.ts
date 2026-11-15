@@ -80,6 +80,9 @@ async function provisionRuntimeRole(adminUrl: string, runtimeUrl: string) {
       if (role.rolsuper || role.rolcreatedb || role.rolcreaterole || role.rolbypassrls) {
         throw new Error('The selected application runtime role has elevated privileges; choose a different DATABASE_URL username.');
       }
+      await client.query(
+        `ALTER ROLE ${roleName} WITH LOGIN PASSWORD ${quoteLiteral(runtime.password)}`,
+      );
     } else {
       await client.query(
         `CREATE ROLE ${roleName} WITH LOGIN PASSWORD ${quoteLiteral(runtime.password)}`,
