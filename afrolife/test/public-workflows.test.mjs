@@ -435,6 +435,7 @@ test('dynamically created labels retain their source text when the locale change
       initializeLocale,
       setLocalizedAttribute,
       setLocalizedNodeText,
+      t,
       translateContent,
     } = await import(`../public/i18n.js?locale-test=${Date.now()}`);
     const renderLink = () => {
@@ -471,6 +472,15 @@ test('dynamically created labels retain their source text when the locale change
     translateContent(root);
     assert.equal(accountingText.nodeValue, 'የሂሳብ መዝገብ ዝርዝር');
     assert.equal(workerPaymentText.nodeValue, 'የሠራተኛ ክፍያ መዝገቦች');
+    const faqFallbackNotice = 'Some published support questions and answers may appear in English when a translation is unavailable.';
+    for (const locale of ['am', 'om', 'ti', 'so', 'ar', 'sw']) {
+      selector.value = locale;
+      changeLocale();
+      assert.notEqual(t(faqFallbackNotice), faqFallbackNotice, `${locale} should translate the FAQ fallback notice`);
+    }
+    selector.value = 'en';
+    changeLocale();
+    assert.equal(t(faqFallbackNotice), faqFallbackNotice);
   } finally {
     for (const [key, descriptor] of descriptors) {
       if (descriptor) Object.defineProperty(globalThis, key, descriptor);
@@ -793,8 +803,23 @@ test('public support is outside the welcome hero and includes an anonymous help 
   assert.match(html, /id="public-help-launcher"[^>]*aria-haspopup="dialog"[^>]*aria-controls="public-help-dialog"/);
   assert.match(html, /id="public-help-dialog"[^>]*aria-labelledby="public-help-title"/);
   assert.match(app, /\$\('#public-help-launcher'\)\.addEventListener\('click', \(\) => \$\('#public-help-dialog'\)\.showModal\(\)\)/);
+  assert.match(app, /\$\('#public-help-dialog'\)\.addEventListener\('keydown', \(event\) => \{\s*if \(event\.key !== 'Escape'\) return;\s*event\.preventDefault\(\);\s*\$\('#public-help-dialog'\)\.close\(\);\s*\}\)/);
   assert.match(app, /\$\('#public-help-close'\)\.addEventListener\('click', \(\) => \$\('#public-help-dialog'\)\.close\(\)\)/);
+  assert.equal((html.match(/data-faq-language-note/g) ?? []).length, 2);
+  assert.match(app, /function updatePublicFaqLanguageNotices\(locale\) \{\s*document\.querySelectorAll\('\[data-faq-language-note\]'\)\.forEach\(\(notice\) => \{\s*notice\.hidden = locale === 'en';/);
   assert.match(app, /topic\.dataset\.publicHelpQuestion = t\(item\.question\)/);
+});
+
+test('Edir registration provides a return action and restores focus to its opener', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+
+  assert.match(html, /id="back-from-edir-registration"[^>]*type="button">Back to services<\/button>/);
+  assert.match(app, /edirRegistrationTrigger = button;/);
+  const backHandler = app.slice(app.indexOf("$('#back-from-edir-registration').addEventListener"), app.indexOf("$('#show-login').addEventListener"));
+  assert.match(backHandler, /#edir-registration-form'\)\.hidden = true/);
+  assert.match(backHandler, /edirRegistrationTrigger\?\.isConnected/);
+  assert.match(backHandler, /edirRegistrationTrigger\.focus\(\{ preventScroll: true \}\)/);
 });
 
 test('anonymous FAQ responses are local, FAQ-backed, and safe when the API is unavailable', () => {

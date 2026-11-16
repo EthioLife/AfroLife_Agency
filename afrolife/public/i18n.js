@@ -5727,6 +5727,15 @@ for (const row of propertyAssociationRows) {
     catalogs[locale][row[0]] = row[column] ?? row[0];
   }
 }
+const publicSupportRows = [
+  ['Back to services', 'ወደ አገልግሎቶች ተመለስ', 'Gara tajaajilootaatti deebi’i', 'ናብ ኣገልግሎታት ተመለስ', 'Ku noqo adeegyada', 'العودة إلى الخدمات', 'Rudi kwenye huduma'],
+  ['Some published support questions and answers may appear in English when a translation is unavailable.', 'ትርጉም በሌለበት ጊዜ አንዳንድ የታተሙ የድጋፍ ጥያቄዎችና መልሶች በእንግሊዝኛ ሊታዩ ይችላሉ።', 'Yeroo hiikni hin jirre, gaaffii fi deebiin deeggarsaa maxxanfame tokko tokko Afaan Ingiliziitiin mul’achuu danda’a.', 'ትርጉም ኣብ ዘይርከበሉ እዋን፡ ገለ ዝተሓትሙ ሕቶታትን መልስታትን ደገፍ ብእንግሊዝኛ ክረኣዩ ይኽእሉ።', 'Su’aalaha iyo jawaabaha taageerada qaarkood waxa lagu soo bandhigi karaa Ingiriisi marka tarjumaad la waayo.', 'قد تظهر بعض أسئلة وأجوبة الدعم المنشورة باللغة الإنجليزية عند عدم توفر ترجمة.', 'Baadhi ya maswali na majibu ya usaidizi yaliyochapishwa yanaweza kuonekana kwa Kiingereza ikiwa tafsiri haipatikani.'],
+];
+for (const row of publicSupportRows) {
+  for (const [column, locale] of Object.keys(localeNames).entries()) {
+    catalogs[locale][row[0]] = row[column] ?? row[0];
+  }
+}
 const localeStorageKey = 'afrolife.locale';
 const supportedLocales = Object.keys(localeNames);
 const storedLocale = localStorage.getItem(localeStorageKey);

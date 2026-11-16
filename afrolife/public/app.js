@@ -48,6 +48,7 @@ const MINI_APP_PANELS = new Set([
 ]);
 const $ = (selector) => document.querySelector(selector);
 const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], trustedDevices: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [], amenity_reservations: [] }, propertyAssociationReport: null, propertyMoveOutInspectionDrafts: [], propertyMoveOutInspectionSyncError: '', rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
+let edirRegistrationTrigger = null;
 state.passkeySecurity = null;
 state.passkeyOptions = null;
 state.passkeyDeviceName = 'This device';
@@ -726,6 +727,12 @@ function renderSupportFaq(selector, faq) {
     details.append(summary, answer);
     categories.get(category).append(details);
   }
+}
+
+function updatePublicFaqLanguageNotices(locale) {
+  document.querySelectorAll('[data-faq-language-note]').forEach((notice) => {
+    notice.hidden = locale === 'en';
+  });
 }
 
 function publicHelpFaqForLocale() {
@@ -11356,6 +11363,11 @@ $('#toggle-login-password').addEventListener('click', () => {
   setLocalizedText(toggle, visible ? 'Hide' : 'Show');
 });
 $('#public-help-launcher').addEventListener('click', () => $('#public-help-dialog').showModal());
+$('#public-help-dialog').addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  event.preventDefault();
+  $('#public-help-dialog').close();
+});
 $('#public-help-close').addEventListener('click', () => $('#public-help-dialog').close());
 $('#public-help-dialog').addEventListener('close', () => {
   state.publicHelpMessages = [];
@@ -11438,6 +11450,7 @@ $('#back-to-sign-in').addEventListener('click', () => {
   $('#login-form [name="phone"]').focus({ preventScroll: true });
 });
 document.querySelectorAll('[data-open-edir-registration]').forEach((button) => button.addEventListener('click', () => {
+  edirRegistrationTrigger = button;
   const form = $('#edir-registration-form');
   form.hidden = false;
   syncEdirRegistrationRequirements();
@@ -11447,6 +11460,10 @@ document.querySelectorAll('[data-open-edir-registration]').forEach((button) => b
     : form.querySelector('input[name="display_name"]');
   nextField?.focus({ preventScroll: true });
 }));
+$('#back-from-edir-registration').addEventListener('click', () => {
+  $('#edir-registration-form').hidden = true;
+  if (edirRegistrationTrigger?.isConnected) edirRegistrationTrigger.focus({ preventScroll: true });
+});
 $('#show-login').addEventListener('click', () => {
   $('#signup-form').hidden = true;
   $('#recovery-form').hidden = true;
@@ -11530,7 +11547,8 @@ window.addEventListener('popstate', () => {
   if (panel !== state.panel) navigateToPanel(panel, { replace: true });
 });
 
-initializeLocale(() => {
+initializeLocale((locale) => {
+  updatePublicFaqLanguageNotices(locale);
   renderSignupTerritoryOptions();
   updatePlanLabels();
   if (state.publicSupportFaq) {
@@ -11553,6 +11571,7 @@ initializeLocale(() => {
     renderAssistant();
   }
 });
+updatePublicFaqLanguageNotices(document.documentElement.lang);
 initializeNativeServer();
 syncEdirRegistrationRequirements();
 updateSignupFields();
