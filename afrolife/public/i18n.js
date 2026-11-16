@@ -32,6 +32,32 @@ const rows = [
   ['Revoke this trusted browser? It will need an authenticator code at the next sign-in.', 'ይህን የታመነ አሳሽ ሰርዘው? በሚቀጥለው ጊዜ ሲገቡ የማረጋገጫ ኮድ ያስፈልጋል።', 'Biraawzara amanamaa kana haa haqnu? Yeroo itti aanu seentan koodii mirkaneessaa barbaada.', 'ነዚ ዝተኣመነ መርበብ ሓበሬታ ንሰርዞ? ኣብ ዝቕጽል ግዜ ክትኣትዉ ኮድ መረጋገጺ የድሊ።', 'Ma ka noqaysaa kalsoonida biraawsarkan? Wuxuu u baahan doonaa koodh xaqiijin marka xigta ee la galo.', 'هل تريد إلغاء الثقة بهذا المتصفح؟ سيحتاج إلى رمز مصادقة عند تسجيل الدخول القادم.', 'Uondoe uaminifu wa kivinjari hiki? Kitataka msimbo wa uthibitishaji utakapoingia tena.'],
   ['Trusted browser revoked.', 'የታመነው አሳሽ ተሰርዟል።', 'Biraawzari amanamaan haqameera.', 'እቲ ዝተኣመነ መርበብ ሓበሬታ ተሰሪዙ።', 'Kalsoonida biraawsarka waa laga noqday.', 'تم إلغاء الثقة بالمتصفح.', 'Uaminifu wa kivinjari umeondolewa.'],
   ['Revoked or expired', 'ተሰርዟል ወይም ጊዜው አልፏል', 'Haqameera yookaan yeroon isaa darbeera', 'ተሰሪዙ ወይ ግዜኡ ሓሊፉ', 'La laalay ama dhacay', 'تم الإلغاء أو انتهت الصلاحية', 'Imebatilishwa au muda wake umeisha'],
+  ['Passkeys and device registration', 'Passkey እና የመሣሪያ ምዝገባ', 'Passkey fi galmee meeshaa', 'Passkeyን ምዝገባ መሳርሕን'],
+  ['Passkey registration is unavailable until secure server-side WebAuthn verification is configured. AfroSherik does not collect biometric data.', 'ደህንነቱ የተጠበቀ የWebAuthn ሰርቨር ማረጋገጫ እስኪዋቀር ድረስ የPasskey ምዝገባ አይገኝም። AfroSherik የባዮሜትሪክ መረጃ አይሰበስብም።', 'Mirkaneessi WebAuthn sarvaraa nageenya qabu hanga qindaa’utti galmeen passkey hin jiru. AfroSherik odeeffannoo baayomeetirikii hin funaanu.', 'ውሑስ ምርግጋጽ WebAuthn ሰርቨር ክሳብ ዝዋደድ ምዝገባ Passkey ኣይርከብን። AfroSherik ሓበሬታ ባዮሜትሪክ ኣይእክብን እዩ።'],
+  ['Passkey registration unavailable', 'የPasskey ምዝገባ አይገኝም', 'Galmeen passkey hin jiru', 'ምዝገባ Passkey ኣይርከብን'],
+  ['Secure WebAuthn verification is not configured; no passkey was registered.', 'ደህንነቱ የተጠበቀ WebAuthn ማረጋገጫ አልተዋቀረም፤ Passkey አልተመዘገበም።', 'Mirkaneessi WebAuthn nageenya qabu hin qindaa’in; passkey hin galmoofne.', 'ውሑስ ምርግጋጽ WebAuthn ኣይተዋደደን፤ Passkey ኣይተመዝገበን።'],
+  ['Passkey registration does not replace password sign-in or required administrator MFA; any biometric check stays on your device.', 'Passkey ምዝገባ የይለፍ ቃል መግቢያን ወይም የአስተዳዳሪ MFA ግዴታን አይተካም፤ ማንኛውም ባዮሜትሪክ ማረጋገጫ በመሣሪያዎ ላይ ይቆያል።', 'Galmeen passkey seensa jecha icciitii yookaan MFA bulchitootaa hin bakka bu’u; mirkaneessi baayomeetirikii kamiyyuu meeshaa kee irratti hafa.', 'ምዝገባ Passkey ኣብ ክንዲ መእተዊ መሕለፊ ቃል ወይ MFA ኣመሓዳሪ ኣይኮነን፤ ዝኾነ ምርግጋጽ ባዮሜትሪክ ኣብ መሳርሒኻ ይቕመጥ።'],
+  ['Your device handles biometric or PIN verification; AfroSherik does not receive biometric data.', 'መሣሪያዎ የባዮሜትሪክ ወይም የPIN ማረጋገጫን ያስተናግዳል፤ AfroSherik የባዮሜትሪክ መረጃ አይቀበልም።', 'Meeshaan kee mirkaneessa baayomeetirikii yookaan PIN ni raawwata; AfroSherik odeeffannoo baayomeetirikii hin fudhatu.', 'መሳርሒኻ ምርግጋጽ ባዮሜትሪክ ወይ PIN ይፍጽም፤ AfroSherik ሓበሬታ ባዮሜትሪክ ኣይቅበልን።'],
+  ['Passkey registration is unavailable in this browser or connection.', 'በዚህ አሳሽ ወይም ግንኙነት የPasskey ምዝገባ አይገኝም።', 'Galmeen passkey biraawzarii yookaan walqunnamtii kana irratti hin jiru.', 'ኣብዚ ብራውዘር ወይ ርክብ ምዝገባ Passkey ኣይርከብን።'],
+  ['Continue on this device to approve passkey creation with its built-in screen lock or biometric prompt.', 'የPasskey መፍጠርን በመሣሪያው የማያ ገጽ መቆለፊያ ወይም የባዮሜትሪክ ጥያቄ ለማጽደቅ በዚህ መሣሪያ ይቀጥሉ።', 'Uumama passkey qulfii iskiriinii yookaan gaafii baayomeetirikii meeshaa kanaan mirkaneessuuf itti fufi.', 'ፍጠራ Passkey ብመቆለፊ ስክሪን ወይ ሕቶ ባዮሜትሪክ ናይዚ መሳርሒ ንምጽዳቕ ቀጽል።'],
+  ['This device credential does not replace password sign-in or required administrator MFA; any biometric check stays on your device.', 'ይህ የመሣሪያ ማረጋገጫ የይለፍ ቃል መግቢያን ወይም የአስተዳዳሪ MFA ግዴታን አይተካም፤ ማንኛውም ባዮሜትሪክ ማረጋገጫ በመሣሪያዎ ላይ ይቆያል።', 'Mirkaneessi meeshaa kanaa seensa jecha icciitii yookaan MFA bulchitootaa hin bakka bu’u; mirkaneessi baayomeetirikii kamiyyuu meeshaa kee irratti hafa.', 'እዚ ምርግጋጽ መሳርሒ መእተዊ መሕለፊ ቃል ወይ MFA ኣመሓዳሪ ኣይትክእን፤ ዝኾነ ምርግጋጽ ባዮሜትሪክ ኣብ መሳርሒኻ ይቕመጥ።'],
+  ['Passkey status could not be loaded. Try again later.', 'የPasskey ሁኔታ ሊጫን አልቻለም። ቆይተው እንደገና ይሞክሩ።', 'Haalli passkey fe’amuu hin dandeenye. Booda irra deebi’ii yaali.', 'ኩነታት Passkey ክጽዓን ኣይከኣለን። ጸኒሕካ እንደገና ፈትን።'],
+  ['Registered passkeys could not be loaded.', 'የተመዘገቡ Passkeyዎች ሊጫኑ አልቻሉም።', 'Passkeywwan galmaa’an fe’amuu hin dandeenye.', 'ዝተመዝገቡ Passkey ክጽዓኑ ኣይከኣሉን።'],
+  ['Continue on this device', 'በዚህ መሣሪያ ይቀጥሉ', 'Meeshaa kanaan itti fufi', 'ብዚ መሳርሒ ቀጽል'],
+  ['Cancel setup', 'ማዋቀሩን ሰርዝ', 'Qindaa’ina haqi', 'ምድላው ሰርዝ'],
+  ['Device label', 'የመሣሪያ ስም', 'Maqaa meeshaa', 'ስም መሳርሒ'],
+  ['Register this device', 'ይህን መሣሪያ መዝግብ', 'Meeshaa kana galmeessi', 'ነዚ መሳርሒ መዝግብ'],
+  ['No passkeys are registered for this account.', 'ለዚህ መለያ Passkey አልተመዘገበም።', 'Passkey herrega kanaaf hin galmoofne.', 'ንዚ ሕሳብ Passkey ኣይተመዝገበን።'],
+  ['Synced passkey', 'የተመሳሰለ Passkey', 'Passkey kan walsimsiifame', 'ዝተመሳሰለ Passkey'],
+  ['Device-bound passkey', 'ከመሣሪያው ጋር የተያያዘ Passkey', 'Passkey meeshaa kanaan walqabate', 'ምስዚ መሳርሒ ዝተኣሳሰረ Passkey'],
+  ['{{type}} · added {{date}}', '{{type}} · የተጨመረበት {{date}}', '{{type}} · dabalame {{date}}', '{{type}} · ዝተወሰኸ {{date}}'],
+  ['Remove passkey', 'Passkey አስወግድ', 'Passkey balleessi', 'Passkey ኣውግድ'],
+  ['Passkey setup is ready. Continue to approve it on your device.', 'Passkey ማዋቀር ዝግጁ ነው። በመሣሪያዎ ላይ ለማጽደቅ ይቀጥሉ።', 'Qindaa’inni passkey qophaa’eera. Meeshaa kee irratti mirkaneessuuf itti fufi.', 'ምድላው Passkey ድሉው እዩ። ኣብ መሳርሒኻ ንምጽዳቕ ቀጽል።'],
+  ['Enter a label for this device.', 'ለዚህ መሣሪያ ስም ያስገቡ።', 'Meeshaa kanaaf maqaa galchi.', 'ንዚ መሳርሒ ስም ኣእቱ።'],
+  ['The device did not create a passkey.', 'መሣሪያው Passkey አልፈጠረም።', 'Meeshaan passkey hin uumne.', 'መሳርሒ እቲ Passkey ኣይፈጠረን።'],
+  ['Passkey registered on this device. Your biometric or PIN data remains with your device.', 'Passkey በዚህ መሣሪያ ተመዝግቧል። የባዮሜትሪክ ወይም PIN መረጃዎ በመሣሪያዎ ላይ ይቆያል።', 'Passkey meeshaa kana irratti galmaa’eera. Odeeffannoon baayomeetirikii yookaan PIN kee meeshaa kee bira hafa.', 'Passkey ኣብዚ መሳርሒ ተመዝጊቡ። ሓበሬታ ባዮሜትሪክ ወይ PIN ኣብ መሳርሒኻ ይቕመጥ።'],
+  ['Remove this passkey from your account?', 'ይህን Passkey ከመለያዎ ማስወገድ ይፈልጋሉ?', 'Passkey kana herrega kee keessaa balleessuu barbaaddaa?', 'ነዚ Passkey ካብ ሕሳብካ ክትኣልዮ ትደሊ?'],
+  ['Passkey removed from this account.', 'Passkey ከዚህ መለያ ተወግዷል።', 'Passkey herrega kana keessaa haqameera.', 'Passkey ካብዚ ሕሳብ ተኣልዩ።'],
   ['Sign in', 'ግባ', 'Seeni', 'እቶ'],
   ['Access is limited to approved AfroSherik accounts.', 'መዳረሻው ለተፈቀዱ የAfroSherik መለያዎች ብቻ ነው።', 'Seensaan herrega AfroSherik hayyamame qofaaf daangeffama.', 'መእተዊ ንዝተፈቕደሎም ሕሳባት AfroSherik ጥራይ ዝተወሰነ እዩ።'],
   ['API server address', 'የAPI አገልጋይ አድራሻ', 'Teessoo sarvarii API', 'ኣድራሻ ሰርቨር API'],
@@ -5351,6 +5377,111 @@ const authRefreshTranslations = {
   'Passkeys and device sign-in': {
     am: 'Passkey እና በመሣሪያ መግባት', om: 'Passkey fi seensa meeshaa', ti: 'Passkeyን ብመሳርሒ ምእታውን',
     so: 'Furayaasha passkey iyo gelitaanka qalabka', ar: 'مفاتيح المرور وتسجيل الدخول بالجهاز', sw: 'Passkey na kuingia kwa kifaa',
+  },
+  'Passkeys and device registration': {
+    am: 'የPasskey እና የመሣሪያ ምዝገባ', om: 'Passkey fi galmee meeshaa', ti: 'ምዝገባ Passkeyን መሳርሕን',
+    so: 'Furayaasha passkey iyo diiwaangelinta qalabka', ar: 'مفاتيح المرور وتسجيل الجهاز', sw: 'Usajili wa passkey na kifaa',
+  },
+  'Passkey registration is unavailable until secure server-side WebAuthn verification is configured. AfroSherik does not collect biometric data.': {
+    so: 'Diiwaangelinta passkey lama heli karo ilaa xaqiijinta WebAuthn ee server-ka si ammaan ah loo habeeyo. AfroSherik ma ururiyo xogta biometrics.',
+    ar: 'تسجيل مفتاح المرور غير متاح حتى إعداد التحقق الآمن من WebAuthn على الخادم. لا تجمع AfroSherik البيانات الحيوية.',
+    sw: 'Usajili wa passkey haupatikani hadi uthibitishaji salama wa WebAuthn kwenye seva usanidiwe. AfroSherik haikusanyi data ya bayometriki.',
+  },
+  'Passkey registration unavailable': {
+    so: 'Diiwaangelinta passkey lama heli karo', ar: 'تسجيل مفتاح المرور غير متاح', sw: 'Usajili wa passkey haupatikani',
+  },
+  'Secure WebAuthn verification is not configured; no passkey was registered.': {
+    so: 'Xaqiijinta WebAuthn ee sugan lama habayn; passkey lama diiwaangelin.',
+    ar: 'لم يُعَدّ التحقق الآمن من WebAuthn؛ لم يُسجّل أي مفتاح مرور.',
+    sw: 'Uthibitishaji salama wa WebAuthn haujasanidiwa; hakuna passkey iliyosajiliwa.',
+  },
+  'Passkey registration does not replace password sign-in or required administrator MFA; any biometric check stays on your device.': {
+    so: 'Diiwaangelinta passkey ma beddelayso gelitaanka erayga sirta ah ama MFA-ga khasabka ah ee maamulka; xaqiijinta biometrics waxay ku ekaanaysaa qalabkaaga.',
+    ar: 'لا يحل تسجيل مفتاح المرور محل الدخول بكلمة المرور أو المصادقة متعددة العوامل الإلزامية للمسؤولين؛ يظل التحقق الحيوي على جهازك.',
+    sw: 'Usajili wa passkey hauchukui nafasi ya kuingia kwa nenosiri au MFA ya lazima ya msimamizi; uthibitishaji wa bayometriki hubaki kwenye kifaa chako.',
+  },
+  'Your device handles biometric or PIN verification; AfroSherik does not receive biometric data.': {
+    so: 'Qalabkaagu ayaa maamula xaqiijinta biometrics ama PIN; AfroSherik ma helo xogta biometrics.',
+    ar: 'يتولى جهازك التحقق بالبيانات الحيوية أو PIN؛ ولا تستقبل AfroSherik البيانات الحيوية.',
+    sw: 'Kifaa chako hushughulikia uthibitishaji wa bayometriki au PIN; AfroSherik haipokei data ya bayometriki.',
+  },
+  'Passkey registration is unavailable in this browser or connection.': {
+    so: 'Diiwaangelinta passkey kama shaqaynayso biraawsarkan ama isku xidhkan.',
+    ar: 'تسجيل مفتاح المرور غير متاح في هذا المتصفح أو الاتصال.',
+    sw: 'Usajili wa passkey haupatikani kwenye kivinjari au muunganisho huu.',
+  },
+  'Continue on this device to approve passkey creation with its built-in screen lock or biometric prompt.': {
+    so: 'Ku sii wad qalabkan si aad u ansixiso samaynta passkey adigoo adeegsanaya qufulka shaashadda ama xaqiijinta biometrics.',
+    ar: 'تابع على هذا الجهاز للموافقة على إنشاء مفتاح المرور باستخدام قفل الشاشة أو التحقق الحيوي المدمج.',
+    sw: 'Endelea kwenye kifaa hiki ili kuidhinisha passkey kwa kutumia kifungio cha skrini au uthibitishaji wa bayometriki.',
+  },
+  'This device credential does not replace password sign-in or required administrator MFA; any biometric check stays on your device.': {
+    so: 'Aqoonsigan qalabku ma beddelayo gelitaanka erayga sirta ah ama MFA-ga khasabka ah ee maamulka; xaqiijinta biometrics waxay ku ekaanaysaa qalabkaaga.',
+    ar: 'بيانات اعتماد هذا الجهاز لا تحل محل الدخول بكلمة المرور أو المصادقة متعددة العوامل الإلزامية للمسؤولين؛ ويظل التحقق الحيوي على جهازك.',
+    sw: 'Kitambulisho hiki cha kifaa hakichukui nafasi ya kuingia kwa nenosiri au MFA ya lazima ya msimamizi; uthibitishaji wa bayometriki hubaki kwenye kifaa chako.',
+  },
+  'Passkey status could not be loaded. Try again later.': {
+    so: 'Xaaladda passkey lama soo shubi karin. Mar kale isku day.',
+    ar: 'تعذر تحميل حالة مفتاح المرور. حاول مرة أخرى لاحقاً.',
+    sw: 'Hali ya passkey haikuweza kupakiwa. Jaribu tena baadaye.',
+  },
+  'Registered passkeys could not be loaded.': {
+    so: 'Passkey-yada diiwaangashan lama soo shubi karin.',
+    ar: 'تعذر تحميل مفاتيح المرور المسجلة.',
+    sw: 'Passkey zilizosajiliwa hazikuweza kupakiwa.',
+  },
+  'Continue on this device': {
+    so: 'Ku sii wad qalabkan', ar: 'تابع على هذا الجهاز', sw: 'Endelea kwenye kifaa hiki',
+  },
+  'Cancel setup': {
+    so: 'Jooji dejinta', ar: 'إلغاء الإعداد', sw: 'Ghairi usanidi',
+  },
+  'Device label': {
+    so: 'Magaca qalabka', ar: 'اسم الجهاز', sw: 'Jina la kifaa',
+  },
+  'Register this device': {
+    so: 'Diiwaangeli qalabkan', ar: 'سجّل هذا الجهاز', sw: 'Sajili kifaa hiki',
+  },
+  'No passkeys are registered for this account.': {
+    so: 'Akoonkan looma diiwaangelin passkey.', ar: 'لا توجد مفاتيح مرور مسجلة لهذا الحساب.',
+    sw: 'Hakuna passkey zilizosajiliwa kwa akaunti hii.',
+  },
+  'Synced passkey': {
+    so: 'Passkey la isku waafajiyey', ar: 'مفتاح مرور متزامن', sw: 'Passkey iliyosawazishwa',
+  },
+  'Device-bound passkey': {
+    so: 'Passkey ku xidhan qalabkan', ar: 'مفتاح مرور مرتبط بالجهاز', sw: 'Passkey iliyounganishwa na kifaa',
+  },
+  '{{type}} · added {{date}}': {
+    so: '{{type}} · lagu daray {{date}}', ar: '{{type}} · أُضيف في {{date}}',
+    sw: '{{type}} · iliongezwa {{date}}',
+  },
+  'Remove passkey': {
+    so: 'Ka saar passkey', ar: 'إزالة مفتاح المرور', sw: 'Ondoa passkey',
+  },
+  'Passkey setup is ready. Continue to approve it on your device.': {
+    so: 'Dejinta passkey waa diyaar. Ku sii wad si aad ugu ansixiso qalabkaaga.',
+    ar: 'إعداد مفتاح المرور جاهز. تابع للموافقة عليه على جهازك.',
+    sw: 'Usanidi wa passkey uko tayari. Endelea ili kuuidhinisha kwenye kifaa chako.',
+  },
+  'Enter a label for this device.': {
+    so: 'Geli magaca qalabkan.', ar: 'أدخل اسماً لهذا الجهاز.', sw: 'Weka jina la kifaa hiki.',
+  },
+  'The device did not create a passkey.': {
+    so: 'Qalabku ma samayn passkey.', ar: 'لم ينشئ الجهاز مفتاح مرور.', sw: 'Kifaa hakikuunda passkey.',
+  },
+  'Passkey registered on this device. Your biometric or PIN data remains with your device.': {
+    so: 'Passkey ayaa lagu diiwaangeliyey qalabkan. Xogta biometrics ama PIN waxay ku hadhaysaa qalabkaaga.',
+    ar: 'سُجّل مفتاح المرور على هذا الجهاز. تبقى بياناتك الحيوية أو PIN على جهازك.',
+    sw: 'Passkey imesajiliwa kwenye kifaa hiki. Data ya bayometriki au PIN hubaki kwenye kifaa chako.',
+  },
+  'Remove this passkey from your account?': {
+    so: 'Ma ka saartaa passkey-gan akoonkaaga?', ar: 'هل تريد إزالة مفتاح المرور هذا من حسابك؟',
+    sw: 'Ungependa kuondoa passkey hii kwenye akaunti yako?',
+  },
+  'Passkey removed from this account.': {
+    so: 'Passkey waa laga saaray akoonkan.', ar: 'أُزيل مفتاح المرور من هذا الحساب.',
+    sw: 'Passkey imeondolewa kwenye akaunti hii.',
   },
   'Unavailable until secure WebAuthn support is configured. If enabled later, your device may use biometrics or a PIN; AfroSherik will not collect biometric data.': {
     am: 'ደህንነቱ የተጠበቀ WebAuthn እስኪዋቀር ድረስ አይገኝም። በኋላ ከነቃ መሣሪያዎ ባዮሜትሪክስ ወይም PIN ሊጠቀም ይችላል፤ AfroSherik የባዮሜትሪክ መረጃ አይሰበስብም።',

@@ -1,10 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { canAccessAdminPortal, isPlatformAdminRole, requiresMfaEnrollment } from '../src/auth-types.js';
+import { readFile, readdir } from 'node:fs/promises';
+import { canAccessAdminPortal, isPlatformAdminRole, requiresMfaEnrollment, requiresMfaForRoles } from '../src/auth-types.js';
 import { adminRouter, loginRouter } from '../src/admin.js';
 import { requireRole } from '../src/core.js';
-import { getFaydaVerificationStatus, getSmsRecoveryStatus, getWhatsAppRecoveryStatus } from '../src/auth-integrations.js';
+import {
+  getFaydaVerificationStatus,
+  getSmsRecoveryStatus,
+  getWebAuthnConfiguration,
+  getWebAuthnStatus,
+  getWhatsAppRecoveryStatus,
+} from '../src/auth-integrations.js';
 import { learningRouter } from '../src/learning.js';
 import { getRoleActivity, hasRoleActivityAccess, isRoleActivityOverrides, ROLE_ACTIVITIES, ROLE_NAMES } from '../src/role-activities.js';
 import {
@@ -73,6 +79,17 @@ test('administrative roles always require MFA while regular accounts remain opti
   for (const role of ['customer', 'worker', 'property_owner', 'master_agent', 'field_agent']) {
     assert.equal(requiresMfaEnrollment(role), false, `${role} keeps optional MFA`);
   }
+  assert.equal(requiresMfaForRoles(['customer', 'worker']), false);
+  assert.equal(requiresMfaForRoles(['customer', 'super_admin']), true);
+});
+
+test('accounts with an administrative role grant cannot disable mandatory MFA', async () => {
+  const source = await readFile(new URL('../src/admin.ts', import.meta.url), 'utf8');
+  assert.match(source, /SELECT role_name FROM user_admin_role_grants WHERE user_id=\$1/);
+  assert.match(source, /requiresMfaForRoles\(\[u\.role, \.\.\.grants\.rows\.map/);
+  assert.match(source, /mfa_required: requiresMfaForRoles\(req\.user!\.accessOptions/);
+  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.match(app, /state\.user\.mfa_required \?\? REQUIRED_MFA_ROLES\.has\(state\.user\.role\)/);
 });
 
 test('Admin/Staff portal access requires an assigned staff or administrator role', () => {
@@ -89,6 +106,71 @@ test('SMS recovery and Fayda remain unavailable even when feature flags are requ
   assert.equal(getFaydaVerificationStatus({ FAYDA_VERIFICATION_ENABLED: '1' }).enabled, false);
   assert.equal(getFaydaVerificationStatus({ FAYDA_VERIFICATION_ENABLED: '1' }).status, 'unavailable');
   assert.equal(getFaydaVerificationStatus({ FAYDA_VERIFICATION_ENABLED: '0' }).status, 'disabled');
+});
+
+test('WebAuthn registration is disabled by default and requires an explicit secure matching origin', () => {
+  assert.equal(getWebAuthnConfiguration({}), null);
+  assert.equal(getWebAuthnStatus({}).enabled, false);
+  assert.equal(getWebAuthnConfiguration({ WEBAUTHN_ORIGIN: 'http://example.com', WEBAUTHN_RP_ID: 'example.com' }), null);
+  assert.equal(getWebAuthnConfiguration({ WEBAUTHN_ORIGIN: 'https://app.example.com', WEBAUTHN_RP_ID: 'other.com' }), null);
+  assert.equal(getWebAuthnConfiguration({ WEBAUTHN_ORIGIN: 'https://app.example.com', WEBAUTHN_RP_ID: 'example.com' }), null);
+  assert.equal(getWebAuthnConfiguration({ WEBAUTHN_ORIGIN: 'https://app.example.com/login', WEBAUTHN_RP_ID: 'app.example.com' }), null);
+  assert.deepEqual(getWebAuthnConfiguration({
+    WEBAUTHN_ORIGIN: 'https://app.example.com',
+    WEBAUTHN_RP_ID: 'app.example.com',
+    WEBAUTHN_RP_NAME: 'AfroSherik',
+  }), { origin: 'https://app.example.com', rpID: 'app.example.com', rpName: 'AfroSherik' });
+  assert.equal(getWebAuthnConfiguration({ WEBAUTHN_ORIGIN: 'http://localhost:3010', WEBAUTHN_RP_ID: 'localhost' })?.origin,
+    'http://localhost:3010');
+});
+
+test('public auth keeps international phone selection and clearly labels unavailable recovery, Fayda, and passkeys', async () => {
+  const html = await readFile(new URL('../public/index.html', import.meta.url), 'utf8');
+  for (const id of ['login-form', 'recovery-form', 'signup-form']) {
+    const form = html.match(new RegExp(`<form id="${id}"[\\s\\S]*?<\\/form>`))?.[0];
+    assert.ok(form, `missing ${id}`);
+    assert.match(form, /name="phone_country_code"[^>]*value="\+251"/);
+    assert.match(form, /list="phone-calling-codes"/);
+  }
+  assert.match(html, /WhatsApp recovery is available only after delivery is configured/);
+  assert.match(html, /Fayda verification is unavailable[^<]*manual|Use secure document review instead; this is not live Fayda verification/);
+  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.match(app, /passkey\.disabled = !passkeyState\.enabled \|\| !browserSupportsPasskeys/);
+  assert.match(app, /Passkey registration is unavailable until secure server-side WebAuthn verification is configured/);
+  assert.match(app, /navigator\.credentials\.create/);
+  assert.match(app, /serializePasskeyRegistration\(credential\)/);
+});
+
+test('passkey endpoints verify session-bound WebAuthn challenges and never return credential material', async () => {
+  const routes = adminRouter.stack.flatMap((layer) => layer.route ? [layer.route] : []);
+  for (const [path, method] of [
+    ['/auth/passkeys', 'get'],
+    ['/auth/passkeys/registration/options', 'post'],
+    ['/auth/passkeys/registration/verify', 'post'],
+    ['/auth/passkeys/:id', 'delete'],
+  ] as const) {
+    assert.ok(routes.some((route) => route.path === path && route.methods[method]), `missing ${method} ${path}`);
+  }
+  const source = await readFile(new URL('../src/admin.ts', import.meta.url), 'utf8');
+  assert.match(source, /expectedChallenge: challenge\.challenge/);
+  assert.match(source, /expectedOrigin: config\.origin/);
+  assert.match(source, /expectedRPID: config\.rpID/);
+  assert.match(source, /requireUserVerification: true/);
+  assert.match(source, /authenticatorAttachment: 'platform'/);
+  assert.match(source, /residentKey: 'required'/);
+  assert.match(source, /session_id=\$2 AND consumed_at IS NULL AND expires_at>now\(\)/);
+  const migrationName = '149_auth_passkeys.sql';
+  const migrations = await readdir(new URL('../migrations/', import.meta.url));
+  const migrationNumber = migrationName.match(/^\d+/)?.[0];
+  assert.ok(migrationNumber);
+  assert.equal(migrations.filter((name) => name.startsWith(`${migrationNumber}_`)).length, 1);
+  const migration = await readFile(new URL(`../migrations/${migrationName}`, import.meta.url), 'utf8');
+  assert.match(migration, /auth_passkey_credentials ENABLE ROW LEVEL SECURITY/);
+  assert.match(migration, /auth_passkey_credentials_self/);
+  assert.match(migration, /auth_passkey_registration_challenges ENABLE ROW LEVEL SECURITY/);
+  assert.match(migration, /session_id uuid NOT NULL REFERENCES auth_sessions\(id\) ON DELETE CASCADE/);
+  assert.match(migration, /expires_at <= created_at \+ interval '5 minutes'/);
+  assert.doesNotMatch(source.match(/adminRouter\.get\('\/auth\/passkeys'[\s\S]*?\n\}\)\);/)?.[0] ?? '', /credential_id|public_key/);
 });
 
 test('password recovery migration stores only hash material and limits challenges', async () => {

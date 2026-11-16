@@ -20,6 +20,7 @@ import { paginateRows } from './row-pagination.js';
 import { filterWorkerActivityReports, workerActivityReportsCsv } from './worker-activity-reports.js';
 import { phonePayload as canonicalPhonePayload } from './phone-input.js';
 import { matchPublicFaq, suggestPublicFaqs } from './public-help.js';
+import { preparePasskeyCreationOptions, serializePasskeyRegistration } from './passkeys.js';
 
 const WEB_API_ROOT = '/api/v1';
 let API_ROOT = WEB_API_ROOT;
@@ -47,6 +48,9 @@ const MINI_APP_PANELS = new Set([
 ]);
 const $ = (selector) => document.querySelector(selector);
 const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], trustedDevices: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [], amenity_reservations: [] }, propertyAssociationReport: null, propertyMoveOutInspectionDrafts: [], propertyMoveOutInspectionSyncError: '', rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
+state.passkeySecurity = null;
+state.passkeyOptions = null;
+state.passkeyDeviceName = 'This device';
 state.propertyTenantSupportGrantId = localStorage.getItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
 state.propertyTenantSupportGrants = [];
 state.propertyOperatingTenants = [];
@@ -2058,6 +2062,12 @@ async function loadPanelData(panel) {
       await Promise.all([
         load('authSessions', '/auth/sessions'),
         load('trustedDevices', '/auth/trusted-devices'),
+        safeGet('/auth/passkeys', {
+          enabled: false,
+          status: 'unavailable',
+          message: 'Passkey status could not be loaded. Try again later.',
+          credentials: null,
+        }).then((result) => { state.passkeySecurity = result; }),
       ]);
       break;
     default:
@@ -7224,7 +7234,7 @@ function renderSecurity() {
   whatsappConsentInput.dataset.whatsappOptIn = 'true';
   whatsappConsent.append(whatsappConsentInput, node('span', 'Allow WhatsApp messages for password recovery'));
   panel.append(whatsappConsent);
-  const mfaRequired = REQUIRED_MFA_ROLES.has(state.user.role);
+  const mfaRequired = state.user.mfa_required ?? REQUIRED_MFA_ROLES.has(state.user.role);
   panel.append(node('h3', state.user.mfa_enabled ? 'Two-step verification is enabled' : 'Two-step verification'));
   panel.append(node('p', mfaRequired
     ? 'Authenticator sign-in is required for administrative roles and cannot be disabled.'
@@ -7287,17 +7297,62 @@ function renderSecurity() {
     }
     trustedDevices.append(list);
   }
-  panel.append(node('h3', 'Passkeys and device sign-in'));
-  panel.append(node('p', 'Unavailable until secure WebAuthn support is configured. If enabled later, your device may use biometrics or a PIN; AfroSherik will not collect biometric data.'));
-  const passkey = node('button', 'Device sign-in unavailable', 'button button-outline passkey-unavailable');
-  passkey.type = 'button';
-  passkey.disabled = true;
-  passkey.setAttribute('aria-describedby', 'passkey-unavailable-note');
-  panel.append(passkey);
-  const passkeyNote = node('span', 'Secure device credential registration is not available yet.');
-  passkeyNote.id = 'passkey-unavailable-note';
-  passkeyNote.className = 'sr-only';
-  panel.append(passkeyNote);
+  const passkeyState = state.passkeySecurity ?? {
+    enabled: false,
+    message: 'Passkey registration is unavailable until secure server-side WebAuthn verification is configured. AfroSherik does not collect biometric data.',
+    credentials: [],
+  };
+  const browserSupportsPasskeys = Boolean(window.isSecureContext
+    && typeof window.PublicKeyCredential === 'function'
+    && typeof navigator.credentials?.create === 'function');
+  panel.append(node('h3', 'Passkeys and device registration'));
+  const passkeyMessage = passkeyState.enabled && !browserSupportsPasskeys
+    ? 'Passkey registration is unavailable in this browser or connection.'
+    : passkeyState.message;
+  panel.append(node('p', passkeyMessage));
+  panel.append(node('p', 'Passkey registration does not replace password sign-in or required administrator MFA; any biometric check stays on your device.', 'muted'));
+  if (state.passkeyOptions) {
+    panel.append(node('p', 'Continue on this device to approve passkey creation with its built-in screen lock or biometric prompt.'));
+    panel.append(button('Continue on this device', 'passkey-create', 'button button-primary'));
+    panel.append(button('Cancel setup', 'passkey-cancel', 'button button-outline'));
+  } else {
+    if (passkeyState.enabled && browserSupportsPasskeys) {
+      const deviceName = field('Device label', 'device_name', 'text', true, { maxLength: 80 });
+      deviceName.input.value = state.passkeyDeviceName;
+      deviceName.input.addEventListener('input', () => { state.passkeyDeviceName = deviceName.input.value; });
+      panel.append(deviceName.label);
+    }
+    const passkey = button(passkeyState.enabled && browserSupportsPasskeys
+      ? 'Register this device' : 'Passkey registration unavailable',
+    'passkey-register', 'button button-outline passkey-unavailable');
+    passkey.disabled = !passkeyState.enabled || !browserSupportsPasskeys;
+    passkey.setAttribute('aria-describedby', 'passkey-unavailable-note');
+    panel.append(passkey);
+    const passkeyNote = node('span', passkeyMessage);
+    passkeyNote.id = 'passkey-unavailable-note';
+    passkeyNote.className = 'sr-only';
+    panel.append(passkeyNote);
+  }
+  const passkeys = passkeyState.credentials;
+  if (!Array.isArray(passkeys)) {
+    panel.append(node('p', 'Registered passkeys could not be loaded.', 'form-error'));
+  } else if (!passkeys.length) {
+    panel.append(node('p', 'No passkeys are registered for this account.', 'muted'));
+  } else {
+    const passkeyList = node('div', undefined, 'record-list');
+    for (const credential of passkeys) {
+      const item = node('article', undefined, 'record-card');
+      item.append(node('h4', credential.device_name));
+      const credentialType = t(credential.device_type === 'multiDevice' ? 'Synced passkey' : 'Device-bound passkey');
+      item.append(node('p', t('{{type}} · added {{date}}', {
+        type: credentialType,
+        date: new Date(credential.created_at).toLocaleDateString(),
+      }), 'muted'));
+      item.append(button('Remove passkey', 'passkey-remove', 'button button-outline', { id: credential.id }));
+      passkeyList.append(item);
+    }
+    panel.append(passkeyList);
+  }
   wrap.append(panel);
   wrap.append(trustedDevices);
   const sessions = node('section', undefined, 'panel');
@@ -9554,6 +9609,66 @@ document.addEventListener('click', async (event) => {
   }
   if (name === 'access-mode-choice') {
     await switchAccessMode(action.dataset.role);
+    return;
+  }
+  if (name === 'passkey-register') {
+    try {
+      state.passkeyDeviceName = state.passkeyDeviceName.trim();
+      if (!state.passkeyDeviceName) throw new Error(t('Enter a label for this device.'));
+      state.passkeyOptions = await api('/auth/passkeys/registration/options', {
+        method: 'POST',
+        body: '{}',
+      });
+      renderPanel();
+      showAlert(t('Passkey setup is ready. Continue to approve it on your device.'));
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'passkey-create') {
+    try {
+      if (!window.isSecureContext || typeof window.PublicKeyCredential !== 'function'
+        || typeof navigator.credentials?.create !== 'function') {
+        throw new Error(t('Passkey registration is unavailable in this browser or connection.'));
+      }
+      const credential = await navigator.credentials.create({
+        publicKey: preparePasskeyCreationOptions(state.passkeyOptions),
+      });
+      if (!credential) throw new Error(t('The device did not create a passkey.'));
+      await api('/auth/passkeys/registration/verify', {
+        method: 'POST',
+        body: JSON.stringify({
+          response: serializePasskeyRegistration(credential),
+          device_name: state.passkeyDeviceName,
+        }),
+      });
+      state.passkeyOptions = null;
+      state.passkeySecurity = await api('/auth/passkeys');
+      renderPanel();
+      showAlert(t('Passkey registered on this device. Your biometric or PIN data remains with your device.'));
+    } catch (error) {
+      if (error.name !== 'NotAllowedError') state.passkeyOptions = null;
+      renderPanel();
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'passkey-cancel') {
+    state.passkeyOptions = null;
+    renderPanel();
+    return;
+  }
+  if (name === 'passkey-remove') {
+    if (!window.confirm(t('Remove this passkey from your account?'))) return;
+    try {
+      await api(`/auth/passkeys/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      state.passkeySecurity = await api('/auth/passkeys');
+      renderPanel();
+      showAlert(t('Passkey removed from this account.'));
+    } catch (error) {
+      showAlert(error.message, true);
+    }
     return;
   }
   if (name === 'mfa-setup') {

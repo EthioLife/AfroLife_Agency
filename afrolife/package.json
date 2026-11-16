@@ -91,6 +91,7 @@
     "@capacitor/android": "^7.0.0",
     "@capacitor/core": "^7.0.0",
     "@capacitor/ios": "^7.6.9",
+    "@simplewebauthn/server": "^14.1.0",
     "aws4fetch": "^1.0.20",
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.7",
