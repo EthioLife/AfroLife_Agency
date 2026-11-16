@@ -1,12 +1,13 @@
 import './env.js';
 import express, { Request, Response, NextFunction, RequestHandler } from 'express';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { PoolClient } from 'pg';
 import helmet from 'helmet';
 import { z } from 'zod';
 import { pool, withUser, authenticate, requireRole, HttpError, JWT_SECRET, assertRuntimeDatabaseSafety } from './core.js';
-import { loadRuntimeConfig, workspaceModulesForServices } from './runtime-config.js';
+import { isAdminPortalHost, loadRuntimeConfig, workspaceModulesForServices } from './runtime-config.js';
 import { apiMetricsMiddleware, checkWorkspaceServices, createWorkspaceServiceStatusCache, flushApiMetrics, readPersistedApiMetrics, startApiMetricsPersistence, type ServiceProbe } from './workspace-status.js';
 import { createApiRateLimiter } from './rate-limit-store.js';
 import { audit } from './domain.js';
@@ -100,7 +101,9 @@ app.get('/api/public/support', (_req, res) => {
 });
 app.get('/api/public/support-faq', (_req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=300');
-  res.json(SUPPORT_FAQ.map(({ question, answer }) => ({ question, answer })));
+  res.json(SUPPORT_FAQ.map(({ category, question, answer, keywords }) => ({
+    category, question, answer, keywords,
+  })));
 });
 app.get('/healthz', (_req, res, next) => {
   pool.query('SELECT 1').then(
@@ -172,6 +175,19 @@ const staticDirs = ['../../public', '../public', '../../web']
   .map((dir) => fileURLToPath(new URL(dir, import.meta.url)))
   .filter((dir) => existsSync(dir));
 if (!staticDirs.length) throw new Error('Web assets were not found; expected a public/ or web/ directory');
+const indexHtmlPath = staticDirs.map((dir) => join(dir, 'index.html')).find(existsSync);
+if (!indexHtmlPath) throw new Error('Web assets were found without an index.html entry point');
+const indexHtmlTemplate = readFileSync(indexHtmlPath, 'utf8');
+app.get(['/', '/index.html'], (req, res) => {
+  const adminPortal = isAdminPortalHost(req.hostname, runtimeConfig.adminPortal);
+  const html = indexHtmlTemplate
+    .replace('data-portal-mode="__PORTAL_MODE__"', `data-portal-mode="${adminPortal ? 'admin' : 'public'}"`)
+    .replace('href="__ADMIN_PORTAL_URL__"', `href="${runtimeConfig.adminPortal?.url ?? '#'}"`)
+    .replace('__ADMIN_PORTAL_LINK_HIDDEN__', runtimeConfig.adminPortal ? '' : 'hidden');
+  res.setHeader('Cache-Control', 'no-store');
+  res.vary('Host');
+  res.type('html').send(html);
+});
 for (const dir of staticDirs) app.use(express.static(dir));
 
 const h = (fn: (req: Request, res: Response) => Promise<unknown>): RequestHandler => (req, res, next) => { fn(req, res).catch(next); };
@@ -184,6 +200,10 @@ app.get('/api/public/industry-news', h(async (_req, res) => {
 const AGENT = ['master_agent', 'field_agent'];
 const api = express.Router();
 api.use(apiMetricsMiddleware);
+api.use((req, res, next) => {
+  res.locals.adminPortal = isAdminPortalHost(req.hostname, runtimeConfig.adminPortal);
+  next();
+});
 
 // ---- Auth (lockout, mandatory administrative MFA, and recovery boundary live in admin.ts) ----
 api.post('/auth/login', createApiRateLimiter('login', Number(process.env.LOGIN_RATE_LIMIT ?? 20)));
@@ -621,8 +641,9 @@ api.use(
     '/property/association-report',
     '/property/association-assessments', '/property/association-receipts',
     '/property/association-violations',
-    '/tenants', '/leases', '/lease-signature-documents', '/releases',
-    '/rent-transactions', '/maintenance', '/resident', '/rent',
+    '/tenants', '/leases', '/lease-signature-documents',
+    '/rent-transactions', '/charges', '/maintenance', '/resident', '/owner', '/rent',
+    '/finance/property-chart-of-accounts-template', '/finance/property-period-close',
     '/property-vendors', '/property-vendor-bills', '/property-vendor-payments'],
   requirePropertyTenantContext,
 );
@@ -693,12 +714,13 @@ api.use('/privacy', requirePlatformTenantService('privacy'), requireMiniAppAcces
 api.use('/rent', requirePlatformTenantService('property'), requireMiniAppAccess('rent'));
 api.use('/global-bi', requirePlatformTenantService('global_bi'), requireMiniAppAccess('global-bi'));
 api.use(
-  ['/tenants', '/leases', '/lease-signature-documents', '/releases', '/rent-transactions'],
+  ['/tenants', '/leases', '/lease-signature-documents', '/releases', '/rent-transactions', '/charges',
+    '/finance/property-chart-of-accounts-template', '/finance/property-period-close'],
   requirePlatformTenantService('property'),
   requireAnyMiniAppAccess('properties', 'rent'),
 );
 api.use(['/maintenance'], requirePlatformTenantService('property', 'accounting'), requireAnyMiniAppAccess('properties', 'accounting'));
-api.use(['/resident'], requirePlatformTenantService('property'), requireMiniAppAccess('properties'));
+api.use(['/resident', '/owner'], requirePlatformTenantService('property'), requireMiniAppAccess('properties'));
 api.use((req, _res, next) => {
   const organizationId = req.get('x-afrolife-edir-id');
   if (organizationId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(organizationId)) {
@@ -723,6 +745,7 @@ api.use((req, _res, next) => {
   }).then(() => next(), next);
 });
 api.use('/subscriptions', subscriptionRouter);
+api.use('/leads', requirePlatformTenantService('agency'));
 api.get('/features', h(async (req, res) => {
   let enabledModules = runtimeConfig.enabledModules;
   let platformTenantId: string | null = null;

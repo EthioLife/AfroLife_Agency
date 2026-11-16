@@ -52,10 +52,37 @@ Same-origin TypeScript/Express API and installable web app for AfroLife agency o
 PWA and API. All configured services, including Accounting, are reached through
 this gateway; their private listener ports are not browser-facing.
 The optional local Nginx preview on `http://localhost:8080` only proxies to
-that same app and is not needed for `npm run dev`. Users always open this
-single app URL (or the single public hostname in deployment); they do not open
+that same app and is not needed for `npm run dev`. Public users always open this
+single app URL (or the public hostname in deployment); they do not open
 service-specific ports. Extracted backends remain private behind the central
 API gateway, which routes each feature internally.
+
+An optional separate Admin/Staff entry hostname can be enabled with
+`ADMIN_PORTAL_URL=https://<your-admin-host>`. Configure DNS and the AletCloud
+host mapping to route that hostname to this same core app, then set the
+environment variable and redeploy. The public sign-in page will show an
+Admin/Staff link, and the admin hostname will hide public registration and
+present the staff sign-in flow. The login endpoint rejects accounts without an
+assigned role that requires MFA; password change and authenticator enrollment
+remain in the existing restricted-session flow. API role checks remain the
+security boundary. This separates the entry experience, not the API process or
+database; a standalone frontend deployment would additionally need a secured
+API proxy/origin configuration and is not enabled by this setting.
+For the Development deployment, the selected URL is
+`https://admin.afrosherik.app.aletcloud.com`. It is not enabled until AletCloud
+routes that hostname to the existing core app and provisions HTTPS; a public
+connectivity check could not reach it yet. Leave `ADMIN_PORTAL_URL` unset until
+that mapping is confirmed to avoid exposing a broken sign-in link.
+
+After a successful authenticator challenge, a user may opt to trust that
+browser for 30 days over HTTPS. The browser receives a host-only, secure, HTTP-only cookie;
+the database stores only its token hash. This skips repeat authenticator codes
+on that browser but does not extend the eight-hour sign-in session. Users can
+review and revoke trusted browsers from Account security. Password changes and
+resets, MFA changes and resets, and account deactivation revoke trusted devices.
+Administrator MFA remains required on every untrusted browser.
+When TLS terminates at a reverse proxy, configure `TRUST_PROXY` to the trusted
+proxy hop count so Express can verify that the request is HTTPS.
 
 For a containerized local QA environment, start Docker Desktop and run
 `npm run qa:docker:up` from `afrolife/`. This builds the application, starts an
@@ -102,7 +129,7 @@ Super Admin business-service APIs independently check the selected tenant's acti
 The initial database migration creates a starter Ethiopia → Addis Ababa → Bole territory path and default pricing/matching rules. Additional territories are managed through the API by a Super Admin.
 `/livez` confirms that the API process is running. `/healthz` checks PostgreSQL connectivity. `/readyz` is the deployment readiness probe: it checks the database, every workspace migration packaged with this release and its stored checksum, writable private-file storage, and all configured private services. It returns HTTP 503 if any required check fails and does not expose connection strings or exception details.
 The Docker image health check uses `/readyz`; a container can therefore remain live while being marked unhealthy when its schema, storage, or configured services are not ready.
-Core and standalone Accounting migration runners serialize migration execution with PostgreSQL advisory locks, record SHA-256 checksums, and stop if an already-checksummed migration file changes. Existing migration histories without checksums are baselined to the migration contents present at the first checksum-aware run; this cannot identify edits made before that baseline. Never edit an applied migration—add a new migration instead.
+Core and standalone Accounting migration runners serialize migration execution with PostgreSQL advisory locks, record SHA-256 checksums, and stop if an already-checksummed migration file changes. Existing migration histories without checksums are baselined to the migration contents present at the first checksum-aware run; this cannot identify edits made before that baseline. Never edit or rename an applied migration—add a new migration instead. Numeric prefixes must be unique for new migrations. Historical collisions (094, 095, 096, 106, and 115) remain unchanged because applied migrations are identified by their full filenames and checksums; new migrations must use the next unused numeric prefix.
 
 ## Workspace navigation, search, and service status
 
@@ -187,6 +214,15 @@ an audit trail, or a substitute for durable infrastructure monitoring.
 - Agent applicants can select Free, Pro, or Enterprise. This records a plan request only: no payment is collected and no subscription is activated. Paid billing requires a payment provider and subscription lifecycle before production use.
 - Worker and customer self-service portals are not part of this MVP; approved accounts currently share the operations shell.
 - The sign-up page presents AfroLife's proposed worker pension match (5%) and Edir options: ETB 2,000 joining + ETB 200 monthly, optional ETB 5,000 annual ETB 1 million member/spouse life cover, and optional ETB 200 per household for tenant/property-owner fire, accidental-damage and burglary cover. Applicants may record non-binding interests; no contribution is collected and no pension match or insurance is active. Confirm funding, eligibility, licensed insurer/underwriter, policy wording, claims process, and commencement date before accepting money or advertising active cover. Staff can see requested benefits in KYC review.
+
+## Sign-in, recovery, identity, and passkeys
+
+- Sign-in, recovery, and registration default to Ethiopia's `+251` calling code. Other calling codes can be selected from suggestions or entered directly.
+- TOTP is optional for ordinary accounts. Administrative access continues to require MFA and cannot disable it.
+- The forgot-password flow is deliberately unavailable until an approved SMS provider is configured. Its endpoints return `503`, send no SMS, create no recovery challenge, and disclose no account or reset token. Users must contact AfroLife support for manual recovery.
+- National ID documents remain in the existing private, manual KYC review workflow. Fayda verification is disabled: this application makes no Fayda requests until AfroLife receives authorization and configures a verified adapter.
+- Optional passkey registration uses `@simplewebauthn/server` with a server-generated, session-bound five-minute challenge and required local user verification. The browser/device handles biometrics or its screen-lock PIN; the server stores only the public credential. Registration does not replace password sign-in or mandatory administrative MFA.
+- Passkey registration is disabled by default. To enable it, apply the core migrations and explicitly configure `WEBAUTHN_ORIGIN` as the exact HTTPS origin (no path) and `WEBAUTHN_RP_ID` as that origin's exact host. HTTP is accepted only for localhost development. `WEBAUTHN_RP_NAME` is optional and defaults to `AfroSherik`. Passkeys can be registered and removed in account security but are not yet a login method.
 
 ## AfroLife Edir standalone service
 
@@ -650,7 +686,7 @@ To generate local signing/encryption secrets in PowerShell:
 node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
 ```
 
-Integration tests need a disposable database named `test_*` or `afrolife_test*`; never point them at production or ordinary development data. Run `npm run test:finance:e2e:local` to create a uniquely named temporary database on the isolated loopback PostgreSQL instance, apply migrations, create synthetic identities, and run the MFI/SACCO role journey, property-finance, staffing-accounting, and core HTTP integration suites. The runner uses the configured local migration administrator only to provision and migrate the disposable database, a non-superuser fixture role used only for test setup, and separate restricted application runtime roles for the core API and Staffing service. Both services use the same disposable database so test-created domain records are visible across the integration boundary, while role grants continue to enforce service-level access. The MFI E2E additionally requires its fixture and migration URLs to identify the same loopback `afrolife_test_*` database. The runner drops the database, roles, test credentials, and temporary file storage when finished. The local database setup intentionally does not set integration-test URLs because its `afrolife` database is persistent. Runtime commands load `%LOCALAPPDATA%\AfroLife\afrolife.env` when present, otherwise the project `.env`.
+Integration tests need a disposable database named `test_*` or `afrolife_test*`; never point them at production or ordinary development data. Run `npm run test:finance:e2e:local` to start a temporary PostgreSQL 16 container bound only to loopback, with its database stored in temporary memory, create a uniquely named test database, apply migrations, create synthetic identities, and run the MFI/SACCO role journey, property-finance, staffing-accounting, and core HTTP integration suites. The runner does not stop or change the existing PostgreSQL containers, database roles, or persistent data. It requires the already-installed `postgres:16-alpine` image and the local migration credential; no image is downloaded. A non-superuser fixture role is used only for test setup, and separate restricted application runtime roles are used for the core API and Staffing service. Both services use the same disposable database so test-created domain records are visible across the integration boundary, while role grants continue to enforce service-level access. The MFI E2E additionally requires its fixture and migration URLs to identify the same loopback `afrolife_test_*` database. The runner drops the test database, temporary roles, test credentials, and temporary file storage, then stops and removes the isolated container. The local database setup intentionally does not set integration-test URLs because its `afrolife` database is persistent. Runtime commands load `%LOCALAPPDATA%\AfroLife\afrolife.env` when present, otherwise the project `.env`.
 
 For manual integration runs, start the API with the restricted `DATABASE_URL` role and set `TEST_DATABASE_URL` to a disposable local database used only for fixtures. The test-only role may need bypass-RLS permissions to create synthetic fixtures, but it must not be a PostgreSQL superuser; API requests must always run through the restricted runtime role so the suite exercises row-level security.
 
@@ -727,7 +763,7 @@ The **Rent & deposits** workspace supports tenant and lease creation, rent recei
 - AfroLife User Support is available through the signed-in App/Web assistant, with FAQ answers also available from the support page and Telegram/WhatsApp bots. Public support line: `+251708076113`. The bots are limited to user-support FAQs and contact guidance; they do not handle sales/buyer workflows or place automated calls. Signed-in users can request a support call back, which enters the existing staff support-case queue. Optional Telegram group notices contain only a generic new-request alert, never customer details.
 - WhatsApp password recovery is disabled by default (`WHATSAPP_RECOVERY_ENABLED=0`) and requires WhatsApp Cloud API credentials, an approved Authentication template with a copy-code OTP button, a Graph API version, and active user opt-in. The configured template must match `WHATSAPP_RECOVERY_TEMPLATE` and `WHATSAPP_RECOVERY_LANGUAGE` (for example, `afrolife_password_recovery` and `en_US`). Recovery sends the code in both the template body and OTP button parameters. Codes are short-lived and hash-stored; failed attempts are limited, and a successful reset revokes active sessions. Telegram is not a recovery factor: users can link it from a signed-in session for support use only. Migration 106 stores recovery challenges; migration 139 stores hashed, expiring Telegram-link challenges and account links. Apply all migrations before enabling either integration.
 - To configure messaging, create/verify the WhatsApp Business phone number and approved recovery template in Meta, then set `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `WHATSAPP_GRAPH_API_VERSION`, `WHATSAPP_RECOVERY_TEMPLATE`, and `WHATSAPP_RECOVERY_LANGUAGE` in the deployment secret store. Configure the Meta webhook callback at `/webhooks/whatsapp` using the exact same verify token and subscribe to the `messages` field. Enable `WHATSAPP_RECOVERY_ENABLED=1` only after a successful template-delivery test and required migrations are current. Do not share access tokens or app secrets in chat or commit them. Telegram uses `TELEGRAM_*` values and `setWebhook` at `/webhooks/telegram`; keep `TELEGRAM_BOT_GROUP_CHAT_ID` restricted to a staff group. The public support number alone does not provision a WhatsApp Business account, a Telegram bot, or voice calling. Official provider charges, where applicable, are separate from this application; keep recovery and bot credentials unset until provider setup and cost approval are complete.
-- Fayda verification remains disabled (`FAYDA_VERIFICATION_ENABLED=0`) until approved access and a reviewed adapter are configured; secure document review remains the available KYC path. Passkey registration is also unavailable until full WebAuthn verification is implemented.
+- Password recovery is unavailable until an approved provider is configured; SMS recovery remains disabled (`SMS_RECOVERY_ENABLED=0`), and WhatsApp recovery is opt-in and disabled by default. Fayda verification remains disabled (`FAYDA_VERIFICATION_ENABLED=0`) until approved access and a reviewed adapter are configured; secure document review remains the available KYC path. Passkey registration is available only when WebAuthn is configured with the exact production origin and RP ID documented in the account-security section above.
 - Configure `PAYMENT_WEBHOOK_SECRET` only when a payment provider has been integrated; signed events use the `x-payment-signature` HMAC-SHA256 header.
 - Configure `NOTIFY_WEBHOOK_URL` and `NOTIFY_WEBHOOK_SECRET` only for an HTTPS notification receiver. Events are sent with an `x-afrolife-signature` HMAC-SHA256 header.
 - Public sign-up creates an inactive account. Compliance must verify KYC and a Super Admin must activate it; agent records are created only as part of successful activation.

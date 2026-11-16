@@ -19,6 +19,8 @@ import { marketplaceListingPayload } from './marketplace-form.js';
 import { paginateRows } from './row-pagination.js';
 import { filterWorkerActivityReports, workerActivityReportsCsv } from './worker-activity-reports.js';
 import { phonePayload as canonicalPhonePayload } from './phone-input.js';
+import { matchPublicFaq, suggestPublicFaqs } from './public-help.js';
+import { preparePasskeyCreationOptions, serializePasskeyRegistration } from './passkeys.js';
 
 const WEB_API_ROOT = '/api/v1';
 let API_ROOT = WEB_API_ROOT;
@@ -45,7 +47,10 @@ const MINI_APP_PANELS = new Set([
   'insurance', 'privacy', 'global-bi',
 ]);
 const $ = (selector) => document.querySelector(selector);
-const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [], amenity_reservations: [] }, propertyAssociationReport: null, propertyMoveOutInspectionDrafts: [], propertyMoveOutInspectionSyncError: '', rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
+const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], trustedDevices: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [], amenity_reservations: [] }, propertyAssociationReport: null, propertyMoveOutInspectionDrafts: [], propertyMoveOutInspectionSyncError: '', rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
+state.passkeySecurity = null;
+state.passkeyOptions = null;
+state.passkeyDeviceName = 'This device';
 state.propertyTenantSupportGrantId = localStorage.getItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
 state.propertyTenantSupportGrants = [];
 state.propertyOperatingTenants = [];
@@ -62,6 +67,9 @@ state.overviewDataOmitted = [];
 state.overviewLoadedAt = null;
 state.assistant = { conversations: [], queue: [], selectedId: null, messages: [], available: false, onlineCount: 0 };
 state.supportMessaging = null;
+state.publicSupportFaq = null;
+state.publicHelpMessages = [];
+state.publicHelpFaqUnavailable = false;
 let workspaceSearchSequence = 0;
 let deferredInstallPrompt = null;
 let supportAccessExpiryTimer = null;
@@ -556,6 +564,7 @@ async function login(event) {
     const result = await api('/auth/login', { method: 'POST', body: JSON.stringify(payload) });
     if (result.mfa_required) {
       $('#mfa-field').hidden = false;
+      $('#trust-device-field').hidden = false;
       setLocalizedText(error, 'Enter the six-digit code from your authenticator app.');
       return;
     }
@@ -563,7 +572,7 @@ async function login(event) {
     sessionStorage.setItem(TOKEN_KEY, result.token);
     state.mfaRequired = result.restrict === 'mfa';
     state.accessOptions = Array.isArray(result.access_options) ? result.access_options : [];
-    if (!state.mfaRequired && state.accessOptions.length > 1) {
+    if (!result.restrict && !state.mfaRequired && state.accessOptions.length > 1) {
       renderAccessModeChoice(state.accessOptions);
       return;
     }
@@ -641,52 +650,161 @@ async function requestWhatsAppRecoveryCode() {
 }
 
 async function loadPublicSupportContact() {
-  try {
-    const apiBase = apiRoot().replace(/\/api\/v1$/, '');
-    const [contactResponse, faqResponse] = await Promise.all([
-      fetch(`${apiBase}/api/public/support`, { headers: { accept: 'application/json' } }),
-      fetch(`${apiBase}/api/public/support-faq`, { headers: { accept: 'application/json' } }),
-    ]);
-    if (!contactResponse.ok) throw new Error(`Support contact settings unavailable (${contactResponse.status})`);
-    if (!faqResponse.ok) throw new Error(`Support FAQs unavailable (${faqResponse.status})`);
-    const contact = await contactResponse.json();
-    const faq = await faqResponse.json();
-    state.supportMessaging = contact;
-    state.publicSupportFaq = faq;
-    for (const link of document.querySelectorAll('[data-support-phone-link]')) {
-      link.href = `tel:${contact.supportPhone}`;
+  const apiBase = apiRoot().replace(/\/api\/v1$/, '');
+  const loadContact = async () => {
+    try {
+      const response = await fetch(`${apiBase}/api/public/support`, { headers: { accept: 'application/json' } });
+      if (!response.ok) throw new Error(`Support contact settings unavailable (${response.status})`);
+      const contact = await response.json();
+      state.supportMessaging = contact;
+      for (const link of document.querySelectorAll('[data-support-phone-link]')) {
+        link.href = `tel:${contact.supportPhone}`;
+      }
+      for (const text of document.querySelectorAll('[data-support-phone-text]')) {
+        text.textContent = contact.supportPhone;
+      }
+      for (const link of document.querySelectorAll('[data-support-whatsapp-link]')) {
+        link.href = contact.whatsappChatUrl;
+      }
+      for (const link of document.querySelectorAll('[data-support-telegram-link]')) {
+        link.hidden = contact.telegram !== 'available' || !contact.telegramChatUrl;
+        if (contact.telegramChatUrl) link.href = contact.telegramChatUrl;
+      }
+    } catch (error) {
+      console.error('Public support contacts could not be loaded.', error);
     }
-    for (const text of document.querySelectorAll('[data-support-phone-text]')) {
-      text.textContent = contact.supportPhone;
+  };
+  const loadFaq = async () => {
+    try {
+      const response = await fetch(`${apiBase}/api/public/support-faq`, { headers: { accept: 'application/json' } });
+      if (!response.ok) throw new Error(`Support FAQs unavailable (${response.status})`);
+      const faq = await response.json();
+      if (!Array.isArray(faq)) throw new Error('Support FAQ content is invalid.');
+      state.publicSupportFaq = faq;
+      state.publicHelpFaqUnavailable = faq.length === 0;
+    } catch (error) {
+      console.error('Public support FAQs could not be loaded.', error);
+      state.publicSupportFaq = [];
+      state.publicHelpFaqUnavailable = true;
     }
-    for (const link of document.querySelectorAll('[data-support-whatsapp-link]')) {
-      link.href = contact.whatsappChatUrl;
-    }
-    for (const link of document.querySelectorAll('[data-support-telegram-link]')) {
-      link.hidden = contact.telegram !== 'available' || !contact.telegramChatUrl;
-      if (contact.telegramChatUrl) link.href = contact.telegramChatUrl;
-    }
-    renderSupportFaq('#support-faq-list', faq);
-    renderSupportFaq('#assistant-support-faq-list', faq);
-    renderAssistant();
-  } catch (error) {
-    console.error('Public support contacts could not be loaded.', error);
-  }
+    renderSupportFaq('#support-faq-list', state.publicSupportFaq);
+    renderSupportFaq('#assistant-support-faq-list', state.publicSupportFaq);
+    renderPublicHelpTopics();
+    renderPublicHelpMessages();
+  };
+  await Promise.all([loadContact(), loadFaq()]);
+  renderAssistant();
 }
 
 function renderSupportFaq(selector, faq) {
   const faqList = $(selector);
   if (!faqList) return;
   faqList.replaceChildren();
+  if (!Array.isArray(faq) || !faq.length) {
+    const empty = document.createElement('p');
+    empty.textContent = t('No published support answers are available right now.');
+    faqList.append(empty);
+    return;
+  }
+  const categories = new Map();
   for (const item of faq) {
+    const category = item.category || 'General support';
+    if (!categories.has(category)) {
+      const section = document.createElement('section');
+      section.className = 'support-faq-category';
+      const heading = document.createElement('h4');
+      heading.textContent = t(category);
+      section.append(heading);
+      categories.set(category, section);
+      faqList.append(section);
+    }
     const details = document.createElement('details');
     const summary = document.createElement('summary');
     summary.textContent = t(item.question);
     const answer = document.createElement('p');
     answer.textContent = t(item.answer);
     details.append(summary, answer);
-    faqList.append(details);
+    categories.get(category).append(details);
   }
+}
+
+function publicHelpFaqForLocale() {
+  const faq = Array.isArray(state.publicSupportFaq) ? state.publicSupportFaq : [];
+  return faq.flatMap((item) => [
+    { ...item, sourceQuestion: item.question },
+    {
+      ...item,
+      sourceQuestion: item.question,
+      category: t(item.category),
+      question: t(item.question),
+      answer: t(item.answer),
+    },
+  ]);
+}
+
+function renderPublicHelpTopics() {
+  const topics = $('#public-help-topics');
+  if (!topics) return;
+  topics.replaceChildren();
+  if (!Array.isArray(state.publicSupportFaq) || !state.publicSupportFaq.length) {
+    const fallback = document.createElement('p');
+    fallback.textContent = t('Common answers are temporarily unavailable. You can still call support or contact the team on WhatsApp.');
+    topics.append(fallback);
+    return;
+  }
+  for (const item of state.publicSupportFaq.slice(0, 6)) {
+    const topic = document.createElement('button');
+    topic.type = 'button';
+    topic.className = 'public-help-topic button button-outline';
+    topic.dataset.publicHelpQuestion = t(item.question);
+    topic.textContent = t(item.question);
+    topics.append(topic);
+  }
+}
+
+function renderPublicHelpMessages() {
+  const messages = $('#public-help-messages');
+  if (!messages) return;
+  messages.replaceChildren();
+  for (const message of state.publicHelpMessages) {
+    const item = document.createElement('li');
+    item.className = 'public-help-message';
+    item.dataset.sender = message.sender;
+    item.textContent = message.sender === 'visitor' ? message.text : t(message.text);
+    messages.append(item);
+  }
+  const fallback = $('#public-help-fallback');
+  if (fallback) {
+    fallback.hidden = !state.publicHelpFaqUnavailable;
+    if (!fallback.hidden) {
+      setLocalizedText(fallback, 'FAQ answers may be unavailable, but you can still contact human support using the links below.');
+    }
+  }
+}
+
+function answerPublicHelpQuestion(question) {
+  const text = question.trim();
+  if (!text) return;
+  state.publicHelpMessages.push({ sender: 'visitor', text });
+  const faq = publicHelpFaqForLocale();
+  const match = matchPublicFaq(text, faq);
+  const suggestions = match ? [] : suggestPublicFaqs(text, faq);
+  const response = match
+    ? match.answer
+    : [
+      t('I can help with account access, applications and documents, service access or payments, work and property, marketplace, community products, and technical issues.'),
+      ...(suggestions.length
+        ? [t('Guides that may help:'), ...suggestions.map((item) => `${item.question}\n${item.answer}`)]
+        : []),
+      t('Tell me the service and what you were trying to do, or ask a human using the support options below.'),
+      t('For your security, do not send passwords, one-time codes, payment details, or identity documents in chat.'),
+    ].join('\n\n');
+  state.publicHelpMessages.push({
+    sender: 'helper',
+    text: response,
+  });
+  renderPublicHelpMessages();
+  $('#public-help-messages').lastElementChild?.scrollIntoView({ block: 'nearest' });
 }
 
 function territoryLabel(area) {
@@ -1377,6 +1495,7 @@ function signOut({ revoke = true, message = '' } = {}) {
   $('#login-form').hidden = false;
   state.accessOptions = [];
   $('#mfa-field').hidden = true;
+  $('#trust-device-field').hidden = true;
   $('#retry-session').hidden = true;
   $('#login-error').textContent = message;
   showAlert('');
@@ -1412,6 +1531,29 @@ async function loadWorkspace() {
   state.accessOptions = Array.isArray(state.user.access_options)
     ? state.user.access_options
     : [state.user.role];
+  const featureFallback = { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] };
+  const passwordRequired = state.user.must_change_password || state.user.required_security_step === 'password';
+  state.mfaRequired = state.mfaRequired || state.user.required_security_step === 'mfa';
+  if (passwordRequired || state.mfaRequired) {
+    state.panel = passwordRequired ? 'password' : 'security';
+    history.replaceState(null, '', panelUrl(window.location.href, state.panel));
+    state.features = { ...featureFallback, allowedModules: [] };
+    state.myDataCapabilities = [];
+    $('#login-view').hidden = true;
+    $('#public-hub').hidden = true;
+    $('#app-view').hidden = false;
+    $('#assistant-launcher').hidden = true;
+    $('#mobile-workspace-nav').hidden = true;
+    $('#account-tools').hidden = true;
+    $('#access-mode-choice').hidden = true;
+    $('#account-name').textContent = `${state.user.legal_name} · ${roleLabel(state.user.role)}`;
+    $('#page-subtitle').textContent = t('Signed in as {{role}}. Your access is limited to your assigned role and territory.', { role: roleLabel(state.user.role) });
+    $('#login-error').textContent = '';
+    $('#retry-session').hidden = true;
+    document.querySelectorAll('.tab, .workspace-nav-group').forEach((element) => { element.hidden = true; });
+    renderPanel();
+    return;
+  }
   const accessModeTools = $('#access-mode-tools');
   const accessModeSelect = $('#access-mode-select');
   accessModeSelect.replaceChildren();
@@ -1449,28 +1591,6 @@ async function loadWorkspace() {
     localStorage.removeItem(PROPERTY_TENANT_KEY);
   }
   renderPropertyTenantContext();
-  const featureFallback = { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] };
-  const passwordRequired = state.user.must_change_password || state.user.required_security_step === 'password';
-  state.mfaRequired = state.mfaRequired || state.user.required_security_step === 'mfa';
-  if (passwordRequired || state.mfaRequired) {
-    state.panel = passwordRequired ? 'password' : 'security';
-    history.replaceState(null, '', panelUrl(window.location.href, state.panel));
-    state.features = { ...featureFallback, allowedModules: [] };
-    state.myDataCapabilities = [];
-    $('#login-view').hidden = true;
-    $('#public-hub').hidden = true;
-    $('#app-view').hidden = false;
-    $('#assistant-launcher').hidden = true;
-    $('#mobile-workspace-nav').hidden = true;
-    $('#account-tools').hidden = true;
-    $('#account-name').textContent = `${state.user.legal_name} · ${roleLabel(state.user.role)}`;
-    $('#page-subtitle').textContent = t('Signed in as {{role}}. Your access is limited to your assigned role and territory.', { role: roleLabel(state.user.role) });
-    $('#login-error').textContent = '';
-    $('#retry-session').hidden = true;
-    document.querySelectorAll('.tab, .workspace-nav-group').forEach((element) => { element.hidden = true; });
-    renderPanel();
-    return;
-  }
   const selfCapabilities = await getOptional('/platform/my-data-capabilities', []);
   state.myDataCapabilities = Array.isArray(selfCapabilities) ? selfCapabilities : [];
   const assignedDataTenantIds = state.myDataCapabilities.map((entry) => entry.tenant_id);
@@ -1939,7 +2059,16 @@ async function loadPanelData(panel) {
         ? await safeGet('/support/access-requests',[]) : [];
       break;
     case 'security':
-      await load('authSessions', '/auth/sessions');
+      await Promise.all([
+        load('authSessions', '/auth/sessions'),
+        load('trustedDevices', '/auth/trusted-devices'),
+        safeGet('/auth/passkeys', {
+          enabled: false,
+          status: 'unavailable',
+          message: 'Passkey status could not be loaded. Try again later.',
+          credentials: null,
+        }).then((result) => { state.passkeySecurity = result; }),
+      ]);
       break;
     default:
       break;
@@ -7105,7 +7234,7 @@ function renderSecurity() {
   whatsappConsentInput.dataset.whatsappOptIn = 'true';
   whatsappConsent.append(whatsappConsentInput, node('span', 'Allow WhatsApp messages for password recovery'));
   panel.append(whatsappConsent);
-  const mfaRequired = REQUIRED_MFA_ROLES.has(state.user.role);
+  const mfaRequired = state.user.mfa_required ?? REQUIRED_MFA_ROLES.has(state.user.role);
   panel.append(node('h3', state.user.mfa_enabled ? 'Two-step verification is enabled' : 'Two-step verification'));
   panel.append(node('p', mfaRequired
     ? 'Authenticator sign-in is required for administrative roles and cannot be disabled.'
@@ -7129,7 +7258,13 @@ function renderSecurity() {
     const form = node('form', undefined, 'inline-form');
     form.dataset.form = 'mfa-enable';
     const code = field('Six-digit authenticator code', 'code', 'text', true, { inputMode: 'numeric', pattern: '[0-9]{6}', maxLength: 6 });
-    form.append(code.label, button('Verify and enable', 'submit', 'button button-primary'));
+    const trustLabel = node('label', undefined, 'check-row');
+    const trustInput = document.createElement('input');
+    trustInput.type = 'checkbox';
+    trustInput.name = 'trust_device';
+    trustInput.value = 'on';
+    trustLabel.append(trustInput, node('span', 'Trust this browser for 30 days after verifying this code'));
+    form.append(code.label, trustLabel, button('Verify and enable', 'submit', 'button button-primary'));
     panel.append(form);
   } else if (state.user.mfa_enabled && !mfaRequired) {
     const form = node('form', undefined, 'inline-form');
@@ -7140,18 +7275,86 @@ function renderSecurity() {
     form.append(button('Turn off two-step verification', 'submit', 'button button-outline'));
     panel.append(form);
   }
-  panel.append(node('h3', 'Passkeys and device sign-in'));
-  panel.append(node('p', 'Unavailable until secure WebAuthn support is configured. If enabled later, your device may use biometrics or a PIN; AfroSherik will not collect biometric data.'));
-  const passkey = node('button', 'Device sign-in unavailable', 'button button-outline passkey-unavailable');
-  passkey.type = 'button';
-  passkey.disabled = true;
-  passkey.setAttribute('aria-describedby', 'passkey-unavailable-note');
-  panel.append(passkey);
-  const passkeyNote = node('span', 'Secure device credential registration is not available yet.');
-  passkeyNote.id = 'passkey-unavailable-note';
-  passkeyNote.className = 'sr-only';
-  panel.append(passkeyNote);
+  const trustedDevices = node('section', undefined, 'panel');
+  trustedDevices.append(node('h3', 'Trusted browsers'));
+  trustedDevices.append(node('p', 'A trusted browser skips repeat authenticator codes for up to 30 days. It does not extend your sign-in session. You can revoke a browser here.', 'muted'));
+  if (!state.trustedDevices.length) {
+    trustedDevices.append(empty('No trusted browsers.'));
+  } else {
+    const list = node('div', undefined, 'record-list');
+    for (const device of state.trustedDevices) {
+      const item = node('article', undefined, 'record-card');
+      item.append(node('h4', device.current ? 'This browser' : device.user_agent || 'Browser details unavailable'));
+      const dates = node('p', undefined, 'muted');
+      setLocalizedText(dates, 'Last used {{lastUsed}} · Expires {{expires}}', {
+        lastUsed: new Date(device.last_used_at).toLocaleString(),
+        expires: new Date(device.expires_at).toLocaleString(),
+      });
+      item.append(dates);
+      item.append(node('p', device.active ? 'Active' : 'Revoked or expired', 'muted'));
+      if (device.active) item.append(button('Revoke trusted browser', 'revoke-trusted-device', 'button button-outline', { id: device.id }));
+      list.append(item);
+    }
+    trustedDevices.append(list);
+  }
+  const passkeyState = state.passkeySecurity ?? {
+    enabled: false,
+    message: 'Passkey registration is unavailable until secure server-side WebAuthn verification is configured. AfroSherik does not collect biometric data.',
+    credentials: [],
+  };
+  const browserSupportsPasskeys = Boolean(window.isSecureContext
+    && typeof window.PublicKeyCredential === 'function'
+    && typeof navigator.credentials?.create === 'function');
+  panel.append(node('h3', 'Passkeys and device registration'));
+  const passkeyMessage = passkeyState.enabled && !browserSupportsPasskeys
+    ? 'Passkey registration is unavailable in this browser or connection.'
+    : passkeyState.message;
+  panel.append(node('p', passkeyMessage));
+  panel.append(node('p', 'Passkey registration does not replace password sign-in or required administrator MFA; any biometric check stays on your device.', 'muted'));
+  if (state.passkeyOptions) {
+    panel.append(node('p', 'Continue on this device to approve passkey creation with its built-in screen lock or biometric prompt.'));
+    panel.append(button('Continue on this device', 'passkey-create', 'button button-primary'));
+    panel.append(button('Cancel setup', 'passkey-cancel', 'button button-outline'));
+  } else {
+    if (passkeyState.enabled && browserSupportsPasskeys) {
+      const deviceName = field('Device label', 'device_name', 'text', true, { maxLength: 80 });
+      deviceName.input.value = state.passkeyDeviceName;
+      deviceName.input.addEventListener('input', () => { state.passkeyDeviceName = deviceName.input.value; });
+      panel.append(deviceName.label);
+    }
+    const passkey = button(passkeyState.enabled && browserSupportsPasskeys
+      ? 'Register this device' : 'Passkey registration unavailable',
+    'passkey-register', 'button button-outline passkey-unavailable');
+    passkey.disabled = !passkeyState.enabled || !browserSupportsPasskeys;
+    passkey.setAttribute('aria-describedby', 'passkey-unavailable-note');
+    panel.append(passkey);
+    const passkeyNote = node('span', passkeyMessage);
+    passkeyNote.id = 'passkey-unavailable-note';
+    passkeyNote.className = 'sr-only';
+    panel.append(passkeyNote);
+  }
+  const passkeys = passkeyState.credentials;
+  if (!Array.isArray(passkeys)) {
+    panel.append(node('p', 'Registered passkeys could not be loaded.', 'form-error'));
+  } else if (!passkeys.length) {
+    panel.append(node('p', 'No passkeys are registered for this account.', 'muted'));
+  } else {
+    const passkeyList = node('div', undefined, 'record-list');
+    for (const credential of passkeys) {
+      const item = node('article', undefined, 'record-card');
+      item.append(node('h4', credential.device_name));
+      const credentialType = t(credential.device_type === 'multiDevice' ? 'Synced passkey' : 'Device-bound passkey');
+      item.append(node('p', t('{{type}} · added {{date}}', {
+        type: credentialType,
+        date: new Date(credential.created_at).toLocaleDateString(),
+      }), 'muted'));
+      item.append(button('Remove passkey', 'passkey-remove', 'button button-outline', { id: credential.id }));
+      passkeyList.append(item);
+    }
+    panel.append(passkeyList);
+  }
   wrap.append(panel);
+  wrap.append(trustedDevices);
   const sessions = node('section', undefined, 'panel');
   sessions.append(node('h3', 'Signed-in sessions'));
   sessions.append(node('p', 'Review recent sessions for your account and end any session you do not recognize.', 'muted'));
@@ -9408,6 +9611,66 @@ document.addEventListener('click', async (event) => {
     await switchAccessMode(action.dataset.role);
     return;
   }
+  if (name === 'passkey-register') {
+    try {
+      state.passkeyDeviceName = state.passkeyDeviceName.trim();
+      if (!state.passkeyDeviceName) throw new Error(t('Enter a label for this device.'));
+      state.passkeyOptions = await api('/auth/passkeys/registration/options', {
+        method: 'POST',
+        body: '{}',
+      });
+      renderPanel();
+      showAlert(t('Passkey setup is ready. Continue to approve it on your device.'));
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'passkey-create') {
+    try {
+      if (!window.isSecureContext || typeof window.PublicKeyCredential !== 'function'
+        || typeof navigator.credentials?.create !== 'function') {
+        throw new Error(t('Passkey registration is unavailable in this browser or connection.'));
+      }
+      const credential = await navigator.credentials.create({
+        publicKey: preparePasskeyCreationOptions(state.passkeyOptions),
+      });
+      if (!credential) throw new Error(t('The device did not create a passkey.'));
+      await api('/auth/passkeys/registration/verify', {
+        method: 'POST',
+        body: JSON.stringify({
+          response: serializePasskeyRegistration(credential),
+          device_name: state.passkeyDeviceName,
+        }),
+      });
+      state.passkeyOptions = null;
+      state.passkeySecurity = await api('/auth/passkeys');
+      renderPanel();
+      showAlert(t('Passkey registered on this device. Your biometric or PIN data remains with your device.'));
+    } catch (error) {
+      if (error.name !== 'NotAllowedError') state.passkeyOptions = null;
+      renderPanel();
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'passkey-cancel') {
+    state.passkeyOptions = null;
+    renderPanel();
+    return;
+  }
+  if (name === 'passkey-remove') {
+    if (!window.confirm(t('Remove this passkey from your account?'))) return;
+    try {
+      await api(`/auth/passkeys/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      state.passkeySecurity = await api('/auth/passkeys');
+      renderPanel();
+      showAlert(t('Passkey removed from this account.'));
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
   if (name === 'mfa-setup') {
     api('/auth/mfa/setup', { method: 'POST', body: '{}' })
       .then((result) => { state.mfaSetup = result; renderPanel(); })
@@ -10350,6 +10613,21 @@ document.addEventListener('click', async (event) => {
     }
     return;
   }
+  if (name === 'revoke-trusted-device') {
+    const device = state.trustedDevices.find((entry) => entry.id === id);
+    if (!device || !window.confirm(t('Revoke this trusted browser? It will need an authenticator code at the next sign-in.'))) return;
+    try {
+      await api(`/auth/trusted-devices/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      state.trustedDevices = state.trustedDevices.map((entry) => entry.id === id
+        ? { ...entry, active: false, revoked_at: new Date().toISOString() }
+        : entry);
+      renderPanel();
+      showAlert(t('Trusted browser revoked.'));
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
   if (name === 'worker-upload') { showDocumentUpload(id, container); return; }
   if (name === 'worker-documents') { void showWorkerDocuments(id, container); return; }
   if (name === 'property-photos') { void showPropertyPhotos(id, container); return; }
@@ -11068,6 +11346,36 @@ document.addEventListener('click', async (event) => {
 });
 
 $('#login-form').addEventListener('submit', login);
+$('#toggle-login-password').addEventListener('click', () => {
+  const password = $('#login-form [name="password"]');
+  const visible = password.type === 'password';
+  password.type = visible ? 'text' : 'password';
+  const toggle = $('#toggle-login-password');
+  toggle.setAttribute('aria-pressed', String(visible));
+  setLocalizedAttribute(toggle, 'aria-label', visible ? 'Hide password' : 'Show password');
+  setLocalizedText(toggle, visible ? 'Hide' : 'Show');
+});
+$('#public-help-launcher').addEventListener('click', () => $('#public-help-dialog').showModal());
+$('#public-help-close').addEventListener('click', () => $('#public-help-dialog').close());
+$('#public-help-dialog').addEventListener('close', () => {
+  state.publicHelpMessages = [];
+  $('#public-help-form').reset();
+  renderPublicHelpMessages();
+});
+$('#public-help-topics').addEventListener('click', (event) => {
+  const topic = event.target.closest('[data-public-help-question]');
+  if (topic) answerPublicHelpQuestion(topic.dataset.publicHelpQuestion);
+});
+$('#public-help-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const input = $('#public-help-input');
+  answerPublicHelpQuestion(input.value);
+  input.value = '';
+  input.focus();
+});
+$('#public-help-dialog').querySelectorAll('a[href="#login-form"]').forEach((link) => {
+  link.addEventListener('click', () => $('#public-help-dialog').close());
+});
 $('#access-mode-apply').addEventListener('click', () => {
   void switchAccessMode($('#access-mode-select').value);
 });
@@ -11228,6 +11536,8 @@ initializeLocale(() => {
   if (state.publicSupportFaq) {
     renderSupportFaq('#support-faq-list', state.publicSupportFaq);
     renderSupportFaq('#assistant-support-faq-list', state.publicSupportFaq);
+    renderPublicHelpTopics();
+    renderPublicHelpMessages();
   }
   document.querySelectorAll('[data-i18n-source]').forEach((element) => {
     element.textContent = t(element.dataset.i18nSource, JSON.parse(element.dataset.i18nValues ?? '{}'));

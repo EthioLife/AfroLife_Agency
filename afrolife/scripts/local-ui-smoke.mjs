@@ -229,9 +229,18 @@ try {
       return true;
     })()`);
     await waitFor("document.querySelector('#page-title')?.textContent?.trim() === 'Account security'", `${role} MFA enrollment confirmation`);
-    await evaluate("document.querySelector('#app-view .tabs [data-panel=\"overview\"]')?.click()");
-    await waitFor("document.querySelector('#page-title')?.textContent?.trim() === 'Your workspace'", `${role} MFA enrollment and workspace`);
     persistMfaKey(role, rolePhone, rolePassword, secret);
+    const overviewTabClicked = await evaluate(`(() => {
+      const tab = document.querySelector('#app-view .tabs [data-panel="overview"]');
+      if (!tab || tab.hidden) return false;
+      tab.click();
+      return true;
+    })()`);
+    assert.equal(overviewTabClicked, true, `${role} overview tab should be available after MFA enrollment`);
+    await waitFor(
+      "document.querySelector('#app-view .tabs .tab[data-panel=\"overview\"][aria-current=\"page\"]')",
+      `${role} overview navigation after MFA enrollment`,
+    );
     return true;
   };
 

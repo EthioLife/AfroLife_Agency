@@ -114,6 +114,10 @@ services:
     build:
       context: .
       dockerfile: services/accounting/Dockerfile
+    networks:
+      default:
+        aliases:
+          - afrolife-local-accounting
     environment:
       HOST: 0.0.0.0
       PORT: 3301
@@ -149,7 +153,8 @@ services:
       EDIR_PUBLIC_GATEWAY_HTTP_HOST: ${EDIR_PUBLIC_GATEWAY_HTTP_HOST:-}
       MFI_PILOT_ENABLED: "1"
       INSURANCE_BROKERAGE_MODE: sandbox
-      ACCOUNTING_SERVICE_URL: http://accounting:3301
+      ACCOUNTING_SERVICE_URL: http://afrolife-local-accounting:3301
+      ACCOUNTING_SERVICE_HTTP_HOST: afrolife-local-accounting
       ACCOUNTING_GATEWAY_SECRET: ${ACCOUNTING_GATEWAY_SECRET:?Run npm run qa:docker:up to create .env.docker}
       ACCOUNTING_INGEST_SECRET: ${ACCOUNTING_INGEST_SECRET:?Run npm run qa:docker:up to create .env.docker}
     ports:

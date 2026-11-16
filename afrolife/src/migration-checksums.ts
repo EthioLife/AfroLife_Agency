@@ -2,12 +2,14 @@ import { createHash } from 'node:crypto';
 
 const acceptedLegacyMigrationName = '114_property_resident_rls_recursion_fix.sql';
 const acceptedLegacyMigrationChecksum = '99372e3e6d9f8e7eb2717eaa65fdba9cf4c3b2166ad5738c43a6937d40596af5';
-const acceptedLegacyCurrentChecksum = '7522ab1fdbe1f5579308cbf27e87ba8bcb8d3d2d20184c3caf9377c35929b2c9';
+const acceptedLegacyCurrentChecksums = [
+  'bd1f1ace06dec9d56064a3706972a24e3ba3d66d322961bfdfab63e82923685c',
+  '7522ab1fdbe1f5579308cbf27e87ba8bcb8d3d2d20184c3caf9377c35929b2c9',
+];
 
 /**
- * This exact historical QA record is accepted because its original SQL
- * checksum could not be reconstructed from the available source history.
- * Keep this exception limited to this migration name and exact source checksum.
+ * The legacy database checksum is accepted only with the exact current SQL
+ * hashes for CRLF and LF checkouts.
  * Do not update the historical schema_migrations record.
  */
 function isAcceptedLegacyMigrationChecksum(name: string, stored: string): boolean {
@@ -17,7 +19,7 @@ function isAcceptedLegacyMigrationChecksum(name: string, stored: string): boolea
 
 function isAcceptedLegacyMigration(name: string, stored: string, current: string): boolean {
   return isAcceptedLegacyMigrationChecksum(name, stored)
-    && current === acceptedLegacyCurrentChecksum;
+    && acceptedLegacyCurrentChecksums.includes(current);
 }
 
 export function migrationChecksum(sql: string): string {

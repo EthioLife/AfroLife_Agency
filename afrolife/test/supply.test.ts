@@ -11,6 +11,7 @@ import jwt from 'jsonwebtoken';
 
 const API = (process.env.API_URL ?? 'http://localhost:3010') + '/api/v1';
 const SECRET = process.env.JWT_SECRET!;
+const platformTenantId = process.env.MFI_PLATFORM_TENANT_ID;
 const testDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 if (!testDatabaseUrl) throw new Error('TEST_DATABASE_URL must explicitly point to a disposable integration-test database');
 const testDatabaseName = decodeURIComponent(new URL(testDatabaseUrl).pathname.replace(/^\/+/, ''));
@@ -18,11 +19,26 @@ if (!/^(?:test[_-]|afrolife[_-]test(?:[_-]|$))/i.test(testDatabaseName)) {
   throw new Error('TEST_DATABASE_URL must target a database named test_* or afrolife_test*; refusing to modify a normal application database');
 }
 const db = new pg.Pool({ connectionString: testDatabaseUrl });
+const propertyTenantId = (await db.query(
+  "SELECT id FROM property_operating_tenants WHERE tenant_key='legacy-property-operations'",
+)).rows[0]?.id as string | undefined;
+if (!propertyTenantId) throw new Error('The legacy property tenant must exist before supply tests run');
 const run = Date.now().toString().slice(-7);
 const SECTOR = 'domestic-' + run; // unique per run so candidate lists are not polluted by other data
 const SHA = 'a'.repeat(64);
 
-type U = { id: string; role: string; token: string };
+type U = { id: string; role: string; token: string; propertyTenantId?: string };
+const propertyTenantRoles: Record<string, string> = {
+  super_admin: 'tenant_admin',
+  corporate_business_manager: 'tenant_admin',
+  finance: 'tenant_accountant',
+  finance_manager: 'tenant_accountant',
+  master_agent: 'master_agent',
+  field_agent: 'field_agent',
+  customer: 'resident',
+  property_owner: 'owner',
+};
+let propertyTenantAssigner: string | undefined;
 
 async function mkUser(role: string, n: number): Promise<U> {
   const r = await db.query(
@@ -30,18 +46,65 @@ async function mkUser(role: string, n: number): Promise<U> {
     [`${role}-${n}`, `+2517${run}${n}`, role, bcrypt.hashSync('Passw0rd!test', 4)],
   );
   const id = r.rows[0].id as string;
+  const propertyRole = propertyTenantRoles[role];
+  if (propertyRole) {
+    await db.query(
+      `INSERT INTO property_operating_tenant_members(tenant_system_id,user_id,tenant_role,status,assigned_by)
+       VALUES($1,$2,$3,'active',$4)`,
+      [propertyTenantId, id, propertyRole, propertyTenantAssigner ?? id],
+    );
+    if (role === 'super_admin') propertyTenantAssigner ??= id;
+  }
   const sessionId = randomUUID();
-  await db.query('INSERT INTO auth_sessions (id,user_id,expires_at) VALUES ($1,$2,now()+interval \'8 hours\')', [sessionId, id]);
-  return { id, role, token: jwt.sign({ sub: id, role, sid: sessionId }, SECRET, { expiresIn: '8h' }) };
+  await db.query('INSERT INTO auth_sessions (id,user_id,expires_at) VALUES ($1,$2,now()+interval \'30 days\')', [sessionId, id]);
+  if (role === 'super_admin' && platformTenantId) {
+    await db.query(
+      'INSERT INTO platform_tenant_admins(tenant_id,user_id,assigned_by) VALUES($1,$2,$2)',
+      [platformTenantId, id],
+    );
+  }
+  return {
+    id,
+    role,
+    token: jwt.sign({ sub: id, role, sid: sessionId }, SECRET, { expiresIn: '30d' }),
+    ...(propertyRole ? { propertyTenantId } : {}),
+  };
 }
 
 async function call(u: U, method: string, path: string, body?: unknown) {
   const r = await fetch(API + path, {
     method,
-    headers: { 'content-type': 'application/json', authorization: 'Bearer ' + u.token },
+    headers: {
+      'content-type': 'application/json',
+      authorization: 'Bearer ' + u.token,
+      ...(platformTenantId ? { 'x-afrolife-platform-tenant-id': platformTenantId } : {}),
+      ...(u.propertyTenantId ? { 'x-afrolife-property-tenant-id': u.propertyTenantId } : {}),
+    },
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: r.status, body: (await r.json().catch(() => null)) as any };
+}
+
+async function withPropertyTenantFixture<T>(fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    assert.ok(propertyTenantAssigner, 'The property tenant fixture requires its assigned tenant administrator');
+    await client.query(
+      `SELECT set_config('app.user_id',$1,true),
+              set_config('app.role','super_admin',true),
+              set_config('app.property_tenant_system_id',$2,true)`,
+      [propertyTenantAssigner, propertyTenantId],
+    );
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 // ---- Setup: two sibling areas under one parent; admin, compliance, master, two field agents ----
@@ -69,7 +132,11 @@ const workerBody = (n: number, extra: object = {}) => ({
 const PNG = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from('test-image-' + run)]);
 async function upload(agent: U, workerId: string, doc_type: string, extra: Record<string, string> = {}, body: Buffer = PNG) {
   const qs = new URLSearchParams({ doc_type, ...extra });
-  const r = await fetch(`${API}/workers/${workerId}/documents/upload?${qs}`, { method: 'POST', headers: { authorization: 'Bearer ' + agent.token, 'content-type': 'application/octet-stream' }, body });
+  const r = await fetch(`${API}/workers/${workerId}/documents/upload?${qs}`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer ' + agent.token, 'content-type': 'application/octet-stream' },
+    body: new Uint8Array(body),
+  });
   return { status: r.status, body: (await r.json().catch(() => null)) as any };
 }
 
@@ -298,54 +365,60 @@ test('matching: accepting a match marks the request matched; it cannot be answer
   assert.equal((await call(master, 'POST', `/matches/${match.id}/respond`, { decision: 'declined' })).status, 409);
 });
 
-test('agents can submit scoped rent/deposit payments for reconciliation but cannot reconcile or refund them', async () => {
-  const property = (await db.query(
-    `INSERT INTO properties (address, ptype, territory_id, source_agent_id, created_by)
-     VALUES ($1,'house',$2,$3,$3) RETURNING id`,
-    [`Agent rent flow ${run}`, areaA, fa.id],
-  )).rows[0];
-  const unit = (await db.query(
-    "INSERT INTO property_units (property_id, unit_no, ptype) VALUES ($1,$2,'house') RETURNING id",
-    [property.id, `Rent-${run}`],
-  )).rows[0];
-  const tenant = (await db.query(
-    'INSERT INTO tenants (name, phone, source_agent_id) VALUES ($1,$2,$3) RETURNING id',
-    [`Rent tenant ${run}`, `+2515${run}1`, fa.id],
-  )).rows[0];
-  const lease = (await db.query(
-    `INSERT INTO leases (unit_id, tenant_id, rent, deposit, start_date, end_date, source_agent_id, status)
-     VALUES ($1,$2,10000,1000,current_date,(current_date + interval '1 year')::date,$3,'active') RETURNING id`,
-    [unit.id, tenant.id, fa.id],
-  )).rows[0];
-  const charge = (await db.query(
-    `INSERT INTO rent_charges (lease_id, period, due_on, amount)
-     VALUES ($1,date_trunc('month',current_date)::date,current_date,10000) RETURNING id`,
-    [lease.id],
-  )).rows[0];
+test('master agents can submit scoped rent/deposit payments while field agents cannot access tenant finances', async () => {
+  const { lease, charge } = await withPropertyTenantFixture(async (client) => {
+    const property = (await client.query(
+      `INSERT INTO properties (address, ptype, territory_id, source_agent_id, created_by)
+       VALUES ($1,'house',$2,$3,$3) RETURNING id`,
+      [`Agent rent flow ${run}`, areaA, fa.id],
+    )).rows[0];
+    const unit = (await client.query(
+      "INSERT INTO property_units (property_id, unit_no, ptype) VALUES ($1,$2,'house') RETURNING id",
+      [property.id, `Rent-${run}`],
+    )).rows[0];
+    const tenant = (await client.query(
+      'INSERT INTO tenants (name, phone, source_agent_id) VALUES ($1,$2,$3) RETURNING id',
+      [`Rent tenant ${run}`, `+2515${run}1`, fa.id],
+    )).rows[0];
+    const lease = (await client.query(
+      `INSERT INTO leases (unit_id, tenant_id, rent, deposit, start_date, rent_start_on, end_date, source_agent_id, status)
+       VALUES ($1,$2,10000,1000,current_date,current_date,(current_date + interval '1 year')::date,$3,'active') RETURNING id`,
+      [unit.id, tenant.id, fa.id],
+    )).rows[0];
+    const charge = (await client.query(
+      `INSERT INTO rent_charges (lease_id, period, due_on, amount)
+       VALUES ($1,date_trunc('month',current_date)::date,current_date,10000) RETURNING id`,
+      [lease.id],
+    )).rows[0];
+    return { lease, charge };
+  });
 
-  const rent = await call(fa, 'POST', `/charges/${charge.id}/pay`, {
+  assert.equal((await call(fa, 'POST', `/charges/${charge.id}/pay`, {
+    reference: `field-agent-rent-${run}`, channel: 'manual',
+  })).status, 403);
+  const rent = await call(master, 'POST', `/charges/${charge.id}/pay`, {
     reference: `agent-rent-${run}`, channel: 'manual',
   });
-  assert.equal(rent.status, 200);
+  assert.equal(rent.status, 200, JSON.stringify(rent.body));
   assert.equal(rent.body.status, 'pending');
   assert.equal(rent.body.kind, 'rent');
   assert.equal((await call(fb, 'POST', `/charges/${charge.id}/pay`, {
     reference: `sibling-rent-${run}`, channel: 'manual',
-  })).status, 409);
-  assert.equal((await call(fa, 'POST', `/rent-transactions/${rent.body.id}/reconcile`, {})).status, 403);
-  assert.equal((await call(fa, 'POST', `/rent-transactions/${rent.body.id}/void`, {
+  })).status, 403);
+  assert.equal((await call(master, 'POST', `/rent-transactions/${rent.body.id}/reconcile`, {})).status, 403);
+  assert.equal((await call(master, 'POST', `/rent-transactions/${rent.body.id}/void`, {
     reason: 'Agent cannot void recorded payments.',
   })).status, 403);
   const stillDue = await db.query('SELECT status FROM rent_charges WHERE id=$1', [charge.id]);
   assert.equal(stillDue.rows[0].status, 'due');
 
-  const deposit = await call(fa, 'POST', `/leases/${lease.id}/deposit/pay`, {
+  const deposit = await call(master, 'POST', `/leases/${lease.id}/deposit/pay`, {
     reference: `agent-deposit-${run}`, channel: 'manual',
   });
   assert.equal(deposit.status, 201);
   assert.equal(deposit.body.status, 'pending');
   assert.equal(deposit.body.kind, 'deposit');
-  assert.equal((await call(fa, 'POST', `/leases/${lease.id}/deposit/refund`, {
+  assert.equal((await call(master, 'POST', `/leases/${lease.id}/deposit/refund`, {
     amount: 100, reference: `agent-refund-${run}`, channel: 'manual', reason: 'Agent cannot issue deposit refunds.',
   })).status, 403);
 
@@ -399,10 +472,18 @@ test('properties: units are stored with the property; duplicates and cross-agent
   })).status, 422);
   const uploadPhoto = (u: U, content: Buffer, contentType = 'image/png') => fetch(
     `${API}/properties/${p.body.id}/photos/upload?caption=Front+entrance`,
-    { method: 'POST', headers: { authorization: 'Bearer ' + u.token, 'content-type': contentType }, body: content },
+    {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer ' + u.token,
+        'content-type': contentType,
+        ...(u.propertyTenantId ? { 'x-afrolife-property-tenant-id': u.propertyTenantId } : {}),
+      },
+      body: new Uint8Array(content),
+    },
   );
   const uploaded = await uploadPhoto(fa, PNG);
-  assert.equal(uploaded.status, 201);
+  assert.equal(uploaded.status, 201, await uploaded.clone().text());
   const photoInfo = await uploaded.json() as any;
   assert.equal(photoInfo.caption, 'Front entrance');
   assert.equal((await uploadPhoto(fa, Buffer.from('not an image'), 'text/plain')).status, 415);
@@ -412,7 +493,7 @@ test('properties: units are stored with the property; duplicates and cross-agent
   assert.equal(photos.status, 200);
   assert.equal(photos.body.length, 1);
   const photo = await fetch(`${API}/properties/${p.body.id}/photos/${photoInfo.id}/file`, {
-    headers: { authorization: 'Bearer ' + fa.token },
+    headers: { authorization: 'Bearer ' + fa.token, 'x-afrolife-property-tenant-id': propertyTenantId },
   });
   assert.equal(photo.status, 200);
   assert.deepEqual(Buffer.from(await photo.arrayBuffer()), PNG);
@@ -446,14 +527,21 @@ test('property owners manage their own listings and photos without seeing other 
     `${API}/properties/${created.body.id}/photos/upload?caption=Owner+photo`,
     {
       method: 'POST',
-      headers: { authorization: 'Bearer ' + propertyOwner.token, 'content-type': 'image/png' },
+      headers: {
+        authorization: 'Bearer ' + propertyOwner.token,
+        'content-type': 'image/png',
+        'x-afrolife-property-tenant-id': propertyTenantId,
+      },
       body: PNG,
     },
   );
-  assert.equal(uploaded.status, 201);
+  assert.equal(uploaded.status, 201, await uploaded.clone().text());
   const photoInfo = await uploaded.json() as any;
   const downloaded = await fetch(`${API}/properties/${created.body.id}/photos/${photoInfo.id}/file`, {
-    headers: { authorization: 'Bearer ' + propertyOwner.token },
+    headers: {
+      authorization: 'Bearer ' + propertyOwner.token,
+      'x-afrolife-property-tenant-id': propertyTenantId,
+    },
   });
   assert.equal(downloaded.status, 200);
   assert.deepEqual(Buffer.from(await downloaded.arrayBuffer()), PNG);
@@ -472,11 +560,11 @@ test('buyers can read available listings and photos but cannot write or see inte
     territory_id: areaA,
   });
   assert.equal(agentListing.status, 201);
-  const hiddenListing = (await db.query(
+  const hiddenListing = await withPropertyTenantFixture(async (client) => (await client.query(
     `INSERT INTO properties (address, ptype, territory_id, source_agent_id, created_by, status)
      VALUES ($1,'house',$2,$3,$4,'pending_review') RETURNING id`,
     [`Buyer hidden listing ${run}`, areaA, fa.id, fa.id],
-  )).rows[0];
+  )).rows[0]);
 
   const beforeReview = await call(buyer, 'GET', '/properties');
   assert.equal(beforeReview.status, 200);
@@ -493,6 +581,23 @@ test('buyers can read available listings and photos but cannot write or see inte
   });
   assert.equal(approvedAgentListing.status, 200);
   assert.equal(approvedAgentListing.body.listing_review_status, 'approved');
+  const agentAuthorityEvidence = await fetch(
+    `${API}/properties/${agentListing.body.id}/authority-evidence?evidence_type=ownership_authority`,
+    {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer ' + fa.token,
+        'content-type': 'image/png',
+        'x-afrolife-property-tenant-id': propertyTenantId,
+      },
+      body: PNG,
+    },
+  );
+  assert.equal(agentAuthorityEvidence.status, 201, await agentAuthorityEvidence.clone().text());
+  const agentAuthorityApproval = await call(propertyReviewer, 'PATCH', `/properties/${agentListing.body.id}/authority-review`, {
+    decision: 'approve',
+  });
+  assert.equal(agentAuthorityApproval.status, 200, JSON.stringify(agentAuthorityApproval.body));
   assert.equal((await call(propertyReviewer, 'PATCH', `/properties/${ownerListingForReview.id}/review`, {
     decision: 'reject',
     note: 'No',
@@ -516,13 +621,31 @@ test('buyers can read available listings and photos but cannot write or see inte
   assert.equal((await call(propertyReviewer, 'PATCH', `/properties/${ownerListingForReview.id}/review`, {
     decision: 'approve',
   })).status, 200);
+  const authorityEvidence = await fetch(
+    `${API}/properties/${ownerListingForReview.id}/authority-evidence?evidence_type=ownership_authority`,
+    {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer ' + propertyOwner.token,
+        'content-type': 'image/png',
+        'x-afrolife-property-tenant-id': propertyTenantId,
+      },
+      body: PNG,
+    },
+  );
+  assert.equal(authorityEvidence.status, 201, await authorityEvidence.clone().text());
+  const authorityApproval = await call(propertyReviewer, 'PATCH', `/properties/${ownerListingForReview.id}/authority-review`, {
+    decision: 'approve',
+  });
+  assert.equal(authorityApproval.status, 200, JSON.stringify(authorityApproval.body));
+  assert.equal(authorityApproval.body.authority_review_status, 'approved');
 
   const visible = await call(buyer, 'GET', '/properties');
   assert.equal(visible.status, 200);
   const ownerListing = visible.body.find((item: any) => item.address === `Owner property ${run}`);
   const agentProperty = visible.body.find((item: any) => item.id === agentListing.body.id);
   assert.ok(ownerListing);
-  assert.ok(agentProperty);
+  assert.ok(agentProperty, JSON.stringify(visible.body));
   assert.equal(visible.body.some((item: any) => item.id === hiddenListing.id), false);
   assert.equal('owner_user_id' in ownerListing, false);
   assert.equal('source_agent_id' in ownerListing, false);
@@ -556,7 +679,7 @@ test('marketplace listing media, independent moderation, buyer visibility, and s
     headers: { authorization: 'Bearer ' + propertyOwner.token, 'content-type': 'image/png' },
     body: PNG,
   });
-  assert.equal(mediaResponse.status, 201);
+  assert.equal(mediaResponse.status, 201, await mediaResponse.clone().text());
   const media = await mediaResponse.json() as any;
   const submitted = await call(propertyOwner, 'POST', `/marketplace/listings/${listing.body.id}/submit`, {});
   assert.equal(submitted.status, 200);

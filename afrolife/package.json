@@ -84,13 +84,14 @@
     "perf:v7:local": "node scripts/v7-load-smoke.mjs",
     "verify:property-restore": "node scripts/property-restore-verify.mjs",
     "test:integration": "tsx --test test/api.test.ts test/supply.test.ts",
-    "test:finance:e2e:local": "node scripts/run-local-finance-e2e.mjs",
+    "test:finance:e2e:local": "node scripts/run-isolated-finance-e2e.mjs",
     "test": "npm run test:unit"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",
     "@capacitor/core": "^7.0.0",
     "@capacitor/ios": "^7.6.9",
+    "@simplewebauthn/server": "^14.1.0",
     "aws4fetch": "^1.0.20",
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.7",

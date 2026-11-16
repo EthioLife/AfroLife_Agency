@@ -14,11 +14,50 @@ const rows = [
   ['Accountable agent network', 'ተጠያቂነት ያለው የወኪሎች መረብ', 'Neetworkii bakka bu’oota itti gaafatamummaa qabu', 'ተሓታትነት ዘለዎ መርበብ ወከልቲ'],
   ['Central matching oversight', 'ማዕከላዊ የማዛመድ ቁጥጥር', 'To’annoo walitti fiduu giddugaleessaa', 'ማእከላዊ ቁጽጽር ምዝማድ'],
   ['SECURE WORKSPACE', 'ደህንነቱ የተጠበቀ የሥራ ቦታ', 'Iddoo hojii nageenya qabu', 'ውሑስ ቦታ ስራሕ'],
+  ['ADMIN & STAFF PORTAL', 'የአስተዳደር እና ሰራተኞች መግቢያ', 'Seensa bulchiinsaa fi hojjettootaa', 'መእተዊ ምምሕዳርን ሰራሕተኛታትን'],
+  ['For approved staff and administrator accounts only. Privileged roles require an authenticator code. First-time administrators will be guided through password change and authenticator setup.', 'ለተፈቀዱ የሰራተኛ እና የአስተዳዳሪ መለያዎች ብቻ። የተለየ ፈቃድ ያላቸው ሚናዎች የማረጋገጫ ኮድ ይፈልጋሉ። አዲስ አስተዳዳሪዎች የይለፍ ቃል እንዲቀይሩ እና ማረጋገጫ እንዲያዘጋጁ ይመራሉ።', 'Herrega hojjettootaa fi bulchitootaa hayyamame qofaaf. Gaheen mirga addaa qabu koodii mirkaneessaa barbaada. Bulchitoonni haaraan jecha icciitii jijjiiruu fi mirkaneessaa qopheessuu keessatti ni qajeelfamu.', 'ንዝተፈቕደሎም ሕሳባት ሰራሕተኛታትን ኣስተዳደርትን ጥራይ። ፍሉይ መሰል ዘለዎም ግደታት ኮድ መረጋገጺ የድልዮም። ሓደስቲ ኣስተዳደርቲ መሕለፊ ቃል ክቕይሩን መረጋገጺ ከዳልዉን ክምርሑ እዮም።'],
+  ['Admin & Staff portal', 'የአስተዳደር እና ሰራተኞች ፖርታል', 'Poortaala bulchiinsaa fi hojjettootaa', 'ፖርታል ምምሕዳርን ሰራሕተኛታትን'],
   ['Welcome back', 'እንኳን ደህና መጡ', 'Baga nagaan deebiitan', 'እንቋዕ ብደሓን ተመለስኩም'],
   ['Sign in with your registered Ethiopian phone number.', 'በተመዘገበው የኢትዮጵያ ስልክ ቁጥርዎ ይግቡ።', 'Lakkoofsa bilbilaa Itoophiyaa galmeessitan fayyadamuun seenaa.', 'ብዝተመዝገበ ቁጽሪ ስልኪ ኢትዮጵያ እቶ።'],
   ['Phone number', 'ስልክ ቁጥር', 'Lakkoofsa bilbilaa', 'ቁጽሪ ስልኪ'],
   ['Password', 'የይለፍ ቃል', 'Jecha icciitii', 'መሕለፊ ቃል'],
   ['Authenticator code', 'የማረጋገጫ ኮድ', 'Koodii mirkaneessaa', 'ኮድ መረጋገጺ'],
+  ['Trust this browser for 30 days after verifying this code', 'ይህን ኮድ ካረጋገጡ በኋላ ይህን አሳሽ ለ30 ቀናት ይመኑት', 'Koodii kana erga mirkaneessitanii booda biraawzara kana guyyaa 30f amanaa', 'ነዚ ኮድ ድሕሪ ምርግጋጽ ነዚ መርበብ ሓበሬታ ን30 መዓልቲ ኣሚንኩም ምረጹ', 'Ku kalsoonow biraawsarkan muddo 30 maalmood ah kaddib markaad xaqiijiso koodhkan', 'بعد التحقق من هذا الرمز، ثق بهذا المتصفح لمدة 30 يومًا', 'Baada ya kuthibitisha msimbo huu, amini kivinjari hiki kwa siku 30'],
+  ['Trusted browsers', 'የታመኑ አሳሾች', 'Biraawzaroota amanamoo', 'ዝተኣመኑ መርበባት ሓበሬታ', 'Barowsarro la aamini karo', 'المتصفحات الموثوقة', 'Vivinjari vinavyoaminika'],
+  ['This browser', 'ይህ አሳሽ', 'Biraawzara kana', 'እዚ መርበብ ሓበሬታ', 'Biraawsarkan', 'هذا المتصفح', 'Kivinjari hiki'],
+  ['A trusted browser skips repeat authenticator codes for up to 30 days. It does not extend your sign-in session. You can revoke a browser here.', 'የታመነ አሳሽ እስከ 30 ቀናት ድረስ ተደጋጋሚ የማረጋገጫ ኮድ አይጠይቅም። የመግቢያ ክፍለ ጊዜዎን አያራዝምም። አሳሹን ከዚህ ማቋረጥ ይችላሉ።', 'Biraawzari amanamaan hanga guyyaa 30tti koodii mirkaneessaa irra deddeebi’amee hin gaafatu. Yeroo seensaa keessan hin dheeressu. Biraawzara asitti haqachuu dandeessu.', 'መርበብ ሓበሬታ ዝተኣመነ ክሳብ 30 መዓልቲ ደጋጊሙ ኮድ መረጋገጺ ኣይሓትትን። እዚ ናይ መእተዊ ግዜኹም ኣየንውሕን። ነዚ መርበብ ሓበሬታ ኣብዚ ከተሰርዝዎ ትኽእሉ።', 'Biraawsar la aamini karo wuxuu kaa dhaafayaa koodhadhka xaqiijinta ee soo noqnoqda ilaa 30 maalmood. Ma dheereeyo fadhiga gelitaanka. Halkan ayaad kala noqon kartaa biraawsarka.', 'يتجاوز المتصفح الموثوق طلب رموز المصادقة المتكررة لمدة تصل إلى 30 يومًا. ولا يمدد جلسة تسجيل الدخول. يمكنك إلغاء الثقة به من هنا.', 'Kivinjari kinachoaminika huruka misimbo ya uthibitishaji inayorudiwa kwa hadi siku 30. Hakiendelezi kipindi chako cha kuingia. Unaweza kukiondoa hapa.'],
+  ['No trusted browsers.', 'የታመኑ አሳሾች የሉም።', 'Biraawzaroonni amanamoon hin jiran.', 'ዝተኣመኑ መርበባት ሓበሬታ የለዉን።', 'Ma jiraan biraawsarro la aamini karo.', 'لا توجد متصفحات موثوقة.', 'Hakuna vivinjari vinavyoaminika.'],
+  ['Last used {{lastUsed}} · Expires {{expires}}', 'መጨረሻ የተጠቀመበት {{lastUsed}} · የሚያበቃው {{expires}}', 'Yeroo dhumaa itti fayyadame {{lastUsed}} · Yeroon isaa xumurama {{expires}}', 'ናይ መወዳእታ ኣጠቓቕማ {{lastUsed}} · ግዜኡ ዝውዳእ {{expires}}', 'Markii ugu dambaysay la isticmaalay {{lastUsed}} · Wuxuu dhacayaa {{expires}}', 'آخر استخدام {{lastUsed}} · تنتهي الصلاحية {{expires}}', 'Iliyotumika mwisho {{lastUsed}} · Muda unaisha {{expires}}'],
+  ['Revoke trusted browser', 'የታመነውን አሳሽ ሰርዝ', 'Biraawzara amanamaa haqaa', 'ነቲ ዝተኣመነ መርበብ ሓበሬታ ሰርዝ', 'Ka noqo kalsoonida biraawsarka', 'إلغاء الثقة بهذا المتصفح', 'Ondoa uaminifu wa kivinjari'],
+  ['Revoke this trusted browser? It will need an authenticator code at the next sign-in.', 'ይህን የታመነ አሳሽ ሰርዘው? በሚቀጥለው ጊዜ ሲገቡ የማረጋገጫ ኮድ ያስፈልጋል።', 'Biraawzara amanamaa kana haa haqnu? Yeroo itti aanu seentan koodii mirkaneessaa barbaada.', 'ነዚ ዝተኣመነ መርበብ ሓበሬታ ንሰርዞ? ኣብ ዝቕጽል ግዜ ክትኣትዉ ኮድ መረጋገጺ የድሊ።', 'Ma ka noqaysaa kalsoonida biraawsarkan? Wuxuu u baahan doonaa koodh xaqiijin marka xigta ee la galo.', 'هل تريد إلغاء الثقة بهذا المتصفح؟ سيحتاج إلى رمز مصادقة عند تسجيل الدخول القادم.', 'Uondoe uaminifu wa kivinjari hiki? Kitataka msimbo wa uthibitishaji utakapoingia tena.'],
+  ['Trusted browser revoked.', 'የታመነው አሳሽ ተሰርዟል።', 'Biraawzari amanamaan haqameera.', 'እቲ ዝተኣመነ መርበብ ሓበሬታ ተሰሪዙ።', 'Kalsoonida biraawsarka waa laga noqday.', 'تم إلغاء الثقة بالمتصفح.', 'Uaminifu wa kivinjari umeondolewa.'],
+  ['Revoked or expired', 'ተሰርዟል ወይም ጊዜው አልፏል', 'Haqameera yookaan yeroon isaa darbeera', 'ተሰሪዙ ወይ ግዜኡ ሓሊፉ', 'La laalay ama dhacay', 'تم الإلغاء أو انتهت الصلاحية', 'Imebatilishwa au muda wake umeisha'],
+  ['Passkeys and device registration', 'Passkey እና የመሣሪያ ምዝገባ', 'Passkey fi galmee meeshaa', 'Passkeyን ምዝገባ መሳርሕን'],
+  ['Passkey registration is unavailable until secure server-side WebAuthn verification is configured. AfroSherik does not collect biometric data.', 'ደህንነቱ የተጠበቀ የWebAuthn ሰርቨር ማረጋገጫ እስኪዋቀር ድረስ የPasskey ምዝገባ አይገኝም። AfroSherik የባዮሜትሪክ መረጃ አይሰበስብም።', 'Mirkaneessi WebAuthn sarvaraa nageenya qabu hanga qindaa’utti galmeen passkey hin jiru. AfroSherik odeeffannoo baayomeetirikii hin funaanu.', 'ውሑስ ምርግጋጽ WebAuthn ሰርቨር ክሳብ ዝዋደድ ምዝገባ Passkey ኣይርከብን። AfroSherik ሓበሬታ ባዮሜትሪክ ኣይእክብን እዩ።'],
+  ['Passkey registration unavailable', 'የPasskey ምዝገባ አይገኝም', 'Galmeen passkey hin jiru', 'ምዝገባ Passkey ኣይርከብን'],
+  ['Secure WebAuthn verification is not configured; no passkey was registered.', 'ደህንነቱ የተጠበቀ WebAuthn ማረጋገጫ አልተዋቀረም፤ Passkey አልተመዘገበም።', 'Mirkaneessi WebAuthn nageenya qabu hin qindaa’in; passkey hin galmoofne.', 'ውሑስ ምርግጋጽ WebAuthn ኣይተዋደደን፤ Passkey ኣይተመዝገበን።'],
+  ['Passkey registration does not replace password sign-in or required administrator MFA; any biometric check stays on your device.', 'Passkey ምዝገባ የይለፍ ቃል መግቢያን ወይም የአስተዳዳሪ MFA ግዴታን አይተካም፤ ማንኛውም ባዮሜትሪክ ማረጋገጫ በመሣሪያዎ ላይ ይቆያል።', 'Galmeen passkey seensa jecha icciitii yookaan MFA bulchitootaa hin bakka bu’u; mirkaneessi baayomeetirikii kamiyyuu meeshaa kee irratti hafa.', 'ምዝገባ Passkey ኣብ ክንዲ መእተዊ መሕለፊ ቃል ወይ MFA ኣመሓዳሪ ኣይኮነን፤ ዝኾነ ምርግጋጽ ባዮሜትሪክ ኣብ መሳርሒኻ ይቕመጥ።'],
+  ['Your device handles biometric or PIN verification; AfroSherik does not receive biometric data.', 'መሣሪያዎ የባዮሜትሪክ ወይም የPIN ማረጋገጫን ያስተናግዳል፤ AfroSherik የባዮሜትሪክ መረጃ አይቀበልም።', 'Meeshaan kee mirkaneessa baayomeetirikii yookaan PIN ni raawwata; AfroSherik odeeffannoo baayomeetirikii hin fudhatu.', 'መሳርሒኻ ምርግጋጽ ባዮሜትሪክ ወይ PIN ይፍጽም፤ AfroSherik ሓበሬታ ባዮሜትሪክ ኣይቅበልን።'],
+  ['Passkey registration is unavailable in this browser or connection.', 'በዚህ አሳሽ ወይም ግንኙነት የPasskey ምዝገባ አይገኝም።', 'Galmeen passkey biraawzarii yookaan walqunnamtii kana irratti hin jiru.', 'ኣብዚ ብራውዘር ወይ ርክብ ምዝገባ Passkey ኣይርከብን።'],
+  ['Continue on this device to approve passkey creation with its built-in screen lock or biometric prompt.', 'የPasskey መፍጠርን በመሣሪያው የማያ ገጽ መቆለፊያ ወይም የባዮሜትሪክ ጥያቄ ለማጽደቅ በዚህ መሣሪያ ይቀጥሉ።', 'Uumama passkey qulfii iskiriinii yookaan gaafii baayomeetirikii meeshaa kanaan mirkaneessuuf itti fufi.', 'ፍጠራ Passkey ብመቆለፊ ስክሪን ወይ ሕቶ ባዮሜትሪክ ናይዚ መሳርሒ ንምጽዳቕ ቀጽል።'],
+  ['This device credential does not replace password sign-in or required administrator MFA; any biometric check stays on your device.', 'ይህ የመሣሪያ ማረጋገጫ የይለፍ ቃል መግቢያን ወይም የአስተዳዳሪ MFA ግዴታን አይተካም፤ ማንኛውም ባዮሜትሪክ ማረጋገጫ በመሣሪያዎ ላይ ይቆያል።', 'Mirkaneessi meeshaa kanaa seensa jecha icciitii yookaan MFA bulchitootaa hin bakka bu’u; mirkaneessi baayomeetirikii kamiyyuu meeshaa kee irratti hafa.', 'እዚ ምርግጋጽ መሳርሒ መእተዊ መሕለፊ ቃል ወይ MFA ኣመሓዳሪ ኣይትክእን፤ ዝኾነ ምርግጋጽ ባዮሜትሪክ ኣብ መሳርሒኻ ይቕመጥ።'],
+  ['Passkey status could not be loaded. Try again later.', 'የPasskey ሁኔታ ሊጫን አልቻለም። ቆይተው እንደገና ይሞክሩ።', 'Haalli passkey fe’amuu hin dandeenye. Booda irra deebi’ii yaali.', 'ኩነታት Passkey ክጽዓን ኣይከኣለን። ጸኒሕካ እንደገና ፈትን።'],
+  ['Registered passkeys could not be loaded.', 'የተመዘገቡ Passkeyዎች ሊጫኑ አልቻሉም።', 'Passkeywwan galmaa’an fe’amuu hin dandeenye.', 'ዝተመዝገቡ Passkey ክጽዓኑ ኣይከኣሉን።'],
+  ['Continue on this device', 'በዚህ መሣሪያ ይቀጥሉ', 'Meeshaa kanaan itti fufi', 'ብዚ መሳርሒ ቀጽል'],
+  ['Cancel setup', 'ማዋቀሩን ሰርዝ', 'Qindaa’ina haqi', 'ምድላው ሰርዝ'],
+  ['Device label', 'የመሣሪያ ስም', 'Maqaa meeshaa', 'ስም መሳርሒ'],
+  ['Register this device', 'ይህን መሣሪያ መዝግብ', 'Meeshaa kana galmeessi', 'ነዚ መሳርሒ መዝግብ'],
+  ['No passkeys are registered for this account.', 'ለዚህ መለያ Passkey አልተመዘገበም።', 'Passkey herrega kanaaf hin galmoofne.', 'ንዚ ሕሳብ Passkey ኣይተመዝገበን።'],
+  ['Synced passkey', 'የተመሳሰለ Passkey', 'Passkey kan walsimsiifame', 'ዝተመሳሰለ Passkey'],
+  ['Device-bound passkey', 'ከመሣሪያው ጋር የተያያዘ Passkey', 'Passkey meeshaa kanaan walqabate', 'ምስዚ መሳርሒ ዝተኣሳሰረ Passkey'],
+  ['{{type}} · added {{date}}', '{{type}} · የተጨመረበት {{date}}', '{{type}} · dabalame {{date}}', '{{type}} · ዝተወሰኸ {{date}}'],
+  ['Remove passkey', 'Passkey አስወግድ', 'Passkey balleessi', 'Passkey ኣውግድ'],
+  ['Passkey setup is ready. Continue to approve it on your device.', 'Passkey ማዋቀር ዝግጁ ነው። በመሣሪያዎ ላይ ለማጽደቅ ይቀጥሉ።', 'Qindaa’inni passkey qophaa’eera. Meeshaa kee irratti mirkaneessuuf itti fufi.', 'ምድላው Passkey ድሉው እዩ። ኣብ መሳርሒኻ ንምጽዳቕ ቀጽል።'],
+  ['Enter a label for this device.', 'ለዚህ መሣሪያ ስም ያስገቡ።', 'Meeshaa kanaaf maqaa galchi.', 'ንዚ መሳርሒ ስም ኣእቱ።'],
+  ['The device did not create a passkey.', 'መሣሪያው Passkey አልፈጠረም።', 'Meeshaan passkey hin uumne.', 'መሳርሒ እቲ Passkey ኣይፈጠረን።'],
+  ['Passkey registered on this device. Your biometric or PIN data remains with your device.', 'Passkey በዚህ መሣሪያ ተመዝግቧል። የባዮሜትሪክ ወይም PIN መረጃዎ በመሣሪያዎ ላይ ይቆያል።', 'Passkey meeshaa kana irratti galmaa’eera. Odeeffannoon baayomeetirikii yookaan PIN kee meeshaa kee bira hafa.', 'Passkey ኣብዚ መሳርሒ ተመዝጊቡ። ሓበሬታ ባዮሜትሪክ ወይ PIN ኣብ መሳርሒኻ ይቕመጥ።'],
+  ['Remove this passkey from your account?', 'ይህን Passkey ከመለያዎ ማስወገድ ይፈልጋሉ?', 'Passkey kana herrega kee keessaa balleessuu barbaaddaa?', 'ነዚ Passkey ካብ ሕሳብካ ክትኣልዮ ትደሊ?'],
+  ['Passkey removed from this account.', 'Passkey ከዚህ መለያ ተወግዷል።', 'Passkey herrega kana keessaa haqameera.', 'Passkey ካብዚ ሕሳብ ተኣልዩ።'],
   ['Sign in', 'ግባ', 'Seeni', 'እቶ'],
   ['Access is limited to approved AfroSherik accounts.', 'መዳረሻው ለተፈቀዱ የAfroSherik መለያዎች ብቻ ነው።', 'Seensaan herrega AfroSherik hayyamame qofaaf daangeffama.', 'መእተዊ ንዝተፈቕደሎም ሕሳባት AfroSherik ጥራይ ዝተወሰነ እዩ።'],
   ['API server address', 'የAPI አገልጋይ አድራሻ', 'Teessoo sarvarii API', 'ኣድራሻ ሰርቨር API'],
@@ -626,6 +665,9 @@ const addedLanguages = {
   }
 };
 Object.assign(addedLanguages.so, {
+  'ADMIN & STAFF PORTAL': 'BOORTAALKA MAAMULKA IYO SHAQAALAHA',
+  'For approved staff and administrator accounts only. Privileged roles require an authenticator code. First-time administrators will be guided through password change and authenticator setup.': 'Waxaa loogu talagalay oo keliya akoonnada shaqaalaha iyo maamulayaasha la oggolaaday. Doorarka mudnaanta leh waxay u baahan yihiin koodh xaqiijin. Maamulayaasha cusub waxaa lagu hagi doonaa beddelka erayga sirta ah iyo dejinta xaqiijinta.',
+  'Admin & Staff portal': 'Barta Maamulka iyo Shaqaalaha',
   'Approve': 'Ansixi',
   'Reject': 'Diid',
   'Purpose-bound property support access': 'Gelitaanka taageerada hantida oo ujeeddo ku xaddidan',
@@ -664,6 +706,9 @@ Object.assign(addedLanguages.so, {
   'A retry export was created for only the selected failed rows. The export has not been filed or paid.': 'Fayl dib loogu diro safafka fashilmay ee la doortay oo keliya ayaa la sameeyay. Faylka lama gudbin, lamana bixin.',
 });
 Object.assign(addedLanguages.ar, {
+  'ADMIN & STAFF PORTAL': 'بوابة الإدارة والموظفين',
+  'For approved staff and administrator accounts only. Privileged roles require an authenticator code. First-time administrators will be guided through password change and authenticator setup.': 'للحسابات المعتمدة للموظفين والمسؤولين فقط. تتطلب الأدوار ذات الامتيازات رمزًا من تطبيق المصادقة. سيتم إرشاد المسؤولين الجدد لتغيير كلمة المرور وإعداد تطبيق المصادقة.',
+  'Admin & Staff portal': 'بوابة الإدارة والموظفين',
   'Approve': 'موافقة',
   'Reject': 'رفض',
   'Purpose-bound property support access': 'وصول دعم العقارات لغرض محدد',
@@ -702,6 +747,9 @@ Object.assign(addedLanguages.ar, {
   'A retry export was created for only the selected failed rows. The export has not been filed or paid.': 'تم إنشاء ملف إعادة محاولة للصفوف الفاشلة المحددة فقط. لم يتم تقديم الملف أو دفع الرواتب.',
 });
 Object.assign(addedLanguages.sw, {
+  'ADMIN & STAFF PORTAL': 'TOVUTI YA WASIMAMIZI NA WAFANYAKAZI',
+  'For approved staff and administrator accounts only. Privileged roles require an authenticator code. First-time administrators will be guided through password change and authenticator setup.': 'Kwa akaunti za wafanyakazi na wasimamizi walioidhinishwa pekee. Majukumu yenye haki za juu yanahitaji msimbo wa programu ya uthibitishaji. Wasimamizi wapya wataelekezwa kubadilisha nenosiri na kusanidi uthibitishaji.',
+  'Admin & Staff portal': 'Tovuti ya Wasimamizi na Wafanyakazi',
   'Approve': 'Idhinisha',
   'Reject': 'Kataa',
   'Purpose-bound property support access': 'Ufikiaji wa usaidizi wa mali kwa madhumuni maalum',
@@ -988,12 +1036,12 @@ const publicSurfaceTranslations = {
     am: 'ይግቡና AfroLife Supportን ይክፈቱ፤ የግል App/Web ውይይት ይጀምሩ ወይም የድጋፍ መልሶ ጥሪ ይጠይቁ። በ+251 708 076 113 የድጋፍ መስመርም መደወል ይችላሉ። የውይይት ቦቶች መመሪያ ይሰጣሉ፤ በራስ-ሰር ጥሪ አያደርጉም።',
   },
   'Is my support conversation private?': { am: 'የድጋፍ ውይይቴ የግል ነው?' },
-  'App/Web support conversations are visible to you and the support staff member who claims your request. Do not send passwords, one-time codes, payment-card details, or national-ID numbers in chat or group messages.': {
-    am: 'የApp/Web ድጋፍ ውይይቶች ለእርስዎና ጥያቄዎን ለወሰደው የድጋፍ ሠራተኛ ብቻ ይታያሉ። በውይይት ወይም በቡድን መልዕክት ውስጥ የይለፍ ቃሎችን፣ የአንድ ጊዜ ኮዶችን፣ የክፍያ ካርድ ዝርዝሮችን ወይም የብሔራዊ መታወቂያ ቁጥሮችን አይላኩ።',
+  'Signed-in App/Web support conversations are visible to you and the support staff member who claims your request. The public chatbot message stays in your page and is not sent or stored. Do not send passwords, one-time codes, payment-card details, or full identity numbers in chat or group messages.': {
+    am: 'የApp/Web ድጋፍ ውይይቶች ለእርስዎና ጥያቄዎን ለወሰደው የድጋፍ ሠራተኛ ብቻ ይታያሉ። የህዝብ ቻትቦት መልዕክት በገጽዎ ላይ ይቆያል፤ አይላክም ወይም አይቀመጥም። በውይይት ወይም በቡድን መልዕክት ውስጥ የይለፍ ቃሎችን፣ የአንድ ጊዜ ኮዶችን፣ የክፍያ ካርድ ዝርዝሮችን ወይም ሙሉ የመታወቂያ ቁጥሮችን አይላኩ።',
   },
   'Can I use Telegram to recover my password?': { am: 'የይለፍ ቃሌን ለመመለስ Telegramን መጠቀም እችላለሁ?' },
-  'No. Telegram is for support guidance only. You may link Telegram from your signed-in account; the one-time link expires after 10 minutes. Password recovery must use the WhatsApp code sent to your registered, opted-in phone number when recovery is enabled.': {
-    am: 'አይቻልም። Telegram ለድጋፍ መመሪያ ብቻ ነው። ከገቡ በኋላ Telegramን ከመለያዎ ጋር ማገናኘት ይችላሉ፤ የአንድ ጊዜ ማገናኛው ከ10 ደቂቃ በኋላ ያበቃል። መልሶ ማግኛ ሲነቃ የይለፍ ቃል መመለስ በተመዘገበና ፈቃድ በተሰጠበት ስልክ ቁጥር የሚላከውን የWhatsApp ኮድ መጠቀም አለበት።',
+  'No. Telegram support cannot reset passwords; Telegram is for support guidance only. You may link Telegram from your signed-in account; the one-time link expires after 10 minutes. Password recovery must use the WhatsApp code sent to your registered, opted-in phone number when recovery is enabled.': {
+    am: 'አይቻልም። የTelegram ድጋፍ የይለፍ ቃሎችን ማስተካከል አይችልም፤ Telegram ለድጋፍ መመሪያ ብቻ ነው። ከገቡ በኋላ Telegramን ከመለያዎ ጋር ማገናኘት ይችላሉ፤ የአንድ ጊዜ ማገናኛው ከ10 ደቂቃ በኋላ ያበቃል። መልሶ ማግኛ ሲነቃ የይለፍ ቃል መመለስ በተመዘገበና ፈቃድ በተሰጠበት ስልክ ቁጥር የሚላከውን የWhatsApp ኮድ መጠቀም አለበት።',
   },
   'Do WhatsApp or Telegram support bots make calls?': { am: 'የWhatsApp ወይም Telegram ድጋፍ ቦቶች ጥሪ ያደርጋሉ?' },
   'The bots can explain how to contact support and direct you to call +251 708 076 113. They do not place or receive automated calls. You can request a human support call back from the signed-in App/Web support assistant.': {
@@ -1002,6 +1050,96 @@ const publicSurfaceTranslations = {
   'How do I enable two-factor sign-in?': { am: 'ባለሁለት ደረጃ መግቢያን እንዴት አነቃለሁ?' },
   'After signing in, open account security settings and set up an authenticator app. Administrative and other designated staff roles are required to enroll in MFA; other accounts may enable it voluntarily.': {
     am: 'ከገቡ በኋላ የመለያ ደህንነት ቅንብሮችን ይክፈቱና የማረጋገጫ መተግበሪያ ያዘጋጁ። አስተዳደራዊና ሌሎች የተመደቡ የሠራተኛ ሚናዎች MFAን መመዝገብ አለባቸው፤ ሌሎች መለያዎች በፈቃደኝነት ሊያነቁት ይችላሉ።',
+  },
+  'Getting started': { am: 'መጀመር' },
+  'Account & security': { am: 'መለያ እና ደህንነት' },
+  'Services & payments': { am: 'አገልግሎቶች እና ክፍያዎች' },
+  'Work, homes & marketplace': { am: 'ሥራ፣ ቤቶች እና ገበያ' },
+  'Community & protection': { am: 'ማህበረሰብ እና ጥበቃ' },
+  'Support & technical help': { am: 'ድጋፍ እና ቴክኒካዊ እገዛ' },
+  'How do I create an account or apply to AfroSherik?': { am: 'በAfroSherik እንዴት መለያ እፈጥራለሁ ወይም ማመልከቻ አቀርባለሁ?' },
+  'Choose Create account on the sign-in page, select the service or role that fits your request, and complete the fields and document checklist shown. Submitting an application does not activate an account, approve a service, or guarantee a job, property, loan, or other benefit. Support cannot approve an application through chat.': {
+    am: 'በመግቢያ ገጹ ላይ “መለያ ፍጠር” ይምረጡ፣ ለጥያቄዎ የሚስማማውን አገልግሎት ወይም ሚና ይምረጡ፣ ከዚያም የሚታዩትን መስኮችና የሰነድ ዝርዝር ይሙሉ። ማመልከቻ ማስገባት መለያን አያነቃም፣ አገልግሎትን አያጸድቅም፣ ሥራ፣ ንብረት፣ ብድር ወይም ሌላ ጥቅም አያረጋግጥም። ድጋፍ በውይይት በኩል ማመልከቻን ማጽደቅ አይችልም።',
+  },
+  'Why is my new account pending, and how can I check its status?': { am: 'አዲሱ መለያዬ ለምን በግምገማ ላይ ነው፣ ሁኔታውንስ እንዴት አያለሁ?' },
+  'New applications may remain pending while identity, documents, and eligibility are reviewed. Sign in if your account is active and check the application or document-review status shown there. If a correction is requested, follow that instruction. For a status that appears stuck, contact support with your registered phone number and application reference; never send passwords or verification codes.': {
+    am: 'የማንነት፣ የሰነድና የብቁነት ግምገማ እስኪጠናቀቅ አዲስ ማመልከቻዎች በግምገማ ላይ ሊቆዩ ይችላሉ። መለያዎ ንቁ ከሆነ ይግቡና የማመልከቻውን ወይም የሰነድ ግምገማውን ሁኔታ ይመልከቱ። ማስተካከያ ከተጠየቀ የተሰጠውን መመሪያ ይከተሉ። ሁኔታው ካልተቀየረ በተመዘገበው ስልክ ቁጥርና በማመልከቻ ማጣቀሻ ድጋፍን ያግኙ፤ የይለፍ ቃል ወይም የማረጋገጫ ኮድ በፍጹም አይላኩ።',
+  },
+  'Which identity documents do I need, and how do I upload them?': { am: 'ምን የመታወቂያ ሰነዶች ያስፈልጋሉ፣ እንዴትስ እጭናቸዋለሁ?' },
+  'Requirements depend on the service and role. Use the checklist shown in your application or account; it is the source of truth for required documents, file types, and any corrections. Upload documents only through the secure form that requests them. Do not send identity documents in the public chatbot, social media, or group messages.': {
+    am: 'የሚፈለጉት ሰነዶች በአገልግሎቱና በሚናው ይለያያሉ። በማመልከቻዎ ወይም በመለያዎ የሚታየውን ዝርዝር ይከተሉ፤ ለሰነዶች፣ ለፋይል አይነቶችና ለማስተካከያዎች ትክክለኛው መመሪያ እሱ ነው። ሰነዶችን የሚጠይቀውን ደህንነቱ የተጠበቀ ቅጽ ብቻ ይጠቀሙ። የመታወቂያ ሰነዶችን በሕዝብ ቻትቦት፣ በማህበራዊ ሚዲያ ወይም በቡድን መልዕክት አይላኩ።',
+  },
+  'Why did my verification or password-recovery code not arrive?': { am: 'የማረጋገጫ ወይም የይለፍ ቃል መመለሻ ኮድ ለምን አልደረሰኝም?' },
+  'Check that you entered the country code and phone number registered to your account, and confirm the number can receive WhatsApp messages if WhatsApp recovery is offered. Recovery depends on provider configuration, account eligibility, and your consent. Wait before requesting another code and respect the on-screen attempt limit. If it still fails, contact support; do not send your code to anyone.': {
+    am: 'የአገር መደወያ ኮዱንና በመለያዎ የተመዘገበውን ስልክ ቁጥር በትክክል እንዳስገቡ ያረጋግጡ። WhatsApp መልሶ ማግኛ ከቀረበ ቁጥሩ የWhatsApp መልዕክት መቀበል እንደሚችል ያረጋግጡ። መልሶ ማግኛ በአገልግሎቱ ቅንብር፣ በመለያዎ ብቁነትና በፈቃድዎ ላይ ይመረኮዛል። ሌላ ኮድ ከመጠየቅዎ በፊት ይጠብቁና በማያ ገጹ የተገለጸውን የሙከራ ገደብ ይከተሉ። ካልሰራ ድጋፍን ያግኙ፤ ኮድዎን ለማንም አይላኩ።',
+  },
+  'What should I do if I lost my authenticator or cannot pass MFA?': { am: 'የማረጋገጫ መተግበሪያዬን ካጣሁ ወይም MFA ማለፍ ካልቻልኩ ምን ላድርግ?' },
+  'Check that your device clock is set automatically and enter the current six-digit code from the authenticator app linked to your account. If you lost access to that app or device, contact official support for identity verification and recovery guidance. Staff cannot bypass MFA on request; never share an authenticator or recovery code.': {
+    am: 'የመሣሪያዎ ሰዓት በራስ-ሰር እንዲዘጋጅ ያረጋግጡና ከመለያዎ ጋር ከተገናኘው የማረጋገጫ መተግበሪያ የአሁኑን ስድስት አሃዝ ኮድ ያስገቡ። የመተግበሪያውን ወይም መሣሪያውን መዳረሻ ካጡ ለማንነት ማረጋገጫና ለመልሶ ማግኛ መመሪያ ይፋዊ ድጋፍን ያግኙ። ሠራተኞች MFAን በጥያቄ ብቻ ማለፍ አይችሉም፤ የማረጋገጫ ወይም የመልሶ ማግኛ ኮድ ለማንም አያጋሩ።',
+  },
+  'How can I change the phone number on my account?': { am: 'በመለያዬ ያለውን ስልክ ቁጥር እንዴት እቀይራለሁ?' },
+  'A phone number identifies your sign-in and recovery channel. If you can sign in, check account settings for an available change-number flow. If it is not offered or you have lost access to the old number, contact official support for identity verification. Do not create another account to bypass verification or send identity documents in public chat.': {
+    am: 'የስልክ ቁጥር ለመግቢያና ለመልሶ ማግኛ ይጠቅማል። መግባት ከቻሉ በመለያ ቅንብሮች ውስጥ ቁጥር የመቀየሪያ አማራጭ ካለ ይመልከቱ። አማራጩ ከሌለ ወይም የቀድሞውን ቁጥር መዳረሻ ካጡ ለማንነት ማረጋገጫ ይፋዊ ድጋፍን ያግኙ። ማረጋገጫን ለማለፍ ሌላ መለያ አይፍጠሩ፤ የመታወቂያ ሰነዶችንም በሕዝብ ቻት አይላኩ።',
+  },
+  'How do I keep my account and personal information safe?': { am: 'መለያዬንና የግል መረጃዬን እንዴት እጠብቃለሁ?' },
+  'Use a unique password, enable an authenticator when available, and never share passwords, one-time codes, payment details, or full identity numbers in chat. The public helper does not send or store your message. Signed-in support conversations are visible to you and the support staff member who claims the request. Upload sensitive documents only through the secure form that asks for them.': {
+    am: 'ለዚህ መለያ ብቻ የሚጠቀሙበትን የይለፍ ቃል ይምረጡ፣ ሲገኝም የማረጋገጫ መተግበሪያ ያንቁ። የይለፍ ቃሎችን፣ የአንድ ጊዜ ኮዶችን፣ የክፍያ ዝርዝሮችን ወይም ሙሉ የመታወቂያ ቁጥሮችን በውይይት አያጋሩ። የሕዝብ ረዳቱ መልዕክትዎን አይልክም ወይም አያስቀምጥም። የገቡበት የድጋፍ ውይይት ለእርስዎና ጥያቄዎን ለወሰደው የድጋፍ ሠራተኛ ይታያል። ስሱ ሰነዶችን የሚጠይቀውን ደህንነቱ የተጠበቀ ቅጽ ብቻ ይጠቀሙ።',
+  },
+  'Why is a service missing or unavailable in my workspace?': { am: 'አገልግሎት በሥራ ቦታዬ ለምን አይታይም ወይም አይገኝም?' },
+  'Services appear only when they are enabled for your organization, account role, and current deployment. Some products may be disabled or limited to a pilot. Ask your organization administrator to check access; if the service should be available, contact support with the service name and a screenshot that contains no personal or financial data. Do not assume a service is active because it appears in general product information.': {
+    am: 'አገልግሎቶች ለድርጅትዎ፣ ለመለያ ሚናዎና ለአሁኑ ስርጭት ሲነቁ ብቻ ይታያሉ። አንዳንድ ምርቶች ሊጠፉ ወይም በሙከራ ሊገደቡ ይችላሉ። የድርጅትዎን አስተዳዳሪ መዳረሻዎን እንዲያረጋግጥ ይጠይቁ። አገልግሎቱ መኖር ካለበት የአገልግሎቱን ስምና የግል ወይም የፋይናንስ መረጃ የሌለውን የማያ ገጽ ቅጂ ለድጋፍ ይላኩ። በአጠቃላይ የምርት መረጃ ላይ ስለታየ ብቻ አገልግሎቱ ንቁ ነው ብለው አያስቡ።',
+  },
+  'How much does a service subscription cost, and when is it activated?': { am: 'የአገልግሎት ወርሃዊ ክፍያ ስንት ነው፣ መቼስ ይነቃል?' },
+  'The current public subscription catalog lists ETB 1,000 per month for each selected service; check the catalog in case terms change. Submitting a request does not charge you or activate a service. Payment is manual, and Finance confirms receipt before activation. Do not pay through instructions sent by an unverified person.': {
+    am: 'አሁን ያለው የሕዝብ የደንበኝነት ካታሎግ ለእያንዳንዱ የተመረጠ አገልግሎት በወር ETB 1,000 ያሳያል፤ ውሎች ሊቀየሩ ስለሚችሉ ካታሎጉን ይመልከቱ። ጥያቄ ማስገባት ክፍያ አያስከፍልዎትም ወይም አገልግሎትን አያነቃም። ክፍያው በእጅ ይፈጸማል፤ ከማንቃት በፊት ፋይናንስ ደረሰኙን ያረጋግጣል። ባልተረጋገጠ ሰው በተላከ መመሪያ ክፍያ አይፈጽሙ።',
+  },
+  'I paid for a subscription but it still shows pending. What should I do?': { am: 'ለደንበኝነት ከፍያለሁ ግን አሁንም በግምገማ ላይ ነው፤ ምን ላድርግ?' },
+  'Subscription payments are confirmed manually by Finance before activation. Check the request status and use the receipt-submission instructions shown in your signed-in workspace, if available. If the status does not update, contact support with the request reference and payment date. Do not post receipts, bank details, card numbers, or one-time codes in public chat.': {
+    am: 'ከማንቃት በፊት የደንበኝነት ክፍያዎች በፋይናንስ በእጅ ይረጋገጣሉ። የጥያቄውን ሁኔታ ይመልከቱና ካለ በገቡበት የሥራ ቦታ የደረሰኝ ማስገቢያ መመሪያን ይጠቀሙ። ሁኔታው ካልተቀየረ የጥያቄ ማጣቀሻውንና የክፍያ ቀኑን ለድጋፍ ያቅርቡ። ደረሰኞችን፣ የባንክ ዝርዝሮችን፣ የካርድ ቁጥሮችን ወይም የአንድ ጊዜ ኮዶችን በሕዝብ ውይይት አያጋሩ።',
+  },
+  'Does registering as a worker guarantee a job or a placement?': { am: 'እንደ ሠራተኛ መመዝገብ ሥራ ወይም ምደባ ያረጋግጣል?' },
+  'No. Registration lets your application and required documents be reviewed for eligible workforce services; it is not a job offer or placement guarantee. Opportunities depend on availability, verification, employer requirements, and a separate agreement. Review the employer, duties, pay, and terms directly before accepting work. Report suspicious requests to support.': {
+    am: 'አይደለም። ምዝገባ ማመልከቻዎና የሚፈለጉ ሰነዶች ለብቁ የሠራተኛ አገልግሎቶች እንዲገመገሙ ያስችላል፤ የሥራ ቅጥር ወይም ምደባ ዋስትና አይደለም። ዕድሎች በመኖራቸው፣ በማረጋገጫ፣ በአሠሪው መስፈርቶችና በተለየ ስምምነት ላይ ይመረኮዛሉ። ሥራ ከመቀበልዎ በፊት አሠሪውን፣ ሥራውን፣ ክፍያውንና ውሎቹን በቀጥታ ያረጋግጡ። አጠራጣሪ ጥያቄዎችን ለድጋፍ ያሳውቁ።',
+  },
+  'How do employers and workers confirm a work arrangement?': { am: 'አሠሪዎችና ሠራተኞች የሥራ ስምምነትን እንዴት ያረጋግጣሉ?' },
+  'Use the workforce information and service requests available to your account, and verify that the people and organization are the intended parties. Confirm duties, location, pay, schedule, and other terms directly in an appropriate written agreement before work begins. AfroSherik registration or matching does not replace an employment agreement or guarantee payment.': {
+    am: 'ለመለያዎ የሚገኙትን የሠራተኛ መረጃና የአገልግሎት ጥያቄዎች ይጠቀሙ፤ ሰዎቹና ድርጅቱ ትክክለኛዎቹ መሆናቸውን ያረጋግጡ። ሥራ ከመጀመሩ በፊት ግዴታዎችን፣ ቦታን፣ ክፍያን፣ የጊዜ ሰሌዳንና ሌሎች ውሎችን በተገቢ የጽሑፍ ስምምነት በቀጥታ ያረጋግጡ። የAfroSherik ምዝገባ ወይም ማዛመድ የቅጥር ስምምነትን አይተካም፣ ክፍያንም አያረጋግጥም።',
+  },
+  'How do I list or rent a property, and are listings guaranteed?': { am: 'ንብረት እንዴት አስመዝግቤ አከራያለሁ፣ ዝርዝሮቹስ ዋስትና አላቸው?' },
+  'Use the property tools available to your account and review the listing details and any displayed verification status. Availability, price, deposits, lease terms, and ownership should be confirmed with the other party before you commit or pay. A listing is not a guarantee of availability or a substitute for checking the property and signing appropriate terms.': {
+    am: 'ለመለያዎ የሚገኙትን የንብረት መሣሪያዎች ይጠቀሙ፤ የዝርዝሩን ዝርዝር መረጃና የሚታይ የማረጋገጫ ሁኔታ ይመልከቱ። ከመወሰንዎ ወይም ከመክፈልዎ በፊት ተገኝነትን፣ ዋጋን፣ ቅድመ ክፍያን፣ የኪራይ ውሎችንና ባለቤትነትን ከሌላው ወገን ጋር ያረጋግጡ። ዝርዝር ማስታወቂያ ተገኝነትን አያረጋግጥም፤ ንብረቱን መመርመርንና ተገቢ ውሎችን መፈረምንም አይተካም።',
+  },
+  'How do I buy or sell through the marketplace safely?': { am: 'በገበያው በደህና እንዴት እገዛለሁ ወይም እሸጣለሁ?' },
+  'Review the seller, item or service description, price, delivery arrangements, and any terms before agreeing. Only use payment steps shown in an official AfroSherik workflow; verify the recipient before paying and keep your receipt. Do not share one-time codes or send money to someone who claims support can guarantee a sale, refund, or delivery.': {
+    am: 'ከመስማማትዎ በፊት ሻጩን፣ የእቃውን ወይም የአገልግሎቱን መግለጫ፣ ዋጋን፣ የማድረሻ ዝግጅትንና ሌሎች ውሎችን ይመልከቱ። በይፋዊ የAfroSherik ሂደት የሚታየውን የክፍያ መንገድ ብቻ ይጠቀሙ፤ ከመክፈልዎ በፊት ተቀባዩን ያረጋግጡና ደረሰኙን ይያዙ። አንድ ሰው ድጋፍ ሽያጭን፣ ተመላሽ ክፍያን ወይም ማድረስን ያረጋግጣል ብሎ ገንዘብ ከጠየቀ አይላኩ፤ የአንድ ጊዜ ኮድም አያጋሩ።',
+  },
+  'How do agent referrals and commissions work?': { am: 'የወኪል ሪፈራልና ኮሚሽን እንዴት ይሰራሉ?' },
+  'Available referral, team, and commission tools depend on your role, organization, enabled services, and the terms shown in your workspace. A referral is not a guaranteed sale or payout. Check the recorded status and applicable written terms; contact your organization administrator or support if a record appears incorrect. Never pay an agent to release a promised commission.': {
+    am: 'የሪፈራል፣ የቡድንና የኮሚሽን መሣሪያዎች በሚናዎ፣ በድርጅትዎ፣ በነቁ አገልግሎቶችና በሥራ ቦታዎ በሚታዩ ውሎች ላይ ይመረኮዛሉ። ሪፈራል ሽያጭን ወይም ክፍያን አያረጋግጥም። የተመዘገበውን ሁኔታና የጽሑፍ ውሎችን ይመልከቱ፤ መዝገቡ የተሳሳተ ከመሰለ የድርጅትዎን አስተዳዳሪ ወይም ድጋፍን ያግኙ። ኮሚሽን እንዲለቀቅ ለወኪል በፍጹም ክፍያ አይፈጽሙ።',
+  },
+  'How can I join AfroSherik Edir or register an independent Edir?': { am: 'AfroSherik እድርን እንዴት እቀላቀላለሁ ወይም ገለልተኛ እድር አስመዘግባለሁ?' },
+  'Use Join AfroSherik Edir to request membership after your account and required KYC checks are complete. Register an Edir is a separate application reviewed by the umbrella Master Edir. Review the available products and terms shown before requesting enrollment. An application is not approval; it does not collect dues or promise lending, insurance, or benefit payouts.': {
+    am: 'መለያዎና የሚፈለጉ የKYC ማረጋገጫዎች ከተጠናቀቁ በኋላ “AfroSherik Edirን ይቀላቀሉ” የሚለውን በመጠቀም አባልነት ይጠይቁ። “እድር ይመዝግቡ” የሚለው በዋናው Master Edir የሚገመገም የተለየ ማመልከቻ ነው። ከመመዝገብዎ በፊት የሚታዩትን ምርቶችና ውሎች ይመልከቱ። ማመልከቻ ማስገባት ማጽደቅ አይደለም፤ የአባልነት ክፍያ አይሰበስብም፣ ብድር፣ ኢንሹራንስ ወይም ጥቅም ክፍያም አያረጋግጥም።',
+  },
+  'Can I get a SACCO loan, savings product, or financial benefit?': { am: 'የSACCO ብድር፣ የቁጠባ ምርት ወይም የፋይናንስ ጥቅም ማግኘት እችላለሁ?' },
+  'Financial products are available only when the relevant organization and pilot are enabled and the product is explicitly listed with its current terms. A chatbot response or membership request is not a loan offer, eligibility decision, approval, or promise of payout. Review the product terms in the workspace and contact the responsible organization for an assessment.': {
+    am: 'የፋይናንስ ምርቶች የሚገኙት ተገቢው ድርጅትና ሙከራ ሲነቁ እና ምርቱ ከአሁኑ ውሎቹ ጋር በግልጽ ሲዘረዘር ብቻ ነው። የቻትቦት መልስ ወይም የአባልነት ጥያቄ የብድር አቅርቦት፣ የብቁነት ውሳኔ፣ ማጽደቅ ወይም የክፍያ ተስፋ አይደለም። በሥራ ቦታዎ የምርቱን ውሎች ይመልከቱና ለግምገማ ተጠያቂውን ድርጅት ያግኙ።',
+  },
+  'Does AfroSherik provide insurance coverage or decide claims?': { am: 'AfroSherik የኢንሹራንስ ሽፋን ይሰጣል ወይም የጥያቄ ውሳኔ ይሰጣል?' },
+  'Do not assume you have insurance coverage based on an inquiry, referral, or chatbot response. Coverage exists only when an insurer has issued a valid policy with terms that apply to you. Insurance tools and pilots may not be enabled for your organization. For coverage or claims, use the insurer and the policy documents; contact support for platform-access issues only.': {
+    am: 'በጥያቄ፣ በሪፈራል ወይም በቻትቦት መልስ ምክንያት የኢንሹራንስ ሽፋን አለኝ ብለው አያስቡ። ሽፋን የሚኖረው ኢንሹራንስ ሰጪው ለእርስዎ የሚሰራ ትክክለኛ ፖሊሲ ሲያወጣ ብቻ ነው። የኢንሹራንስ መሣሪያዎችና ሙከራዎች ለድርጅትዎ ላይነቁ ይችላሉ። ለሽፋን ወይም ለክስተት ጥያቄ ኢንሹራንስ ሰጪውንና የፖሊሲ ሰነዶቹን ይጠቀሙ፤ ለመድረኩ መዳረሻ ችግር ብቻ ድጋፍን ያግኙ።',
+  },
+  'How do I contact a person or request a support call back?': { am: 'ሰው የሆነ ድጋፍን እንዴት አገኛለሁ ወይም መልሶ ጥሪ እጠይቃለሁ?' },
+  'Sign in and open AfroLife Support to start a private App/Web conversation or submit a call-back request. You can also call +251 708 076 113 or use the WhatsApp link on the public support section. A bot gives guidance and does not place calls. No response-time promise is published; include a request reference but not a password or verification code.': {
+    am: 'ይግቡና AfroLife Supportን ይክፈቱ፤ የግል App/Web ውይይት ይጀምሩ ወይም መልሶ ጥሪ ይጠይቁ። በ+251 708 076 113 መደወል ወይም በሕዝብ የድጋፍ ክፍል ያለውን የWhatsApp አገናኝ መጠቀምም ይችላሉ። ቦት መመሪያ ይሰጣል፤ ጥሪ አያደርግም። የምላሽ ጊዜ ዋስትና አልተገለጸም፤ የጥያቄ ማጣቀሻ ያካትቱ እንጂ የይለፍ ቃል ወይም የማረጋገጫ ኮድ አይደለም።',
+  },
+  'What should I do if the app or a service is not loading?': { am: 'መተግበሪያው ወይም አገልግሎቱ ካልተከፈተ ምን ላድርግ?' },
+  'Check your internet connection, refresh the page, and try again in a current browser. If only one service fails, note its name and the time of the issue. If the problem continues, contact support with the error text or request reference. Do not clear browser data if you have unsynced work, and do not send credentials or sensitive records.': {
+    am: 'የኢንተርኔት ግንኙነትዎን ያረጋግጡ፣ ገጹን ያድሱና ዘመናዊ በሆነ አሳሽ እንደገና ይሞክሩ። አንድ አገልግሎት ብቻ ካልሰራ ስሙንና ችግሩ የተከሰተበትን ሰዓት ይመዝግቡ። ችግሩ ከቀጠለ የስህተት ጽሑፉን ወይም የጥያቄ ማጣቀሻውን ለድጋፍ ያቅርቡ። ያልተመሳሰለ ሥራ ካለዎት የአሳሽ ውሂብን አያጥፉ፤ የመግቢያ ማስረጃዎችን ወይም ስሱ መዝገቦችንም አይላኩ።',
+  },
+  'How do I report a suspicious listing, payment request, or user?': { am: 'አጠራጣሪ ዝርዝር፣ የክፍያ ጥያቄ ወይም ተጠቃሚ እንዴት ሪፖርት አደርጋለሁ?' },
+  'Do not send money, passwords, or verification codes in response to a suspicious request. Use the report or support option available on the listing or in your signed-in workspace. Share the listing or request reference and a short description; avoid posting identity or payment details in public channels. For immediate physical danger, contact local emergency services.': {
+    am: 'ለአጠራጣሪ ጥያቄ ምላሽ ገንዘብ፣ የይለፍ ቃል ወይም የማረጋገጫ ኮድ አይላኩ። በዝርዝሩ ወይም በገቡበት የሥራ ቦታ ያለውን የሪፖርት ወይም የድጋፍ አማራጭ ይጠቀሙ። የዝርዝሩን ወይም የጥያቄውን ማጣቀሻና አጭር መግለጫ ያቅርቡ፤ የመታወቂያ ወይም የክፍያ ዝርዝሮችን በሕዝብ ቻናሎች አያጋሩ። አስቸኳይ የአካል አደጋ ካለ የአካባቢዎን የአደጋ ጊዜ አገልግሎት ያግኙ።',
   },
   'If this number is eligible, recovery instructions will be sent privately.': {
     am: 'ይህ ቁጥር ብቁ ከሆነ የመልሶ ማግኛ መመሪያዎች በግል ይላካሉ።',
@@ -5029,6 +5167,123 @@ const publicSurfaceTranslations = {
   'Automated answers are not enabled in this support pilot. Existing property, workforce, and support tools remain available.': {
     am: 'በዚህ የድጋፍ ሙከራ ራስ-ሰር መልሶች አልተነቁም። ነባር የንብረት፣ የሠራተኛ እና የድጋፍ መሣሪያዎች አሁንም ይገኛሉ።', om: 'Deebiin ofumaan kennamu qorannoo deeggarsa kana keessatti hin banamne. Meeshaaleen qabeenyaa, humna hojii fi deeggarsa jiran ni hojjetu.', ti: 'ኣብዚ ፈተነ ደገፍ ብኣውቶማቲክ ዝወሃብ መልሲ ኣይተኣከበን። ዘለዉ ኣገልግሎታት ንብረት፣ ሓይሊ ሰራሕተኛን ደገፍን ኣለዉ።', so: 'Jawaabo otomaatig ah kama hawl galaan tijaabadan taageerada. Qalabka hantida, shaqaalaha iyo taageerada ee jira weli waa la heli karaa.', ar: 'الإجابات الآلية غير مفعلة في هذه النسخة التجريبية للدعم. تظل أدوات العقارات والقوى العاملة والدعم الحالية متاحة.', sw: 'Majibu ya kiotomatiki hayajawezeshwa katika jaribio hili la usaidizi. Zana zilizopo za mali, wafanyakazi na usaidizi zinaendelea kupatikana.',
   },
+  'Show password': { am: 'የይለፍ ቃልን አሳይ' },
+  'Hide password': { am: 'የይለፍ ቃልን ደብቅ' },
+  'Show': { am: 'አሳይ' },
+  'Hide': { am: 'ደብቅ' },
+  'Your call-back request has been added to the secure support queue.': {
+    am: 'የድጋፍ ጥሪ መልሶ እንዲደወልልዎ ያቀረቡት ጥያቄ ወደ ደህንነቱ የተጠበቀ የድጋፍ ወረፋ ተጨምሯል።',
+    om: 'Gaaffiin deeggarsaaf akka isinitti deebi’anii bilbilan dhiyeessitan tarree deeggarsa nageenya qabu keessatti dabalameera.',
+    ti: 'ሕቶ ደገፍ ንኽድውሉልኩም ዘቕረብኩምዎ ናብ ውሑስ ተርታ ደገፍ ተወሲኹ ኣሎ።',
+    so: 'Codsigaaga dib-u-soo-wicitaanka taageerada waxaa lagu daray safka taageerada ee ammaan ah.',
+    ar: 'تمت إضافة طلب معاودة الاتصال بالدعم إلى قائمة الدعم الآمنة.',
+    sw: 'Ombi lako la kupigiwa tena simu ya usaidizi limeongezwa kwenye foleni salama ya usaidizi.',
+  },
+  'Browse common answers or contact the support team.': { am: 'የተለመዱ መልሶችን ይመልከቱ ወይም የድጋፍ ቡድኑን ያነጋግሩ።' },
+  'Ask a question': { am: 'ጥያቄ ይጠይቁ' },
+  'PUBLIC FAQ HELP': { am: 'የሕዝብ ተደጋጋሚ ጥያቄ እገዛ' },
+  'AfroSherik quick help': { am: 'የAfroSherik ፈጣን እገዛ' },
+  'Ask a question to find a match in the published FAQs.': { am: 'በታተሙት ተደጋጋሚ ጥያቄዎች መካከል ተዛማጅ መልስ ለማግኘት ይጠይቁ።' },
+  'This automated helper is not a person. Your message stays in this page and is not sent or stored. Never share passwords, verification codes, or sensitive identifiers.': {
+    am: 'ይህ ራስ-ሰር እገዛ ሰው አይደለም። መልዕክትዎ በዚህ ገጽ ላይ ብቻ ይቆያል፤ አይላክም ወይም አይቀመጥም። የይለፍ ቃሎችን፣ የማረጋገጫ ኮዶችን ወይም ስሱ መለያዎችን በፍጹም አያጋሩ።',
+  },
+  'Common questions': { am: 'የተለመዱ ጥያቄዎች' },
+  'Your question': { am: 'ጥያቄዎ' },
+  'Find an answer': { am: 'መልስ ፈልግ' },
+  'No published support answers are available right now.': {
+    am: 'በአሁኑ ጊዜ የታተሙ የድጋፍ መልሶች የሉም።',
+    om: 'Deebiin deeggarsaa maxxanfame yeroo ammaa hin jiru.',
+    ti: 'ኣብዚ ሕጂ እዋን ዝተሓትመ መልሲ ደገፍ የለን።',
+    so: 'Hadda ma jiraan jawaabo taageero oo la daabacay.',
+    ar: 'لا توجد حالياً إجابات دعم منشورة.',
+    sw: 'Kwa sasa hakuna majibu ya usaidizi yaliyochapishwa.',
+  },
+  'Common answers are temporarily unavailable. You can still call support or contact the team on WhatsApp.': {
+    am: 'የተለመዱ መልሶች ለጊዜው አይገኙም። አሁንም ድጋፍን መደወል ወይም በWhatsApp ቡድኑን ማነጋገር ይችላሉ።',
+    om: 'Deebiin beekamoo yeroo ammaa hin argaman. Amma illee deeggarsaaf bilbiluu yookaan WhatsApp irratti garee qunnamuu dandeessu.',
+    ti: 'ዝተለመዱ መልስታት ንግዚኡ ኣይርከቡን። ንደገፍ ክትድውሉ ወይ ብWhatsApp ክትረኽቡና ትኽእሉ ኢኹም።',
+    so: 'Jawaabaha caanka ah si ku-meel-gaar ah looma heli karo. Weli waad wici kartaa taageerada ama WhatsApp ayaad nagala soo xiriiri kartaa.',
+    ar: 'الإجابات الشائعة غير متاحة مؤقتاً. يمكنك الاتصال بالدعم أو التواصل معنا عبر واتساب.',
+    sw: 'Majibu ya kawaida hayapatikani kwa sasa. Bado unaweza kupiga simu kwa usaidizi au kuwasiliana nasi kupitia WhatsApp.',
+  },
+  'I can help with account access, applications and documents, service access or payments, work and property, marketplace, community products, and technical issues.': {
+    am: 'በመለያ መግቢያ፣ ማመልከቻና ሰነዶች፣ አገልግሎት መዳረሻ ወይም ክፍያዎች፣ ሥራና ንብረት፣ ገበያ፣ የማህበረሰብ ምርቶች እና ቴክኒካዊ ችግሮች ላይ ልረዳዎ እችላለሁ።',
+    om: 'Seensa herregaa, iyyannoo fi galmeewwan, tajaajila yookaan kaffaltii, hojii fi qabeenya, gabaa, oomishaalee hawaasaa fi rakkoolee teeknikaa irratti isin gargaaruu nan danda’a.',
+    ti: 'ብዛዕባ መእተዊ ሕሳብ፣ ምልክታን ሰነዳትን፣ ተበጻሕነት ኣገልግሎት ወይ ክፍሊት፣ ስራሕን ንብረትን፣ ዕዳጋ፣ ናይ ማሕበረሰብ ፍርያትን ቴክኒካዊ ጸገማትን ክሕግዘኩም እኽእል እየ።',
+    so: 'Waxaan kaa caawin karaa gelitaanka akoonka, codsiyada iyo dukumentiyada, adeegyada ama lacag-bixinta, shaqada iyo hantida, suuqa, adeegyada bulshada, iyo dhibaatooyinka farsamada.',
+    ar: 'يمكنني مساعدتك في الوصول إلى الحساب، والطلبات والمستندات، والخدمات أو المدفوعات، والعمل والعقارات، والسوق، وخدمات المجتمع، والمشكلات التقنية.',
+    sw: 'Naweza kukusaidia kuhusu kuingia kwenye akaunti, maombi na hati, huduma au malipo, kazi na mali, soko, huduma za jamii na matatizo ya kiufundi.',
+  },
+  'Guides that may help:': {
+    am: 'እነዚህ መመሪያዎች ሊረዱዎት ይችላሉ:',
+    om: 'Qajeelfamni armaan gadii isin gargaaruu danda’a:',
+    ti: 'እዞም መምርሒታት ክሕግዙኹም ይኽእሉ:',
+    so: 'Tilmaamahan ayaa ku caawin kara:',
+    ar: 'قد تساعدك الإرشادات التالية:',
+    sw: 'Mwongozo huu unaweza kusaidia:',
+  },
+  'Tell me the service and what you were trying to do, or ask a human using the support options below.': {
+    am: 'የትኛውን አገልግሎት እንደሚጠቀሙና ምን ለማድረግ እንደሞከሩ ይንገሩኝ፤ ወይም ከታች ባሉት የድጋፍ አማራጮች ሰውን ያነጋግሩ።',
+    om: 'Tajaajila kam akka fayyadamtanii fi maal gochuuf akka yaaltan natti himaa; yookaan karaa filannoo deeggarsaa armaan gadii nama qunnamaa.',
+    ti: 'እንታይ ኣገልግሎት ከምትጥቀሙን እንታይ ክትገብሩ ከምዝፈተንኩምን ንገሩኒ፤ ወይ ካብ ታሕቲ ዘለዉ ኣማራጺታት ደገፍ ሰብ ርኸቡ።',
+    so: 'Ii sheeg adeegga aad isticmaalayso iyo waxa aad isku dayaysay inaad samayso, ama qof kala xiriir xulashooyinka taageerada ee hoose.',
+    ar: 'أخبرني بالخدمة التي تستخدمها وما الذي كنت تحاول القيام به، أو تواصل مع موظف عبر خيارات الدعم أدناه.',
+    sw: 'Niambie unatumia huduma gani na ulikuwa unajaribu kufanya nini, au wasiliana na mtu kupitia chaguo za usaidizi hapa chini.',
+  },
+  'For your security, do not send passwords, one-time codes, payment details, or identity documents in chat.': {
+    am: 'ለደህንነትዎ የይለፍ ቃሎችን፣ የአንድ ጊዜ ኮዶችን፣ የክፍያ ዝርዝሮችን ወይም የመታወቂያ ሰነዶችን በውይይት አይላኩ።',
+    om: 'Nageenya keessaniif jechoota icciitii, koodii yeroo tokkoo, odeeffannoo kaffaltii yookaan galmee eenyummaa ergaa irratti hin erginaa.',
+    ti: 'ንድሕነትኩም ኣብ ውይይት መሕለፊ ቃላት፣ ናይ ሓደ ግዜ ኮዳት፣ ዝርዝር ክፍሊት ወይ ሰነዳት መንነት ኣይትልኣኹ።',
+    so: 'Amnigaaga awgiis, ha ku dirin wada sheekaysiga furaha sirta ah, koodhadh hal-mar ah, faahfaahinta lacag-bixinta ama dukumentiyada aqoonsiga.',
+    ar: 'لحمايتك، لا ترسل كلمات المرور أو الرموز لمرة واحدة أو بيانات الدفع أو مستندات الهوية عبر المحادثة.',
+    sw: 'Kwa usalama wako, usitume nenosiri, misimbo ya mara moja, maelezo ya malipo au hati za utambulisho kwenye mazungumzo.',
+  },
+  'Requirements depend on the service and role. Use the checklist shown in your application or account; it is the source of truth for required documents and corrections. Signup uploads accept PDF, JPEG, or PNG files up to 10 MB each. Upload only through the secure form that requests the file. Do not send identity documents in the public chatbot, social media, or group messages.': {
+    am: 'መስፈርቶቹ በአገልግሎቱና በሚናዎ ይለያያሉ። በማመልከቻዎ ወይም በመለያዎ የሚታየውን የሰነድ ዝርዝር ይከተሉ፤ የሚፈለጉ ሰነዶችንና ማስተካከያዎችን የሚወስነው እሱ ነው። የምዝገባ ሰነዶች PDF፣ JPEG ወይም PNG ሆነው እያንዳንዳቸው እስከ 10 MB ሊሆኑ ይችላሉ። ሰነዱን በሚጠይቀው ደህንነቱ በተጠበቀ ቅጽ ብቻ ይጫኑ። የመታወቂያ ሰነዶችን በህዝብ ቻትቦት፣ በማህበራዊ ሚዲያ ወይም በቡድን መልዕክት አይላኩ።',
+  },
+  'Which account type should I choose when I register?': { am: 'ሲመዘገብ የትኛውን የመለያ አይነት መምረጥ አለብኝ?' },
+  'Choose the role that describes how you will use AfroSherik: worker for work opportunities, buyer/customer for purchases or services, seller/property owner to list goods or property, or agent for referrals and agency workflows. Available services still depend on review, your organization, and enabled features. If you selected the wrong type or are unsure, contact support before creating another account.': {
+    am: 'AfroSherikን እንዴት እንደሚጠቀሙ የሚገልጸውን ሚና ይምረጡ፦ ለሥራ ዕድሎች ሠራተኛ፣ ለግዢ ወይም አገልግሎት ገዢ/ደንበኛ፣ ሸቀጥ ወይም ንብረት ለመዘርዘር ሻጭ/የንብረት ባለቤት፣ ወይም ለሪፈራልና የወኪል ሥራዎች ወኪል። የሚገኙ አገልግሎቶች አሁንም በግምገማ፣ በድርጅትዎና በነቁ ባህሪያት ይወሰናሉ። የተሳሳተ አይነት ከመረጡ ወይም እርግጠኛ ካልሆኑ፣ ሌላ መለያ ከመፍጠርዎ በፊት ድጋፍን ያግኙ።',
+  },
+  'What happens after I submit my registration?': { am: 'ምዝገባዬን ካስገባሁ በኋላ ምን ይከሰታል?' },
+  'A new registration is a request, not an active account. Follow the on-screen document checklist and upload required files through the secure signup form. The follow-up panel shows received documents and any decision or correction requested by Compliance. Your account remains inactive until the required review and activation are complete; contact support with your application reference if the status needs attention.': {
+    am: 'አዲስ ምዝገባ ጥያቄ ነው እንጂ ንቁ መለያ አይደለም። በማያ ላይ ያለውን የሰነድ ዝርዝር ይከተሉና የሚፈለጉትን ፋይሎች በደህንነቱ በተጠበቀው የምዝገባ ቅጽ ይጫኑ። የክትትል ገጹ የደረሱ ሰነዶችንና የCompliance ውሳኔዎችን ወይም የተጠየቁ ማስተካከያዎችን ያሳያል። የሚፈለገው ግምገማና ማንቃት እስኪጠናቀቅ መለያዎ ንቁ አይሆንም፤ ሁኔታው ክትትል ከፈለገ የማመልከቻ ማጣቀሻዎን ለድጋፍ ያቅርቡ።',
+  },
+  'What should I do if a document is returned or rejected?': { am: 'ሰነዴ ከተመለሰ ወይም ከተከለከለ ምን ማድረግ አለብኝ?' },
+  'Sign in if possible and review the document decision or note in the signup follow-up panel. Choose the returned or missing document, correct the issue described, and upload a replacement PDF, JPEG, or PNG file up to 10 MB. If the note is unclear or the replacement control is unavailable, contact support with your application reference. Do not post the document in chat.': {
+    am: 'ከተቻለ ይግቡና በምዝገባ ክትትል ገጹ ላይ የሰነዱን ውሳኔ ወይም ማስታወሻ ይመልከቱ። የተመለሰውን ወይም የጎደለውን ሰነድ ይምረጡ፣ የተጠቀሰውን ችግር ያስተካክሉና እስከ 10 MB የሆነ PDF፣ JPEG ወይም PNG ፋይል ይጫኑ። ማስታወሻው ግልጽ ካልሆነ ወይም መተኪያ ማስገቢያው ካልታየ፣ የማመልከቻ ማጣቀሻዎን ለድጋፍ ያቅርቡ። ሰነዱን በውይይት አይላኩ።',
+  },
+  'Why does registration say my phone number is already in use?': { am: 'ምዝገባው የስልክ ቁጥሬ አስቀድሞ እንደተጠቀመ ለምን ይናገራል?' },
+  'AfroSherik accounts use a registered phone number for sign-in and recovery. Try signing in with that number or use Forgot password? if you cannot access the account. If the number belongs to you but you do not recognize the account, or you entered the wrong number, contact official support for identity verification. Do not create duplicate accounts or share verification codes.': {
+    am: 'የAfroSherik መለያዎች ለመግቢያና ለመልሶ ማግኛ የተመዘገበ ስልክ ቁጥር ይጠቀማሉ። በዚያ ቁጥር ለመግባት ይሞክሩ፤ መለያውን ማግኘት ካልቻሉ “የይለፍ ቃል ረሱ?” ይጠቀሙ። ቁጥሩ የእርስዎ ሆኖ መለያውን ካላወቁ ወይም የተሳሳተ ቁጥር ካስገቡ፣ ማንነትን ለማረጋገጥ ኦፊሴላዊ ድጋፍን ያግኙ። ተደጋጋሚ መለያዎችን አይፍጠሩ ወይም የማረጋገጫ ኮዶችን አያጋሩ።',
+  },
+  'Sign in with the country calling code and phone number used during registration. New applications remain inactive until the required review and activation are complete, so a pending application cannot sign in yet. If your account was already active, check the number format and password, then use Forgot password? if needed. Contact support with your application reference if the status or sign-in error persists; never send your password or code.': {
+    am: 'በምዝገባ ጊዜ በተጠቀሙት የአገር መደወያ ኮድና ስልክ ቁጥር ይግቡ። አዲስ ማመልከቻዎች የሚፈለገው ግምገማና ማንቃት እስኪጠናቀቅ ንቁ አይሆኑም፤ ስለዚህ በግምገማ ላይ ያለ መለያ ገና መግባት አይችልም። መለያዎ አስቀድሞ ንቁ ከሆነ፣ የቁጥር ቅርጸቱንና የይለፍ ቃሉን ያረጋግጡ፤ ካስፈለገም “የይለፍ ቃል ረሱ?” ይጠቀሙ። ችግሩ ከቀጠለ የማመልከቻ ማጣቀሻዎን ለድጋፍ ያቅርቡ፤ የይለፍ ቃልዎን ወይም ኮድዎን በፍጹም አይላኩ።',
+  },
+  'How do I enter my international phone number?': { am: 'ዓለም አቀፍ የስልክ ቁጥሬን እንዴት ማስገባት አለብኝ?' },
+  'Enter the country calling code, including the plus sign, in the first phone field and the national number in the second field. Use the number registered to your account when signing in or requesting recovery. Check that you have not repeated the country code in the national-number field. If the number has changed, use the account phone-number guidance or contact official support.': {
+    am: 'በመጀመሪያው የስልክ መስክ የአገር መደወያ ኮዱን ከፕላስ ምልክቱ ጋር ያስገቡ፤ በሁለተኛው መስክ የአገር ውስጥ ቁጥሩን ያስገቡ። ለመግባት ወይም መልሶ ማግኛ ለመጠየቅ በመለያዎ የተመዘገበውን ቁጥር ይጠቀሙ። የአገር ኮዱን በሁለተኛው መስክ እንደገና እንዳላስገቡ ያረጋግጡ። ቁጥሩ ከተቀየረ፣ የመለያ ቁጥር መቀየር መመሪያውን ይከተሉ ወይም ኦፊሴላዊ ድጋፍን ያግኙ።',
+  },
+  'Why can I see a service on the public page but not use it?': { am: 'አገልግሎትን በህዝብ ገጽ ላይ እያየሁ ለምን መጠቀም አልችልም?' },
+  'The public page describes the platform, while signed-in tools are enabled by deployment, organization, role, approval status, and pilot availability. A service card is not confirmation that your account has access. Ask your organization administrator to check your role and enabled services; if access should be available, contact support with the service name and a non-sensitive screenshot.': {
+    am: 'የህዝብ ገጹ መድረኩን ያብራራል፤ ከገቡ በኋላ የሚታዩ መሣሪያዎች ግን በስርጭት፣ በድርጅት፣ በሚና፣ በማጽደቅ ሁኔታና በፓይለት መገኘት ይወሰናሉ። የአገልግሎት ካርድ መለያዎ መዳረሻ እንዳለው አያረጋግጥም። የድርጅትዎን አስተዳዳሪ ሚናዎንና የነቁ አገልግሎቶችን እንዲያረጋግጥ ይጠይቁ፤ መዳረሻ መኖር ካለበት የአገልግሎቱን ስምና ስሱ መረጃ የሌለበት ምስል ለድጋፍ ያቅርቡ።',
+  },
+  'How do I change the app language?': { am: 'የመተግበሪያውን ቋንቋ እንዴት እቀይራለሁ?' },
+  'Use the Language selector near the top of the public page and choose an available language. Some newly added or specialized content may remain in English until its translation is available. If a translation looks incorrect, contact support and include the screen or section name without sharing personal information.': {
+    am: 'በህዝብ ገጹ አናት አጠገብ ያለውን የቋንቋ መምረጫ ተጠቅመው ከሚገኙት ቋንቋዎች አንዱን ይምረጡ። አንዳንድ አዲስ ወይም ልዩ ይዘቶች ትርጉማቸው እስኪገኝ በእንግሊዝኛ ሊቆዩ ይችላሉ። ትርጉሙ ትክክል ካልሆነ የግል መረጃ ሳያጋሩ የማያውን ወይም የክፍሉን ስም በመጥቀስ ድጋፍን ያግኙ።',
+  },
+  'Can I install AfroSherik on my phone or use it offline?': { am: 'AfroSherikን በስልኬ ላይ መጫን ወይም ያለ ኢንተርኔት መጠቀም እችላለሁ?' },
+  'On a supported browser, use Install AfroSherik or the browser menu option Add to Home Screen to create an app shortcut. The public shell may be cached, but signing in, loading current account information, uploading documents, and submitting requests require a working connection. Keep unsent work before refreshing or clearing browser data.': {
+    am: 'በሚደገፍ አሳሽ ውስጥ የAfroSherik ጫን ወይም በአሳሹ ምናሌ ያለውን “ወደ መነሻ ማያ ጨምር” በመምረጥ የመተግበሪያ አቋራጭ ይፍጠሩ። የህዝብ ገጹ ሊቀመጥ ይችላል፤ ግን መግባት፣ የአሁኑን የመለያ መረጃ ማምጣት፣ ሰነዶችን መጫንና ጥያቄዎችን ማስገባት የሚሰራ ኢንተርኔት ይፈልጋሉ። አሳሹን ከማደስ ወይም የአሳሽ ውሂብን ከማጽዳት በፊት ያልተላከ ሥራዎን ያስቀምጡ።',
+  },
+  'FAQ answers may be unavailable, but you can still contact human support using the links below.': {
+    am: 'የተደጋጋሚ ጥያቄ መልሶች ላይገኙ ይችላሉ፤ ነገር ግን ከታች ባሉት አገናኞች የሰው ድጋፍን ማግኘት ይችላሉ።',
+    om: 'Deebiin gaaffiiwwan beekamoo hin jiraachuu danda’u, garuu hidhaa armaan gadiitiin nama deeggarsa qunnamuu dandeessu.',
+    ti: 'መልስታት ሕቶታት ልሙዳት ክርከቡ ኣይኽእሉን ይኾኑ፤ ግና ብኣብ ታሕቲ ዘለዉ መራኸቢታት ሰብ ደገፍ ክትረኽቡ ትኽእሉ።',
+    so: 'Jawaabaha su’aalaha caanka ahi ma heli karaan, laakiin weli waxaad taageerada bini’aadamka kala xiriiri kartaa xiriirrada hoose.',
+    ar: 'قد لا تتوفر إجابات الأسئلة الشائعة، لكن يمكنك التواصل مع موظف الدعم عبر الروابط أدناه.',
+    sw: 'Majibu ya maswali yanayoulizwa mara kwa mara huenda yasipatikane, lakini bado unaweza kuwasiliana na mhudumu wa usaidizi kupitia viungo hapa chini.',
+  },
 };
 for (const [message, translations] of Object.entries(publicSurfaceTranslations)) {
   catalogs.en[message] ??= message;
@@ -5122,6 +5377,111 @@ const authRefreshTranslations = {
   'Passkeys and device sign-in': {
     am: 'Passkey እና በመሣሪያ መግባት', om: 'Passkey fi seensa meeshaa', ti: 'Passkeyን ብመሳርሒ ምእታውን',
     so: 'Furayaasha passkey iyo gelitaanka qalabka', ar: 'مفاتيح المرور وتسجيل الدخول بالجهاز', sw: 'Passkey na kuingia kwa kifaa',
+  },
+  'Passkeys and device registration': {
+    am: 'የPasskey እና የመሣሪያ ምዝገባ', om: 'Passkey fi galmee meeshaa', ti: 'ምዝገባ Passkeyን መሳርሕን',
+    so: 'Furayaasha passkey iyo diiwaangelinta qalabka', ar: 'مفاتيح المرور وتسجيل الجهاز', sw: 'Usajili wa passkey na kifaa',
+  },
+  'Passkey registration is unavailable until secure server-side WebAuthn verification is configured. AfroSherik does not collect biometric data.': {
+    so: 'Diiwaangelinta passkey lama heli karo ilaa xaqiijinta WebAuthn ee server-ka si ammaan ah loo habeeyo. AfroSherik ma ururiyo xogta biometrics.',
+    ar: 'تسجيل مفتاح المرور غير متاح حتى إعداد التحقق الآمن من WebAuthn على الخادم. لا تجمع AfroSherik البيانات الحيوية.',
+    sw: 'Usajili wa passkey haupatikani hadi uthibitishaji salama wa WebAuthn kwenye seva usanidiwe. AfroSherik haikusanyi data ya bayometriki.',
+  },
+  'Passkey registration unavailable': {
+    so: 'Diiwaangelinta passkey lama heli karo', ar: 'تسجيل مفتاح المرور غير متاح', sw: 'Usajili wa passkey haupatikani',
+  },
+  'Secure WebAuthn verification is not configured; no passkey was registered.': {
+    so: 'Xaqiijinta WebAuthn ee sugan lama habayn; passkey lama diiwaangelin.',
+    ar: 'لم يُعَدّ التحقق الآمن من WebAuthn؛ لم يُسجّل أي مفتاح مرور.',
+    sw: 'Uthibitishaji salama wa WebAuthn haujasanidiwa; hakuna passkey iliyosajiliwa.',
+  },
+  'Passkey registration does not replace password sign-in or required administrator MFA; any biometric check stays on your device.': {
+    so: 'Diiwaangelinta passkey ma beddelayso gelitaanka erayga sirta ah ama MFA-ga khasabka ah ee maamulka; xaqiijinta biometrics waxay ku ekaanaysaa qalabkaaga.',
+    ar: 'لا يحل تسجيل مفتاح المرور محل الدخول بكلمة المرور أو المصادقة متعددة العوامل الإلزامية للمسؤولين؛ يظل التحقق الحيوي على جهازك.',
+    sw: 'Usajili wa passkey hauchukui nafasi ya kuingia kwa nenosiri au MFA ya lazima ya msimamizi; uthibitishaji wa bayometriki hubaki kwenye kifaa chako.',
+  },
+  'Your device handles biometric or PIN verification; AfroSherik does not receive biometric data.': {
+    so: 'Qalabkaagu ayaa maamula xaqiijinta biometrics ama PIN; AfroSherik ma helo xogta biometrics.',
+    ar: 'يتولى جهازك التحقق بالبيانات الحيوية أو PIN؛ ولا تستقبل AfroSherik البيانات الحيوية.',
+    sw: 'Kifaa chako hushughulikia uthibitishaji wa bayometriki au PIN; AfroSherik haipokei data ya bayometriki.',
+  },
+  'Passkey registration is unavailable in this browser or connection.': {
+    so: 'Diiwaangelinta passkey kama shaqaynayso biraawsarkan ama isku xidhkan.',
+    ar: 'تسجيل مفتاح المرور غير متاح في هذا المتصفح أو الاتصال.',
+    sw: 'Usajili wa passkey haupatikani kwenye kivinjari au muunganisho huu.',
+  },
+  'Continue on this device to approve passkey creation with its built-in screen lock or biometric prompt.': {
+    so: 'Ku sii wad qalabkan si aad u ansixiso samaynta passkey adigoo adeegsanaya qufulka shaashadda ama xaqiijinta biometrics.',
+    ar: 'تابع على هذا الجهاز للموافقة على إنشاء مفتاح المرور باستخدام قفل الشاشة أو التحقق الحيوي المدمج.',
+    sw: 'Endelea kwenye kifaa hiki ili kuidhinisha passkey kwa kutumia kifungio cha skrini au uthibitishaji wa bayometriki.',
+  },
+  'This device credential does not replace password sign-in or required administrator MFA; any biometric check stays on your device.': {
+    so: 'Aqoonsigan qalabku ma beddelayo gelitaanka erayga sirta ah ama MFA-ga khasabka ah ee maamulka; xaqiijinta biometrics waxay ku ekaanaysaa qalabkaaga.',
+    ar: 'بيانات اعتماد هذا الجهاز لا تحل محل الدخول بكلمة المرور أو المصادقة متعددة العوامل الإلزامية للمسؤولين؛ ويظل التحقق الحيوي على جهازك.',
+    sw: 'Kitambulisho hiki cha kifaa hakichukui nafasi ya kuingia kwa nenosiri au MFA ya lazima ya msimamizi; uthibitishaji wa bayometriki hubaki kwenye kifaa chako.',
+  },
+  'Passkey status could not be loaded. Try again later.': {
+    so: 'Xaaladda passkey lama soo shubi karin. Mar kale isku day.',
+    ar: 'تعذر تحميل حالة مفتاح المرور. حاول مرة أخرى لاحقاً.',
+    sw: 'Hali ya passkey haikuweza kupakiwa. Jaribu tena baadaye.',
+  },
+  'Registered passkeys could not be loaded.': {
+    so: 'Passkey-yada diiwaangashan lama soo shubi karin.',
+    ar: 'تعذر تحميل مفاتيح المرور المسجلة.',
+    sw: 'Passkey zilizosajiliwa hazikuweza kupakiwa.',
+  },
+  'Continue on this device': {
+    so: 'Ku sii wad qalabkan', ar: 'تابع على هذا الجهاز', sw: 'Endelea kwenye kifaa hiki',
+  },
+  'Cancel setup': {
+    so: 'Jooji dejinta', ar: 'إلغاء الإعداد', sw: 'Ghairi usanidi',
+  },
+  'Device label': {
+    so: 'Magaca qalabka', ar: 'اسم الجهاز', sw: 'Jina la kifaa',
+  },
+  'Register this device': {
+    so: 'Diiwaangeli qalabkan', ar: 'سجّل هذا الجهاز', sw: 'Sajili kifaa hiki',
+  },
+  'No passkeys are registered for this account.': {
+    so: 'Akoonkan looma diiwaangelin passkey.', ar: 'لا توجد مفاتيح مرور مسجلة لهذا الحساب.',
+    sw: 'Hakuna passkey zilizosajiliwa kwa akaunti hii.',
+  },
+  'Synced passkey': {
+    so: 'Passkey la isku waafajiyey', ar: 'مفتاح مرور متزامن', sw: 'Passkey iliyosawazishwa',
+  },
+  'Device-bound passkey': {
+    so: 'Passkey ku xidhan qalabkan', ar: 'مفتاح مرور مرتبط بالجهاز', sw: 'Passkey iliyounganishwa na kifaa',
+  },
+  '{{type}} · added {{date}}': {
+    so: '{{type}} · lagu daray {{date}}', ar: '{{type}} · أُضيف في {{date}}',
+    sw: '{{type}} · iliongezwa {{date}}',
+  },
+  'Remove passkey': {
+    so: 'Ka saar passkey', ar: 'إزالة مفتاح المرور', sw: 'Ondoa passkey',
+  },
+  'Passkey setup is ready. Continue to approve it on your device.': {
+    so: 'Dejinta passkey waa diyaar. Ku sii wad si aad ugu ansixiso qalabkaaga.',
+    ar: 'إعداد مفتاح المرور جاهز. تابع للموافقة عليه على جهازك.',
+    sw: 'Usanidi wa passkey uko tayari. Endelea ili kuuidhinisha kwenye kifaa chako.',
+  },
+  'Enter a label for this device.': {
+    so: 'Geli magaca qalabkan.', ar: 'أدخل اسماً لهذا الجهاز.', sw: 'Weka jina la kifaa hiki.',
+  },
+  'The device did not create a passkey.': {
+    so: 'Qalabku ma samayn passkey.', ar: 'لم ينشئ الجهاز مفتاح مرور.', sw: 'Kifaa hakikuunda passkey.',
+  },
+  'Passkey registered on this device. Your biometric or PIN data remains with your device.': {
+    so: 'Passkey ayaa lagu diiwaangeliyey qalabkan. Xogta biometrics ama PIN waxay ku hadhaysaa qalabkaaga.',
+    ar: 'سُجّل مفتاح المرور على هذا الجهاز. تبقى بياناتك الحيوية أو PIN على جهازك.',
+    sw: 'Passkey imesajiliwa kwenye kifaa hiki. Data ya bayometriki au PIN hubaki kwenye kifaa chako.',
+  },
+  'Remove this passkey from your account?': {
+    so: 'Ma ka saartaa passkey-gan akoonkaaga?', ar: 'هل تريد إزالة مفتاح المرور هذا من حسابك؟',
+    sw: 'Ungependa kuondoa passkey hii kwenye akaunti yako?',
+  },
+  'Passkey removed from this account.': {
+    so: 'Passkey waa laga saaray akoonkan.', ar: 'أُزيل مفتاح المرور من هذا الحساب.',
+    sw: 'Passkey imeondolewa kwenye akaunti hii.',
   },
   'Unavailable until secure WebAuthn support is configured. If enabled later, your device may use biometrics or a PIN; AfroSherik will not collect biometric data.': {
     am: 'ደህንነቱ የተጠበቀ WebAuthn እስኪዋቀር ድረስ አይገኝም። በኋላ ከነቃ መሣሪያዎ ባዮሜትሪክስ ወይም PIN ሊጠቀም ይችላል፤ AfroSherik የባዮሜትሪክ መረጃ አይሰበስብም።',

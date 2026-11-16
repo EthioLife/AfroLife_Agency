@@ -80,6 +80,9 @@ async function provisionRuntimeRole(adminUrl: string, runtimeUrl: string) {
       if (role.rolsuper || role.rolcreatedb || role.rolcreaterole || role.rolbypassrls) {
         throw new Error('The selected application runtime role has elevated privileges; choose a different DATABASE_URL username.');
       }
+      await client.query(
+        `ALTER ROLE ${roleName} WITH LOGIN PASSWORD ${quoteLiteral(runtime.password)}`,
+      );
     } else {
       await client.query(
         `CREATE ROLE ${roleName} WITH LOGIN PASSWORD ${quoteLiteral(runtime.password)}`,
@@ -171,11 +174,15 @@ if (provisioningUrl) {
   const effectiveRuntimeUrl = await provisionRuntimeRole(provisioningUrl, runtimeUrl);
   process.env.DATABASE_URL = effectiveRuntimeUrl;
   const migrationEnv: NodeJS.ProcessEnv = { ...process.env, MIGRATION_DATABASE_URL: provisioningUrl };
+  if (migrationsOnly) {
+    delete migrationEnv.SEED_ADMIN_NAME;
+    delete migrationEnv.SEED_ADMIN_PHONE;
+    delete migrationEnv.SEED_ADMIN_PASSWORD;
+  } else {
+    migrationEnv.AFROLIFE_SEED_ADMIN_BEFORE_PROPERTY_TENANT_MIGRATION = '1';
+  }
   delete migrationEnv.ALETCLOUD_BOOTSTRAP_DATABASE_URL;
   delete migrationEnv.ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY;
-  delete migrationEnv.SEED_ADMIN_NAME;
-  delete migrationEnv.SEED_ADMIN_PHONE;
-  delete migrationEnv.SEED_ADMIN_PASSWORD;
   const migration = spawnSync(
     process.execPath,
     [fileURLToPath(new URL('./migrate.js', import.meta.url))],

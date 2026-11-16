@@ -80,16 +80,39 @@ test('WhatsApp recovery sends the code to both authentication-template component
   });
 });
 
-test('bot FAQ is limited to user support and does not offer sales or buyer workflows', () => {
-  assert.ok(SUPPORT_FAQ.length >= 7);
+test('support library covers account, service, work, property, marketplace, and community journeys', () => {
+  assert.ok(SUPPORT_FAQ.length >= 35);
+  assert.deepEqual(new Set(SUPPORT_FAQ.map((item) => item.category)), new Set([
+    'Getting started',
+    'Account & security',
+    'Services & payments',
+    'Work, homes & marketplace',
+    'Community & protection',
+    'Support & technical help',
+  ]));
   const faq = supportFaqReply('/faq');
   assert.match(faq, /reset a forgotten password/i);
+  assert.match(faq, /How do I buy or sell through the marketplace safely/i);
+  assert.match(faq, /Can I get a SACCO loan/i);
   assert.match(faq, /support call/i);
-  assert.doesNotMatch(faq, /sales|buyer confirmation/i);
-  assert.match(supportFaqReply('How do I request a call?'), /\+251 708 076 113/);
-  assert.match(supportFaqReply('Can I link Telegram for support?'), /Telegram is for support guidance only/);
-  assert.match(supportFaqReply('How do I change my password while signed in?'), /enter your current password/);
-  assert.match(supportFaqReply('unknown question'), /do not share passwords or verification codes/i);
+  assert.match(supportFaqReply('which account type should I choose'), /worker for work opportunities/i);
+  assert.match(supportFaqReply('my document was rejected'), /signup follow-up panel/i);
+  assert.match(supportFaqReply('my phone number is already in use'), /Do not create duplicate accounts/i);
+  assert.match(supportFaqReply('I cannot sign in after I registered'), /pending application cannot sign in yet/i);
+  assert.match(supportFaqReply('how do I use the app in Amharic'), /Language selector/i);
+  assert.match(supportFaqReply('can I use AfroSherik offline on my phone'), /require a working connection/i);
+  assert.match(supportFaqReply('my application is pending after registration'), /remains inactive/i);
+  assert.match(supportFaqReply('I forgot my password'), /Choose Forgot password\?/i);
+  assert.match(supportFaqReply('I paid and my subscription is still pending'), /confirmed manually by Finance/i);
+  assert.match(supportFaqReply('Does registering as a worker guarantee a job?'), /not a job offer or placement guarantee/i);
+  assert.match(supportFaqReply('Can I get an insurance payout?'), /Do not assume you have insurance coverage/i);
+  assert.match(supportFaqReply('How do I request a call back?'), /\+251 708 076 113/);
+  assert.match(supportFaqReply('Can Telegram reset my password?'), /Telegram support cannot reset passwords/i);
+  assert.match(supportFaqReply('How do I change my password while signed in?'), /enter your current password and a new password/i);
+  assert.match(supportFaqReply('I forgot my passwrd'), /Choose Forgot password\?/i);
+  assert.match(supportFaqReply('password'), /Guides that may help:[\s\S]*How do I reset a forgotten password/i);
+  assert.match(supportFaqReply('unknown question'), /I can help with account access, applications and documents/i);
+  assert.match(supportFaqReply('unknown question'), /do not send passwords, one-time codes, payment details, or identity documents/i);
 });
 
 test('Telegram identity links are short-lived, hashed, and scoped by row-level security', async () => {

@@ -32,7 +32,7 @@ portal.post('/property-vendors/:vendorId/portal-members', vendorManagement, h(as
   const body = z.object({ user_id: z.string().uuid() }).strict().parse(req.body);
   const membership = await withUser(req.user!, async (client) => {
     const vendor = (await client.query(
-      'SELECT id FROM property_vendors WHERE id=$1 AND active FOR UPDATE',
+      'SELECT id,tenant_system_id FROM property_vendors WHERE id=$1 AND active FOR UPDATE',
       [req.params.vendorId],
     )).rows[0];
     if (!vendor) throw new HttpError(404, 'Active property vendor not found');
@@ -42,9 +42,9 @@ portal.post('/property-vendors/:vendorId/portal-members', vendorManagement, h(as
     )).rows[0];
     if (!account) throw new HttpError(422, 'Choose an active, verified property-vendor account');
     const row = (await client.query(
-      `INSERT INTO property_vendor_memberships(vendor_id,user_id,created_by)
-       VALUES($1,$2,$3) RETURNING vendor_id,user_id,active,created_at`,
-      [vendor.id, account.id, req.user!.id],
+      `INSERT INTO property_vendor_memberships(vendor_id,user_id,created_by,tenant_system_id)
+       VALUES($1,$2,$3,$4) RETURNING vendor_id,user_id,active,created_at`,
+      [vendor.id, account.id, req.user!.id, vendor.tenant_system_id],
     )).rows[0];
     await audit(client, req.user!.id, 'property_vendor_portal_member_added', 'property_vendor', vendor.id, null, {
       user_id: account.id,

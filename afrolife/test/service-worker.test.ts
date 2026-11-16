@@ -7,6 +7,7 @@ const workerSource = readFileSync(new URL('../public/sw.js', import.meta.url), '
 
 test('changed public shell assets advance the cache version', () => {
   assert.match(workerSource, /const CACHE = 'afrolife-shell-v46'/);
+  assert.match(workerSource, /'\/passkeys\.js'/);
   assert.match(workerSource, /'\/financial-workspaces\.css'/);
   assert.match(workerSource, /'\/accounting-dashboard\.js'/);
   assert.match(workerSource, /'\/global-bi\.js'/);

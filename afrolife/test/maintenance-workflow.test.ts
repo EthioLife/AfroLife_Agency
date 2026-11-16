@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import type { Pool } from 'pg';
 import { canTransitionMaintenance, MAINTENANCE_TRANSITIONS, requiresMaintenanceReview } from '../src/maintenance-workflow.js';
 import { dispatchMaintenanceSlaEscalations, maintenanceSlaEscalationLevels } from '../src/maintenance-sla.js';
@@ -27,6 +28,12 @@ test('only completion decisions require independent review evidence', () => {
   assert.equal(requiresMaintenanceReview('completed'), true);
   assert.equal(requiresMaintenanceReview('rework_required'), true);
   assert.equal(requiresMaintenanceReview('awaiting_review'), false);
+});
+
+test('maintenance update explicitly types the optional vendor UUID parameter', () => {
+  const operations = readFileSync(new URL('../src/ops.ts', import.meta.url), 'utf8');
+  assert.match(operations, /assigned_to=CASE WHEN \$8::uuid IS NOT NULL THEN NULL WHEN \$3::uuid IS NOT NULL THEN \$3::uuid::text ELSE assigned_to END/);
+  assert.match(operations, /assigned_vendor_id=CASE WHEN \$3::uuid IS NOT NULL THEN NULL WHEN \$8::uuid IS NOT NULL THEN \$8::uuid ELSE assigned_vendor_id END/);
 });
 
 test('maintenance SLA escalation levels use the agreed 1, 24, and 72 hour thresholds', () => {

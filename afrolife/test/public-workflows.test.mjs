@@ -26,6 +26,37 @@ import {
 import { propertyOfferTerms } from '../public/property-offers.js';
 import { marketplaceListingPayload } from '../public/marketplace-form.js';
 import { filterWorkerActivityReports, workerActivityReportsCsv } from '../public/worker-activity-reports.js';
+import { matchPublicFaq, suggestPublicFaqs } from '../public/public-help.js';
+import { preparePasskeyCreationOptions, serializePasskeyRegistration } from '../public/passkeys.js';
+
+test('passkey WebAuthn options and attestation data use base64url byte conversion', () => {
+  const options = preparePasskeyCreationOptions({
+    challenge: 'AQIDBA',
+    user: { id: 'BQQDAg', name: '+251911234567', displayName: 'Test User' },
+    excludeCredentials: [{ id: 'AQID', transports: ['internal'] }],
+  });
+  assert.deepEqual([...options.challenge], [1, 2, 3, 4]);
+  assert.deepEqual([...options.user.id], [5, 4, 3, 2]);
+  assert.deepEqual([...options.excludeCredentials[0].id], [1, 2, 3]);
+
+  const response = serializePasskeyRegistration({
+    id: 'AQID',
+    rawId: Uint8Array.from([1, 2, 3]).buffer,
+    type: 'public-key',
+    response: {
+      attestationObject: Uint8Array.from([4, 5, 6]).buffer,
+      clientDataJSON: Uint8Array.from([7, 8, 9]).buffer,
+      getTransports: () => ['internal'],
+    },
+    getClientExtensionResults: () => ({}),
+    authenticatorAttachment: 'platform',
+  });
+  assert.equal(response.rawId, 'AQID');
+  assert.equal(response.response.attestationObject, 'BAUG');
+  assert.equal(response.response.clientDataJSON, 'BwgJ');
+  assert.deepEqual(response.response.transports, ['internal']);
+  assert.equal(response.authenticatorAttachment, 'platform');
+});
 
 test('submit buttons are handled by the delegated form workflow, not click actions', () => {
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
@@ -317,15 +348,22 @@ test('property vendor portal exposes assigned work only and requires scanned evi
   assert.match(server,/api\.post\('\/maintenance\/vendor\/:id\/evidence', express\.raw/);
 });
 
-test('account security exposes session listing and session revocation', () => {
+test('account security exposes session and trusted-browser listing and revocation', () => {
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
   const admin = readFileSync(new URL('../src/admin.ts', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   assert.match(app, /load\('authSessions', '\/auth\/sessions'\)/);
   assert.match(app, /Signed-in sessions/);
   assert.match(app, /data-action|revoke-session/);
   assert.match(admin, /adminRouter\.get\('\/auth\/sessions'/);
   assert.match(admin, /adminRouter\.delete\('\/auth\/sessions\/:sessionId'/);
   assert.match(admin, /WHERE id=\$1 AND user_id=\$2 AND revoked_at IS NULL AND expires_at>now\(\)/);
+  assert.match(html, /id="trust-device-field"[^>]*hidden/);
+  assert.match(app, /if \(result\.mfa_required\) \{[\s\S]*?\$\('#trust-device-field'\)\.hidden = false/);
+  assert.match(app, /load\('trustedDevices', '\/auth\/trusted-devices'\)/);
+  assert.match(app, /revoke-trusted-device/);
+  assert.match(admin, /adminRouter\.get\('\/auth\/trusted-devices'/);
+  assert.match(admin, /adminRouter\.delete\('\/auth\/trusted-devices\/:deviceId'/);
   assert.match(admin, /session_revoked/);
 });
 
@@ -548,7 +586,8 @@ test('authentication uses an Ethiopia-first international phone entry and explic
   assert.match(html, /name="code"[^>]*autocomplete="one-time-code"/);
   assert.match(html, /Fayda verification is unavailable[\s\S]*?not live Fayda verification/);
   assert.match(app, /canonicalPhonePayload\(form\)/);
-  assert.match(app, /Device sign-in unavailable/);
+  assert.match(app, /navigator\.credentials\.create/);
+  assert.match(app, /passkey\.disabled = !passkeyState\.enabled \|\| !browserSupportsPasskeys/);
 });
 
 test('mobile sign-in places the campaign welcome before sign-in and signup forms', () => {
@@ -627,6 +666,7 @@ test('public hub integrates the campaign artwork with the existing public action
   assert.match(styles, /\.hub-heading \{ grid-template-columns: minmax\(0, 1fr\); gap:/);
   assert.match(styles, /#public-hub \.service-card\[data-panel\] \.service-icon\s*\{[^}]*background:\s*var\(--mini-app-tint\);[^}]*color:\s*var\(--mini-app-ink/s);
   assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v46'/);
+  assert.match(serviceWorker, /'\/passkeys\.js'/);
   assert.match(serviceWorker, /'\/tenant-data-admin\.js'/);
   for (const asset of [
     '/icons/afrosherik-icon-192.png', '/icons/afrosherik-icon-256.png', '/icons/afrosherik-icon-512.png',
@@ -725,4 +765,128 @@ test('signup and recovery password fields accept passwords from eight characters
   assert.match(api, /current: z\.string\(\)\.min\(1\)\.max\(200\), next: z\.string\(\)\.min\(8\)\.max\(72\)/);
   assert.match(readFileSync(new URL('../src/security.ts', import.meta.url), 'utf8'), /Use at least 8 characters\./);
   assert.match(readFileSync(new URL('../src/support-faq.ts', import.meta.url), 'utf8'), /Use at least 8 characters/);
+});
+test('login password visibility toggles without submitting and exposes its state', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+
+  assert.match(html, /<input id="login-password" name="password" type="password"[^>]*autocomplete="current-password"[^>]*required/);
+  assert.match(html, /<button id="toggle-login-password"[^>]*type="button"[^>]*aria-label="Show password"[^>]*aria-pressed="false">Show<\/button>/);
+  const toggle = app.slice(app.indexOf("$('#toggle-login-password').addEventListener('click'"), app.indexOf("$('#public-help-launcher').addEventListener"));
+  assert.match(toggle, /password\.type = visible \? 'text' : 'password'/);
+  assert.match(toggle, /toggle\.setAttribute\('aria-pressed', String\(visible\)\)/);
+  assert.match(toggle, /setLocalizedAttribute\(toggle, 'aria-label', visible \? 'Hide password' : 'Show password'\)/);
+  assert.doesNotMatch(toggle, /requestSubmit|\.submit\(/);
+});
+
+test('public support is outside the welcome hero and includes an anonymous help launcher', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+
+  assert.ok(html.indexOf('id="public-support"') > html.indexOf('id="public-hub"'));
+  assert.ok(html.indexOf('id="public-support"') < html.indexOf('id="app-view"'));
+  const welcomePanel = html.slice(html.indexOf('<div class="welcome-panel">'), html.indexOf('<datalist id="phone-calling-codes">'));
+  assert.doesNotMatch(welcomePanel, /id="public-support"/);
+  assert.match(html, /data-support-whatsapp-link/);
+  assert.match(html, /data-support-phone-link/);
+  assert.match(html, /Sign in for private web chat/);
+  assert.match(html, /id="public-help-launcher"[^>]*aria-haspopup="dialog"[^>]*aria-controls="public-help-dialog"/);
+  assert.match(html, /id="public-help-dialog"[^>]*aria-labelledby="public-help-title"/);
+  assert.match(app, /\$\('#public-help-launcher'\)\.addEventListener\('click', \(\) => \$\('#public-help-dialog'\)\.showModal\(\)\)/);
+  assert.match(app, /\$\('#public-help-close'\)\.addEventListener\('click', \(\) => \$\('#public-help-dialog'\)\.close\(\)\)/);
+  assert.match(app, /topic\.dataset\.publicHelpQuestion = t\(item\.question\)/);
+});
+
+test('anonymous FAQ responses are local, FAQ-backed, and safe when the API is unavailable', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const faq = [
+    {
+      category: 'Account & security',
+      question: 'How do I reset a forgotten password?',
+      answer: 'Choose Forgot password? to request a recovery code.',
+      keywords: ['forgot password', 'reset password', 'password recovery'],
+    },
+    {
+      category: 'Support & technical help',
+      question: 'How do I get human support or request a support call?',
+      answer: 'Call the support line for human support.',
+      keywords: ['human support', 'call support', 'request callback'],
+    },
+    {
+      category: 'Services & payments',
+      question: 'Why is a service missing or unavailable in my workspace?',
+      answer: 'Services depend on your organization and account role.',
+      keywords: ['service unavailable', 'service missing', 'module not visible', 'accounting missing'],
+    },
+    {
+      category: 'Account & security',
+      question: 'How do I change my password while signed in?',
+      answer: 'Open account security to change your password.',
+      keywords: ['change password', 'current password', 'new password'],
+    },
+  ];
+
+  assert.equal(matchPublicFaq('forgot password', faq), faq[0]);
+  assert.equal(matchPublicFaq('request a human support call', faq), faq[1]);
+  assert.equal(matchPublicFaq('accounting is missing from my workspace', faq), faq[2]);
+  assert.equal(matchPublicFaq('password', faq), null, 'A vague query should not trigger an arbitrary answer');
+  assert.deepEqual(suggestPublicFaqs('password', faq), [faq[0], faq[3]], 'A vague query should offer relevant choices');
+  assert.equal(matchPublicFaq('I forgot my passwrd', faq), faq[0], 'A minor typo should still match the intended FAQ');
+  assert.deepEqual(suggestPublicFaqs('unrelated marketplace question', faq), []);
+  const amharicFaq = [{
+    question: 'የረሳሁትን የይለፍ ቃል እንዴት እመልሳለሁ?',
+    answer: 'መልሶ ማግኛን ለመክፈት ይምረጡ።',
+    keywords: ['የይለፍ ቃል ረሳሁ', 'የይለፍ ቃል መመለስ'],
+  }];
+  assert.equal(matchPublicFaq('የይለፍ ቃል ረሳሁ', amharicFaq), amharicFaq[0]);
+  assert.equal(matchPublicFaq('unrelated marketplace question', faq), null);
+  assert.equal(matchPublicFaq('password', null), null);
+  assert.match(html, /id="public-help-form"[^>]*method="dialog"/);
+  assert.match(html, /Your message stays in this page and is not sent or stored/);
+  assert.match(html, /Never share passwords, verification codes, or sensitive identifiers/);
+  const submitHandler = app.slice(app.indexOf("$('#public-help-form').addEventListener('submit'"), app.indexOf("$('#public-help-dialog').querySelectorAll"));
+  assert.match(submitHandler, /event\.preventDefault\(\)/);
+  assert.match(submitHandler, /answerPublicHelpQuestion\(input\.value\)/);
+  assert.doesNotMatch(submitHandler, /fetch\(|\bapi\(/);
+  const faqLoader = app.slice(app.indexOf('const loadFaq = async () =>'), app.indexOf('await Promise.all([loadContact(), loadFaq()])'));
+  assert.match(faqLoader, /state\.publicSupportFaq = \[\]/);
+  assert.match(faqLoader, /state\.publicHelpFaqUnavailable = true/);
+  assert.match(app, /Common answers are temporarily unavailable\. You can still call support or contact the team on WhatsApp\./);
+  assert.match(app, /FAQ answers may be unavailable, but you can still contact human support using the links below\./);
+  assert.match(app, /const category = item\.category \|\| 'General support'/);
+  assert.match(app, /topic\.dataset\.publicHelpQuestion = t\(item\.question\)/);
+  assert.match(app, /suggestPublicFaqs\(text, faq\)/);
+  assert.match(app, /I can help with account access, applications and documents/);
+  assert.doesNotMatch(app, /I could not find a matching published FAQ/);
+  assert.match(app, /state\.publicSupportFaq\.slice\(0, 6\)/);
+});
+
+test('administrator access selection waits until required password and MFA setup are complete', () => {
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const login = app.slice(app.indexOf('async function login('), app.indexOf('function renderAccessModeChoice('));
+  assert.match(login, /if \(!result\.restrict && !state\.mfaRequired && state\.accessOptions\.length > 1\)/);
+
+  const workspaceStart = app.indexOf('async function loadWorkspace()');
+  const workspaceEnd = app.indexOf('\nfunction ', workspaceStart + 1);
+  const workspace = app.slice(workspaceStart, workspaceEnd);
+  const currentUserIndex = workspace.indexOf("state.user = await api('/auth/me')");
+  const passwordGuardIndex = workspace.indexOf('const passwordRequired =');
+  const restrictedDataIndex = workspace.indexOf("api('/property/tenant-systems/mine')");
+  assert.ok(currentUserIndex >= 0);
+  assert.ok(passwordGuardIndex > currentUserIndex);
+  assert.ok(restrictedDataIndex > passwordGuardIndex);
+  assert.match(workspace.slice(passwordGuardIndex, restrictedDataIndex), /if \(passwordRequired \|\| state\.mfaRequired\)/);
+});
+
+test('Admin/Staff portal has a host-specific entry and enforces eligible roles at login', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const server = readFileSync(new URL('../src/server.ts', import.meta.url), 'utf8');
+  const auth = readFileSync(new URL('../src/admin.ts', import.meta.url), 'utf8');
+  assert.match(html, /data-portal-mode="__PORTAL_MODE__"/);
+  assert.match(html, /href="__ADMIN_PORTAL_URL__"/);
+  assert.match(html, />Admin &amp; Staff portal</);
+  assert.match(server, /app\.get\(\['\/', '\/index\.html'\]/);
+  assert.match(server, /isAdminPortalHost\(req\.hostname, runtimeConfig\.adminPortal\)/);
+  assert.match(auth, /res\.locals\.adminPortal && !canAccessAdminPortal\(accessOptions\)/);
 });
