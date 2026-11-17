@@ -60,6 +60,7 @@ The lowest published combination previously reviewed was App Hosting Max (ETB 3,
    - `TRUST_PROXY=1` only when requests reach the app through AletCloud's trusted proxy
    - `CORS_ORIGINS` set to the exact staging origin(s)
    - a private AletCloud S3 bucket linked to the app, or a separately verified persistent `FILE_STORAGE_DIR`
+   - Configure a private ClamAV service with `CLAMAV_HOST`, `CLAMAV_PORT`, and `CLAMAV_TIMEOUT_MS`. Uploads fail closed unless scanning is configured and clean.
    - service URLs/secrets only for separately deployed services that have passed their own readiness checks
 
    Keep optional service cutover flags off, including `MFI_PILOT_ENABLED=0`, `INSURANCE_SERVICE_CUTOVER_READY=0`, and `GLOBAL_BI_SERVICE_CUTOVER_READY=0`, until the related integrations are independently deployed and approved. With Insurance unset, its production workspace is hidden and its API routes return 503; the core platform can deploy without that integration. Set all real secrets in the dashboard's secret fields, not plain GitHub files.

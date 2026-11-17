@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { pool, withUser, requireActivity, requireRole, HttpError, isPlatformAdminRole } from '../../src/core.js';
 import { sniff, sniffListingMedia } from '../../src/files.js';
+import { isClamAvConfigured, scanWithClamAv } from '../../src/clamav.js';
 import { getFile, putFile } from '../../src/storage.js';
 import { notify } from '../../src/notify.js';
 import { audit, loadRules } from '../../src/domain.js';
@@ -81,6 +82,15 @@ router.post('/workers/:id/documents/upload', requireActivity('workforce.document
   if (!mime) throw new HttpError(415, 'Only PDF, JPEG or PNG files are accepted');
   const row = await withUser(req.user!, async (c) => {
     if (!(await c.query('SELECT id FROM workers WHERE id = $1', [req.params.id])).rowCount) throw new HttpError(404, 'Worker not found'); // RLS: must be in your scope
+    if (!isClamAvConfigured()) throw new HttpError(503, 'Worker document upload is unavailable until the malware scanner is configured.');
+    let scanResult: 'clean' | 'infected';
+    try {
+      scanResult = await scanWithClamAv(buf);
+    } catch (error) {
+      console.error('Workforce document malware scan failed', error instanceof Error ? error.message : error);
+      throw new HttpError(503, 'Worker document upload is unavailable because the malware scan could not be completed.');
+    }
+    if (scanResult !== 'clean') throw new HttpError(422, 'The worker document was rejected by the malware scanner.');
     const key = randomUUID();
     const r = await c.query(
       'INSERT INTO documents (worker_id, doc_type, storage_key, sha256, expires_on, mime, size_bytes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, doc_type, status, expires_on',

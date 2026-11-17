@@ -86,6 +86,21 @@ test('signup uploads enforce configured KYC documents and limit server changes t
     '/edir/public/registration-applications/application%2F1/documents/legal_registration');
 });
 
+test('workforce documents are scanned before storage and fail closed without a clean result', () => {
+  const router = readFileSync(new URL('../services/workforce-management/router.ts', import.meta.url), 'utf8');
+  const upload = router.slice(
+    router.indexOf("router.post('/workers/:id/documents/upload'"),
+    router.indexOf("router.get('/documents/:id/file'"),
+  );
+  assert.match(upload, /isClamAvConfigured\(\)/);
+  assert.match(upload, /await scanWithClamAv\(buf\)/);
+  assert.match(upload, /if \(scanResult !== 'clean'\)/);
+  assert.ok(upload.indexOf('await scanWithClamAv(buf)') < upload.indexOf('INSERT INTO documents'));
+  assert.match(upload, /Worker document upload is unavailable until the malware scanner is configured/);
+  assert.match(upload, /Worker document upload is unavailable because the malware scan could not be completed/);
+  assert.match(upload, /The worker document was rejected by the malware scanner/);
+});
+
 test('pending signup resumes the visible document-upload follow-up flow', () => {
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
   const openSignup = app.slice(app.indexOf('function openSignup('), app.indexOf('function showSignupFollowupMode('));
