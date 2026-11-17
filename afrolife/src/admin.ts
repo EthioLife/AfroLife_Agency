@@ -35,6 +35,7 @@ import {
 } from './platform-data-admin.js';
 import { getMyTenantDataScopes, getTenantDataScope, requireTenantDataCapability } from './tenant-data-access.js';
 import { getKycRequirements, requiredKycDocuments, ConfigScope, validateMarketplaceConfig, loadMarketplaceConfig } from './marketplace-config.js';
+import { getArchitectureGovernanceSnapshot } from './architecture-governance.js';
 import {
   clearTrustedDeviceCookie,
   createTrustedDeviceToken,
@@ -772,6 +773,10 @@ adminRouter.patch('/marketplace/config', requireRole('global_admin', 'corporate_
     return loadMarketplaceConfig(c);
   });
   res.json(config);
+}));
+
+adminRouter.get('/platform/architecture-governance', requirePlatformControlPlaneAdmin, h(async (_req, res) => {
+  res.json(getArchitectureGovernanceSnapshot());
 }));
 
 adminRouter.get('/platform/services', requirePlatformControlPlaneAdmin, h(async (req, res) => {

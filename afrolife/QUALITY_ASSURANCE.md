@@ -15,6 +15,36 @@ MFI, and core API integration workflows. These checks improve regression
 coverage; a green workflow does not establish production readiness or replace
 staging, recovery, and external review.
 
+## Architecture and governance acceptance
+
+Before an extraction or production service cutover, complete a named
+data-ownership and compatibility review against
+`GET /api/v1/platform/architecture-governance`. The review must identify the
+domain owner, target data store, versioned contract, restricted runtime role,
+migration and reconciliation plan, backup/restore path, rollback evidence,
+monitoring, and release approvers. The registry and this checklist describe
+required controls; they are not themselves legal or regulatory approval.
+
+For each release, the repository evidence should cover:
+
+- A tenant and residency decision, with the enabled countries and services.
+- A reviewed data inventory and retention/deletion treatment for restricted and
+  regulated data, including cross-border transfers.
+- A jurisdiction-by-service obligations matrix reviewed by qualified legal,
+  compliance, finance, privacy, security, labor, or insurance owners as
+  applicable.
+- Measured staging availability, latency, capacity, recovery, accessibility,
+  localization, and accountability evidence rather than local health/build
+  success alone.
+- Named incident, migration, service-identity, restore, and release owners;
+  witnessed restore and financial reconciliation; and immutable SBOM/release
+  evidence.
+
+The unit-and-build job audits production dependencies and retains a
+CycloneDX-format SBOM as a 90-day workflow artifact. The SBOM describes the
+locked application dependency tree; it is release evidence, not a vulnerability
+scan result, signed deployment image, or production approval.
+
 Role activity defaults are maintained in the application catalog and mirrored
 in migration `057_role_activity_defaults.sql` for PostgreSQL row-level
 security. The unit suite checks that both grant sets match and that request
