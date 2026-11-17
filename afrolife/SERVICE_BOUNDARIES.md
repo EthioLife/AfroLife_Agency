@@ -144,6 +144,27 @@ completed database separation.
 Architecture changes must be gated by data ownership and compatibility tests,
 not by moving files or splitting processes alone.
 
+## Architecture governance registry
+
+The signed-in Global System Admin control plane exposes
+`GET /api/v1/platform/architecture-governance` as a read-only catalog. It records
+the modular core and runnable/extracted domain boundaries, current cutover
+state, data inventory classes, jurisdiction obligation areas, quality targets,
+and explicit non-compliance disclaimers. The catalog is descriptive design
+evidence only; it does not activate a service, grant tenant data access, or
+create a legal/regulatory approval.
+
+Extraction remains blocked unless the domain has a named owner and versioned
+API, independently owned data and migrations, a restricted runtime identity,
+tested reconciliation and cutover/rollback evidence, backup/restore evidence,
+and operational monitoring. Shared legacy tables remain transitional and do
+not count as independent data ownership.
+
+Global BI is explicitly cataloged as a blocked, read-only projection path.
+It must not be enabled through central tenant database access. Tenant-bound
+extractors, a trusted ingestion identity and endpoint, source reconciliation,
+and witnessed operator rollout remain prerequisites.
+
 The central API keeps HTTP composition in `src/server.ts`; Agency leads,
 contracts, and commission routes are grouped in `src/agency-operations.ts`.
 This is an incremental code-ownership boundary only. It does not change route

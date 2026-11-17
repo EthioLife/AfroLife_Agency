@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { adminRouter } from '../src/admin.js';
 import { workspaceModulesForServices } from '../src/runtime-config.js';
 import { tenantMigrationEventSchema, tenantMigrationStartSchema } from '../src/platform-data-admin.js';
+import { getArchitectureGovernanceSnapshot } from '../src/architecture-governance.js';
 
 const routes = adminRouter.stack.flatMap((layer) => (layer.route
   ? [{
@@ -16,6 +17,7 @@ const routes = adminRouter.stack.flatMap((layer) => (layer.route
 
 test('shared platform control-plane endpoints allow only Global System Admin', () => {
   const paths = [
+    '/platform/architecture-governance',
     '/platform/services',
     '/platform/services/:serviceKey',
     '/platform/service-packages',
@@ -43,6 +45,21 @@ test('shared platform control-plane endpoints allow only Global System Admin', (
       assert.equal((denied as { status?: number })?.status, 403, `${role} must be denied on ${path}`);
     }
   }
+});
+
+test('architecture governance catalog exposes domain, privacy, jurisdiction, and quality controls', () => {
+  const snapshot = getArchitectureGovernanceSnapshot();
+  assert.equal(snapshot.model, 'modular-tenant-aware-platform');
+  assert.ok(snapshot.domains.some((domain) => domain.key === 'global-bi'
+    && domain.status === 'read-only-projection'
+    && domain.productionCutover === 'blocked'));
+  assert.ok(snapshot.dataInventory.some((item) => item.key === 'kyc-document'
+    && item.classification === 'regulated'));
+  assert.ok(snapshot.jurisdictionObligations.some((item) => item.jurisdiction === 'Ethiopia'
+    && item.reviewState === 'initial-review-required'));
+  assert.ok(snapshot.qualityTargets.every((item) => item.acceptanceState === 'proposed'
+    && item.evidence.length >= 3));
+  assert.ok(snapshot.disclaimers.some((item) => /do not establish legal/i.test(item)));
 });
 
 test('Super Admin receives only assigned entity module configuration endpoints', () => {
