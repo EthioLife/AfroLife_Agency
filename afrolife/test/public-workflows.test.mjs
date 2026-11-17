@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import {
+  marketplaceDashboardMetrics,
   workforceDashboardMetrics,
   staffingDashboardMetrics,
   propertyDashboardMetrics,
@@ -24,13 +25,44 @@ import {
 } from '../public/subscriptions.js';
 import { propertyOfferTerms } from '../public/property-offers.js';
 import { marketplaceListingPayload } from '../public/marketplace-form.js';
+import { filterWorkerActivityReports, workerActivityReportsCsv } from '../public/worker-activity-reports.js';
+import { matchPublicFaq, suggestPublicFaqs } from '../public/public-help.js';
+import { preparePasskeyCreationOptions, serializePasskeyRegistration } from '../public/passkeys.js';
+
+test('passkey WebAuthn options and attestation data use base64url byte conversion', () => {
+  const options = preparePasskeyCreationOptions({
+    challenge: 'AQIDBA',
+    user: { id: 'BQQDAg', name: '+251911234567', displayName: 'Test User' },
+    excludeCredentials: [{ id: 'AQID', transports: ['internal'] }],
+  });
+  assert.deepEqual([...options.challenge], [1, 2, 3, 4]);
+  assert.deepEqual([...options.user.id], [5, 4, 3, 2]);
+  assert.deepEqual([...options.excludeCredentials[0].id], [1, 2, 3]);
+
+  const response = serializePasskeyRegistration({
+    id: 'AQID',
+    rawId: Uint8Array.from([1, 2, 3]).buffer,
+    type: 'public-key',
+    response: {
+      attestationObject: Uint8Array.from([4, 5, 6]).buffer,
+      clientDataJSON: Uint8Array.from([7, 8, 9]).buffer,
+      getTransports: () => ['internal'],
+    },
+    getClientExtensionResults: () => ({}),
+    authenticatorAttachment: 'platform',
+  });
+  assert.equal(response.rawId, 'AQID');
+  assert.equal(response.response.attestationObject, 'BAUG');
+  assert.equal(response.response.clientDataJSON, 'BwgJ');
+  assert.deepEqual(response.response.transports, ['internal']);
+  assert.equal(response.authenticatorAttachment, 'platform');
+});
 
 test('submit buttons are handled by the delegated form workflow, not click actions', () => {
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
   const clickHandler = app.slice(app.indexOf("document.addEventListener('click', async (event) => {"));
   const actionLookup = clickHandler.indexOf("const action = event.target.closest('button[data-action]');");
   const mfaAction = clickHandler.indexOf("if (name === 'mfa-setup')");
-
   assert.ok(actionLookup >= 0);
   assert.ok(mfaAction > actionLookup);
   assert.match(clickHandler.slice(actionLookup, mfaAction), /action\.type === 'submit'/);
@@ -54,6 +86,61 @@ test('signup uploads enforce configured KYC documents and limit server changes t
     '/edir/public/registration-applications/application%2F1/documents/legal_registration');
 });
 
+test('workforce documents are scanned before storage and fail closed without a clean result', () => {
+  const router = readFileSync(new URL('../services/workforce-management/router.ts', import.meta.url), 'utf8');
+  const upload = router.slice(
+    router.indexOf("router.post('/workers/:id/documents/upload'"),
+    router.indexOf("router.get('/documents/:id/file'"),
+  );
+  assert.match(upload, /isClamAvConfigured\(\)/);
+  assert.match(upload, /await scanWithClamAv\(buf\)/);
+  assert.match(upload, /if \(scanResult !== 'clean'\)/);
+  assert.ok(upload.indexOf('await scanWithClamAv(buf)') < upload.indexOf('INSERT INTO documents'));
+  assert.match(upload, /Worker document upload is unavailable until the malware scanner is configured/);
+  assert.match(upload, /Worker document upload is unavailable because the malware scan could not be completed/);
+  assert.match(upload, /The worker document was rejected by the malware scanner/);
+});
+
+test('pending signup resumes the visible document-upload follow-up flow', () => {
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const openSignup = app.slice(app.indexOf('function openSignup('), app.indexOf('function showSignupFollowupMode('));
+  const loadFollowup = app.slice(app.indexOf('async function loadSignupFollowup('), app.indexOf('async function uploadSignupReplacement('));
+
+  assert.match(openSignup, /showSignupFollowupMode\(\);[\s\S]*setLocalizedText\(\$\('#signup-success'\), 'A registration is already pending\.[\s\S]*void loadSignupFollowup\(\);/);
+  assert.match(loadFollowup, /const needsReplacement = Boolean\(select\.options\.length\);/);
+  assert.match(loadFollowup, /\$\('#signup-followup-form'\)\.hidden = !needsReplacement;/);
+  assert.match(loadFollowup, /select\.required = needsReplacement;/);
+  assert.match(loadFollowup, /\$\('#signup-followup-form \[name="file"\]'\)\.required = needsReplacement;/);
+});
+
+test('public signup branding and worker-interest copy stay localized', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const i18n = readFileSync(new URL('../public/i18n.js', import.meta.url), 'utf8');
+
+  let divDepth = 0;
+  for (const tag of html.matchAll(/<\/?div\b[^>]*>/gi)) {
+    divDepth += tag[0][1] === '/' ? -1 : 1;
+    assert.ok(divDepth >= 0, 'public page divs should close only after they open');
+  }
+  assert.equal(divDepth, 0, 'public page should not leave divs unclosed');
+  assert.match(html, /<p class="eyebrow">AFROSHERIK REGISTRATION<\/p>/);
+  assert.match(html, /<h2>Apply to join AfroSherik<\/h2>/);
+  assert.doesNotMatch(html, /ETHIOLIFE REGISTRATION|Apply to join AfroLife/);
+  for (const message of [
+    'AFROSHERIK REGISTRATION',
+    'Ask about worker savings options',
+    'Request information about currently configured worker savings services. No match or pension contribution is promised.',
+    'For workers seeking an Option A placement with the Enterprise service pathway. Enrollment, employer terms, pension matching and Edir benefits require confirmation before activation.',
+    'Ask about future insurance services',
+    'Insurance is not active in the current Edir pilot.',
+    'Ask about future household protection',
+    'Household cover is not active in the current AfroSherik service.',
+    'These are non-binding requests for information. Selecting a benefit does not enroll you, collect money or start insurance coverage.',
+  ]) {
+    assert.match(i18n, new RegExp(`'${message.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}':\\s*\\{\\s*am:\\s*'[^']+'`));
+  }
+});
+
 test('mini-app dashboards summarize only supplied, authorized panel data', () => {
   assert.deepEqual(workforceDashboardMetrics([{ verification: 'verified' }, { verification: 'pending' }]), {
     total: 2,
@@ -63,6 +150,15 @@ test('mini-app dashboards summarize only supplied, authorized panel data', () =>
   assert.deepEqual(staffingDashboardMetrics([{ status: 'open' }, { status: 'open' }]), {
     total: 2,
     byStatus: [{ label: 'open', count: 2 }],
+  });
+  assert.deepEqual(marketplaceDashboardMetrics([
+    { status: 'published', created_by: 'user-1' },
+    { status: 'pending_review', seller_user_id: 'user-2' },
+  ], 'user-1'), {
+    totalListings: 2,
+    publishedListings: 1,
+    ownedListings: 1,
+    byStatus: [{ label: 'published', count: 1 }, { label: 'pending_review', count: 1 }],
   });
   assert.deepEqual(propertyDashboardMetrics([
     { status: 'active', units: [{}, {}] },
@@ -180,8 +276,59 @@ test('worker portal exposes workforce self-service and ordered offline clock syn
     .split('CREATE TABLE workforce_payroll_export_items')[0];
   assert.doesNotMatch(exportMetadata, /encrypted_payload/);
   assert.match(migration, /UPDATE workforce_shifts SET status='cancelled'[\s\S]*?UPDATE staffing_engagements SET status='completed'/);
-  assert.match(server, /api\.use\('\/workforce', requireMiniAppAccess\('workers'\)\)/);
+  assert.match(server, /api\.use\('\/workforce', requirePlatformTenantService\('workforce'\), requireMiniAppAccess\('workers'\)\)/);
   assert.match(server, /api\.use\('\/workforce', workerManagementGateway\)/);
+});
+
+test('worker activity reports can be filtered and exported as spreadsheet-safe CSV', () => {
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const reports = [
+    {
+      engagement_id: 'engagement-1',
+      period_start: '2026-03-01',
+      period_end: '2026-03-07',
+      quantity: '5',
+      worker_amount: '2500.00',
+      description: '=HYPERLINK("https://example.invalid")',
+      status: 'submitted',
+      review_reason: null,
+    },
+    {
+      engagement_id: 'engagement-1',
+      period_start: '2026-03-08',
+      period_end: '2026-03-14',
+      quantity: '4',
+      worker_amount: '2000.00',
+      description: 'Completed weekly work',
+      status: 'approved',
+      review_reason: 'Reviewed',
+    },
+  ];
+  const engagements = [{
+    id: 'engagement-1',
+    employer_client: 'Employer, Inc.',
+    worker_type: 'hourly_professional',
+    billing_unit: 'hour',
+  }];
+  const filtered = filterWorkerActivityReports(reports, {
+    startDate: '2026-03-05',
+    endDate: '2026-03-14',
+    status: 'approved',
+  });
+  assert.deepEqual(filtered, [reports[1]]);
+  assert.deepEqual(
+    filterWorkerActivityReports(reports, { startDate: '2026-03-05', endDate: '2026-03-10' }),
+    reports,
+  );
+
+  const csv = workerActivityReportsCsv(reports, engagements);
+  assert.match(csv, /Employer, Inc\./);
+  assert.match(csv, /'=HYPERLINK/);
+  assert.match(csv, /"Employer, Inc\."/);
+  assert.match(csv, /Worker amount ETB/);
+  assert.match(app, /worker-report-filters/);
+  assert.match(app, /worker-report-export/);
+  assert.match(app, /Filters and exports include the 200 most recent reports currently loaded/);
 });
 
 test('maintenance workflow surfaces independent completion review', () => {
@@ -216,15 +363,22 @@ test('property vendor portal exposes assigned work only and requires scanned evi
   assert.match(server,/api\.post\('\/maintenance\/vendor\/:id\/evidence', express\.raw/);
 });
 
-test('account security exposes session listing and session revocation', () => {
+test('account security exposes session and trusted-browser listing and revocation', () => {
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
   const admin = readFileSync(new URL('../src/admin.ts', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   assert.match(app, /load\('authSessions', '\/auth\/sessions'\)/);
   assert.match(app, /Signed-in sessions/);
   assert.match(app, /data-action|revoke-session/);
   assert.match(admin, /adminRouter\.get\('\/auth\/sessions'/);
   assert.match(admin, /adminRouter\.delete\('\/auth\/sessions\/:sessionId'/);
   assert.match(admin, /WHERE id=\$1 AND user_id=\$2 AND revoked_at IS NULL AND expires_at>now\(\)/);
+  assert.match(html, /id="trust-device-field"[^>]*hidden/);
+  assert.match(app, /if \(result\.mfa_required\) \{[\s\S]*?\$\('#trust-device-field'\)\.hidden = false/);
+  assert.match(app, /load\('trustedDevices', '\/auth\/trusted-devices'\)/);
+  assert.match(app, /revoke-trusted-device/);
+  assert.match(admin, /adminRouter\.get\('\/auth\/trusted-devices'/);
+  assert.match(admin, /adminRouter\.delete\('\/auth\/trusted-devices\/:deviceId'/);
   assert.match(admin, /session_revoked/);
 });
 
@@ -296,6 +450,7 @@ test('dynamically created labels retain their source text when the locale change
       initializeLocale,
       setLocalizedAttribute,
       setLocalizedNodeText,
+      t,
       translateContent,
     } = await import(`../public/i18n.js?locale-test=${Date.now()}`);
     const renderLink = () => {
@@ -332,6 +487,15 @@ test('dynamically created labels retain their source text when the locale change
     translateContent(root);
     assert.equal(accountingText.nodeValue, 'የሂሳብ መዝገብ ዝርዝር');
     assert.equal(workerPaymentText.nodeValue, 'የሠራተኛ ክፍያ መዝገቦች');
+    const faqFallbackNotice = 'Some published support questions and answers may appear in English when a translation is unavailable.';
+    for (const locale of ['am', 'om', 'ti', 'so', 'ar', 'sw']) {
+      selector.value = locale;
+      changeLocale();
+      assert.notEqual(t(faqFallbackNotice), faqFallbackNotice, `${locale} should translate the FAQ fallback notice`);
+    }
+    selector.value = 'en';
+    changeLocale();
+    assert.equal(t(faqFallbackNotice), faqFallbackNotice);
   } finally {
     for (const [key, descriptor] of descriptors) {
       if (descriptor) Object.defineProperty(globalThis, key, descriptor);
@@ -350,10 +514,43 @@ test('public signup actions open generic registration and allow returning to sig
   assert.match(html, /id="show-login"[^>]*>Already have an account\? Sign in<\/button>/);
 });
 
+test('hidden signup document-replacement controls do not block initial registration', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const followup = html.match(/<div id="signup-followup-form"[\s\S]*?<\/div>/)?.[0];
+  assert.ok(followup, 'the document replacement form should exist');
+  assert.doesNotMatch(followup, /\brequired\b/);
+  assert.match(app, /const needsReplacement = Boolean\(select\.options\.length\);[\s\S]*?select\.required = needsReplacement;[\s\S]*?#signup-followup-form \[name="file"\]'\)\.required = needsReplacement;/);
+  assert.match(app, /#signup-followup-form'\)\.hidden = true;[\s\S]*?select\.required = false;[\s\S]*?#signup-followup-form \[name="file"\]'\)\.required = false;/);
+});
+
+test('marketplace forms submit through the form handler without breaking click actions', () => {
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const submitStart = app.indexOf('async function submitForm(form) {');
+  const submitEnd = app.indexOf('\nasync function showCandidates', submitStart);
+  const clickStart = app.indexOf("document.addEventListener('click', async (event) => {");
+  const clickEnd = app.indexOf("$('#login-form')", clickStart);
+  assert.ok(submitStart >= 0 && submitEnd > submitStart, 'the form submit handler should be present');
+  assert.ok(clickStart >= 0 && clickEnd > clickStart, 'the delegated click handler should be present');
+  const submitHandler = app.slice(submitStart, submitEnd);
+  const clickHandler = app.slice(clickStart, clickEnd);
+  for (const formName of ['marketplace', 'marketplace-existing-media', 'marketplace-config']) {
+    assert.ok(submitHandler.includes(`form.dataset.form === '${formName}'`), `${formName} should be handled on submit`);
+  }
+  assert.match(submitHandler, /sessionStorage\.getItem\(TOKEN_KEY\)/);
+  assert.doesNotMatch(submitHandler, /state\.token/);
+  assert.doesNotMatch(clickHandler, /\bform\./);
+  assert.match(clickHandler, /name === 'user-documents'/);
+});
+
 test('authenticator setup is handled before unrelated form actions', () => {
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
   const clickHandler = app.slice(app.indexOf("document.addEventListener('click', async (event) => {"));
-  assert.ok(clickHandler.indexOf("if (name === 'mfa-setup')") < clickHandler.indexOf("if (form.dataset.form === 'marketplace')"));
+  const actionLookup = clickHandler.indexOf("const action = event.target.closest('button[data-action]');");
+  const mfaAction = clickHandler.indexOf("if (name === 'mfa-setup')");
+  assert.ok(actionLookup >= 0);
+  assert.ok(mfaAction > actionLookup);
+  assert.match(clickHandler.slice(actionLookup, mfaAction), /action\.type === 'submit'/);
 });
 
 test('agent signup accepts typed territory names and offers seeded Ethiopian regions', () => {
@@ -372,34 +569,50 @@ test('agent signup accepts typed territory names and offers seeded Ethiopian reg
   }
 });
 
-test('AfroLife sign-in uses the campaign logo and welcome artwork', () => {
+test('AfroSherik sign-in uses the supplied campaign and brand artwork', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
-  const logo = readFileSync(new URL('../public/icon.svg', import.meta.url), 'utf8');
-  const hero = readFileSync(new URL('../public/brand/afrolife-campaign-hero.png', import.meta.url));
+  const logo = readFileSync(new URL('../public/brand/afrosherik-brand-lockup.png', import.meta.url));
+  const hero = readFileSync(new URL('../public/brand/afrosherik-campaign-hero.png', import.meta.url));
   const pngDimensions = (image) => {
     assert.equal(image.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
     return [image.readUInt32BE(16), image.readUInt32BE(20)];
   };
-  assert.match(html, /<a class="brand" href="\/"[^>]*>\s*<img src="\/brand\/afrolife-brand-lockup\.svg" alt="" width="312" height="120">\s*<\/a>/);
-  assert.match(html, /<img src="\/brand\/afrolife-campaign-hero\.png" alt="A woman in Addis Ababa beside the campaign message: More Opportunities\. Stronger Communities\." width="488" height="232">/);
-  assert.match(logo, /<title[^>]*>AfroLife mark/);
-  assert.doesNotMatch(logo, /<rect\b[^>]*fill="#0B2D4A"/i);
-  const lockup = readFileSync(new URL('../public/brand/afrolife-brand-lockup.svg', import.meta.url), 'utf8');
-  assert.match(lockup, /viewBox="0 0 312 120"/);
-  assert.match(lockup, /#0B2D4A/);
-  assert.match(lockup, /ማህበረሰብ \+ አገልግሎት \+ እድል/);
-  assert.match(lockup, /font-size="17"/);
-  assert.doesNotMatch(lockup, /<rect\b/i);
-  assert.doesNotMatch(lockup, /አደል/);
-  assert.deepEqual(pngDimensions(hero), [488, 232]);
-  assert.equal(existsSync(new URL('../public/brand/afrolife-woven-knot.svg', import.meta.url)), false);
-  assert.match(styles, /\.brand img\s*\{[^}]*width:\s*312px;[^}]*height:\s*120px;[^}]*object-fit:\s*contain/s);
-  assert.match(styles, /@media \(max-width: 650px\) \{\s*\.topbar\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;[\s\S]*?\.brand img\s*\{[^}]*width:\s*min\(312px,\s*100%\);[^}]*height:\s*auto;/);
+  assert.match(html, /<a class="brand" href="\/" aria-label="AfroSherik">\s*<img src="\/brand\/afrosherik-brand-lockup\.png" alt="AfroSherik — Connect · Access · Thrive" width="312" height="104">/);
+  assert.match(html, /<img src="\/brand\/afrosherik-campaign-hero\.png" alt="AfroSherik campaign artwork showing a woman with a phone and the Addis Ababa skyline beside the message: More Opportunities\. Stronger Communities\." width="427" height="204">/);
+  assert.deepEqual(pngDimensions(logo), [490, 152]);
+  assert.deepEqual(pngDimensions(hero), [427, 204]);
+  assert.match(styles, /\.topbar \.brand img\s*\{[^}]*width:\s*312px;[^}]*height:\s*104px;[^}]*object-fit:\s*contain;/s);
+  assert.match(styles, /@media \(max-width: 650px\) \{[\s\S]*?\.topbar \.brand img\s*\{[^}]*width:\s*min\(312px, 100%\);[^}]*height:\s*auto;[^}]*max-height:\s*104px;/);
   assert.match(styles, /@media \(max-width: 920px\) and \(min-width: 651px\) \{\s*\.topbar\s*\{[^}]*grid-template-areas:\s*"brand language" "install account";/);
   assert.match(html, /class="welcome-signin-shortcut" href="#login-form">Sign in<\/a>/);
   assert.match(styles, /\.welcome-signin-shortcut\s*\{\s*display:\s*none;\s*\}/);
   assert.match(styles, /@media \(max-width: 700px\) \{\s*\.welcome-signin-shortcut\s*\{\s*display:\s*inline-flex;[\s\S]*?min-height:\s*46px;/);
+});
+
+test('authentication uses an Ethiopia-first international phone entry and explicit provider availability', async () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const phoneInput = await import('../public/phone-input.js');
+  assert.equal(phoneInput.normalizePhoneParts('+251', '0911 234 567'), '+251911234567');
+  assert.equal(phoneInput.normalizePhoneParts('+1', '(415) 555-0132'), '+14155550132');
+  assert.equal(phoneInput.normalizePhoneParts('+251', '+14155550132'), '+14155550132');
+  assert.equal(phoneInput.normalizePhoneParts('+251', '0611234567'), null);
+  assert.equal(phoneInput.phonePayload({
+    elements: { namedItem: (name) => ({ value: name === 'phone_country_code' ? '+251' : '0911234567' }) },
+  }).phone_national_number, '0911234567');
+  assert.equal(phoneInput.phonePayload({
+    elements: { namedItem: (name) => ({ value: name === 'phone_country_code' ? '+251' : '+14155550132' }) },
+  }).phone, '+14155550132');
+  assert.match(html, /id="login-form"[\s\S]*?name="phone_country_code"[^>]*value="\+251"/);
+  assert.match(html, /id="signup-form"[\s\S]*?name="phone_country_code"[^>]*value="\+251"/);
+  assert.match(html, /id="recovery-form"[\s\S]*?WhatsApp recovery is available/);
+  assert.match(html, /data-recovery-request/);
+  assert.match(html, /name="code"[^>]*autocomplete="one-time-code"/);
+  assert.match(html, /Fayda verification is unavailable[\s\S]*?not live Fayda verification/);
+  assert.match(app, /canonicalPhonePayload\(form\)/);
+  assert.match(app, /navigator\.credentials\.create/);
+  assert.match(app, /passkey\.disabled = !passkeyState\.enabled \|\| !browserSupportsPasskeys/);
 });
 
 test('mobile sign-in places the campaign welcome before sign-in and signup forms', () => {
@@ -418,40 +631,51 @@ test('mobile sign-in places the campaign welcome before sign-in and signup forms
   assert.ok(loginView.indexOf('id="signup-form"') < loginView.indexOf('id="server-setup-home"'));
 });
 
-test('AfroLife icon is a textless brand mark with matching PWA icons and mini-app tokens', () => {
+test('AfroSherik uses the matching emblem for favicon and PWA icons', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
-  const icon = readFileSync(new URL('../public/icon.svg', import.meta.url), 'utf8');
   const manifest = JSON.parse(readFileSync(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
-  assert.match(icon, /viewBox="0 0 256 256"/);
-  assert.doesNotMatch(icon, /<text\b/i);
-  for (const color of ['#0066FF', '#00B85A', '#FFB000']) assert.ok(icon.includes(color));
-  assert.doesNotMatch(icon, /<rect\b/i, 'the app mark must not include a background rectangle');
-  assert.match(html, /<link rel="icon" href="\/icon\.svg\?v=5" type="image\/svg\+xml">/);
-  assert.match(html, /<link rel="apple-touch-icon" href="\/icons\/afrolife-icon-192\.png">/);
+  assert.match(html, /<link rel="icon" href="\/icons\/afrosherik-icon-192\.png" type="image\/png" sizes="192x192">/);
+  assert.match(html, /<link rel="apple-touch-icon" href="\/icons\/afrosherik-icon-192\.png">/);
   assert.match(html, new RegExp(`<meta name="theme-color" content="${manifest.theme_color}">`));
   assert.equal(manifest.theme_color, '#174b3d');
-  assert.deepEqual(manifest.icons.slice(0, 3).map(({ src, sizes }) => [src, sizes]), [
-    ['/icons/afrolife-icon-192.png', '192x192'],
-    ['/icons/afrolife-icon-256.png', '256x256'],
-    ['/icons/afrolife-icon-512.png', '512x512'],
+  assert.deepEqual(manifest.icons.map(({ src, sizes }) => [src, sizes]), [
+    ['/icons/afrosherik-icon-192.png', '192x192'],
+    ['/icons/afrosherik-icon-256.png', '256x256'],
+    ['/icons/afrosherik-icon-512.png', '512x512'],
   ]);
-  assert.match(styles, /--platform-blue:\s*#0066ff/i);
+  assert.match(styles, /:root\s*\{[^}]*--brand-green:\s*#174b3d/i);
   assert.match(styles, /--brand-green:\s*#174b3d/i);
-  assert.match(styles, /--green:\s*#174b3d/i);
-  assert.match(styles, /--growth-green:\s*#174b3d/i);
+  assert.match(styles, /--growth-green:\s*#397c58/i);
   assert.match(styles, /--opportunity-yellow:\s*#d7ad59/i);
+  assert.match(styles, /--sunset-orange:\s*#a65336/i);
+  assert.doesNotMatch(styles, /--(?:platform-blue|agent-purple|surface-blue|surface-purple)\b/i);
+  assert.doesNotMatch(styles, /#(?:0066ff|7c3aed|eff6ff|f5f3ff|e0e7ff|004dcc|5b21b6)\b/i);
+  assert.equal((styles.match(/:root\s*\{/g) ?? []).length, 1, 'shared design tokens should use the initial root declaration');
   assert.match(styles, /\[data-panel="agents"\]/);
+});
+
+test('public and signed-in shell labels use AfroSherik without replacing product-specific Edir wording', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  for (const label of [
+    'AFROSHERIK REGISTRATION',
+    'AFROSHERIK · ETHIOPIA',
+    'AFROSHERIK OPERATIONS',
+  ]) assert.ok(html.includes(label), `expected visible brand label: ${label}`);
+  assert.match(html, /<h1>One trusted place to get work moving\.<\/h1>/);
+  assert.doesNotMatch(html, /AfroLife Agency|AFROLIFE(?:\s|<)|afrolife-(?:brand|icon|campaign)/i);
+  assert.match(html, /AfroSherik Edir/);
 });
 
 test('public hub integrates the campaign artwork with the existing public actions', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
   const serviceWorker = readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8');
-  assert.match(html, /<section id="public-hub"[\s\S]*?<div class="hub-heading">[\s\S]*?<p class="eyebrow">PEOPLE · SERVICES · OPPORTUNITY<\/p>[\s\S]*?<h2>Services for work, homes, business, and community\.<\/h2>[\s\S]*?<figure class="hub-campaign">[\s\S]*?<div class="hub-service-network" role="img" aria-label="Work, homes, business, and community services connected through AfroLife">/);
+  const manifest = JSON.parse(readFileSync(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
+  assert.match(html, /<section id="public-hub"[\s\S]*?<div class="hub-heading">[\s\S]*?<p class="eyebrow">CONNECT · ACCESS · THRIVE<\/p>[\s\S]*?<h2>One platform for work, homes, business, and community\.<\/h2>[\s\S]*?<figure class="hub-campaign">[\s\S]*?<div class="hub-service-network" role="img" aria-label="Work, homes, business, and community services connected through AfroSherik">/);
   assert.match(html, /<a class="button button-primary" href="#login-form">Sign in<\/a>/);
   assert.match(html, /<button id="public-create-account" class="button button-outline" type="button">Create account<\/button>/);
-  assert.match(html, /<button class="button button-outline" type="button" data-install-pwa>Install AfroLife<\/button>/);
+  assert.match(html, /<button class="button button-outline" type="button" data-install-pwa>Install AfroSherik<\/button>/);
   assert.match(html, /class="hub-network-node hub-network-node--work"[^>]*>Work<\/span>/);
   assert.match(html, /class="hub-network-node hub-network-node--homes"[^>]*>Homes<\/span>/);
   assert.match(html, /class="hub-network-node hub-network-node--business"[^>]*>Business<\/span>/);
@@ -460,16 +684,24 @@ test('public hub integrates the campaign artwork with the existing public action
     assert.match(html, new RegExp(`<a class="service-card" data-panel="${panel}" href="#login-form">`));
   }
   assert.match(styles, /\.hub-heading\s*\{[^}]*linear-gradient\(125deg,\s*var\(--brand-green\)/s);
+  assert.doesNotMatch(styles, /\.hub-heading::before\s*\{[^}]*repeating-linear-gradient/i);
+  assert.doesNotMatch(styles, /\.hub-heading\s*\{[^}]*repeating-linear-gradient/i);
   assert.match(styles, /\.hub-service-network\s*\{[^}]*min-height:\s*232px;[^}]*border-radius:\s*13px;[^}]*background:/s);
   assert.match(styles, /@media \(max-width: 700px\) \{[\s\S]*?\.hub-service-network \{ min-height: 220px; \}/);
   assert.match(styles, /\.hub-heading \{ grid-template-columns: minmax\(0, 1fr\); gap:/);
   assert.match(styles, /#public-hub \.service-card\[data-panel\] \.service-icon\s*\{[^}]*background:\s*var\(--mini-app-tint\);[^}]*color:\s*var\(--mini-app-ink/s);
-  assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v34'/);
+  assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v46'/);
+  assert.match(serviceWorker, /'\/passkeys\.js'/);
   assert.match(serviceWorker, /'\/tenant-data-admin\.js'/);
   for (const asset of [
-    '/icons/afrolife-icon-192.png', '/icons/afrolife-icon-256.png', '/icons/afrolife-icon-512.png',
-    '/brand/afrolife-brand-lockup.svg', '/brand/afrolife-campaign-hero.png',
+    '/icons/afrosherik-icon-192.png', '/icons/afrosherik-icon-256.png', '/icons/afrosherik-icon-512.png',
+    '/icon.svg', '/brand/afrosherik-campaign-hero.png', '/brand/afrosherik-brand-lockup.png',
   ]) assert.ok(serviceWorker.includes(`'${asset}'`), `service worker should cache ${asset}`);
+  const shellAssets = [...serviceWorker.matchAll(/const SHELL = \[([\s\S]*?)\];/g)][0]?.[1]
+    ?.match(/'([^']+)'/g).map((asset) => asset.slice(1, -1)) ?? [];
+  for (const asset of [...manifest.icons.map(({ src }) => src), ...shellAssets]) {
+    assert.ok(existsSync(new URL(`../public${asset}`, import.meta.url)), `public asset should exist: ${asset}`);
+  }
 });
 
 test('public landing page does not repeat raster artwork across visible image elements', () => {
@@ -486,19 +718,215 @@ test('public landing page does not repeat raster artwork across visible image el
   const repeatedSources = [...new Set(imageSources.filter((source, index) => imageSources.indexOf(source) !== index))];
 
   assert.deepEqual(repeatedSources, []);
-  assert.equal(imageSources.filter((source) => source === '/brand/afrolife-campaign-hero.png').length, 1);
+  assert.equal(imageSources.filter((source) => source === '/brand/afrosherik-campaign-hero.png').length, 1);
 });
 
-test('public subscription catalog includes the nine approved ETB 1,000 services', () => {
+test('public subscription catalog includes the approved ETB 1,000 services', () => {
   assert.deepEqual(PUBLIC_SUBSCRIPTION_SERVICES.map(({ key }) => key), [
     'accounting', 'property_management', 'workforce_management', 'super_agent',
     'edir', 'insurance_brokerage', 'agent', 'landlord', 'seller',
   ]);
   assert.ok(PUBLIC_SUBSCRIPTION_SERVICES.every(({ monthlyEtb }) => monthlyEtb === 1000));
+  assert.equal(PUBLIC_SUBSCRIPTION_SERVICES.some(({ key }) => key === 'accounting'), true);
   assert.deepEqual(
     normalizeSubscriptionCatalog({ services: PUBLIC_SUBSCRIPTION_SERVICES }).map(({ key }) => key),
     PUBLIC_SUBSCRIPTION_SERVICES.map(({ key }) => key),
   );
   assert.deepEqual(normalizeMySubscriptions({ requests: [{ id: 'one' }] }), [{ id: 'one' }]);
   assert.deepEqual(subscriptionRequestPayload(['edir', 'edir', 'agent']), { services: ['edir', 'agent'] });
+});
+
+test('Forgot password opens the recovery flow and reliably returns to sign-in', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
+  const i18n = readFileSync(new URL('../public/i18n.js', import.meta.url), 'utf8');
+
+  assert.equal([...html.matchAll(/id="open-password-recovery"/g)].length, 1);
+  assert.match(html, /id="open-password-recovery"[^>]*>Forgot password\?</);
+  assert.doesNotMatch(html, /show-password-recovery|password-recovery-help|Contact your organization’s administrator/);
+  assert.match(html, /id="recovery-form"[^>]*hidden/);
+  assert.match(app, /\$\('#open-password-recovery'\)\.addEventListener\('click',[\s\S]*?\$\('#login-form'\)\.hidden = true;[\s\S]*?form\.hidden = false;[\s\S]*?form\.scrollIntoView/);
+  assert.match(app, /\$\('#back-to-sign-in'\)\.addEventListener\('click',[\s\S]*?\$\('#recovery-form'\)\.hidden = true;[\s\S]*?\$\('#login-form'\)\.hidden = false;/);
+  assert.match(app, /document\.querySelectorAll\('a\[href="#login-form"\]'\)/);
+  assert.match(app, /loginForm\.scrollIntoView\(\{ behavior: reducedMotion \? 'auto' : 'smooth', block: 'start' \}\)/);
+  assert.match(app, /loginForm\.querySelector\('input\[name="phone"\]'\)\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(html, /WhatsApp recovery is available only after delivery is configured and for opted-in active accounts\./);
+  assert.match(html, /If it is unavailable, contact support/);
+  assert.match(styles, /#login-form \{ scroll-margin-block-start: 1rem; \}/);
+  assert.match(i18n, /'One Platform\. Endless Possibilities\.':\s*\{\s*am: 'አንድ መድረክ። ወሰን የሌላቸው እድሎች።'/);
+  assert.match(i18n, /'Forgot your password\?':\s*\{\s*am: 'የይለፍ ቃልዎን ረሱ\?'/);
+});
+
+test('public support FAQ and reported signup labels translate dynamically to Amharic', () => {
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const i18n = readFileSync(new URL('../public/i18n.js', import.meta.url), 'utf8');
+
+  assert.match(app, /summary\.textContent = t\(item\.question\)/);
+  assert.match(app, /answer\.textContent = t\(item\.answer\)/);
+  assert.match(app, /if \(state\.publicSupportFaq\) \{\s*renderSupportFaq\('#support-faq-list', state\.publicSupportFaq\)/);
+  for (const message of [
+    'Seller / property owner',
+    'Date of birth (required for worker applicants)',
+    'How do I reset a forgotten password?',
+    'How do I enable two-factor sign-in?',
+    'If this number is eligible, recovery instructions will be sent privately.',
+  ]) {
+    assert.match(i18n, new RegExp(`'${message.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}':\\s*\\{\\s*am:\\s*'[^']+'`));
+  }
+});
+
+test('signup and recovery password fields accept passwords from eight characters', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const api = readFileSync(new URL('../src/admin.ts', import.meta.url), 'utf8');
+
+  assert.match(html, /name="password"[^>]*minlength="8"/);
+  assert.match(html, /name="password_confirmation"[^>]*minlength="8"/);
+  assert.match(html, /name="next"[^>]*minlength="8"/);
+  assert.match(app, /New password \(8\+ characters\)[\s\S]*?minlength: '8'/);
+  assert.match(api, /password: z\.string\(\)\.min\(8\)\.max\(72\)/);
+  assert.match(api, /next: z\.string\(\)\.min\(8\)\.max\(72\)/);
+  assert.match(api, /current: z\.string\(\)\.min\(1\)\.max\(200\), next: z\.string\(\)\.min\(8\)\.max\(72\)/);
+  assert.match(readFileSync(new URL('../src/security.ts', import.meta.url), 'utf8'), /Use at least 8 characters\./);
+  assert.match(readFileSync(new URL('../src/support-faq.ts', import.meta.url), 'utf8'), /Use at least 8 characters/);
+});
+test('login password visibility toggles without submitting and exposes its state', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+
+  assert.match(html, /<input id="login-password" name="password" type="password"[^>]*autocomplete="current-password"[^>]*required/);
+  assert.match(html, /<button id="toggle-login-password"[^>]*type="button"[^>]*aria-label="Show password"[^>]*aria-pressed="false">Show<\/button>/);
+  const toggle = app.slice(app.indexOf("$('#toggle-login-password').addEventListener('click'"), app.indexOf("$('#public-help-launcher').addEventListener"));
+  assert.match(toggle, /password\.type = visible \? 'text' : 'password'/);
+  assert.match(toggle, /toggle\.setAttribute\('aria-pressed', String\(visible\)\)/);
+  assert.match(toggle, /setLocalizedAttribute\(toggle, 'aria-label', visible \? 'Hide password' : 'Show password'\)/);
+  assert.doesNotMatch(toggle, /requestSubmit|\.submit\(/);
+});
+
+test('public support is outside the welcome hero and includes an anonymous help launcher', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+
+  assert.ok(html.indexOf('id="public-support"') > html.indexOf('id="public-hub"'));
+  assert.ok(html.indexOf('id="public-support"') < html.indexOf('id="app-view"'));
+  const welcomePanel = html.slice(html.indexOf('<div class="welcome-panel">'), html.indexOf('<datalist id="phone-calling-codes">'));
+  assert.doesNotMatch(welcomePanel, /id="public-support"/);
+  assert.match(html, /data-support-whatsapp-link/);
+  assert.match(html, /data-support-phone-link/);
+  assert.match(html, /Sign in for private web chat/);
+  assert.match(html, /id="public-help-launcher"[^>]*aria-haspopup="dialog"[^>]*aria-controls="public-help-dialog"/);
+  assert.match(html, /id="public-help-dialog"[^>]*aria-labelledby="public-help-title"/);
+  assert.match(app, /\$\('#public-help-launcher'\)\.addEventListener\('click', \(\) => \$\('#public-help-dialog'\)\.showModal\(\)\)/);
+  assert.match(app, /\$\('#public-help-dialog'\)\.addEventListener\('keydown', \(event\) => \{\s*if \(event\.key !== 'Escape'\) return;\s*event\.preventDefault\(\);\s*\$\('#public-help-dialog'\)\.close\(\);\s*\}\)/);
+  assert.match(app, /\$\('#public-help-close'\)\.addEventListener\('click', \(\) => \$\('#public-help-dialog'\)\.close\(\)\)/);
+  assert.equal((html.match(/data-faq-language-note/g) ?? []).length, 2);
+  assert.match(app, /function updatePublicFaqLanguageNotices\(locale\) \{\s*document\.querySelectorAll\('\[data-faq-language-note\]'\)\.forEach\(\(notice\) => \{\s*notice\.hidden = locale === 'en';/);
+  assert.match(app, /topic\.dataset\.publicHelpQuestion = t\(item\.question\)/);
+});
+
+test('Edir registration provides a return action and restores focus to its opener', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+
+  assert.match(html, /id="back-from-edir-registration"[^>]*type="button">Back to services<\/button>/);
+  assert.match(app, /edirRegistrationTrigger = button;/);
+  const backHandler = app.slice(app.indexOf("$('#back-from-edir-registration').addEventListener"), app.indexOf("$('#show-login').addEventListener"));
+  assert.match(backHandler, /#edir-registration-form'\)\.hidden = true/);
+  assert.match(backHandler, /edirRegistrationTrigger\?\.isConnected/);
+  assert.match(backHandler, /edirRegistrationTrigger\.focus\(\{ preventScroll: true \}\)/);
+});
+
+test('anonymous FAQ responses are local, FAQ-backed, and safe when the API is unavailable', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const faq = [
+    {
+      category: 'Account & security',
+      question: 'How do I reset a forgotten password?',
+      answer: 'Choose Forgot password? to request a recovery code.',
+      keywords: ['forgot password', 'reset password', 'password recovery'],
+    },
+    {
+      category: 'Support & technical help',
+      question: 'How do I get human support or request a support call?',
+      answer: 'Call the support line for human support.',
+      keywords: ['human support', 'call support', 'request callback'],
+    },
+    {
+      category: 'Services & payments',
+      question: 'Why is a service missing or unavailable in my workspace?',
+      answer: 'Services depend on your organization and account role.',
+      keywords: ['service unavailable', 'service missing', 'module not visible', 'accounting missing'],
+    },
+    {
+      category: 'Account & security',
+      question: 'How do I change my password while signed in?',
+      answer: 'Open account security to change your password.',
+      keywords: ['change password', 'current password', 'new password'],
+    },
+  ];
+
+  assert.equal(matchPublicFaq('forgot password', faq), faq[0]);
+  assert.equal(matchPublicFaq('request a human support call', faq), faq[1]);
+  assert.equal(matchPublicFaq('accounting is missing from my workspace', faq), faq[2]);
+  assert.equal(matchPublicFaq('password', faq), null, 'A vague query should not trigger an arbitrary answer');
+  assert.deepEqual(suggestPublicFaqs('password', faq), [faq[0], faq[3]], 'A vague query should offer relevant choices');
+  assert.equal(matchPublicFaq('I forgot my passwrd', faq), faq[0], 'A minor typo should still match the intended FAQ');
+  assert.deepEqual(suggestPublicFaqs('unrelated marketplace question', faq), []);
+  const amharicFaq = [{
+    question: 'የረሳሁትን የይለፍ ቃል እንዴት እመልሳለሁ?',
+    answer: 'መልሶ ማግኛን ለመክፈት ይምረጡ።',
+    keywords: ['የይለፍ ቃል ረሳሁ', 'የይለፍ ቃል መመለስ'],
+  }];
+  assert.equal(matchPublicFaq('የይለፍ ቃል ረሳሁ', amharicFaq), amharicFaq[0]);
+  assert.equal(matchPublicFaq('unrelated marketplace question', faq), null);
+  assert.equal(matchPublicFaq('password', null), null);
+  assert.match(html, /id="public-help-form"[^>]*method="dialog"/);
+  assert.match(html, /Your message stays in this page and is not sent or stored/);
+  assert.match(html, /Never share passwords, verification codes, or sensitive identifiers/);
+  const submitHandler = app.slice(app.indexOf("$('#public-help-form').addEventListener('submit'"), app.indexOf("$('#public-help-dialog').querySelectorAll"));
+  assert.match(submitHandler, /event\.preventDefault\(\)/);
+  assert.match(submitHandler, /answerPublicHelpQuestion\(input\.value\)/);
+  assert.doesNotMatch(submitHandler, /fetch\(|\bapi\(/);
+  const faqLoader = app.slice(app.indexOf('const loadFaq = async () =>'), app.indexOf('await Promise.all([loadContact(), loadFaq()])'));
+  assert.match(faqLoader, /state\.publicSupportFaq = \[\]/);
+  assert.match(faqLoader, /state\.publicHelpFaqUnavailable = true/);
+  assert.match(app, /Common answers are temporarily unavailable\. You can still call support or contact the team on WhatsApp\./);
+  assert.match(app, /FAQ answers may be unavailable, but you can still contact human support using the links below\./);
+  assert.match(app, /const category = item\.category \|\| 'General support'/);
+  assert.match(app, /topic\.dataset\.publicHelpQuestion = t\(item\.question\)/);
+  assert.match(app, /suggestPublicFaqs\(text, faq\)/);
+  assert.match(app, /I can help with account access, applications and documents/);
+  assert.doesNotMatch(app, /I could not find a matching published FAQ/);
+  assert.match(app, /state\.publicSupportFaq\.slice\(0, 6\)/);
+});
+
+test('administrator access selection waits until required password and MFA setup are complete', () => {
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+  const login = app.slice(app.indexOf('async function login('), app.indexOf('function renderAccessModeChoice('));
+  assert.match(login, /if \(!result\.restrict && !state\.mfaRequired && state\.accessOptions\.length > 1\)/);
+
+  const workspaceStart = app.indexOf('async function loadWorkspace()');
+  const workspaceEnd = app.indexOf('\nfunction ', workspaceStart + 1);
+  const workspace = app.slice(workspaceStart, workspaceEnd);
+  const currentUserIndex = workspace.indexOf("state.user = await api('/auth/me')");
+  const passwordGuardIndex = workspace.indexOf('const passwordRequired =');
+  const restrictedDataIndex = workspace.indexOf("api('/property/tenant-systems/mine')");
+  assert.ok(currentUserIndex >= 0);
+  assert.ok(passwordGuardIndex > currentUserIndex);
+  assert.ok(restrictedDataIndex > passwordGuardIndex);
+  assert.match(workspace.slice(passwordGuardIndex, restrictedDataIndex), /if \(passwordRequired \|\| state\.mfaRequired\)/);
+});
+
+test('Admin/Staff portal has a host-specific entry and enforces eligible roles at login', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const server = readFileSync(new URL('../src/server.ts', import.meta.url), 'utf8');
+  const auth = readFileSync(new URL('../src/admin.ts', import.meta.url), 'utf8');
+  assert.match(html, /data-portal-mode="__PORTAL_MODE__"/);
+  assert.match(html, /href="__ADMIN_PORTAL_URL__"/);
+  assert.match(html, />Admin &amp; Staff portal</);
+  assert.match(server, /app\.get\(\['\/', '\/index\.html'\]/);
+  assert.match(server, /isAdminPortalHost\(req\.hostname, runtimeConfig\.adminPortal\)/);
+  assert.match(auth, /res\.locals\.adminPortal && !canAccessAdminPortal\(accessOptions\)/);
 });

@@ -32,6 +32,21 @@ function New-LocalEnvironment {
     if ($missingKeys.Count) {
       throw "$EnvironmentFile exists but is missing required settings: $($missingKeys -join ', '). It was left untouched."
     }
+    $accountingSettings = [ordered]@{
+      AFROLIFE_ACCOUNTING_DB_ADMIN_PASSWORD = (& node -p "require('node:crypto').randomBytes(48).toString('base64url')").Trim()
+      AFROLIFE_ACCOUNTING_DB_RUNTIME_PASSWORD = (& node -p "require('node:crypto').randomBytes(48).toString('base64url')").Trim()
+      ACCOUNTING_GATEWAY_SECRET = (& node -p "require('node:crypto').randomBytes(48).toString('base64url')").Trim()
+      ACCOUNTING_INGEST_SECRET = (& node -p "require('node:crypto').randomBytes(48).toString('base64url')").Trim()
+    }
+    $missingAccountingSettings = @($accountingSettings.Keys | Where-Object { $_ -notin $existingKeys })
+    if ($missingAccountingSettings.Count) {
+      $appendLines = @($missingAccountingSettings | ForEach-Object { "$_=$($accountingSettings[$_])" })
+      [System.IO.File]::AppendAllText(
+        $EnvironmentFile,
+        ([string]::Join([Environment]::NewLine, $appendLines) + [Environment]::NewLine),
+        [System.Text.UTF8Encoding]::new($false)
+      )
+    }
     return
   }
 
@@ -40,10 +55,14 @@ function New-LocalEnvironment {
   $appPassword = & $secret
   $jwtSecret = & $secret
   $mfaKey = & $secret
+  $accountingDbAdminPassword = & $secret
+  $accountingDbRuntimePassword = & $secret
+  $accountingGatewaySecret = & $secret
+  $accountingIngestSecret = & $secret
   $databaseHttpPort = Get-DatabaseHttpPort
   $lines = @(
     'NODE_ENV=development',
-    'AFROLIFE_HTTP_PORT=3000',
+    'AFROLIFE_HTTP_PORT=3010',
     "AFROLIFE_DB_HTTP_PORT=$databaseHttpPort",
     "AFROLIFE_DB_ADMIN_PASSWORD=$adminPassword",
     "AFROLIFE_DB_APP_PASSWORD=$appPassword",
@@ -51,6 +70,10 @@ function New-LocalEnvironment {
     "MIGRATION_DATABASE_URL=postgres://postgres:$adminPassword@127.0.0.1:$databaseHttpPort/afrolife",
     "JWT_SECRET=$jwtSecret",
     "MFA_ENC_KEY=$mfaKey",
+    "AFROLIFE_ACCOUNTING_DB_ADMIN_PASSWORD=$accountingDbAdminPassword",
+    "AFROLIFE_ACCOUNTING_DB_RUNTIME_PASSWORD=$accountingDbRuntimePassword",
+    "ACCOUNTING_GATEWAY_SECRET=$accountingGatewaySecret",
+    "ACCOUNTING_INGEST_SECRET=$accountingIngestSecret",
     'MFI_PILOT_ENABLED=1',
     'INSURANCE_BROKERAGE_MODE=sandbox'
   )
@@ -75,7 +98,7 @@ function Get-HttpPort {
   }
 
   if (-not (Test-Path -LiteralPath $EnvironmentFile)) {
-    return 3000
+    return 3010
   }
 
   foreach ($line in Get-Content -LiteralPath $EnvironmentFile) {
@@ -88,7 +111,7 @@ function Get-HttpPort {
     }
   }
 
-  return 3000
+  return 3010
 }
 
 function Get-DatabaseHttpPort {

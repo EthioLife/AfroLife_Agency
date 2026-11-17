@@ -95,7 +95,7 @@ Recommended single-server layout:
 - Runtime secrets: `C:\ProgramData\AfroLife\runtime.env`
 - Private uploads: `C:\ProgramData\AfroLife\private-files`
 - Service logs: `C:\ProgramData\AfroLife\logs`
-- API listener: `127.0.0.1:3000` only; IIS terminates HTTPS and proxies locally.
+- API listener: `127.0.0.1:3010` only; IIS terminates HTTPS and proxies locally.
 
 Production startup requires distinct non-placeholder `JWT_SECRET` and
 `MFA_ENC_KEY` values (each at least 32 characters), `REQUIRE_MFA_FOR_STAFF=1`,
@@ -171,7 +171,7 @@ a successful update before proceeding.
 After confirming that the hostname resolves to the server's public IP and external TCP ports 80 and 443 reach the host:
 
 1. Configure a fixed public IPv4 address or a router/firewall forward for TCP
-   80 and 443 to the Windows host. Do not forward 3000 or 5432. If the ISP
+   80 and 443 to the Windows host. Do not forward 3010 or 5432. If the ISP
    uses CGNAT or blocks inbound 80/443, HTTP-01 validation and direct hosting
    will not work; use a public server/reverse tunnel or a DNS provider that
    supports automated DNS-01 instead.
@@ -196,7 +196,7 @@ terms. The selected name is not confirmed active until it has been claimed.
 
 Before deployment, install a supported Node.js 22+ runtime and PostgreSQL 14+.
 Configure IIS ARR as a proxy, bind a publicly trusted TLS certificate to the
-production hostname, and redirect HTTP to HTTPS. Keep ports 3000 and 5432
+production hostname, and redirect HTTP to HTTPS. Keep ports 3010 and 5432
 unavailable from external networks. With HTTP-01 certificate validation,
 allow inbound TCP 80 for the challenge and HTTP-to-HTTPS redirect, as well as
 TCP 443; DNS-01 can avoid exposing port 80 if supported by the DNS provider and
@@ -219,7 +219,7 @@ app title as this checkout. A passing result is local evidence only, not a
 public production approval.
 
 The local staging stack is installed under `/opt/afrolife/app`; PostgreSQL
-listens only on `127.0.0.1:5432`, the Node API only on `127.0.0.1:3000`, and
+listens only on `127.0.0.1:5432`, the Node API only on `127.0.0.1:3010`, and
 the local Nginx proxy only on `127.0.0.1:8080`. The generated runtime secrets
 are stored in `/etc/afrolife/runtime.env`, readable only by root and the
 restricted `afrolife` service group. The `afrolife_linux` database is separate
@@ -272,7 +272,7 @@ Ubuntu and run `sudo bash /opt/afrolife/app/deploy/linux/Seed-AfroLifeAdmin.sh`.
 It prompts locally for the administrator name, phone, and password; the
 password input is hidden and is not stored in the runtime environment file.
 
-Keep PostgreSQL bound to `127.0.0.1`; do not expose WSL ports 3000 or 5432 or
+Keep PostgreSQL bound to `127.0.0.1`; do not expose WSL ports 3010 or 5432 or
 configure Windows port proxies. Do not point the Linux app at the Windows
 development database. For public production, migrate this deployment to a
 supported VPS or cloud VM, configure DNS and firewall routing there, and test

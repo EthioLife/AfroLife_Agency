@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 
 const chrome = process.env.AFROLIFE_CHROME_PATH
   ?? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-const appUrl = process.env.AFROLIFE_UI_URL ?? 'http://127.0.0.1:3000/';
+const appUrl = process.env.AFROLIFE_UI_URL ?? 'http://127.0.0.1:3010/';
 const credentialFile = process.env.AFROLIFE_UI_USERS_FILE
   ?? join(process.env.LOCALAPPDATA ?? '', 'AfroLife', 'local-test-users.txt');
 const additionalRoles = (process.env.AFROLIFE_UI_ROLES
@@ -229,9 +229,18 @@ try {
       return true;
     })()`);
     await waitFor("document.querySelector('#page-title')?.textContent?.trim() === 'Account security'", `${role} MFA enrollment confirmation`);
-    await evaluate("document.querySelector('#app-view .tabs [data-panel=\"overview\"]')?.click()");
-    await waitFor("document.querySelector('#page-title')?.textContent?.trim() === 'Your workspace'", `${role} MFA enrollment and workspace`);
     persistMfaKey(role, rolePhone, rolePassword, secret);
+    const overviewTabClicked = await evaluate(`(() => {
+      const tab = document.querySelector('#app-view .tabs [data-panel="overview"]');
+      if (!tab || tab.hidden) return false;
+      tab.click();
+      return true;
+    })()`);
+    assert.equal(overviewTabClicked, true, `${role} overview tab should be available after MFA enrollment`);
+    await waitFor(
+      "document.querySelector('#app-view .tabs .tab[data-panel=\"overview\"][aria-current=\"page\"]')",
+      `${role} overview navigation after MFA enrollment`,
+    );
     return true;
   };
 

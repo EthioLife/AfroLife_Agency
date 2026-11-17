@@ -10,6 +10,7 @@ Group=afrolife
 WorkingDirectory=/opt/afrolife/app
 EnvironmentFile=/etc/afrolife/runtime.env
 Environment=HOST=127.0.0.1
+Environment=PORT=3010
 ExecStart=/usr/bin/node /opt/afrolife/app/dist/src/server.js
 Restart=on-failure
 RestartSec=5s

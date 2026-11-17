@@ -39,11 +39,11 @@ export const ROLE_ACTIVITIES: readonly RoleActivityDefinition[] = [
   { key: 'staffing.requests.manage', group: 'Staffing', label: 'Manage staffing requests and matching', defaultRoles: ['master_agent', 'field_agent', 'super_admin'] },
   { key: 'property.listings.view', group: 'Property Management', label: 'View property listings and media', defaultRoles: ['global_admin', 'super_admin', 'corporate_business_manager', 'customer', 'master_agent', 'field_agent', 'property_owner'] },
   { key: 'property.listings.manage', group: 'Property Management', label: 'Create listings, units, and listing media', defaultRoles: ['master_agent', 'field_agent', 'property_owner', 'super_admin', 'corporate_business_manager'] },
-  { key: 'property.tenancy.manage', group: 'Property Management', label: 'Register tenants and manage leases', defaultRoles: ['master_agent', 'field_agent', 'super_admin'] },
+  { key: 'property.tenancy.manage', group: 'Property Management', label: 'Register tenants and manage leases', defaultRoles: ['master_agent', 'super_admin'] },
   { key: 'property.tenancy.approve', group: 'Property Management', label: 'Independently approve lease terms', defaultRoles: ['compliance', 'super_admin', 'corporate_business_manager'], sensitive: true },
   { key: 'property.tenancy.execute', group: 'Property Management', label: 'Execute and activate approved leases', defaultRoles: ['super_admin', 'corporate_business_manager'], sensitive: true },
   { key: 'property.maintenance.manage', group: 'Property Management', label: 'Manage maintenance requests', defaultRoles: ['master_agent', 'field_agent', 'property_owner', 'corporate_business_manager', 'super_admin'] },
-  { key: 'rent.payments.submit', group: 'Rent & Deposits', label: 'Submit rent and deposit payment records', defaultRoles: ['master_agent', 'field_agent', 'finance', 'finance_manager', 'super_admin'] },
+  { key: 'rent.payments.submit', group: 'Rent & Deposits', label: 'Submit rent and deposit payment records', defaultRoles: ['master_agent', 'finance', 'finance_manager', 'super_admin'] },
   { key: 'rent.transactions.view', group: 'Rent & Deposits', label: 'View pending rent and deposit records', defaultRoles: ['finance_manager', 'super_admin'] },
   { key: 'rent.transactions.reconcile', group: 'Rent & Deposits', label: 'Reconcile transactions to the ledger', defaultRoles: ['finance_manager', 'super_admin'], sensitive: true },
   { key: 'rent.transactions.void', group: 'Rent & Deposits', label: 'Void pending rent and deposit records', defaultRoles: ['finance_manager', 'super_admin'], sensitive: true },
@@ -71,6 +71,10 @@ export function hasRoleActivityAccess(
 ): boolean {
   const activity = ACTIVITY_BY_KEY.get(activityKey as RoleActivityKey);
   if (!activity) return false;
+  if (role === 'field_agent'
+    && (activity.key === 'property.tenancy.manage' || activity.key === 'rent.payments.submit')) {
+    return false;
+  }
   const configured = overrides[activity.key];
   if (configured !== undefined) return configured;
   return activity.defaultRoles.includes(role as RoleName)

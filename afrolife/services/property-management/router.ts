@@ -324,6 +324,39 @@ router.post('/properties/:id/units', requireActivity('property.listings.manage')
   res.status(201).json(row);
 }));
 
+router.post('/properties/:id/units/:unitId/turnover-complete', requireActivity('property.maintenance.manage'), requireListingPlan, h(async (req, res) => {
+  const { completion_note } = z.object({
+    completion_note: z.string().trim().min(10).max(1000),
+  }).strict().parse(req.body);
+  const result = await withUser(req.user!, async (c) => {
+    const unit = (await c.query(
+      `SELECT unit.id,unit.occupancy
+       FROM property_units unit
+       JOIN properties property ON property.id=unit.property_id
+       WHERE property.id=$1 AND unit.id=$2
+         AND (app_can_access_agent(property.source_agent_id)
+           OR property.owner_user_id=$3
+           OR app_role() IN ('global_admin','super_admin','corporate_business_manager'))
+       FOR UPDATE OF unit`,
+      [req.params.id, req.params.unitId, req.user!.id],
+    )).rows[0];
+    if (!unit) throw new HttpError(404, 'Property unit not found');
+    if (unit.occupancy !== 'turnover') throw new HttpError(409, 'This unit is not awaiting turnover completion');
+    await c.query("SELECT set_config('app.unit_turnover_completion_note',$1,true)", [completion_note]);
+    const updated = (await c.query(
+      `UPDATE property_units SET occupancy='vacant'
+       WHERE id=$1 AND occupancy='turnover'
+       RETURNING id,occupancy`,
+      [unit.id],
+    )).rows[0];
+    await audit(c, req.user!.id, 'property_unit_turnover_completed', 'property_unit', updated.id, {
+      occupancy: 'turnover',
+    }, { occupancy: 'vacant', completion_note });
+    return updated;
+  });
+  res.json(result);
+}));
+
 router.patch('/properties/:id/review', requireRole('super_admin', 'corporate_business_manager'), h(async (req, res) => {
   const body = z.object({
     decision: z.enum(['approve', 'reject']),
@@ -396,12 +429,15 @@ router.patch('/properties/:id/resubmit', requireActivity('property.listings.mana
 }));
 
 router.get('/properties', requireActivity('property.listings.view'), requireListingPlan, h(async (req, res) => {
+  const fieldAgent = req.user!.role === 'field_agent';
   const reviewFields = req.user!.role === 'customer'
     ? ''
     : `p.created_by, p.listing_review_status, p.listing_review_note, p.listing_reviewed_by, p.listing_reviewed_at,
        p.authority_review_status,p.authority_review_note,p.authority_reviewed_by,p.authority_reviewed_at,`;
+  const salePrice = fieldAgent ? 'NULL::numeric AS sale_price' : 'p.sale_price';
+  const unitRent = fieldAgent ? 'NULL::numeric' : 'u.rent';
   res.json(await withUser(req.user!, async (c) => (await c.query(
-    `SELECT p.id, p.address, p.description, p.ptype, p.listing_mode, p.sale_price, p.rent_period, ${reviewFields} p.territory_id, p.status, p.created_at,
+    `SELECT p.id, p.address, p.description, p.ptype, p.listing_mode, ${salePrice}, p.rent_period, ${reviewFields} p.territory_id, p.status, p.created_at,
             COALESCE((
               SELECT json_agg(json_build_object(
                 'id',evidence.id,'evidence_type',evidence.evidence_type,'mime',evidence.mime,
@@ -416,7 +452,7 @@ router.get('/properties', requireActivity('property.listings.view'), requireList
                 'unit_no', u.unit_no,
                 'floor', u.floor,
                 'ptype', u.ptype,
-                'rent', u.rent,
+                'rent', ${unitRent},
                 'occupancy', u.occupancy
               ) ORDER BY u.unit_no) FILTER (WHERE u.id IS NOT NULL),
               '[]'

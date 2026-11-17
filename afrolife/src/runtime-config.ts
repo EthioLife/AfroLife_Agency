@@ -6,9 +6,48 @@ export interface RuntimeConfig {
   sessionIdleTimeoutMinutes: number;
   legacyImmediateLeasesEnabled: boolean;
   enabledModules: WorkspaceModule[];
+  adminPortal?: AdminPortalConfig;
+}
+
+export interface AdminPortalConfig {
+  url: string;
+  hostname: string;
 }
 
 type Environment = Record<string, string | undefined>;
+
+export function adminPortalConfig(env: Environment): AdminPortalConfig | undefined {
+  const configuredUrl = env.ADMIN_PORTAL_URL?.trim();
+  if (!configuredUrl) return undefined;
+
+  let url: URL;
+  try {
+    url = new URL(configuredUrl);
+  } catch {
+    throw new Error('ADMIN_PORTAL_URL must be an absolute HTTPS origin.');
+  }
+
+  const hostname = url.hostname.toLowerCase();
+  const isLoopback = ['localhost', '127.0.0.1', '[::1]'].includes(hostname);
+  if (
+    url.username
+    || url.password
+    || url.pathname !== '/'
+    || url.search
+    || url.hash
+    || (url.protocol !== 'https:' && !(env.NODE_ENV !== 'production' && isLoopback && url.protocol === 'http:'))
+    || (env.NODE_ENV === 'production'
+      && (!hostname.includes('.') || isLoopback || /^(?:[^.]+\.)*example\.(?:com|org|net)$/i.test(hostname)))
+  ) {
+    throw new Error('ADMIN_PORTAL_URL must be a standalone HTTPS origin (HTTP is allowed only for local development).');
+  }
+
+  return { url: url.origin, hostname };
+}
+
+export function isAdminPortalHost(hostname: string, config?: AdminPortalConfig): boolean {
+  return Boolean(config && hostname.toLowerCase().replace(/\.$/, '') === config.hostname);
+}
 
 export interface PrivateObjectStorageConfig {
   accessKeyId: string;
@@ -233,7 +272,11 @@ function validateAgencyServiceCutovers(env: Environment) {
   }
 }
 
-function productionConfig(env: Environment, idleTimeout: number): RuntimeConfig {
+function productionConfig(
+  env: Environment,
+  idleTimeout: number,
+  adminPortal: AdminPortalConfig | undefined,
+): RuntimeConfig {
   const allowLegacyImmediateLeases = legacyImmediateLeasesEnabled(env);
   const requiredSecret = (key: 'JWT_SECRET' | 'MFA_ENC_KEY') => {
     const value = env[key]?.trim();
@@ -263,7 +306,6 @@ function productionConfig(env: Environment, idleTimeout: number): RuntimeConfig 
   }
   const isLocalDatabase = ['localhost', '127.0.0.1', '::1'].includes(database.hostname);
   const isAletCloudPrivateDatabase = database.hostname.endsWith('.svc.cluster.local');
-  // AletCloud's private database endpoint uses a provider self-signed certificate; keep TLS required and scope its non-verifying mode to cluster-local hosts.
   const usesAletCloudPrivateTls = isAletCloudPrivateDatabase
     && database.searchParams.get('sslmode') === 'require'
     && database.searchParams.get('uselibpqcompat') === 'true';
@@ -332,19 +374,25 @@ function productionConfig(env: Environment, idleTimeout: number): RuntimeConfig 
     mfiPilotEnabled,
     sessionIdleTimeoutMinutes: idleTimeout,
     legacyImmediateLeasesEnabled: allowLegacyImmediateLeases,
-    enabledModules: enabledWorkspaceModules(env).filter((module) => module !== 'insurance' || Boolean(env.INSURANCE_SERVICE_URL?.trim())),
+    adminPortal,
+    enabledModules: enabledWorkspaceModules(env).filter(
+      (module) => module !== 'insurance' || Boolean(env.INSURANCE_SERVICE_URL?.trim()),
+    ),
   };
 }
+
 export function loadRuntimeConfig(env: Environment): RuntimeConfig {
   validateInsuranceServiceCutover(env);
   validateAgencyServiceCutovers(env);
   const idleTimeout = sessionIdleTimeoutMinutes(env);
-  if (env.NODE_ENV === 'production') return productionConfig(env, idleTimeout);
+  const adminPortal = adminPortalConfig(env);
+  if (env.NODE_ENV === 'production') return productionConfig(env, idleTimeout, adminPortal);
   return {
     isProduction: false,
     mfiPilotEnabled: env.MFI_PILOT_ENABLED === undefined ? true : env.MFI_PILOT_ENABLED === '1',
     sessionIdleTimeoutMinutes: idleTimeout,
     legacyImmediateLeasesEnabled: legacyImmediateLeasesEnabled(env),
+    adminPortal,
     enabledModules: enabledWorkspaceModules(env).filter(
       (module) => module !== 'insurance' || Boolean(env.INSURANCE_SERVICE_URL?.trim()),
     ),

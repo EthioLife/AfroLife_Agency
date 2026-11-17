@@ -6,6 +6,8 @@ on:
       - 'afrolife/package.json'
       - 'afrolife/package-lock.json'
       - 'afrolife/capacitor.config.json'
+      - 'afrolife/tsconfig*.json'
+      - 'afrolife/src/**'
       - 'afrolife/public/**'
       - 'afrolife/ios/**'
       - '.github/workflows/afrolife-ios.yml'
@@ -14,6 +16,8 @@ on:
       - 'afrolife/package.json'
       - 'afrolife/package-lock.json'
       - 'afrolife/capacitor.config.json'
+      - 'afrolife/tsconfig*.json'
+      - 'afrolife/src/**'
       - 'afrolife/public/**'
       - 'afrolife/ios/**'
       - '.github/workflows/afrolife-ios.yml'
@@ -29,6 +33,7 @@ defaults:
 jobs:
   ios-simulator-build:
     runs-on: macos-15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -51,3 +56,18 @@ jobs:
           -derivedDataPath "$RUNNER_TEMP/afrolife-derived-data"
           CODE_SIGNING_ALLOWED=NO
           build
+      - name: Package simulator app
+        id: package
+        run: |
+          app="$RUNNER_TEMP/afrolife-derived-data/Build/Products/Debug-iphonesimulator/App.app"
+          version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Info.plist")
+          build=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")
+          archive="$RUNNER_TEMP/AfroLife-iOS-${version}-build-${build}-simulator.zip"
+          ditto -c -k --sequesterRsrc --keepParent "$app" "$archive"
+          echo "path=$archive" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: afrolife-ios-simulator
+          path: ${{ steps.package.outputs.path }}
+          if-no-files-found: error
+          retention-days: 7

@@ -144,6 +144,15 @@ completed database separation.
 Architecture changes must be gated by data ownership and compatibility tests,
 not by moving files or splitting processes alone.
 
+The central API keeps HTTP composition in `src/server.ts`; Agency leads,
+contracts, and commission routes are grouped in `src/agency-operations.ts`.
+This is an incremental code-ownership boundary only. It does not change route
+paths, authentication, database ownership, or the shared-schema transition.
+Independent Agency-domain data ownership remains blocked until domain schemas,
+versioned cross-service contracts, migration/reconciliation evidence, rollback,
+and production parity are approved and verified. Do not configure separate
+service database URLs as a production cutover signal by themselves.
+
 ## Public ingress and internal routing
 
 The browser uses one origin, one sign-in, and the existing shared shell,

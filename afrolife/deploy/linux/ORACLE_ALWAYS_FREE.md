@@ -18,7 +18,7 @@ and [Oracle Free Tier](https://www.oracle.com/cloud/free/).
 The VM hosts the central AfroLife Node.js application, PostgreSQL, Nginx, and
 TLS. The database and Node listener remain local to the VM; only SSH (restricted
 to the administrator's IP), HTTP, and HTTPS are public. Do not expose ports
-3000 or 5432. Insurance and Edir service extraction/cutover remains disabled
+3010 or 5432. Insurance and Edir service extraction/cutover remains disabled
 until their separate databases, historical-data validation, and service
 readiness gates are completed.
 
@@ -36,7 +36,7 @@ In Oracle Cloud Console:
    address remains associated; recheck the address after any replacement.
 3. Add ingress rules for TCP 22 from the administrator's current public IP
    only, and TCP 80 and 443 from the Internet. Do not add ingress rules for
-   3000 or 5432. Keep the private SSH key on the administrator's computer and
+   3010 or 5432. Keep the private SSH key on the administrator's computer and
    never upload it to the repository or chat.
 4. Record the public IPv4 address, subnet, and region. Confirm the VM shape and
    boot volume show no charge before clicking Create.
@@ -159,8 +159,8 @@ sudo systemctl enable --now afrolife
 sudo systemctl --no-pager --full status afrolife
 ```
 
-The service template binds Node to `127.0.0.1:3000`; it must not be reachable
-from the public interface. Confirm `curl -fsS http://127.0.0.1:3000/healthz`
+The service template binds Node to `127.0.0.1:3010`; it must not be reachable
+from the public interface. Confirm `curl -fsS http://127.0.0.1:3010/healthz`
 before configuring public ingress.
 
 ## 6. Configure Nginx and TLS

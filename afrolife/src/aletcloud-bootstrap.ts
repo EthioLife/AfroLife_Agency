@@ -80,6 +80,9 @@ async function provisionRuntimeRole(adminUrl: string, runtimeUrl: string) {
       if (role.rolsuper || role.rolcreatedb || role.rolcreaterole || role.rolbypassrls) {
         throw new Error('The selected application runtime role has elevated privileges; choose a different DATABASE_URL username.');
       }
+      await client.query(
+        `ALTER ROLE ${roleName} WITH LOGIN PASSWORD ${quoteLiteral(runtime.password)}`,
+      );
     } else {
       await client.query(
         `CREATE ROLE ${roleName} WITH LOGIN PASSWORD ${quoteLiteral(runtime.password)}`,
@@ -124,10 +127,15 @@ async function seedFirstSuperAdmin(connectionString: string) {
   const client = new pg.Client({ connectionString });
   await client.connect();
   try {
-    await client.query('BEGIN'); await client.query("SELECT set_config('app.role', 'global_admin', true)"); const exists = await client.query<{ exists: boolean }>(
+    await client.query('BEGIN');
+    await client.query("SELECT set_config('app.role', 'global_admin', true)");
+    const exists = await client.query<{ exists: boolean }>(
       `SELECT EXISTS (SELECT 1 FROM users WHERE role='super_admin') AS exists`,
     );
-    if (exists.rows[0].exists) { await client.query('COMMIT'); return false; }
+    if (exists.rows[0].exists) {
+      await client.query('COMMIT');
+      return false;
+    }
     const name = process.env.SEED_ADMIN_NAME?.trim();
     const phone = normalizePhone(process.env.SEED_ADMIN_PHONE ?? '');
     const password = process.env.SEED_ADMIN_PASSWORD ?? '';
@@ -139,7 +147,8 @@ async function seedFirstSuperAdmin(connectionString: string) {
        VALUES ($1,$2,'super_admin','verified',true,$3,true)`,
       [name, phone, await bcrypt.hash(password, 12)],
     );
-    await client.query('COMMIT'); return true;
+    await client.query('COMMIT');
+    return true;
   } finally {
     await client.end();
   }
@@ -153,7 +162,6 @@ if (process.env.ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY !== undefined && !migrations
 if (migrationsOnly && !provisioningUrl) {
   throw new Error('ALETCLOUD_BOOTSTRAP_DATABASE_URL is required for a migrations-only bootstrap.');
 }
-
 if (provisioningUrl) {
   const runtimeUrl = process.env.DATABASE_URL;
   if (!runtimeUrl) throw new Error('DATABASE_URL must be set to the restricted runtime role.');
@@ -166,9 +174,15 @@ if (provisioningUrl) {
   const effectiveRuntimeUrl = await provisionRuntimeRole(provisioningUrl, runtimeUrl);
   process.env.DATABASE_URL = effectiveRuntimeUrl;
   const migrationEnv: NodeJS.ProcessEnv = { ...process.env, MIGRATION_DATABASE_URL: provisioningUrl };
+  if (migrationsOnly) {
+    delete migrationEnv.SEED_ADMIN_NAME;
+    delete migrationEnv.SEED_ADMIN_PHONE;
+    delete migrationEnv.SEED_ADMIN_PASSWORD;
+  } else {
+    migrationEnv.AFROLIFE_SEED_ADMIN_BEFORE_PROPERTY_TENANT_MIGRATION = '1';
+  }
   delete migrationEnv.ALETCLOUD_BOOTSTRAP_DATABASE_URL;
   delete migrationEnv.ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY;
-
   delete migrationEnv.SEED_ADMIN_NAME;
   delete migrationEnv.SEED_ADMIN_PHONE;
   delete migrationEnv.SEED_ADMIN_PASSWORD;
@@ -177,21 +191,29 @@ if (provisioningUrl) {
     [fileURLToPath(new URL('./migrate.js', import.meta.url))],
     {
       env: migrationEnv,
-      stdio: 'inherit',
+      encoding: 'utf8',
+      maxBuffer: 10 * 1024 * 1024,
     },
   );
   if (migration.error) throw migration.error;
+  if (migration.status === 0) {
+    if (migration.stdout) process.stdout.write(migration.stdout);
+    if (migration.stderr) process.stderr.write(migration.stderr);
+  }
   if (migration.status !== 0) {
-    throw new Error(`Database migrations failed with exit code ${migration.status ?? 'unknown'}.`);
+    const migrationFailure = `${migration.stdout ?? ''}\n${migration.stderr ?? ''}`
+      .match(/Migration ([^:\r\n]+) failed(?: at stage "([^"\r\n]+)")?(?:: ([^\r\n]+))?/);
+    throw new Error(
+      `${migrationFailure ? `Migration ${migrationFailure[1]} failed${migrationFailure[2] ? ` at stage "${migrationFailure[2]}"` : ''}${migrationFailure[3] ? `: ${migrationFailure[3]}` : ''}; ` : ''}`
+      + `database migrations exited with code ${migration.status ?? 'unknown'}.`,
+    );
   }
 
   const adminCreated = migrationsOnly ? false : await seedFirstSuperAdmin(provisioningUrl);
   if (adminCreated) console.log('Created the initial Super Admin; a password change is required at first sign-in.');
   if (migrationsOnly) console.log('Completed AletCloud migrations-only bootstrap; administrator seeding was skipped.');
-
   delete process.env.ALETCLOUD_BOOTSTRAP_DATABASE_URL;
   delete process.env.ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY;
-
   delete process.env.MIGRATION_DATABASE_URL;
   delete process.env.SEED_ADMIN_NAME;
   delete process.env.SEED_ADMIN_PHONE;
@@ -281,6 +303,39 @@ if (
   delete process.env.ALETCLOUD_ADMIN_RECOVERY_PASSWORD;
   delete process.env.ALETCLOUD_ADMIN_RECOVERY_CONFIRM;
   console.log('Recovered the configured Super Admin; a password change is required at first sign-in.');
+}
+
+const initialAdminBootstrapVariables = [
+  'INITIAL_AFROSHERIK_ADMIN_BOOTSTRAP_CONFIRM',
+  'INITIAL_AFROSHERIK_TENANT_KEY',
+  'INITIAL_DAWIT_ADMIN_PASSWORD',
+  'INITIAL_YALEMWORK_ADMIN_PASSWORD',
+  'INITIAL_AFROSHERIK_ADMIN_BOOTSTRAP_REASON',
+] as const;
+const initialAdminBootstrapEnabled = process.env.ALLOW_INITIAL_AFROSHERIK_ADMIN_BOOTSTRAP;
+if (initialAdminBootstrapEnabled !== undefined && !['0', '1', 'disabled'].includes(initialAdminBootstrapEnabled)) {
+  throw new Error('ALLOW_INITIAL_AFROSHERIK_ADMIN_BOOTSTRAP must be disabled, 0, or 1 when provided.');
+}
+if (initialAdminBootstrapEnabled === '1') {
+  const bootstrapEnvironment = { ...process.env };
+  for (const name of initialAdminBootstrapVariables) delete process.env[name];
+  delete process.env.ALLOW_INITIAL_AFROSHERIK_ADMIN_BOOTSTRAP;
+  const { bootstrapInitialAfroSherikAdmins, validateInitialPlatformAdminBootstrapConfig } =
+    await import('./initial-platform-admin-bootstrap.js');
+  const config = validateInitialPlatformAdminBootstrapConfig(bootstrapEnvironment);
+  for (const name of initialAdminBootstrapVariables) delete bootstrapEnvironment[name];
+  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for the initial AfroSherik admin bootstrap.');
+  const bootstrapPool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    const result = await bootstrapInitialAfroSherikAdmins(bootstrapPool, config);
+    if (result) {
+      console.log(`Completed the one-time AfroSherik platform administrator bootstrap (${result.created} accounts created).`);
+    } else {
+      console.log('The one-time AfroSherik platform administrator bootstrap has already completed.');
+    }
+  } finally {
+    await bootstrapPool.end();
+  }
 }
 
 await import('./server.js');

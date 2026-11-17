@@ -8,8 +8,12 @@ needed to accept real users, identity documents, or financial activity.
 The `AfroLife quality checks` GitHub Actions workflow runs on pushes and pull
 requests that touch `afrolife/`. It installs the locked dependencies, checks
 browser JavaScript syntax and application JSON configuration, compiles the
-TypeScript API, and runs the database-independent unit suite. A green workflow
-is necessary for a change; it does not establish production readiness.
+TypeScript API and every separately buildable service (including Accounting
+and Global BI), and runs the database-independent unit suite. A second job
+provisions disposable PostgreSQL and runs the finance, property, staffing,
+MFI, and core API integration workflows. These checks improve regression
+coverage; a green workflow does not establish production readiness or replace
+staging, recovery, and external review.
 
 Role activity defaults are maintained in the application catalog and mirrored
 in migration `057_role_activity_defaults.sql` for PostgreSQL row-level

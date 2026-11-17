@@ -1,8 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
-  <title id="title">AfroLife mark</title>
-  <desc id="desc">A geometric A formed by green, blue, and yellow shapes on a transparent background.</desc>
-  <circle cx="128" cy="61" r="19" fill="#FFB000"/>
-  <path d="M92 73c13 0 22 11 18 24l-24 79c-5 16-15 23-28 20-13-3-19-15-14-29l27-77c4-11 10-17 21-17Z" fill="#00B85A"/>
-  <path d="M164 73c-13 0-22 11-18 24l24 79c5 16 15 23 28 20 13-3 19-15 14-29l-27-77c-4-11-10-17-21-17Z" fill="#0066FF"/>
-  <path d="M90 181c3-25 19-41 38-41s35 16 38 41c-11 10-24 15-38 15s-27-5-38-15Z" fill="#FFB000"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">AfroSherik mark</title>
+  <desc id="desc">Three service and community members connected through a shared opportunity hub.</desc>
+  <rect width="512" height="512" rx="104" fill="#174b3d"/>
+  <g fill="none" stroke="#d7ad59" stroke-linecap="round" stroke-width="14">
+    <path d="m224 230-37-37"/>
+    <path d="m288 230 37-37"/>
+    <path d="M256 315v20"/>
+  </g>
+  <g fill="#fff">
+    <circle cx="151" cy="158" r="52"/>
+    <circle cx="361" cy="158" r="52"/>
+    <circle cx="256" cy="387" r="52"/>
+  </g>
+  <g fill="#174b3d">
+    <circle cx="151" cy="147" r="12"/>
+    <path d="M126 183c3-16 11-24 25-24s22 8 25 24z"/>
+    <circle cx="361" cy="147" r="12"/>
+    <path d="M336 183c3-16 11-24 25-24s22 8 25 24z"/>
+    <circle cx="256" cy="376" r="12"/>
+    <path d="M231 412c3-16 11-24 25-24s22 8 25 24z"/>
+  </g>
+  <circle cx="256" cy="264" r="53" fill="#d7ad59"/>
+  <circle cx="256" cy="264" r="18" fill="#fff"/>
+  <circle cx="256" cy="264" r="7" fill="#174b3d"/>
 </svg>

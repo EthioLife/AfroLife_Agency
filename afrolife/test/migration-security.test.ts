@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { assessMigrationReadiness, assertMigrationChecksum, migrationChecksum } from '../src/migration-checksums.js';
 
 const insuranceGrants = readFileSync(new URL('../migrations/039_insurance_ledger_runtime_grants.sql', import.meta.url), 'utf8');
@@ -16,6 +16,7 @@ const mfiWriteoffActorControls = readFileSync(new URL('../migrations/049_mfi_wri
 const mfiRouter = readFileSync(new URL('../src/mfi.ts', import.meta.url), 'utf8');
 const leadProtection = readFileSync(new URL('../migrations/052_lead_protection_and_attribution_history.sql', import.meta.url), 'utf8');
 const server = readFileSync(new URL('../src/server.ts', import.meta.url), 'utf8');
+const agencyOperations = readFileSync(new URL('../src/agency-operations.ts', import.meta.url), 'utf8');
 const mfiSandbox = readFileSync(new URL('../migrations/053_mfi_sandbox_simulations.sql', import.meta.url), 'utf8');
 const agentScopedStaffing = readFileSync(new URL('../migrations/054_agent_scoped_staffing_matches.sql', import.meta.url), 'utf8');
 const agentFinancialFacilitation = readFileSync(new URL('../migrations/055_agent_financial_facilitation.sql', import.meta.url), 'utf8');
@@ -48,12 +49,14 @@ const payrollFailedRowRequeue = readFileSync(new URL('../migrations/112_workforc
 const propertyRentalApplications = readFileSync(new URL('../migrations/104_property_rental_applications.sql', import.meta.url), 'utf8');
 const propertyTenantSelfService = readFileSync(new URL('../migrations/105_property_tenant_self_service.sql', import.meta.url), 'utf8');
 const propertyOwnerAuthorityReview = readFileSync(new URL('../migrations/106_property_owner_authority_review.sql', import.meta.url), 'utf8');
+const propertyOwnerLeaseStatementAccess = readFileSync(new URL('../migrations/147_property_owner_lease_statement_access.sql', import.meta.url), 'utf8');
 const leaseRentStartDate = readFileSync(new URL('../migrations/107_lease_rent_start_date.sql', import.meta.url), 'utf8');
 const globalAdminPropertyAuthorityReview = readFileSync(new URL('../migrations/108_global_admin_property_authority_review.sql', import.meta.url), 'utf8');
 const maintenanceSlaEscalationIndex = readFileSync(new URL('../migrations/109_maintenance_sla_escalation_index.sql', import.meta.url), 'utf8');
 const workforceOffboardingSerialization = readFileSync(new URL('../migrations/110_workforce_offboarding_serialization.sql', import.meta.url), 'utf8');
 const workforcePropertySupportAssistant = readFileSync(new URL('../migrations/113_workforce_property_support_assistant.sql', import.meta.url), 'utf8');
 const propertyResidentRlsRecursionFix = readFileSync(new URL('../migrations/114_property_resident_rls_recursion_fix.sql', import.meta.url), 'utf8');
+const propertyResidentRlsFunctionOwner = readFileSync(new URL('../migrations/115_property_resident_rls_function_owner.sql', import.meta.url), 'utf8');
 const marketplaceRouter = readFileSync(new URL('../services/marketplace/router.ts', import.meta.url), 'utf8');
 const propertyManagementRouter = readFileSync(new URL('../services/property-management/router.ts', import.meta.url), 'utf8');
 const propertyVendorPortal = readFileSync(new URL('../src/property-vendor-portal.ts', import.meta.url), 'utf8');
@@ -72,6 +75,75 @@ test('migration runners persist and enforce immutable SQL checksums', () => {
     () => assertMigrationChecksum('001_example.sql', checksum, migrationChecksum('SELECT 2;')),
     /has changed since it was applied/,
   );
+  const legacyName = '114_property_resident_rls_recursion_fix.sql';
+  const legacyStoredChecksum = '99372e3e6d9f8e7eb2717eaa65fdba9cf4c3b2166ad5738c43a6937d40596af5';
+  const legacyCurrentChecksum = migrationChecksum(propertyResidentRlsRecursionFix);
+  const legacyLineEndingChecksums = [
+    migrationChecksum(propertyResidentRlsRecursionFix.replace(/\r\n/g, '\n')),
+    migrationChecksum(propertyResidentRlsRecursionFix.replace(/\r?\n/g, '\r\n')),
+  ];
+
+  // Only the exact historical migration name + checksum pair is accepted.
+  assert.doesNotThrow(() =>
+    assertMigrationChecksum(legacyName, legacyStoredChecksum, legacyCurrentChecksum),
+  );
+  for (const checksum of legacyLineEndingChecksums) {
+    assert.doesNotThrow(() =>
+      assertMigrationChecksum(legacyName, legacyStoredChecksum, checksum),
+    );
+  }
+  assert.throws(
+    () => assertMigrationChecksum(legacyName, legacyStoredChecksum, migrationChecksum('modified migration 114 SQL')),
+    /has changed since it was applied/,
+  );
+
+  // The same historical checksum must not be accepted for another migration.
+  assert.throws(
+    () => assertMigrationChecksum(
+      '113_another_migration.sql',
+      legacyStoredChecksum,
+      migrationChecksum('modified migration 114 SQL'),
+    ),
+    /has changed since it was applied/,
+  );
+
+  // A different stored checksum for migration 114 must still fail.
+  assert.throws(
+    () => assertMigrationChecksum(legacyName, migrationChecksum('unrecognized historical SQL'), legacyCurrentChecksum),
+    /has changed since it was applied/,
+  );
+
+  // Readiness accepts only the exact historical record.
+  assert.deepEqual(
+    assessMigrationReadiness(
+      [{ name: legacyName, checksum: legacyCurrentChecksum }],
+      [{ name: legacyName, checksum: legacyStoredChecksum }],
+    ),
+    {
+      current: true,
+      applied: 1,
+      expected: 1,
+      checksumMismatches: 0,
+      checksumsUnverified: 0,
+      unexpectedMigrations: 0,
+    },
+  );
+
+  // Ordinary checksum mismatches remain readiness failures.
+  assert.equal(
+    assessMigrationReadiness(
+      [{ name: legacyName, checksum: legacyCurrentChecksum }],
+      [{ name: legacyName, checksum: migrationChecksum('different historical SQL') }],
+    ).checksumMismatches,
+    1,
+  );
+  assert.equal(
+    assessMigrationReadiness(
+      [{ name: legacyName, checksum: migrationChecksum('modified current migration 114 SQL') }],
+      [{ name: legacyName, checksum: legacyStoredChecksum }],
+    ).checksumMismatches,
+    1,
+  );
   const expected = [
     { name: '001_first.sql', checksum: migrationChecksum('SELECT 1;') },
     { name: '002_second.sql', checksum: migrationChecksum('SELECT 2;') },
@@ -84,6 +156,7 @@ test('migration runners persist and enforce immutable SQL checksums', () => {
     checksumsUnverified: 0,
     unexpectedMigrations: 0,
   });
+
   assert.deepEqual(
     assessMigrationReadiness(expected, [
       { name: '001_first.sql', checksum: migrationChecksum('SELECT 0;') },
@@ -110,18 +183,55 @@ test('migration runners persist and enforce immutable SQL checksums', () => {
   assert.match(coreMigrator, /REVOKE INSERT, UPDATE, DELETE ON TABLE schema_migrations FROM \$\{roleName\}/);
   assert.match(coreMigrator, /GRANT SELECT ON TABLE schema_migrations TO \$\{roleName\}/);
   assert.match(coreMigrator, /GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO \$\{roleName\}/);
+  assert.match(coreMigrator, /name === '118_property_operating_tenant_scope\.sql'[\s\S]*?seedInitialAdminBeforePropertyTenantMigration/);
+  assert.match(coreMigrator, /AFROLIFE_SEED_ADMIN_BEFORE_PROPERTY_TENANT_MIGRATION !== '1'/);
+  assert.match(coreMigrator, /password_hash, must_change_password[\s\S]*?true,\$3,true/);
   assert.match(aletcloudBootstrap, /async function seedFirstSuperAdmin[\s\S]*?await client\.query\('BEGIN'\)[\s\S]*?set_config\('app\.role', 'global_admin', true\)[\s\S]*?await client\.query\('COMMIT'\)/);
-  assert.match(aletcloudBootstrap, /runtime\.role\.slice\(0, 46\).*_afrolife_runtime/);
   assert.match(aletcloudBootstrap, /ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY must be set to 1/);
   assert.match(aletcloudBootstrap, /ALETCLOUD_BOOTSTRAP_DATABASE_URL is required for a migrations-only bootstrap/);
   assert.match(aletcloudBootstrap, /migrationsOnly \? false : await seedFirstSuperAdmin/);
+  assert.match(aletcloudBootstrap, /ALTER ROLE \$\{roleName\} WITH LOGIN PASSWORD \$\{quoteLiteral\(runtime\.password\)\}/);
+  assert.match(aletcloudBootstrap, /if \(migrationsOnly\)[\s\S]*?delete migrationEnv\.SEED_ADMIN_PASSWORD[\s\S]*?AFROLIFE_SEED_ADMIN_BEFORE_PROPERTY_TENANT_MIGRATION = '1'/);
   assert.match(aletcloudBootstrap, /delete migrationEnv\.ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY/);
-
+  assert.match(aletcloudBootstrap, /Migration \(\[\^:\\r\\n\]\+\) failed/);
+  assert.match(aletcloudBootstrap, /failed\(\?: at stage/);
+  assert.match(aletcloudBootstrap, /migration\.stdout\) process\.stdout\.write/);
+  assert.match(aletcloudBootstrap, /runtime\.role\.slice\(0, 46\).*_afrolife_runtime/);
   assert.match(accountingMigrator, /ADD COLUMN IF NOT EXISTS checksum text/);
   assert.match(accountingMigrator, /INSERT INTO accounting_service_migrations\(version,checksum\)/);
   assert.match(accountingMigrator, /pg_advisory_lock\(71924211,2\)/);
   assert.match(server, /SELECT name, checksum FROM schema_migrations/);
   assert.match(server, /assessMigrationReadiness\(expectedMigrations, appliedRows\.rows\)/);
+});
+
+test('new core migrations use unique prefixes without renaming legacy migrations', () => {
+  const migrationNames = readdirSync(new URL('../migrations/', import.meta.url))
+    .filter((name) => name.endsWith('.sql'))
+    .sort();
+  assert.equal(new Set(migrationNames).size, migrationNames.length);
+  assert.ok(migrationNames.every((name) => /^\d{3}_[a-z0-9][a-z0-9_-]*\.sql$/.test(name)));
+
+  const prefixCounts = new Map<string, number>();
+  for (const name of migrationNames) {
+    const prefix = name.slice(0, 3);
+    prefixCounts.set(prefix, (prefixCounts.get(prefix) ?? 0) + 1);
+  }
+  const duplicatePrefixes = [...prefixCounts]
+    .filter(([, count]) => count > 1)
+    .map(([prefix]) => prefix)
+    .sort();
+  assert.deepEqual(duplicatePrefixes, ['094', '095', '096', '106', '115']);
+
+  const newMigrationNames = migrationNames.filter((name) => Number(name.slice(0, 3)) > 137);
+  const newPrefixes = newMigrationNames.map((name) => name.slice(0, 3));
+  assert.equal(new Set(newPrefixes).size, newPrefixes.length, 'new migrations must use unique prefixes greater than the legacy sequence');
+});
+
+test('Agency operations routes remain behind central authentication after extraction', () => {
+  assert.match(server, /api\.use\(authenticate\)[\s\S]*api\.use\(createAgencyOperationsRouter\(\)\)/);
+  assert.match(agencyOperations, /router\.post\('\/leads'/);
+  assert.match(agencyOperations, /router\.post\('\/contracts\/:id\/transition'/);
+  assert.match(agencyOperations, /router\.post\('\/commissions\/:id\/pay'/);
 });
 
 test('central Insurance ledger grants match service operations and identity sequences', () => {
@@ -269,13 +379,13 @@ test('lead ownership protection and reassignment are configurable, reasoned, and
   assert.match(leadProtection, /AFTER INSERT OR UPDATE ON leads/);
   assert.match(leadProtection, /Lead attribution history is append-only/);
   assert.match(leadProtection, /leads_platform_reassignment/);
-  assert.match(server, /INSERT INTO leads \(lead_type, name, phone, source_agent_id, protected_until\)/);
-  assert.match(server, /\/admin\/leads\/:id\/reassign/);
-  assert.match(server, /target_agent_id: z\.string\(\)\.uuid\(\), reason: z\.string\(\)\.trim\(\)\.min\(10\)/);
+  assert.match(agencyOperations, /INSERT INTO leads \(lead_type, name, phone, source_agent_id, protected_until\)/);
+  assert.match(agencyOperations, /\/admin\/leads\/:id\/reassign/);
+  assert.match(agencyOperations, /target_agent_id: z\.string\(\)\.uuid\(\), reason: z\.string\(\)\.trim\(\)\.min\(10\)/);
   assert.match(leadProtection, /lead_has_non_cancelled_contract\(uuid\)/);
   assert.match(leadProtection, /Platform administrator access is required/);
-  assert.match(server, /lead_has_non_cancelled_contract\(\$1\) AS has_contract/);
-  assert.match(server, /contract\.rows\[0\]\.has_contract\) throw new HttpError\(409, 'A lead with a non-cancelled contract cannot be reassigned'/);
+  assert.match(agencyOperations, /lead_has_non_cancelled_contract\(\$1\) AS has_contract/);
+  assert.match(agencyOperations, /contract\.rows\[0\]\.has_contract\) throw new HttpError\(409, 'A lead with a non-cancelled contract cannot be reassigned'/);
 });
 
 test('agent staffing lifecycle access is limited to the agent hierarchy', () => {
@@ -549,7 +659,7 @@ test('maintenance vendor access is assignment-scoped and invoice mismatches requ
   assert.match(maintenanceVendorFulfillment,/UPDATE property_vendor_bills bill/);
   assert.match(maintenanceVendorFulfillment,/assigned_vendor_id IS NULL/);
   assert.match(admin,/INSERT INTO user_signups\(user_id,account_type,payment_status,vendor_id\)/);
-  assert.match(admin,/INSERT INTO property_vendor_memberships\(vendor_id,user_id,created_by\)/);
+  assert.match(admin,/INSERT INTO property_vendor_memberships\(vendor_id,user_id,created_by,tenant_system_id\)/);
   assert.match(operations,/!body\.assigned_to && !body\.assigned_vendor_id/);
   assert.match(maintenanceVendorFulfillment,/CREATE POLICY maintenance_vendor_assigned_read/);
   assert.match(maintenanceVendorFulfillment,/CREATE POLICY maintenance_vendor_assigned_update/);
@@ -596,7 +706,7 @@ test('V11 rental applications require an approved vacant listing, explicit conse
   assert.match(propertyManagementRouter,/Property media upload is unavailable until the malware scanner is configured/);
   assert.match(publicApp,/form\.dataset\.form === 'rental-application'/);
   assert.match(publicApp,/I agree to share my account name and this message/);
-  assert.match(publicApp,/AfroLife does not run automated tenant screening/);
+  assert.match(publicApp,/AfroSherik does not run automated tenant screening/);
   assert.match(publicApp,/rental-application-review/);
 });
 
@@ -620,7 +730,7 @@ test('resident lease self-service requires a one-time claim and scopes property,
   assert.match(operations,/randomBytes\(32\)\.toString\('hex'\)/);
   assert.match(operations,/createHash\('sha256'\)\.update\(claimCode\.toLowerCase\(\)\)/);
   assert.match(operations,/tenant access invitation is invalid, expired, or already used/i);
-  assert.match(server,/api\.use\(\['\/resident'\], requireMiniAppAccess\('properties'\)\)/);
+  assert.match(server,/api\.use\(\['\/resident', '\/owner'\], requirePlatformTenantService\('property'\), requireMiniAppAccess\('properties'\)\)/);
   assert.match(propertyVendorPortal,/req\.user\?\.role === 'customer'\) return requireMiniAppAccess\('properties'\)/);
   assert.match(publicApp,/Resident self-service/);
   assert.match(publicApp,/resident-access-claim/);
@@ -629,7 +739,7 @@ test('resident lease self-service requires a one-time claim and scopes property,
 });
 
 test('resident property visibility avoids recursive property-unit row security evaluation', () => {
-  assert.match(propertyResidentRlsRecursionFix,/ALTER TABLE property_tenant_account_links NO FORCE ROW LEVEL SECURITY/);
+  assert.match(coreMigrator,/name === '114_property_resident_rls_recursion_fix\.sql'[\s\S]*?ALTER TABLE IF EXISTS public\.property_tenant_account_links NO FORCE ROW LEVEL SECURITY/);
   assert.match(propertyResidentRlsRecursionFix,/CREATE OR REPLACE FUNCTION app_resident_has_active_lease_on_property\(target_property_id uuid\)/);
   assert.match(propertyResidentRlsRecursionFix,/SECURITY DEFINER\s+SET search_path = public, pg_temp\s+SET row_security = off/);
   assert.match(propertyResidentRlsRecursionFix,/JOIN property_units unit ON unit\.id = lease\.unit_id/);
@@ -638,6 +748,7 @@ test('resident property visibility avoids recursive property-unit row security e
   assert.match(propertyResidentRlsRecursionFix,/GRANT EXECUTE ON FUNCTION app_resident_has_active_lease_on_property\(uuid\) TO "\{\{role\}\}"/);
   assert.match(propertyResidentRlsRecursionFix,/DROP POLICY properties_linked_resident_read ON properties/);
   assert.match(propertyResidentRlsRecursionFix,/USING \(app_resident_has_active_lease_on_property\(id\)\)/);
+  assert.match(propertyResidentRlsFunctionOwner,/ALTER TABLE property_tenant_account_links NO FORCE ROW LEVEL SECURITY/);
 });
 
 test('property publication requires independent owner-authority review and scanned evidence', () => {
@@ -651,6 +762,8 @@ test('property publication requires independent owner-authority review and scann
   assert.match(propertyOwnerAuthorityReview,/Property authority approval requires malware-scanned evidence/);
   assert.match(propertyOwnerAuthorityReview,/subject\.active = true AND subject\.kyc_status = 'verified'/);
   assert.match(propertyOwnerAuthorityReview,/p\.listing_review_status = 'approved' AND p\.authority_review_status = 'approved'/);
+  assert.match(propertyOwnerLeaseStatementAccess,/app_role\(\) = 'property_owner'/);
+  assert.match(propertyOwnerLeaseStatementAccess,/property\.owner_user_id = app_user_id\(\)/);
   assert.match(propertyManagementRouter,/scanWithClamAv\(file\)/);
   assert.match(propertyManagementRouter,/authority-evidence/);
   assert.match(propertyManagementRouter,/authority-resubmit/);

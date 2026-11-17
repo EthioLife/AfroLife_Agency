@@ -158,7 +158,7 @@ public egress address. This confirms DNS is no longer the blocker.
 
 The app is not configured as a public web site on this host. WSL Nginx serves
 the staging app only on `127.0.0.1:8080`, and the Node API listens only on
-`127.0.0.1:3000`. Windows IIS responds locally on HTTP with its stock landing
+`127.0.0.1:3010`. Windows IIS responds locally on HTTP with its stock landing
 page rather than the AfroLife app; no HTTPS binding is configured. Windows
 Firewall has no enabled inbound allow rule for ports 80/443, the host uses a
 private LAN address behind a gateway, and external checks cannot reach TCP

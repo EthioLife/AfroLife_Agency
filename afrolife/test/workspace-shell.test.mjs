@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import ts from 'typescript';
+import { readFile } from 'node:fs/promises';
 import { checkWorkspaceServices, createApiMetrics } from '../src/workspace-status.ts';
 import { isMiniAppAllowed, isPanelEnabled, panelFromUrl, panelUrl } from '../public/workspace-navigation.js';
 import { MIN_SEARCH_QUERY_LENGTH, searchWorkspaceRecords } from '../public/workspace-search.js';
@@ -53,9 +54,9 @@ function collectPublicUiMessages() {
 
 test('key app workflows are translated in every supported locale', async () => {
   const messages = [
-    'AfroLife Support',
+    'AfroSherik Support',
     'Role-aware assistant and peer support',
-    'Your access and support options follow your AfroLife role.',
+    'Your access and support options follow your AfroSherik role.',
     'Online support agents: {{count}}',
     'Make me available',
     'Stop offering support',
@@ -69,7 +70,7 @@ test('key app workflows are translated in every supported locale', async () => {
     'Send message',
     'Start a conversation by describing what you need.',
     'You',
-    'AfroLife support',
+    'AfroSherik support',
     'Open property services',
     'Open workforce tools',
     'Open support cases',
@@ -77,6 +78,29 @@ test('key app workflows are translated in every supported locale', async () => {
     'Automated answers are not enabled in this support pilot. Existing property, workforce, and support tools remain available.',
     'Awaiting response',
     'Assigned to support',
+    'Sign in with your registered phone number. Ethiopia is selected first; international numbers are supported.',
+    'Country calling code',
+    'National phone number',
+    'Choose from suggestions or type another international calling code.',
+    'Forgot password?',
+    'ACCOUNT RECOVERY',
+    'Password recovery',
+    'Enter the phone number on your account to check available recovery options.',
+    'SMS password recovery is unavailable because delivery is not configured. No code was sent. Contact AfroSherik support to recover your account.',
+    'Request recovery help',
+    'Back to sign in',
+    'Fayda verification is unavailable until AfroSherik receives approved access. Use secure document review instead; this is not live Fayda verification.',
+    'Authenticator sign-in is required for administrative roles and cannot be disabled.',
+    'Optional: add an authenticator app for an extra sign-in step. You can turn it off later after verifying your password and code.',
+    'Passkeys and device sign-in',
+    'Unavailable until secure WebAuthn support is configured. If enabled later, your device may use biometrics or a PIN; AfroSherik will not collect biometric data.',
+    'Device sign-in unavailable',
+    'Secure device credential registration is not available yet.',
+    'To turn off the optional authenticator step, confirm your current password and a valid one-time code.',
+    'Turn off two-step verification',
+    'Two-step verification disabled.',
+    'Enter a valid country calling code and phone number.',
+    'If recovery becomes available, instructions will be provided without confirming whether an account exists.',
     'Document requirements are not available yet. Try again before submitting.',
     'No identity documents are required for this account type.',
     'Your registration is pending review. Check document decisions below and replace any document returned by Compliance.',
@@ -88,7 +112,7 @@ test('key app workflows are translated in every supported locale', async () => {
     'No matching records were found in the areas available to your role.',
     'Counts reflect records currently available to your account.',
     'Explore Edir membership and available benefits',
-    'Open to verified AfroLife users across worker, employer, landlord, tenant, seller, and buyer services. Review active community, savings, share, and contribution options before requesting membership. Lending, insurance, and benefit payouts are not live in this pilot.',
+    'Open to verified AfroSherik users across worker, employer, landlord, tenant, seller, and buyer services. Review active community, savings, share, and contribution options before requesting membership. Lending, insurance, and benefit payouts are not live in this pilot.',
     'EthioLife Edir membership offer',
     'Edir membership is available to registered workers, employers, landlords, tenants, sellers, buyers, and other EthioLife users after KYC has been verified. Complete KYC review to request membership.',
     'Request EthioLife Edir membership',
@@ -148,15 +172,15 @@ test('key app workflows are translated in every supported locale', async () => {
     'Save filing workpaper',
     'Entity reporting basis',
     'Save reporting basis',
-    'Accounting & Finance uses the same AfroLife mini-app subscription and payment review as other services. Subscription access is managed from Service subscriptions; this workspace is for accounting standards and books.',
+    'Accounting & Finance uses the same AfroSherik mini-app subscription and payment review as other services. Subscription access is managed from Service subscriptions; this workspace is for accounting standards and books.',
     'Submit for approval',
     'Submit payment for review',
     'Approve budget',
     'Match & reconcile',
     'Simulate test submission (no authority filing)',
     'Request information',
-    'I consent to AfroLife forwarding this information request to the Insurance service team. This is not an application, policy, quote, or coverage confirmation.',
-    'Optional: I consent to sharing my name, phone number, and selected topic with one assigned AfroLife Agent for non-binding follow-up and referral to the Insurance service team. The Agent cannot advise, quote, collect premiums, submit applications, or influence underwriting or claims.',
+    'I consent to AfroSherik forwarding this information request to the Insurance service team. This is not an application, policy, quote, or coverage confirmation.',
+    'Optional: I consent to sharing my name, phone number, and selected topic with one assigned AfroSherik Agent for non-binding follow-up and referral to the Insurance service team. The Agent cannot advise, quote, collect premiums, submit applications, or influence underwriting or claims.',
     'Your requests and activity',
     'No Insurance information requests are linked to your account.',
     'Consent-based Agent referrals',
@@ -174,15 +198,17 @@ test('key app workflows are translated in every supported locale', async () => {
     'Active Edir membership is required to request a loan assessment.',
     'I accept the interest-free, fee-free principal-only loan and savings-account payout terms.',
     'Your service mini-apps',
+    'Open {{service}}',
     'Super App',
     'Accounting & Finance',
     'Manage entity books, journals, financial operations, and entity-scoped reporting.',
     'Accounting mini app →',
     'No services are assigned to your account yet.',
     'Open an available service directly. Access is based on your role and enabled features.',
+    'Open service',
     'Choose an agent',
     'Audience roles',
-    'AfroLife managed listing',
+    'AfroSherik managed listing',
     'On Android, take or choose photos and videos. Media stays private and is shown only to authorized users.',
     'Owner rent & deposit statements',
     'These read-only records show lease charges and reconciled rent/deposit receipts. They do not initiate or confirm a payout to you.',
@@ -213,12 +239,18 @@ test('key app workflows are translated in every supported locale', async () => {
   try {
     for (const locale of locales) {
       store.set('afrolife.locale', locale);
-      const { localeNames, t } = await import(`../public/i18n.js?locale-test=${locale}`);
+      const { localeNames, setLocalizedAttribute, t } = await import(`../public/i18n.js?locale-test=${locale}`);
       assert.ok(localeNames[locale], `locale ${locale} is available`);
       for (const message of messages) {
         const translated = t(message);
         assert.ok(translated && translated !== message, `${locale} is missing: ${message}`);
       }
+      let accountingLabel = '';
+      setLocalizedAttribute({
+        setAttribute: (_attribute, value) => { accountingLabel = value; },
+      }, 'aria-label', 'Open {{service}}', { service: t('Accounting & Finance') });
+      assert.ok(accountingLabel.includes(t('Accounting & Finance')));
+      assert.doesNotMatch(accountingLabel, /\{\{\w+\}\}/);
       const signedIn = t('Signed in as {{role}}. Your access is limited to your assigned role and territory.', { role: 'Buyer' });
       assert.ok(signedIn.includes('Buyer'));
       assert.doesNotMatch(signedIn, /\{\{\w+\}\}/);
@@ -414,4 +446,33 @@ test('row pagination supports page sizes and clamps page boundaries', () => {
   assert.deepEqual(paginateRows(rows, 100, 1), { page: 1, pageSize: 100, pageCount: 1, start: 0, end: 51 });
   assert.deepEqual(paginateRows([], 10, 2), { page: 1, pageSize: 10, pageCount: 1, start: 0, end: 0 });
   assert.equal(paginateRows(rows, 17).pageSize, 10);
+});
+
+test('workspace and financial tables use RTL-aware logical text alignment', async () => {
+  const workspaceStyles = await readFile(new URL('../public/styles.css', import.meta.url), 'utf8');
+  const financialStyles = await readFile(new URL('../public/financial-workspaces.css', import.meta.url), 'utf8');
+
+  assert.match(workspaceStyles, /\.workspace-launch-card\s*\{[^}]*text-align:\s*start;/);
+  assert.match(workspaceStyles, /\.news-feed-meta\s*\{[^}]*text-align:\s*end;/);
+  assert.match(workspaceStyles, /\.maintenance-latest-update\s*\{[^}]*padding-inline-start:/);
+  assert.match(workspaceStyles, /\.workspace \.empty-state\s*\{[^}]*border-inline-start:/);
+  assert.match(financialStyles, /\.finance-data-table,\s*\.bi-data-table\s*\{[^}]*text-align:\s*start;/);
+  assert.match(financialStyles, /\.finance-data-table caption,\s*\.bi-data-table caption\s*\{[^}]*text-align:\s*start;/);
+  assert.match(financialStyles, /\.finance-chart-value,\s*\.bi-series-value\s*\{[^}]*text-align:\s*end;/);
+  assert.match(financialStyles, /\.bi-series-bar\.is-negative\s*\{[^}]*margin-inline-start:/);
+  assert.match(financialStyles, /\.bi-scope-banner\s*\{[^}]*border-inline-start:/);
+});
+
+test('mini-app workspaces share a responsive shell, focus, and surface palette', async () => {
+  const workspaceStyles = await readFile(new URL('../public/styles.css', import.meta.url), 'utf8');
+  const financialStyles = await readFile(new URL('../public/financial-workspaces.css', import.meta.url), 'utf8');
+
+  assert.match(workspaceStyles, /--brand-green:\s*#174b3d/i);
+  assert.match(workspaceStyles, /--opportunity-yellow:\s*#d7ad59/i);
+  assert.match(workspaceStyles, /\.workspace \.panel,\s*\.workspace \.form-card\s*\{[^}]*background:\s*var\(--surface-raised\);/s);
+  assert.match(workspaceStyles, /\.workspace table:not\(\[class\]\) th,\s*\.workspace table:not\(\[class\]\) td\s*\{[^}]*text-align:\s*start;/s);
+  assert.match(workspaceStyles, /@media \(max-width: 700px\) \{\s*\.workspace-layout \{ display: block;/);
+  assert.match(financialStyles, /\.bi-filter-form/);
+  assert.match(financialStyles, /\.finance-data-table,\s*\.bi-data-table/);
+  assert.match(financialStyles, /\.bi-filter-form input:focus/);
 });

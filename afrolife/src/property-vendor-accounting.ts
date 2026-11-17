@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { pool, withUser, requireRole, HttpError } from './core.js';
 import { audit, post } from './domain.js';
 import { enqueueAccountingEvent } from './accounting-outbox.js';
+import { canReconcileVendorPayment, isVendorInvoiceEligible } from './property-accounting.js';
 
 const h=(fn:(req:Request,res:Response)=>Promise<unknown>):RequestHandler=>(req,res,next)=>{fn(req,res).catch(next);};
 const cents=(amount:number)=>{
@@ -45,7 +46,7 @@ propertyVendorAccounting.post('/maintenance/:id/vendor-bills',requireRole(...fin
     const maintenance=(await c.query(`SELECT id,status,COALESCE(cost,0)::numeric(14,2)::text AS approved_amount
       FROM maintenance_requests WHERE id=$1 FOR UPDATE`,[req.params.id])).rows[0];
     if(!maintenance)throw new HttpError(404,'Maintenance request not found');
-    if(!['in_progress','awaiting_review','completed','done'].includes(maintenance.status))throw new HttpError(409,'Maintenance must be in progress or submitted for review before recording a vendor bill');
+    if(!isVendorInvoiceEligible(maintenance.status))throw new HttpError(409,'Vendor invoices can only be recorded for completed work orders');
     const amountCents=Math.round(Number(amount)*100);
     const expectedCents=Math.round(Number(maintenance.approved_amount)*100);
     const matchStatus=amountCents===expectedCents?'matched':'mismatch';
@@ -118,7 +119,11 @@ propertyVendorAccounting.post('/property-vendor-payments/:id/reconcile',requireR
       JOIN property_vendors vendor ON vendor.id=bill.vendor_id JOIN maintenance_requests maintenance ON maintenance.id=bill.maintenance_request_id
       WHERE bill.id=$1 FOR UPDATE OF bill`,[req.params.id])).rows[0];
     if(!bill)throw new HttpError(404,'Vendor bill not found');if(bill.status!=='payment_pending')throw new HttpError(409,'Vendor bill payment is not awaiting reconciliation');
-    if(bill.payment_recorded_by===req.user!.id)throw new HttpError(403,'A different Finance Manager must reconcile this vendor payment');
+    if(!canReconcileVendorPayment({
+      invoiceApproverId: bill.approved_by,
+      paymentRecorderId: bill.payment_recorded_by,
+      reconcilerId: req.user!.id,
+    }))throw new HttpError(403,'Payment reconciliation requires a different Finance Manager from the invoice approver and payment recorder');
     await post(c,'property_vendor_payment',bill.id,[['Accounts Payable',Number(bill.amount),0],['Cash',0,Number(bill.amount)]]);
     await enqueueAccountingEvent(c,{source_entity_id:bill.property_id,entry_date:String(bill.payment_date).slice(0,10),
       source_reference:`property-vendor-payment:${bill.payment_reference}`,

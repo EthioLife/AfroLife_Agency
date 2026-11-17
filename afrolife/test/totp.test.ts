@@ -25,4 +25,4 @@ test('verify allows one step of clock drift and rejects the rest', () => {
 });
 
 test('hotp is zero-padded', () => assert.equal(hotp(b32decode(SECRET), 1234567890 / 30 | 0).length, 6));
-test('otpauth URI carries the secret and issuer', () => assert.match(otpauthUri('ABC', '+251911'), /^otpauth:\/\/totp\/AfroLife%20Agency:%2B251911\?secret=ABC&issuer=AfroLife%20Agency$/));
+test('otpauth URI defaults to the AfroSherik issuer', () => assert.match(otpauthUri('ABC', '+251911'), /^otpauth:\/\/totp\/AfroSherik:%2B251911\?secret=ABC&issuer=AfroSherik$/));

@@ -8,12 +8,13 @@ import pg from 'pg';
 
 const localEnv = process.env.AFROLIFE_ENV_FILE
   ?? join(process.env.LOCALAPPDATA ?? '', 'AfroLife', 'afrolife.env');
-if (!existsSync(localEnv)) {
+if (!existsSync(localEnv) && !process.env.TEST_DATABASE_URL?.trim()) {
   throw new Error('The isolated local AfroLife environment file is required. Run the local database setup first.');
 }
-dotenv.config({ path: localEnv });
+if (existsSync(localEnv)) dotenv.config({ path: localEnv });
 const disposableDatabaseUrl = process.env.TEST_DATABASE_URL?.trim();
 const dockerQaMode = process.env.AFROLIFE_DOCKER_QA === '1';
+const containerizedDisposableDatabase = process.env.AFROLIFE_TEST_POSTGRES_CONTAINER === '1';
 const connectionString = disposableDatabaseUrl ?? process.env.MIGRATION_DATABASE_URL;
 const credentialPath = process.env.AFROLIFE_TEST_USERS_FILE
   ?? join(process.env.LOCALAPPDATA ?? '', 'AfroLife', 'local-test-users.txt');
@@ -29,7 +30,7 @@ const connectionPort = Number(localUrl.port);
 const allowedConnectionPort = Number.isInteger(connectionPort)
   && connectionPort >= 1
   && connectionPort <= 65535
-  && (dockerQaMode || connectionPort === 5433);
+  && (dockerQaMode || containerizedDisposableDatabase || connectionPort === 5433);
 if (!['127.0.0.1', 'localhost', '::1'].includes(localUrl.hostname)
   || !allowedConnectionPort
   || (dockerQaMode && disposableDatabaseUrl)
@@ -63,7 +64,8 @@ try {
     || /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(identity.address)
     || /^(fc|fd)[0-9a-f:]*$/i.test(identity.address)
   );
-  const dockerPostgres = dockerQaMode && dockerPrivateAddress && Number(identity.port) === 5432;
+  const dockerPostgres = (dockerQaMode || containerizedDisposableDatabase)
+    && dockerPrivateAddress && Number(identity.port) === 5432;
   if ((!loopbackPostgres && !dockerPostgres)
     || (!allowedFixtureRole && !allowedExistingLocalSetup)) {
     throw new Error(`Refusing to seed users: unexpected local database identity ${JSON.stringify(identity)}.`);
@@ -81,6 +83,8 @@ try {
     { key: 'compliance', name: 'LOCAL QA Compliance', role: 'compliance', phone: '+12025550104' },
     { key: 'finance', name: 'LOCAL QA Finance', role: 'finance', phone: '+12025550105' },
     { key: 'finance_manager', name: 'LOCAL QA Finance Manager', role: 'finance_manager', phone: '+12025550106' },
+    { key: 'finance_manager_reviewer', name: 'LOCAL QA Finance Manager Reviewer', role: 'finance_manager', phone: '+12025550112' },
+    { key: 'finance_manager_reconciler', name: 'LOCAL QA Finance Manager Reconciler', role: 'finance_manager', phone: '+12025550113' },
     { key: 'master_agent', name: 'LOCAL QA Master Agent', role: 'master_agent', phone: '+12025550107' },
     { key: 'field_agent', name: 'LOCAL QA Field Agent', role: 'field_agent', phone: '+12025550108' },
     { key: 'customer', name: 'LOCAL QA Customer', role: 'customer', phone: '+12025550109' },
@@ -109,7 +113,18 @@ try {
     );
     const userId = result.rows[0].id as string;
     ids.set(definition.key, userId);
-    credentials.push({ role: definition.role + (definition.key === 'super_admin_2' ? ' (second account for four-eyes review)' : ''), phone: definition.phone, password });
+    const credentialRole = definition.key === 'super_admin_2'
+      ? 'super_admin (second account for four-eyes review)'
+      : definition.key === 'finance_manager_reviewer'
+        ? 'finance_manager (second account for four-eyes review)'
+        : definition.key === 'finance_manager_reconciler'
+          ? 'finance_manager (independent payment reconciler)'
+          : definition.role;
+    credentials.push({
+      role: credentialRole,
+      phone: definition.phone,
+      password,
+    });
     if (definition.role === 'master_agent') {
       await client.query('INSERT INTO agents (id, agent_type, parent_id, territory_id) VALUES ($1,\'master\',NULL,$2)', [userId, territory.id]);
     } else if (definition.role === 'field_agent') {
@@ -139,6 +154,34 @@ try {
       `INSERT INTO audit_logs (actor_id, action, entity, entity_id, new_value)
        VALUES ($1,'local_test_user_seeded','user',$2,$3::jsonb)`,
       [reviewerId, ids.get(definition.key), JSON.stringify({ role: definition.role, label: definition.name })],
+    );
+  }
+
+  const legacyPropertyTenant = await client.query<{ id: string }>(
+    "SELECT id FROM property_operating_tenants WHERE tenant_key='legacy-property-operations'",
+  );
+  if (!legacyPropertyTenant.rowCount) {
+    throw new Error('The legacy property tenant is missing; apply property tenant isolation migrations before seeding test users.');
+  }
+  const tenantRoles: Record<string, string> = {
+    super_admin: 'tenant_admin',
+    corporate_business_manager: 'tenant_admin',
+    finance: 'tenant_accountant',
+    finance_manager: 'tenant_accountant',
+    master_agent: 'master_agent',
+    field_agent: 'field_agent',
+    customer: 'resident',
+    property_owner: 'owner',
+  };
+  for (const definition of definitions) {
+    const tenantRole = tenantRoles[definition.role];
+    if (!tenantRole) continue;
+    await client.query(
+      `INSERT INTO property_operating_tenant_members(tenant_system_id,user_id,tenant_role,status,assigned_by)
+       VALUES($1,$2,$3,'active',$4)
+       ON CONFLICT(tenant_system_id,user_id) DO UPDATE
+       SET tenant_role=EXCLUDED.tenant_role,status='active',assigned_by=EXCLUDED.assigned_by`,
+      [legacyPropertyTenant.rows[0].id, ids.get(definition.key), tenantRole, reviewerId],
     );
   }
 

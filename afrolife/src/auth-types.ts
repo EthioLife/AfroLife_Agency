@@ -15,6 +15,8 @@ export interface AuthUser {
   rolePermissions?: RoleActivityOverrides;
   miniAppAccessMode?: MiniAppAccessMode;
   miniAppGrants?: MiniAppKey[];
+  propertyTenantSystemId?: string;
+  propertyTenantPurpose?: string;
   adminRoleModules?: MiniAppKey[];
   adminRoleAllTenants?: boolean;
   accessOptions?: string[];
@@ -22,6 +24,22 @@ export interface AuthUser {
 
 export function isPlatformAdminRole(role: string): boolean {
   return role === 'super_admin' || role === 'global_admin';
+}
+
+const MFA_REQUIRED_ROLES = new Set([
+  'global_admin', 'super_admin', 'compliance', 'finance', 'finance_manager', 'corporate_business_manager',
+]);
+
+export function requiresMfaEnrollment(role: string): boolean {
+  return MFA_REQUIRED_ROLES.has(role);
+}
+
+export function canAccessAdminPortal(accessOptions: readonly string[]): boolean {
+  return accessOptions.some((role) => requiresMfaEnrollment(role));
+}
+
+export function requiresMfaForRoles(roles: readonly string[]): boolean {
+  return roles.some(requiresMfaEnrollment);
 }
 
 declare global {

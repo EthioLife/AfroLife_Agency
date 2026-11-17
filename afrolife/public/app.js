@@ -10,12 +10,17 @@ import { createAdminRoleAccessEditor, createMiniAppAccessEditor } from './mini-a
 import { miniAppByPanel } from './mini-apps/registry.js';
 import { isMiniAppAllowed, isPanelEnabled, panelFromUrl, panelUrl } from './workspace-navigation.js';
 import { MIN_SEARCH_QUERY_LENGTH, searchWorkspaceRecords } from './workspace-search.js';
+import { enqueueMoveOutInspectionDraft, readMoveOutInspectionDrafts, removeMoveOutInspectionDraft } from './offline-inspection-queue.js';
 import { EDIR_APPLICATION_DOCUMENTS, canChangeServer, edirApplicationDocumentPath, missingSignupDocuments, nativeApiOrigin, signupRequiredDocuments } from './registration-flows.js';
-import { agentDashboardMetrics, propertyDashboardMetrics, propertyOwnerDashboardMetrics, staffingDashboardMetrics, workforceDashboardMetrics } from './dashboard-metrics.js';
+import { agentDashboardMetrics, marketplaceDashboardMetrics, propertyDashboardMetrics, propertyOwnerDashboardMetrics, staffingDashboardMetrics, workforceDashboardMetrics } from './dashboard-metrics.js';
 import { normalizeMySubscriptions, normalizeSubscriptionCatalog, PUBLIC_SUBSCRIPTION_SERVICES, subscriptionRequestPayload } from './subscriptions.js';
 import { propertyOfferTerms } from './property-offers.js';
 import { marketplaceListingPayload } from './marketplace-form.js';
 import { paginateRows } from './row-pagination.js';
+import { filterWorkerActivityReports, workerActivityReportsCsv } from './worker-activity-reports.js';
+import { phonePayload as canonicalPhonePayload } from './phone-input.js';
+import { matchPublicFaq, suggestPublicFaqs } from './public-help.js';
+import { preparePasskeyCreationOptions, serializePasskeyRegistration } from './passkeys.js';
 
 const WEB_API_ROOT = '/api/v1';
 let API_ROOT = WEB_API_ROOT;
@@ -26,8 +31,11 @@ const SIGNUP_DONE_KEY = 'afrolife.signup-upload-complete';
 const SIGNUP_DOCUMENTS_KEY = 'afrolife.signup-uploaded-documents';
 const EDIR_APPLICATION_UPLOAD_KEY = 'afrolife.edir-application-upload';
 const EDIR_ORGANIZATION_KEY = 'afrolife.edir-organization';
+const PROPERTY_TENANT_KEY = 'afrolife.property-tenant';
+const PROPERTY_TENANT_SUPPORT_GRANT_KEY = 'afrolife.property-tenant-support-grant';
 const DEFAULT_EDIR_ORGANIZATION = '00000000-0000-4000-8000-000000000002';
 const STAFF = new Set(['global_admin', 'super_admin', 'compliance', 'finance', 'finance_manager']);
+const REQUIRED_MFA_ROLES = new Set(['global_admin', 'super_admin', 'compliance', 'finance', 'finance_manager', 'corporate_business_manager']);
 const KNOWN_PANELS = new Set([
   'overview', 'launcher', 'subscriptions', 'leads', 'workers', 'requests', 'support', 'learning', 'properties', 'marketplace', 'tenant-data-admin',
   'contracts', 'commissions', 'agents', 'rent', 'mfi', 'accounting', 'edir',
@@ -39,13 +47,30 @@ const MINI_APP_PANELS = new Set([
   'insurance', 'privacy', 'global-bi',
 ]);
 const $ = (selector) => document.querySelector(selector);
-const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
+const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], trustedDevices: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [], amenity_reservations: [] }, propertyAssociationReport: null, propertyMoveOutInspectionDrafts: [], propertyMoveOutInspectionSyncError: '', rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
+let edirRegistrationTrigger = null;
+state.passkeySecurity = null;
+state.passkeyOptions = null;
+state.passkeyDeviceName = 'This device';
+state.propertyTenantSupportGrantId = localStorage.getItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
+state.propertyTenantSupportGrants = [];
+state.propertyOperatingTenants = [];
+state.propertyTenantPendingGrants = [];
+state.propertyTenantExportRequests = [];
+state.propertyAgentScopes = [];
+state.propertyTenantAgentCandidates = [];
 const loadedPanels = new Set();
+let accessVisiblePanels = new Set();
 state.supportAppealQueue = [];
+state.workerReportFilters = { startDate: '', endDate: '', status: 'all' };
 state.overviewDataErrors = [];
 state.overviewDataOmitted = [];
 state.overviewLoadedAt = null;
 state.assistant = { conversations: [], queue: [], selectedId: null, messages: [], available: false, onlineCount: 0 };
+state.supportMessaging = null;
+state.publicSupportFaq = null;
+state.publicHelpMessages = [];
+state.publicHelpFaqUnavailable = false;
 let workspaceSearchSequence = 0;
 let deferredInstallPrompt = null;
 let supportAccessExpiryTimer = null;
@@ -72,6 +97,25 @@ function apiRoot() {
   return API_ROOT;
 }
 
+function propertyTenantRequestHeaders() {
+  if (!state.propertyTenantContextId) return {};
+  const supportGrant = state.propertyTenantSupportGrants.find((grant) =>
+    grant.id === state.propertyTenantSupportGrantId
+      && grant.tenant_system_id === state.propertyTenantContextId);
+  return {
+    'x-afrolife-property-tenant-id': state.propertyTenantContextId,
+    ...(supportGrant ? { 'x-afrolife-property-tenant-purpose': supportGrant.purpose } : {}),
+  };
+}
+
+function authenticatedPropertyFetch(path, options = {}) {
+  const headers = new Headers(options.headers ?? {});
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  if (token) headers.set('authorization', ['Bearer', token].join(' '));
+  for (const [name, value] of Object.entries(propertyTenantRequestHeaders())) headers.set(name, value);
+  return fetch(`${apiRoot()}${path}`, { ...options, headers });
+}
+
 function roleLabel(role) {
   const labels = {
     global_admin: 'Global Admin',
@@ -88,6 +132,19 @@ function roleLabel(role) {
     property_vendor: 'Property vendor',
   };
   return t(labels[role] ?? role.replaceAll('_', ' '));
+}
+
+const ACCOUNT_ROLE_GROUPS = {
+  staff: ['corporate_business_manager', 'compliance', 'finance', 'finance_manager'],
+  agents: ['master_agent', 'field_agent'],
+  members: ['customer', 'worker', 'property_owner'],
+};
+
+function editableAccountRoles(user, actor) {
+  if (user.id === actor.id) return [];
+  if (actor.role === 'super_admin'
+    && (user.created_by !== actor.id || !ACCOUNT_ROLE_GROUPS.agents.includes(user.role))) return [];
+  return Object.values(ACCOUNT_ROLE_GROUPS).find((roles) => roles.includes(user.role)) ?? [];
 }
 
 function node(tag, text, className) {
@@ -131,12 +188,15 @@ function assistantButton(message, action, id) {
 
 function renderAssistant() {
   const assistant = state.assistant;
-  setLocalizedText($('#assistant-intro'), 'Your access and support options follow your AfroLife role.');
+  setLocalizedText($('#assistant-intro'), 'Your access and support options follow your AfroSherik role.');
   setLocalizedText($('#assistant-disclosure'), 'Your support request is private to you and the support agent who claims it. Do not send passwords, payment card details, or authentication codes.');
   setLocalizedText($('#assistant-availability-status'), 'Online support agents: {{count}}', { count: assistant.onlineCount });
   const presenceButton = $('#assistant-presence-toggle');
   presenceButton.hidden = !ASSISTANT_SUPPORT_STAFF.has(state.user?.role);
   setLocalizedText(presenceButton, assistant.available ? 'Stop offering support' : 'Make me available');
+  for (const button of document.querySelectorAll('[data-action="assistant-telegram-link"]')) {
+    button.hidden = state.supportMessaging?.telegram !== 'available';
+  }
 
   const actions = $('#assistant-role-actions');
   actions.replaceChildren();
@@ -200,7 +260,7 @@ function renderAssistant() {
     item.dataset.sender = message.sender_type;
     const sender = message.sender_type === 'user'
       ? (message.sender_id === state.user.id ? 'You' : roleLabel(message.sender_role))
-      : 'AfroLife support';
+      : 'AfroSherik support';
     item.append(node('small', sender));
     const body = document.createElement('p');
     body.textContent = message.body;
@@ -380,7 +440,7 @@ async function loadPublicIndustryNews() {
       setIndustryNewsStatus('Feeds updated', 'ready');
     }
   } catch (error) {
-    console.warn('AfroLife industry news could not be loaded.', error);
+    console.warn('AfroSherik industry news could not be loaded.', error);
     fallback.hidden = false;
     $('#industry-news-fallback-message').textContent = 'Live headlines are temporarily unavailable. Search current coverage from Google News:';
     results.replaceChildren();
@@ -400,6 +460,10 @@ setInterval(loadPublicIndustryNews, 15 * 60 * 1000);
 async function api(path, options = {}) {
   const headers = new Headers(options.headers ?? {});
   headers.set('x-afrolife-edir-id', state.edirOrganizationId);
+  for (const [name, value] of Object.entries(propertyTenantRequestHeaders())) headers.set(name, value);
+  if (state.user?.role === 'super_admin' && state.platformTenantContextId) {
+    headers.set('x-afrolife-platform-tenant-id', state.platformTenantContextId);
+  }
   const token = sessionStorage.getItem(TOKEN_KEY);
   if (token) headers.set('authorization', `Bearer ${token}`);
   if (options.body && !(options.body instanceof Blob)) headers.set('content-type', 'application/json');
@@ -423,6 +487,7 @@ async function downloadAuthenticatedFile(path, filename) {
   const response = await fetch(`${apiRoot()}${path}`, {
     headers: {
       'x-afrolife-edir-id': state.edirOrganizationId,
+      ...propertyTenantRequestHeaders(),
       ...(token ? { authorization: `Bearer ${token}` } : {}),
     },
   });
@@ -494,9 +559,13 @@ async function login(event) {
   const error = $('#login-error');
   setLocalizedText(error, '');
   try {
-    const result = await api('/auth/login', { method: 'POST', body: JSON.stringify(values) });
+    const phoneFields = canonicalPhonePayload(form);
+    const payload = { ...values, ...phoneFields };
+    if ('phone_national_number' in phoneFields) delete payload.phone;
+    const result = await api('/auth/login', { method: 'POST', body: JSON.stringify(payload) });
     if (result.mfa_required) {
       $('#mfa-field').hidden = false;
+      $('#trust-device-field').hidden = false;
       setLocalizedText(error, 'Enter the six-digit code from your authenticator app.');
       return;
     }
@@ -504,7 +573,7 @@ async function login(event) {
     sessionStorage.setItem(TOKEN_KEY, result.token);
     state.mfaRequired = result.restrict === 'mfa';
     state.accessOptions = Array.isArray(result.access_options) ? result.access_options : [];
-    if (!state.mfaRequired && state.accessOptions.length > 1) {
+    if (!result.restrict && !state.mfaRequired && state.accessOptions.length > 1) {
       renderAccessModeChoice(state.accessOptions);
       return;
     }
@@ -542,6 +611,207 @@ async function switchAccessMode(role) {
     if (error) error.textContent = reason.message;
     else showAlert(reason.message, true);
   }
+}
+
+async function requestPasswordRecovery(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  setLocalizedText($('#recovery-status'), '');
+  try {
+    await api('/auth/password-recovery/complete', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...canonicalPhonePayload(form),
+        code: form.elements.namedItem('code').value,
+        next: form.elements.namedItem('next').value,
+      }),
+    });
+    setLocalizedText($('#recovery-status'), 'Password updated successfully.');
+  } catch (error) {
+    setLocalizedText($('#recovery-status'), error.message);
+  }
+}
+
+async function requestWhatsAppRecoveryCode() {
+  const form = $('#recovery-form');
+  const button = form.querySelector('[data-recovery-request]');
+  button.disabled = true;
+  setLocalizedText($('#recovery-status'), '');
+  try {
+    await api('/auth/password-recovery/request', {
+      method: 'POST',
+      body: JSON.stringify(canonicalPhonePayload(form)),
+    });
+    setLocalizedText($('#recovery-status'), 'If this number is eligible, recovery instructions will be sent privately.');
+  } catch (error) {
+    setLocalizedText($('#recovery-status'), error.message);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function loadPublicSupportContact() {
+  const apiBase = apiRoot().replace(/\/api\/v1$/, '');
+  const loadContact = async () => {
+    try {
+      const response = await fetch(`${apiBase}/api/public/support`, { headers: { accept: 'application/json' } });
+      if (!response.ok) throw new Error(`Support contact settings unavailable (${response.status})`);
+      const contact = await response.json();
+      state.supportMessaging = contact;
+      for (const link of document.querySelectorAll('[data-support-phone-link]')) {
+        link.href = `tel:${contact.supportPhone}`;
+      }
+      for (const text of document.querySelectorAll('[data-support-phone-text]')) {
+        text.textContent = contact.supportPhone;
+      }
+      for (const link of document.querySelectorAll('[data-support-whatsapp-link]')) {
+        link.href = contact.whatsappChatUrl;
+      }
+      for (const link of document.querySelectorAll('[data-support-telegram-link]')) {
+        link.hidden = contact.telegram !== 'available' || !contact.telegramChatUrl;
+        if (contact.telegramChatUrl) link.href = contact.telegramChatUrl;
+      }
+    } catch (error) {
+      console.error('Public support contacts could not be loaded.', error);
+    }
+  };
+  const loadFaq = async () => {
+    try {
+      const response = await fetch(`${apiBase}/api/public/support-faq`, { headers: { accept: 'application/json' } });
+      if (!response.ok) throw new Error(`Support FAQs unavailable (${response.status})`);
+      const faq = await response.json();
+      if (!Array.isArray(faq)) throw new Error('Support FAQ content is invalid.');
+      state.publicSupportFaq = faq;
+      state.publicHelpFaqUnavailable = faq.length === 0;
+    } catch (error) {
+      console.error('Public support FAQs could not be loaded.', error);
+      state.publicSupportFaq = [];
+      state.publicHelpFaqUnavailable = true;
+    }
+    renderSupportFaq('#support-faq-list', state.publicSupportFaq);
+    renderSupportFaq('#assistant-support-faq-list', state.publicSupportFaq);
+    renderPublicHelpTopics();
+    renderPublicHelpMessages();
+  };
+  await Promise.all([loadContact(), loadFaq()]);
+  renderAssistant();
+}
+
+function renderSupportFaq(selector, faq) {
+  const faqList = $(selector);
+  if (!faqList) return;
+  faqList.replaceChildren();
+  if (!Array.isArray(faq) || !faq.length) {
+    const empty = document.createElement('p');
+    empty.textContent = t('No published support answers are available right now.');
+    faqList.append(empty);
+    return;
+  }
+  const categories = new Map();
+  for (const item of faq) {
+    const category = item.category || 'General support';
+    if (!categories.has(category)) {
+      const section = document.createElement('section');
+      section.className = 'support-faq-category';
+      const heading = document.createElement('h4');
+      heading.textContent = t(category);
+      section.append(heading);
+      categories.set(category, section);
+      faqList.append(section);
+    }
+    const details = document.createElement('details');
+    const summary = document.createElement('summary');
+    summary.textContent = t(item.question);
+    const answer = document.createElement('p');
+    answer.textContent = t(item.answer);
+    details.append(summary, answer);
+    categories.get(category).append(details);
+  }
+}
+
+function updatePublicFaqLanguageNotices(locale) {
+  document.querySelectorAll('[data-faq-language-note]').forEach((notice) => {
+    notice.hidden = locale === 'en';
+  });
+}
+
+function publicHelpFaqForLocale() {
+  const faq = Array.isArray(state.publicSupportFaq) ? state.publicSupportFaq : [];
+  return faq.flatMap((item) => [
+    { ...item, sourceQuestion: item.question },
+    {
+      ...item,
+      sourceQuestion: item.question,
+      category: t(item.category),
+      question: t(item.question),
+      answer: t(item.answer),
+    },
+  ]);
+}
+
+function renderPublicHelpTopics() {
+  const topics = $('#public-help-topics');
+  if (!topics) return;
+  topics.replaceChildren();
+  if (!Array.isArray(state.publicSupportFaq) || !state.publicSupportFaq.length) {
+    const fallback = document.createElement('p');
+    fallback.textContent = t('Common answers are temporarily unavailable. You can still call support or contact the team on WhatsApp.');
+    topics.append(fallback);
+    return;
+  }
+  for (const item of state.publicSupportFaq.slice(0, 6)) {
+    const topic = document.createElement('button');
+    topic.type = 'button';
+    topic.className = 'public-help-topic button button-outline';
+    topic.dataset.publicHelpQuestion = t(item.question);
+    topic.textContent = t(item.question);
+    topics.append(topic);
+  }
+}
+
+function renderPublicHelpMessages() {
+  const messages = $('#public-help-messages');
+  if (!messages) return;
+  messages.replaceChildren();
+  for (const message of state.publicHelpMessages) {
+    const item = document.createElement('li');
+    item.className = 'public-help-message';
+    item.dataset.sender = message.sender;
+    item.textContent = message.sender === 'visitor' ? message.text : t(message.text);
+    messages.append(item);
+  }
+  const fallback = $('#public-help-fallback');
+  if (fallback) {
+    fallback.hidden = !state.publicHelpFaqUnavailable;
+    if (!fallback.hidden) {
+      setLocalizedText(fallback, 'FAQ answers may be unavailable, but you can still contact human support using the links below.');
+    }
+  }
+}
+
+function answerPublicHelpQuestion(question) {
+  const text = question.trim();
+  if (!text) return;
+  state.publicHelpMessages.push({ sender: 'visitor', text });
+  const faq = publicHelpFaqForLocale();
+  const match = matchPublicFaq(text, faq);
+  const suggestions = match ? [] : suggestPublicFaqs(text, faq);
+  const response = match
+    ? match.answer
+    : [
+      t('I can help with account access, applications and documents, service access or payments, work and property, marketplace, community products, and technical issues.'),
+      ...(suggestions.length
+        ? [t('Guides that may help:'), ...suggestions.map((item) => `${item.question}\n${item.answer}`)]
+        : []),
+      t('Tell me the service and what you were trying to do, or ask a human using the support options below.'),
+      t('For your security, do not send passwords, one-time codes, payment details, or identity documents in chat.'),
+    ].join('\n\n');
+  state.publicHelpMessages.push({
+    sender: 'helper',
+    text: response,
+  });
+  renderPublicHelpMessages();
+  $('#public-help-messages').lastElementChild?.scrollIntoView({ block: 'nearest' });
 }
 
 function territoryLabel(area) {
@@ -679,7 +949,7 @@ function updatePlanLabels() {
     $('#signup-plan option[value="enterprise"]').textContent = t('Enterprise plan — ETB {{amount}} per month', { amount: plans.agent_enterprise_monthly_etb });
   }
   const descriptions = {
-    free: ['Free service', 'Core AfroLife tools for your role, including lead, worker, request, contract and listing workflows.'],
+    free: ['Free service', 'Core AfroSherik tools for your role, including lead, worker, request, contract and listing workflows.'],
     pro: ['Pro service', 'Pro is a plan request only. Future paid features require billing and activation.'],
     enterprise: ['Enterprise service', 'Enterprise is a plan request only. Team reporting is not active until billing and activation are configured.'],
   };
@@ -713,6 +983,7 @@ function updateSignupFields() {
 
 function openSignup(agentPlans = false, edirMember = false) {
   $('#login-form').hidden = true;
+  $('#recovery-form').hidden = true;
   $('#signup-form').hidden = false;
   $('#signup-success').hidden = true;
   if (sessionStorage.getItem(SIGNUP_UPLOAD_KEY)) {
@@ -721,7 +992,9 @@ function openSignup(agentPlans = false, edirMember = false) {
       void loadSignupFollowup();
     } else {
       $('#signup-form').dataset.signupCreated = 'true';
-      setLocalizedText($('#signup-error'), 'A registration is already pending. Upload the required documents to finish it.');
+      showSignupFollowupMode();
+      setLocalizedText($('#signup-success'), 'A registration is already pending. Upload the required documents to finish it.');
+      void loadSignupFollowup();
     }
   }
   if (agentPlans) {
@@ -772,11 +1045,16 @@ async function loadSignupFollowup() {
         select.append(option);
       }
     }
-    $('#signup-followup-form').hidden = !select.options.length;
+    const needsReplacement = Boolean(select.options.length);
+    $('#signup-followup-form').hidden = !needsReplacement;
+    select.required = needsReplacement;
+    $('#signup-followup-form [name="file"]').required = needsReplacement;
     if (!select.options.length) list.append(node('p', 'All required documents are received. Compliance will review them before account activation.', 'muted'));
   } catch (error) {
     list.append(empty(error.message));
     $('#signup-followup-form').hidden = true;
+    select.required = false;
+    $('#signup-followup-form [name="file"]').required = false;
   }
 }
 
@@ -842,9 +1120,16 @@ async function submitSignup(event) {
     setLocalizedText(error, 'Select each required KYC document before submitting.');
     return;
   }
+  let phoneFields;
+  try {
+    phoneFields = canonicalPhonePayload(form);
+  } catch (reason) {
+    setLocalizedText(error, reason.message);
+    return;
+  }
   const payload = {
     legal_name: values.legal_name,
-    phone: values.phone,
+    ...phoneFields,
     email: values.email,
     password: values.password,
     password_confirmation: values.password_confirmation,
@@ -879,7 +1164,7 @@ async function submitSignup(event) {
     if (!form.dataset.signupCreated) {
       const signup = await api('/auth/signup', { method: 'POST', body: JSON.stringify(payload) });
       uploadToken = signup.upload_token;
-      if (!uploadToken) throw new Error(t('Registration succeeded but a secure document-upload token was not issued. Contact AfroLife support.'));
+      if (!uploadToken) throw new Error(t('Registration succeeded but a secure document-upload token was not issued. Contact AfroSherik support.'));
       sessionStorage.setItem(SIGNUP_UPLOAD_KEY, uploadToken);
       sessionStorage.setItem(SIGNUP_DOCUMENTS_KEY, JSON.stringify({
         accountType,
@@ -998,7 +1283,7 @@ async function submitEdirRegistration(event) {
       });
       const applicationId = result?.application_id ?? result?.id;
       if (!applicationId || !result?.upload_token) {
-        throw new Error(t('The application response did not include the secure upload details. Contact AfroLife support before submitting again.'));
+        throw new Error(t('The application response did not include the secure upload details. Contact AfroSherik support before submitting again.'));
       }
       progress = {
         applicationId: String(applicationId),
@@ -1021,6 +1306,7 @@ async function submitEdirRegistration(event) {
         method: 'POST',
         headers: {
           authorization: `Signup ${progress.uploadToken}`,
+          ...propertyTenantRequestHeaders(),
           'content-type': file.type,
         },
         body: file,
@@ -1038,7 +1324,7 @@ async function submitEdirRegistration(event) {
     form.reset();
     syncEdirRegistrationRequirements(null);
     setLocalizedText($('#edir-registration-success'),
-      'Application received. AfroLife Master Edir will review it before an organization workspace is activated. Reference: {{id}}',
+      'Application received. AfroSherik Master Edir will review it before an organization workspace is activated. Reference: {{id}}',
       { id: progress.applicationId });
     $('#edir-registration-success').hidden = false;
   } catch (reason) {
@@ -1130,7 +1416,7 @@ function startSessionActivity(idleTimeoutMinutes) {
     if (sessionStorage.getItem(TOKEN_KEY) && Date.now() - lastSessionActivityAt < 60_000) {
       api('/auth/session').catch((error) => {
         if (!(error instanceof ApiError && error.status === 401)) {
-          console.error('The active AfroLife session could not be refreshed.', error);
+          console.error('The active AfroSherik session could not be refreshed.', error);
         }
       });
     }
@@ -1147,11 +1433,11 @@ function signOut({ revoke = true, message = '' } = {}) {
       headers.set('authorization', ['Bearer', token].join(' '));
       void fetch(endpoint, { method: 'POST', headers })
         .then((response) => {
-          if (!response.ok && response.status !== 401) console.warn('AfroLife could not revoke the signed-out server session.', response.status);
+          if (!response.ok && response.status !== 401) console.warn('AfroSherik could not revoke the signed-out server session.', response.status);
         })
-        .catch((error) => console.warn('AfroLife could not reach the server to revoke the signed-out session.', error));
+        .catch((error) => console.warn('AfroSherik could not reach the server to revoke the signed-out session.', error));
     } catch (error) {
-      console.warn('AfroLife could not resolve the server to revoke the signed-out session.', error);
+      console.warn('AfroSherik could not resolve the server to revoke the signed-out session.', error);
     }
   }
   stopSessionActivity();
@@ -1164,6 +1450,12 @@ function signOut({ revoke = true, message = '' } = {}) {
   state.assistant = { conversations: [], queue: [], selectedId: null, messages: [], available: false, onlineCount: 0 };
   sessionStorage.removeItem(TOKEN_KEY);
   state.user = null;
+  state.propertyTenantSupportGrantId = null;
+  state.propertyTenantSupportGrants = [];
+  state.propertyOperatingTenants = [];
+  state.propertyTenantPendingGrants = [];
+  state.propertyTenantExportRequests = [];
+  localStorage.removeItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
   subscriptionState.mine = [];
   subscriptionState.mineLoaded = false;
   subscriptionState.mineError = false;
@@ -1176,7 +1468,7 @@ function signOut({ revoke = true, message = '' } = {}) {
   workspaceSearchSequence += 1;
   loadedPanels.clear();
   Object.assign(state, {
-    leads: [], workers: [], workerDocumentExpiry: [], requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], rentalApplications: [], maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [],
+    leads: [], workers: [], workerDocumentExpiry: [], requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [], amenity_reservations: [] }, propertyAssociationReport: null, propertyMoveOutInspectionDrafts: [], propertyMoveOutInspectionSyncError: '', rentalApplications: [], maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [],
     commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], notificationDeliveryStatus: [],
     roleAccess: null, learningContent: [], contracts: [], leases: [], tenants: [], pendingRent: [],
     platformServices: [], platformServicePackages: [], platformTenants: [], platformSuperAdmins: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [],
@@ -1210,9 +1502,35 @@ function signOut({ revoke = true, message = '' } = {}) {
   $('#login-form').hidden = false;
   state.accessOptions = [];
   $('#mfa-field').hidden = true;
+  $('#trust-device-field').hidden = true;
   $('#retry-session').hidden = true;
   $('#login-error').textContent = message;
   showAlert('');
+}
+
+function renderPropertyTenantContext() {
+  const tenantContextHost = $('#property-tenant-context');
+  tenantContextHost.replaceChildren();
+  if (!state.propertyTenantMemberships.length && !state.propertyTenantSupportGrants.length) return;
+  const tenantPicker = field('Property operating tenant', 'property_tenant_context', 'select', true);
+  tenantPicker.input.dataset.propertyTenantContext = 'true';
+  tenantPicker.input.append(new Option('Select a tenant', ''));
+  for (const tenant of state.propertyTenantMemberships) {
+    tenantPicker.input.append(new Option(
+      `${tenant.legal_name} · ${tenant.tenant_role.replaceAll('_', ' ')}`,
+      tenant.id,
+    ));
+  }
+  for (const grant of state.propertyTenantSupportGrants) {
+    tenantPicker.input.append(new Option(
+      `${grant.tenant_name} · approved support · ${grant.purpose}`,
+      `${grant.tenant_system_id}:${grant.id}`,
+    ));
+  }
+  tenantPicker.input.value = state.propertyTenantSupportGrantId
+    ? `${state.propertyTenantContextId}:${state.propertyTenantSupportGrantId}`
+    : state.propertyTenantContextId ?? '';
+  tenantContextHost.append(tenantPicker.label);
 }
 
 async function loadWorkspace() {
@@ -1220,16 +1538,6 @@ async function loadWorkspace() {
   state.accessOptions = Array.isArray(state.user.access_options)
     ? state.user.access_options
     : [state.user.role];
-  const accessModeTools = $('#access-mode-tools');
-  const accessModeSelect = $('#access-mode-select');
-  accessModeSelect.replaceChildren();
-  for (const role of state.accessOptions) {
-    accessModeSelect.append(new Option(role === 'super_admin' ? 'Super Admin' : 'Global Admin', role));
-  }
-  accessModeSelect.value = state.user.role;
-  accessModeTools.hidden = state.accessOptions.length < 2;
-  $('#access-mode-choice').hidden = true;
-  startSessionActivity(state.user.session_idle_timeout_minutes ?? 30);
   const featureFallback = { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] };
   const passwordRequired = state.user.must_change_password || state.user.required_security_step === 'password';
   state.mfaRequired = state.mfaRequired || state.user.required_security_step === 'mfa';
@@ -1244,6 +1552,7 @@ async function loadWorkspace() {
     $('#assistant-launcher').hidden = true;
     $('#mobile-workspace-nav').hidden = true;
     $('#account-tools').hidden = true;
+    $('#access-mode-choice').hidden = true;
     $('#account-name').textContent = `${state.user.legal_name} · ${roleLabel(state.user.role)}`;
     $('#page-subtitle').textContent = t('Signed in as {{role}}. Your access is limited to your assigned role and territory.', { role: roleLabel(state.user.role) });
     $('#login-error').textContent = '';
@@ -1252,6 +1561,43 @@ async function loadWorkspace() {
     renderPanel();
     return;
   }
+  const accessModeTools = $('#access-mode-tools');
+  const accessModeSelect = $('#access-mode-select');
+  accessModeSelect.replaceChildren();
+  for (const role of state.accessOptions) {
+    accessModeSelect.append(new Option(role === 'super_admin' ? 'Super Admin' : 'Global Admin', role));
+  }
+  accessModeSelect.value = state.user.role;
+  accessModeTools.hidden = state.accessOptions.length < 2;
+  $('#access-mode-choice').hidden = true;
+  startSessionActivity(state.user.session_idle_timeout_minutes ?? 30);
+  state.propertyTenantMemberships = await api('/property/tenant-systems/mine');
+  state.propertyTenantSupportGrants = state.user.role === 'global_admin'
+    ? await api('/property/tenant-support-grants/mine')
+    : [];
+  const selectedSupportGrant = state.propertyTenantSupportGrants.find((grant) =>
+    grant.id === state.propertyTenantSupportGrantId
+      && grant.tenant_system_id === state.propertyTenantContextId);
+  const selectedMembership = state.propertyTenantMemberships.some((tenant) =>
+    tenant.id === state.propertyTenantContextId && tenant.status === 'active');
+  if (selectedSupportGrant) {
+    state.propertyTenantContextId = selectedSupportGrant.tenant_system_id;
+  } else if (selectedMembership) {
+    state.propertyTenantSupportGrantId = null;
+    localStorage.removeItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
+  } else {
+    state.propertyTenantSupportGrantId = null;
+    localStorage.removeItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
+    state.propertyTenantContextId = state.propertyTenantMemberships.length === 1
+      ? state.propertyTenantMemberships[0].id
+      : null;
+  }
+  if (state.propertyTenantContextId) {
+    localStorage.setItem(PROPERTY_TENANT_KEY, state.propertyTenantContextId);
+  } else {
+    localStorage.removeItem(PROPERTY_TENANT_KEY);
+  }
+  renderPropertyTenantContext();
   const selfCapabilities = await getOptional('/platform/my-data-capabilities', []);
   state.myDataCapabilities = Array.isArray(selfCapabilities) ? selfCapabilities : [];
   const assignedDataTenantIds = state.myDataCapabilities.map((entry) => entry.tenant_id);
@@ -1375,12 +1721,17 @@ async function loadWorkspace() {
     ? state.features.enabledModules
     : [...KNOWN_PANELS];
   for (const tab of document.querySelectorAll('.tab[data-panel]')) {
+    if (miniAppLogo(tab.dataset.panel)) tab.hidden = false;
     if (!isPanelEnabled(tab.dataset.panel, enabledModules)) tab.hidden = true;
     if (MINI_APP_PANELS.has(tab.dataset.panel)
         && Array.isArray(state.features.allowedModules)
         && !isMiniAppAllowed(tab.dataset.panel, state.features.allowedModules)) tab.hidden = true;
   }
   $('#status-tab').hidden = false;
+  accessVisiblePanels = new Set(
+    [...document.querySelectorAll('.tab[data-panel]:not([hidden])')]
+      .map((tab) => tab.dataset.panel),
+  );
   if (state.panel === 'password' || state.mfaRequired) {
     state.panel = state.user.must_change_password ? 'password' : 'security';
     history.replaceState(null, '', panelUrl(window.location.href, state.panel));
@@ -1403,6 +1754,7 @@ async function loadWorkspace() {
     renderPanel();
     return;
   }
+  await syncPropertyMoveOutInspectionDrafts();
   renderPanel();
   await refresh();
 }
@@ -1529,6 +1881,51 @@ async function loadPanelData(panel) {
       state.marketplaceSellers = ['global_admin', 'super_admin', 'corporate_business_manager'].includes(state.user.role)
         ? await safeGet('/marketplace/sellers', []) : [];
       if (hasActivity('property.listings.view')) state.properties = await safeGet('/properties', []);
+      const activePropertyTenant = state.propertyTenantContextId;
+      state.propertyArc = activePropertyTenant
+        ? await safeGet('/property/arc-requests', { requests: [], eligible_properties: [] })
+        : { requests: [], eligible_properties: [] };
+      state.propertyAssociations = activePropertyTenant
+        ? await safeGet('/property/associations', {
+          currency: null, associations: [], assessments: [], amenity_policies: [],
+          dues_policies: [], dues_cycles: [], amenity_reservations: [],
+        })
+        : {
+          currency: null, associations: [], assessments: [], amenity_policies: [],
+          dues_policies: [], dues_cycles: [], amenity_reservations: [],
+        };
+      const propertyTenantMembership = state.propertyTenantMemberships.find((tenant) =>
+        tenant.id === activePropertyTenant && tenant.status === 'active');
+      if (activePropertyTenant && !state.propertyTenantSupportGrantId) {
+        state.propertyAgentScopes = await safeGet(
+          `/property/tenant-systems/${encodeURIComponent(activePropertyTenant)}/agent-scopes`, [],
+        );
+        if (propertyTenantMembership?.tenant_role === 'tenant_admin') {
+          state.propertyTenantAgentCandidates = await safeGet(
+            `/property/tenant-systems/${encodeURIComponent(activePropertyTenant)}/agent-candidates`, [],
+          );
+        } else if (propertyTenantMembership?.tenant_role === 'master_agent') {
+          const today = new Date().toISOString().slice(0, 10);
+          const managedPropertyIds = [...new Set(state.propertyAgentScopes
+            .filter((scope) => scope.user_id === state.user.id && scope.tenant_role === 'master_agent'
+              && scope.status === 'active' && scope.effective_from <= today
+              && (!scope.effective_to || scope.effective_to >= today))
+            .map((scope) => scope.property_id))];
+          const candidatesByProperty = await Promise.all(managedPropertyIds.map(async (propertyId) => {
+            const candidates = await safeGet(
+              `/property/tenant-systems/${encodeURIComponent(activePropertyTenant)}/agent-candidates?property_id=${encodeURIComponent(propertyId)}`,
+              [],
+            );
+            return candidates.map((candidate) => ({ ...candidate, property_id: propertyId }));
+          }));
+          state.propertyTenantAgentCandidates = candidatesByProperty.flat();
+        } else {
+          state.propertyTenantAgentCandidates = [];
+        }
+      } else {
+        state.propertyAgentScopes = [];
+        state.propertyTenantAgentCandidates = [];
+      }
       state.propertyAuthorityReviewQueue = ['global_admin','super_admin','corporate_business_manager'].includes(state.user.role)
         ? await safeGet('/properties/authority-review', []) : [];
       if (hasActivity('property.maintenance.manage')) {
@@ -1611,6 +2008,9 @@ async function loadPanelData(panel) {
       state.tenantAnalyticsStatus = assigned?.capabilities?.includes('analytics_admin')
         ? await safeGet(`/platform/my-data/${encodeURIComponent(assigned.tenant_id)}/analytics`, null)
         : null;
+      state.tenantMigrationRuns = assigned?.capabilities?.includes('database_admin')
+        ? await safeGet(`/platform/my-data/${encodeURIComponent(assigned.tenant_id)}/migration-runs`, [])
+        : [];
       break;
     }
     case 'admin':
@@ -1639,6 +2039,11 @@ async function loadPanelData(panel) {
           safeGet('/platform/tenants', []), safeGet('/platform/super-admins', []),
           safeGet('/platform/catalog-products', []),
         ]);
+        [state.propertyOperatingTenants, state.propertyTenantPendingGrants, state.propertyTenantExportRequests] = await Promise.all([
+          safeGet('/property/tenant-systems', []),
+          safeGet('/property/tenant-support-grants/pending', []),
+          safeGet('/property/tenant-offboarding-exports', []),
+        ]);
         state.platformDataAdmin = await safeGet('/platform/tenant-capabilities', null);
         state.businessTenants = await safeGet('/platform/business-tenants', []);
       }
@@ -1661,7 +2066,16 @@ async function loadPanelData(panel) {
         ? await safeGet('/support/access-requests',[]) : [];
       break;
     case 'security':
-      await load('authSessions', '/auth/sessions');
+      await Promise.all([
+        load('authSessions', '/auth/sessions'),
+        load('trustedDevices', '/auth/trusted-devices'),
+        safeGet('/auth/passkeys', {
+          enabled: false,
+          status: 'unavailable',
+          message: 'Passkey status could not be loaded. Try again later.',
+          credentials: null,
+        }).then((result) => { state.passkeySecurity = result; }),
+      ]);
       break;
     default:
       break;
@@ -2021,7 +2435,7 @@ function renderOverview() {
     const offer = node('section', undefined, 'panel form-card edir-offer');
     offer.append(node('p', 'ETHIOLIFE EDIR · MEMBERSHIP OFFER', 'eyebrow'));
     offer.append(node('h2', 'Explore Edir membership and available benefits'));
-    offer.append(node('p', 'Open to verified AfroLife users across worker, employer, landlord, tenant, seller, and buyer services. Review active community, savings, share, and contribution options before requesting membership. Lending, insurance, and benefit payouts are not live in this pilot.'));
+    offer.append(node('p', 'Open to verified AfroSherik users across worker, employer, landlord, tenant, seller, and buyer services. Review active community, savings, share, and contribution options before requesting membership. Lending, insurance, and benefit payouts are not live in this pilot.'));
     const action = button('View Edir offer', 'open-edir-offer', 'button button-primary');
     action.addEventListener('click', () => navigateToPanel('edir'));
     offer.append(action);
@@ -2145,6 +2559,28 @@ function miniAppLogo(panel) {
   return miniAppByPanel[panel]?.logo ?? integratedMiniAppLogos[panel] ?? null;
 }
 
+function currentMiniAppPanels() {
+  return miniAppByPanel[state.panel]?.panels
+    ?? (miniAppLogo(state.panel) ? [state.panel] : []);
+}
+
+function applyMiniAppNavigationScope() {
+  const currentPanels = new Set(currentMiniAppPanels());
+  for (const tab of document.querySelectorAll('.tab[data-panel]')) {
+    const panel = tab.dataset.panel;
+    tab.hidden = !accessVisiblePanels.has(panel)
+      || (Boolean(miniAppLogo(panel))
+        && state.panel !== 'launcher'
+        && !currentPanels.has(panel));
+  }
+}
+
+function isCrossMiniAppPanel(panel) {
+  return Boolean(miniAppLogo(panel))
+    && state.panel !== 'launcher'
+    && !currentMiniAppPanels().includes(panel);
+}
+
 function renderSuperAppLauncher() {
   const wrap = node('div');
   wrap.append(sectionHeading('Your service mini-apps', 'Open an available service directly. Access is based on your role and enabled features.'));
@@ -2156,12 +2592,14 @@ function renderSuperAppLauncher() {
     const name = panel === 'accounting'
       ? 'Accounting & Finance'
       : getLocalizedNodeSource(tab.firstChild).trim() || tab.textContent.trim();
-    const card = node('button', undefined, 'service-card workspace-launch-card');
+    const card = node('button', undefined, 'service-card workspace-launch-card service-launcher-card');
     card.type = 'button';
+    card.dataset.panel = panel;
     card.setAttribute('aria-label', `Open ${name}`);
+    setLocalizedAttribute(card, 'aria-label', 'Open {{service}}', { service: name });
     const logoSource = miniAppLogo(panel);
     if (logoSource) {
-      const logo = node('img', undefined, 'service-icon service-icon-image');
+      const logo = node('img', undefined, 'service-icon service-icon-image service-launcher-logo');
       logo.src = logoSource;
       logo.alt = '';
       logo.setAttribute('aria-hidden', 'true');
@@ -2189,16 +2627,16 @@ function decoratePublicServiceLogos() {
     ['Homes & rentals', miniAppLogo('properties')],
     ['Marketplace', miniAppLogo('marketplace')],
     ['Workforce', miniAppLogo('workers')],
-    ['AfroLife Edir', miniAppLogo('edir')],
+    ['AfroSherik Edir', miniAppLogo('edir')],
     ['SACCO / MFI', miniAppLogo('mfi')],
-    ['Agent services', '/icon.svg'],
+    ['Agent services', miniAppLogo('agents')],
     ['Accounting & Finance', miniAppLogo('accounting')],
   ]);
   const panels = new Map([
     ['Homes & rentals', 'properties'],
     ['Marketplace', 'marketplace'],
     ['Workforce', 'workers'],
-    ['AfroLife Edir', 'edir'],
+    ['AfroSherik Edir', 'edir'],
     ['SACCO / MFI', 'mfi'],
     ['Agent services', 'agents'],
     ['Accounting & Finance', 'accounting'],
@@ -2630,6 +3068,7 @@ function configureWorkspaceNavigation() {
   };
   orderGroup(coreGroup, profile.core);
   orderGroup(businessGroup, profile.business);
+  applyMiniAppNavigationScope();
 }
 
 function renderMobileWorkspaceNav() {
@@ -2850,6 +3289,43 @@ async function syncWorkerClockQueue() {
   }
 }
 
+async function syncPropertyMoveOutInspectionDrafts() {
+  state.propertyMoveOutInspectionSyncError = '';
+  if (!state.user || !globalThis.indexedDB) return;
+  try {
+    state.propertyMoveOutInspectionDrafts = await readMoveOutInspectionDrafts(state.user.id);
+  } catch (error) {
+    state.propertyMoveOutInspectionSyncError = error instanceof Error ? error.message : 'Encrypted inspection drafts could not be read.';
+    return;
+  }
+  if (!state.propertyTenantContextId || !navigator.onLine) return;
+  const pending = state.propertyMoveOutInspectionDrafts.filter((draft) =>
+    draft.tenant_system_id === state.propertyTenantContextId);
+  if (pending.length && !hasActivity('property.tenancy.manage')) {
+    state.propertyMoveOutInspectionSyncError = 'The current role cannot sync queued move-out inspections.';
+    return;
+  }
+  for (const draft of pending) {
+    try {
+      await api(`/leases/${encodeURIComponent(draft.lease_id)}/move-out-inspections`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ...draft.payload,
+          client_submission_id: draft.client_submission_id,
+        }),
+      });
+      await removeMoveOutInspectionDraft(state.user.id, draft.client_submission_id);
+      state.propertyMoveOutInspectionDrafts = state.propertyMoveOutInspectionDrafts
+        .filter((entry) => entry.client_submission_id !== draft.client_submission_id);
+    } catch (error) {
+      state.propertyMoveOutInspectionSyncError = error instanceof Error
+        ? error.message
+        : 'Move-out inspection sync failed.';
+      break;
+    }
+  }
+}
+
 function renderWorkerPortal() {
   const wrap = node('div');
   wrap.append(sectionHeading('Your work, reports and support', 'Manage shifts and time, employer-client engagement terms, activity reports and support.'));
@@ -2971,7 +3447,7 @@ function renderWorkerPortal() {
   wrap.append(leave);
 
   const payroll = node('section', undefined, 'panel');
-  payroll.append(sectionHeading('Payroll handoff status', 'These statuses show whether AfroLife generated an export or recorded an external handoff. They are not payslips and do not confirm payment.'));
+  payroll.append(sectionHeading('Payroll handoff status', 'These statuses show whether AfroSherik generated an export or recorded an external handoff. They are not payslips and do not confirm payment.'));
   const payrollList = node('div', undefined, 'list');
   if (!state.workerPortalPayrollExports.length) payrollList.append(empty('No payroll handoff records are available for your approved time yet.'));
   for (const record of state.workerPortalPayrollExports) {
@@ -3019,9 +3495,37 @@ function renderWorkerPortal() {
 
   const reports = node('section', undefined, 'panel');
   reports.append(sectionHeading('My activity and earnings reports', 'Submitted work is reviewed independently. Approved work value is not confirmation that a payment has been made.'));
+  reports.append(node('p', 'Filters and exports include the 200 most recent reports currently loaded.', 'muted'));
+  const reportFilters = node('form', undefined, 'form-card inline-form');
+  reportFilters.dataset.form = 'worker-report-filters';
+  const reportStatus = field('Status', 'status', 'select', false);
+  for (const [value, label] of [
+    ['all', 'All statuses'],
+    ['submitted', 'Submitted'],
+    ['approved', 'Approved'],
+    ['rejected', 'Returned'],
+  ]) {
+    const option = node('option', label);
+    option.value = value;
+    option.selected = state.workerReportFilters.status === value;
+    reportStatus.input.append(option);
+  }
+  reportFilters.append(
+    field('Period start', 'start_date', 'date', false, { value: state.workerReportFilters.startDate }).label,
+    field('Period end', 'end_date', 'date', false, { value: state.workerReportFilters.endDate }).label,
+    reportStatus.label,
+    button('Filter reports', 'submit', 'button button-outline'),
+    button('Download CSV', 'worker-report-export', 'button button-outline'),
+  );
+  reports.append(reportFilters);
   const reportList = node('div', undefined, 'list');
-  if (!state.workerPortalReports.length) reportList.append(empty('Work reports you submit for an active engagement will appear here.'));
-  for (const report of state.workerPortalReports) {
+  const visibleReports = filterWorkerActivityReports(state.workerPortalReports, state.workerReportFilters);
+  if (!visibleReports.length) {
+    reportList.append(empty(state.workerPortalReports.length
+      ? 'No reports match the selected filters.'
+      : 'Work reports you submit for an active engagement will appear here.'));
+  }
+  for (const report of visibleReports) {
     const item = card(
       `${report.period_start} to ${report.period_end} · ${report.quantity} units`,
       `${report.description} · ETB ${Number(report.worker_amount).toLocaleString(document.documentElement.lang)} worker amount${report.review_reason ? ` · ${report.review_reason}` : ''}`,
@@ -3063,7 +3567,7 @@ function renderWorkerPortal() {
   wrap.append(payments);
 
   const support = node('section', undefined, 'panel');
-  support.append(sectionHeading('AfroLife worker support', 'Ask for help with an assignment, contract terms, work reports or pay, safety, or another work-related concern.'));
+  support.append(sectionHeading('AfroSherik worker support', 'Ask for help with an assignment, contract terms, work reports or pay, safety, or another work-related concern.'));
   const supportForm = node('form', undefined, 'panel form-card inline-form');
   supportForm.dataset.form = 'worker-support';
   const category = field('Support topic', 'category', 'select');
@@ -3088,7 +3592,7 @@ function renderWorkerPortal() {
   const ticketList = node('div', undefined, 'list');
   if (!state.workerSupportRequests.length) ticketList.append(empty('Your support requests and replies will appear here.'));
   for (const request of state.workerSupportRequests) {
-    const item = card(request.subject, `${request.category.replaceAll('_', ' ')} · ${request.description}${request.response ? ` · AfroLife response: ${request.response}` : ''}`, request.status);
+    const item = card(request.subject, `${request.category.replaceAll('_', ' ')} · ${request.description}${request.response ? ` · AfroSherik response: ${request.response}` : ''}`, request.status);
     ticketList.append(item);
   }
   support.append(ticketList);
@@ -3607,7 +4111,7 @@ function renderPropertyListings(canManage, emptyMessage = 'No property listings 
       item.append(evidenceDetails);
     }
     if (property.units?.length) {
-      const unitSummary = node('p', property.units.map((unit) => `${unit.unit_no}${unit.rent == null ? '' : ` · ETB ${Number(unit.rent).toLocaleString(document.documentElement.lang)}`}`).join('  |  '));
+      const unitSummary = node('p', property.units.map((unit) => `${unit.unit_no} · ${unit.occupancy}${unit.rent == null ? '' : ` · ETB ${Number(unit.rent).toLocaleString(document.documentElement.lang)}`}`).join('  |  '));
       unitSummary.className = 'property-unit-summary';
       item.append(unitSummary);
     }
@@ -3651,6 +4155,14 @@ function renderPropertyListings(canManage, emptyMessage = 'No property listings 
       button('Add unit', 'property-units', 'button button-outline', { id: property.id }),
       button('Add media', 'property-upload', 'button button-outline', { id: property.id }),
     );
+    if (hasActivity('property.maintenance.manage')) for (const unit of property.units ?? []) {
+      if (unit.occupancy === 'turnover') actions.append(button(
+        `Complete turnover · ${unit.unit_no}`,
+        'property-turnover-complete',
+        'button button-outline',
+        { id: property.id, unit: unit.id },
+      ));
+    }
     if (authorityStatus === 'pending_review'
       && ['global_admin', 'super_admin', 'corporate_business_manager'].includes(state.user.role)
       && property.created_by !== state.user.id
@@ -3718,7 +4230,7 @@ function renderResidentPropertyPortal() {
   const section = node('section', undefined, 'panel');
   section.append(
     sectionHeading('Resident self-service', 'View your linked lease, recorded charges and receipts, supporting documents, notices, and maintenance requests.'),
-    node('p', 'AfroLife displays recorded operational information only. Payment records do not confirm that funds were paid to a landlord; tenant notices are not legal service or termination.', 'muted'),
+    node('p', 'AfroSherik displays recorded operational information only. Payment records do not confirm that funds were paid to a landlord; tenant notices are not legal service or termination.', 'muted'),
   );
   if (!workspace.leases.length) {
     section.append(empty('No lease is linked to this account. Ask the property manager to issue a one-time access code, then claim it here.'));
@@ -3743,6 +4255,16 @@ function renderResidentPropertyPortal() {
       }),
       lease.status);
     item.append(node('p', `Deposit recorded in lease: ETB ${Number(lease.deposit).toLocaleString(document.documentElement.lang)}. Key handover: ${lease.possession_handover_on ?? 'not recorded'}.`, 'muted'));
+    for (const inspection of lease.move_out_inspections ?? []) {
+      item.append(node('p',
+        `Move-out inspection revision ${inspection.revision}: ${inspection.status} · vacated ${inspection.actual_vacated_on} · proposed deposit deduction ETB ${inspection.deposit_deduction}. ${inspection.review_note ?? ''}`,
+        'muted'));
+      for (const evidence of inspection.evidence ?? []) {
+        item.append(button(`Download move-out evidence · ${evidence.mime}`, 'resident-move-out-evidence', 'button button-outline', {
+          id: evidence.id,
+        }));
+      }
+    }
     const leaseCharges = charges.get(lease.id) ?? [];
     const chargeSection = node('div', undefined, 'list');
     chargeSection.append(node('h4', 'Charges'));
@@ -3776,6 +4298,31 @@ function renderResidentPropertyPortal() {
       for (const notice of lease.notices) notices.append(node('p',
         `${notice.notice_type.replaceAll('_', ' ')} · received ${notice.received_on} · proposed ${notice.proposed_effective_on} · ${notice.summary}`));
       item.append(notices);
+    }
+    for (const offer of lease.renewal_offers ?? []) {
+      const offerItem = card(
+        `Renewal offer · ETB ${Number(offer.proposed_rent).toLocaleString(document.documentElement.lang)} monthly`,
+        `${offer.proposed_start_date} to ${offer.proposed_end_date} · expires ${offer.expires_on}`,
+        offer.status,
+      );
+      offerItem.append(node('p', `Proposed deposit: ETB ${Number(offer.proposed_deposit).toLocaleString(document.documentElement.lang)} · ${offer.term_months} months · rent due day ${offer.due_day}.`));
+      if (offer.request_reason) offerItem.append(node('p', `Request: ${offer.request_reason}`));
+      if (offer.review_reason) offerItem.append(node('p', offer.review_reason));
+      if (offer.response_note) offerItem.append(node('p', offer.response_note));
+      for (const event of offer.events ?? []) {
+        offerItem.append(node('p', `${event.event_type.replaceAll('_', ' ')} · ${new Date(event.created_at).toLocaleString(document.documentElement.lang)} · ${event.reason}`, 'muted'));
+      }
+      if (offer.status === 'offered' && offer.expires_on >= new Date().toISOString().slice(0, 10)) {
+        offerItem.append(
+          button('Accept renewal terms', 'renewal-response-accept', 'button button-primary', {
+            id: offer.id, leaseId: lease.id,
+          }),
+          button('Decline renewal', 'renewal-response-decline', 'button button-outline', {
+            id: offer.id, leaseId: lease.id,
+          }),
+        );
+      }
+      item.append(offerItem);
     }
     if (lease.status === 'active') {
       const noticeForm = node('form', undefined, 'inline-form');
@@ -3830,10 +4377,34 @@ function renderResidentPropertyPortal() {
     for (const event of request.events ?? []) {
       item.append(node('p', `${event.event_type.replaceAll('_', ' ')}${event.to_status ? ` · ${event.to_status.replaceAll('_', ' ')}` : ''} · ${new Date(event.created_at).toLocaleString(document.documentElement.lang)}`, 'muted'));
     }
+    const residentFeedback = request.resident_feedback ?? [];
+    for (const feedback of residentFeedback) {
+      const details = feedback.note
+        ? `${t(feedback.response === 'confirmed' ? 'Resident confirmed completion' : 'Resident reported a remaining issue')}: ${feedback.note}`
+        : t('Resident confirmed completion');
+      item.append(node('p', `${details} · ${new Date(feedback.created_at).toLocaleString(document.documentElement.lang)}`,
+        feedback.response === 'issue_reported' ? 'notice notice-warning' : 'muted'));
+    }
     for (const evidence of request.evidence ?? []) {
       item.append(button(`Download photo · ${evidence.mime}`, 'resident-maintenance-evidence', 'button button-outline', {
         id: evidence.id,
       }));
+    }
+    const latestCompletionEventId = request.latest_completion_event_id;
+    const hasLatestFeedback = latestCompletionEventId != null
+      && residentFeedback.some((feedback) => String(feedback.completion_event_id) === String(latestCompletionEventId));
+    if (request.status === 'completed' && !hasLatestFeedback && latestCompletionEventId != null) {
+      item.append(
+        node('p', t('Your response is recorded for follow-up only; it does not reopen work or change charges.'), 'muted'),
+        button(t('Confirm completion'), 'resident-maintenance-feedback', 'button button-outline', {
+          id: request.id,
+          response: 'confirmed',
+        }),
+        button(t('Report a remaining issue'), 'resident-maintenance-feedback', 'button button-outline', {
+          id: request.id,
+          response: 'issue_reported',
+        }),
+      );
     }
     if (!['completed','done','cancelled'].includes(request.status)) {
       const evidenceForm = node('form', undefined, 'inline-form');
@@ -3849,6 +4420,542 @@ function renderResidentPropertyPortal() {
   }
   section.append(maintenance);
   return section;
+}
+
+function renderPropertyArc() {
+  const wrap = node('section', undefined, 'panel');
+  wrap.append(
+    sectionHeading('Property change requests', 'Submit and review property change proposals with a tenant-scoped decision and inspection history.'),
+    node('p', 'This operational workflow does not determine legal compliance, replace permits or other approvals, or claim to establish board quorum.', 'muted'),
+  );
+  const arc = state.propertyArc ?? { requests: [], eligible_properties: [] };
+  if (arc.eligible_properties.length) {
+    const form = node('form', undefined, 'form-card inline-form');
+    form.dataset.form = 'property-arc-request';
+    const propertyField = field('Property', 'property_id', 'select', true);
+    propertyField.input.append(new Option('Choose a property', ''));
+    for (const property of arc.eligible_properties) {
+      propertyField.input.append(new Option(property.address, property.property_id));
+    }
+    const typeField = field('Request type', 'request_type', 'select', true);
+    for (const [label, value] of [
+      ['Exterior alteration', 'exterior_alteration'],
+      ['Landscaping', 'landscaping'],
+      ['Painting', 'painting'],
+      ['Structural change', 'structural'],
+      ['Other', 'other'],
+    ]) typeField.input.append(new Option(label, value));
+    form.append(
+      propertyField.label,
+      typeField.label,
+      field('Summary', 'summary', 'text', true, { minlength: 3, maxlength: 120 }).label,
+      field('Describe the proposed work', 'proposal', 'textarea', true, { minlength: 10, maxlength: 2000, rows: 4 }).label,
+      field('Optional non-secret evidence reference', 'evidence_reference', 'text', false, { maxlength: 200 }).label,
+      button('Submit change request', 'submit', 'button button-primary'),
+    );
+    wrap.append(form);
+  } else {
+    wrap.append(empty('No owner-owned property or active linked resident lease is available for a request in this tenant.'));
+  }
+
+  const membership = state.propertyTenantMemberships.find((tenant) =>
+    tenant.id === state.propertyTenantContextId && tenant.status === 'active');
+  const today = new Date().toISOString().slice(0, 10);
+  const scopedTo = (propertyId, role) => state.propertyAgentScopes.some((scope) =>
+    scope.property_id === propertyId && scope.user_id === state.user.id
+      && scope.tenant_role === role && scope.status === 'active'
+      && scope.effective_from <= today && (!scope.effective_to || scope.effective_to >= today));
+  const list = node('div', undefined, 'list');
+  if (!arc.requests.length) list.append(empty('No change requests are recorded for this account or assigned property scope.'));
+  for (const request of arc.requests) {
+    const item = card(request.address, request.summary, request.status.replaceAll('_', ' '));
+    const details = item.querySelector('p');
+    if (details) details.prepend(node('span', request.request_type.replaceAll('_', ' ')), document.createTextNode(' · '));
+    item.append(node('p', request.proposal));
+    if (request.evidence_reference) {
+      const evidence = node('p', undefined, 'muted');
+      evidence.append(node('span', 'Evidence reference'), document.createTextNode(`: ${request.evidence_reference}`));
+      item.append(evidence);
+    }
+    for (const event of request.events ?? []) {
+      const eventDate = new Date(event.created_at).toLocaleString(document.documentElement.lang);
+      const history = node('p', undefined, 'muted');
+      history.append(document.createTextNode(`${eventDate} · `));
+      if (event.actor_name) history.append(document.createTextNode(`${event.actor_name} · `));
+      history.append(
+        node('span', event.event_type.replaceAll('_', ' ')),
+        document.createTextNode(` · ${event.reason}`),
+      );
+      if (event.evidence_reference) {
+        history.append(
+          document.createTextNode(' · '),
+          node('span', 'Evidence'),
+          document.createTextNode(`: ${event.evidence_reference}`),
+        );
+      }
+      item.append(history);
+    }
+    const canReview = membership?.tenant_role === 'tenant_admin'
+      || (membership?.tenant_role === 'master_agent' && scopedTo(request.property_id, 'master_agent'));
+    const canInspect = canReview
+      || (membership?.tenant_role === 'field_agent' && scopedTo(request.property_id, 'field_agent'));
+    if (request.status === 'pending_review' && !request.is_requester && canReview) {
+      item.append(
+        button('Approve request', 'property-arc-decision', 'button button-primary', { id: request.id, decision: 'approved' }),
+        button('Reject request', 'property-arc-decision', 'button button-outline', { id: request.id, decision: 'rejected' }),
+      );
+    }
+    if (request.status === 'pending_review' && !request.is_requester && canInspect) {
+      item.append(button('Record inspection', 'property-arc-inspection', 'button button-outline', { id: request.id }));
+    }
+    list.append(item);
+  }
+  wrap.append(node('h3', 'Request history'), list);
+  return wrap;
+}
+
+function renderPropertyAssociations() {
+  const wrap = node('section', undefined, 'panel');
+  wrap.append(
+    sectionHeading('Association assessments', 'Manage manually entered association assessments and review receipt evidence within this property tenant.'),
+    node('p', 'Assessment balances are operational records only. AfroSherik does not calculate penalties, post ledger entries, initiate payments, or send legal notices through this workflow.', 'muted'),
+  );
+  const data = state.propertyAssociations ?? {
+    currency: null, associations: [], assessments: [], amenity_policies: [],
+    dues_policies: [], dues_cycles: [], amenity_reservations: [],
+  };
+  const membership = state.propertyTenantMemberships.find((tenant) =>
+    tenant.id === state.propertyTenantContextId && tenant.status === 'active');
+  const canManage = ['tenant_admin','tenant_accountant'].includes(membership?.tenant_role);
+  const canConfigurePolicies = membership?.tenant_role === 'tenant_admin';
+  const today = new Date().toISOString().slice(0, 10);
+  const scopedTo = (propertyId, role) => state.propertyAgentScopes.some((scope) =>
+    scope.property_id === propertyId && scope.user_id === state.user.id
+      && scope.tenant_role === role && scope.status === 'active'
+      && scope.effective_from <= today && (!scope.effective_to || scope.effective_to >= today));
+  const canReportOn = (propertyId) => membership?.tenant_role === 'tenant_admin'
+    || (membership?.tenant_role === 'master_agent' && scopedTo(propertyId, 'master_agent'))
+    || (membership?.tenant_role === 'field_agent' && scopedTo(propertyId, 'field_agent'));
+
+  if (canManage) {
+    const reportForm = node('form', undefined, 'form-card inline-form');
+    reportForm.dataset.form = 'property-association-report';
+    reportForm.append(
+      field('Report start date', 'period_start', 'date', true).label,
+      field('Report end date', 'period_end', 'date', true).label,
+      button(t('Generate report'), 'submit', 'button button-outline'),
+    );
+    wrap.append(
+      sectionHeading('Association activity report', 'Generate a scoped assessment report for a date range. Receipt references are evidence only, not ledger or settlement balances.'),
+      reportForm,
+    );
+    if (state.propertyAssociationReport) {
+      const report = state.propertyAssociationReport;
+      const summary = report.summary;
+      wrap.append(
+        node('h3', `${t('Assessment activity report')}: ${report.period_start} – ${report.period_end}`),
+        node('p', `${t('Properties with assessments')}: ${summary.property_count} · ${t('Assessments')}: ${summary.assessment_count}`),
+        node('p', `${t('Assessed amount')}: ${summary.assessed_amount}${report.currency ? ` ${report.currency}` : ''}`, 'muted'),
+        node('p', `${t('Reconciled receipt references')}: ${summary.reconciled_receipt_references}${report.currency ? ` ${report.currency}` : ''}`, 'muted'),
+        node('p', `${t('Pending receipt references')}: ${summary.pending_receipt_references}${report.currency ? ` ${report.currency}` : ''}`, 'muted'),
+      );
+      for (const property of report.properties) {
+        wrap.append(card(
+          `${property.association_name} · ${property.address}`,
+          `${t('Assessments')}: ${property.assessment_count} · ${t('Assessed amount')}: ${property.assessed_amount}${report.currency ? ` ${report.currency}` : ''}`,
+          `${t('Reconciled receipt references')}: ${property.reconciled_receipt_references}${report.currency ? ` ${report.currency}` : ''} · ${t('Pending receipt references')}: ${property.pending_receipt_references}${report.currency ? ` ${report.currency}` : ''}`,
+        ));
+      }
+    }
+  }
+
+  if (membership?.tenant_role === 'tenant_admin' && state.properties.length) {
+    const form = node('form', undefined, 'form-card inline-form');
+    form.dataset.form = 'property-association-create';
+    const properties = field('Association properties', 'property_ids', 'select', true, {
+      multiple: true,
+      size: Math.min(8, state.properties.length),
+    });
+    for (const property of state.properties) properties.input.append(new Option(property.address, property.id));
+    form.append(
+      field('Association name', 'name', 'text', true, { minlength: 2, maxlength: 160 }).label,
+      properties.label,
+      button('Create association', 'submit', 'button button-primary'),
+    );
+    wrap.append(form);
+  }
+
+  if (!data.associations.length) {
+    wrap.append(empty('No property associations have been configured in this tenant.'));
+    return wrap;
+  }
+
+  for (const association of data.associations) {
+    const item = node('article', undefined, 'panel');
+    item.append(node('h3', association.name));
+    const latestDuesPolicies = new Map();
+    for (const policy of (data.dues_policies ?? [])
+      .filter((entry) => entry.association_id === association.id)) {
+      const current = latestDuesPolicies.get(policy.property_id);
+      if (!current || policy.policy_version > current.policy_version) {
+        latestDuesPolicies.set(policy.property_id, policy);
+      }
+    }
+    for (const property of association.properties) {
+      item.append(node('p', property.address, 'muted'));
+      const propertyPolicies = (data.amenity_policies ?? [])
+        .filter((policy) => policy.association_id === association.id
+          && policy.property_id === property.property_id);
+      const currentPolicies = new Map();
+      for (const policy of propertyPolicies) {
+        const key = policy.amenity_name.trim().toLowerCase();
+        const current = currentPolicies.get(key);
+        if (!current || policy.policy_version > current.policy_version) currentPolicies.set(key, policy);
+      }
+      if (currentPolicies.size) item.append(node('h4', t('Association calendar and amenity policies')));
+      for (const policy of currentPolicies.values()) {
+        const policyCard = card(
+          `${policy.amenity_name} · ${t(policy.status === 'active' ? 'Active' : 'Retired')}`,
+          `${t('Policy version')} ${policy.policy_version}`,
+        );
+        policyCard.append(node('p', policy.rules));
+        item.append(policyCard);
+      }
+      if (canConfigurePolicies && association.status === 'active') {
+        const form = node('form', undefined, 'form-card inline-form');
+        form.dataset.form = 'property-association-amenity-policy';
+        form.dataset.association = association.id;
+        form.dataset.property = property.property_id;
+        const status = field('Policy status', 'status', 'select', true);
+        status.input.append(
+          new Option(t('Active'), 'active'),
+          new Option(t('Retired'), 'retired'),
+        );
+        form.append(
+          field('Amenity name', 'amenity_name', 'text', true, {
+            minlength: 2,
+            maxlength: 120,
+          }).label,
+          field('Calendar and use rules', 'rules', 'textarea', true, {
+            minlength: 10,
+            maxlength: 3000,
+            rows: 4,
+          }).label,
+          status.label,
+          node('p', t('These versioned rules describe amenity use; reservations still require staff approval.'), 'muted'),
+          button(t('Record policy version'), 'submit', 'button button-outline'),
+        );
+        item.append(form);
+      }
+      if (membership?.status === 'active'
+        && ['owner','resident'].includes(membership.tenant_role)
+        && association.status === 'active') {
+        const requestablePolicies = [...currentPolicies.values()]
+          .filter((policy) => policy.status === 'active');
+        if (requestablePolicies.length) {
+          const form = node('form', undefined, 'form-card inline-form');
+          form.dataset.form = 'property-amenity-reservation';
+          form.dataset.association = association.id;
+          form.dataset.property = property.property_id;
+          const amenity = field('Amenity', 'amenity_name', 'select', true);
+          for (const policy of requestablePolicies) {
+            amenity.input.append(new Option(
+              `${policy.amenity_name} · ${t('Policy version')} ${policy.policy_version}`,
+              policy.amenity_name,
+            ));
+          }
+          form.append(
+            amenity.label,
+            field('Start time (UTC)', 'starts_at', 'text', true, {
+              placeholder: 'YYYY-MM-DDTHH:mm',
+              pattern: '\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}',
+            }).label,
+            field('End time (UTC)', 'ends_at', 'text', true, {
+              placeholder: 'YYYY-MM-DDTHH:mm',
+              pattern: '\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}',
+            }).label,
+            node('p', t('Reservations require staff approval. Enter UTC time (YYYY-MM-DDTHH:mm). Maximum 24 hours; up to 365 days ahead.'), 'muted'),
+            button(t('Request amenity reservation'), 'submit', 'button button-outline'),
+          );
+          item.append(form);
+        }
+      }
+      const currentDuesPolicy = latestDuesPolicies.get(property.property_id);
+      if (currentDuesPolicy) {
+        const cadence = currentDuesPolicy.cadence_months === 1
+          ? 'Monthly' : currentDuesPolicy.cadence_months === 3 ? 'Quarterly' : 'Annual';
+        const duesCard = card(
+          t('Recurring dues cycle policies'),
+          `${t(cadence)} · ${t('Policy version')} ${currentDuesPolicy.policy_version} · ${currentDuesPolicy.status === 'active' ? t('Active') : t('Retired')}`,
+        );
+        duesCard.append(
+          node('p', `${currentDuesPolicy.amount}${data.currency ? ` ${data.currency}` : ''} · ${currentDuesPolicy.description}`),
+          node('p', `${t('Cycle anchor month (use first day)')}: ${currentDuesPolicy.anchor_period_start}`, 'muted'),
+        );
+        item.append(duesCard);
+      } else {
+        item.append(node('p', t('No recurring dues policy configured for this property.'), 'muted'));
+      }
+      if (canConfigurePolicies && association.status === 'active') {
+        const form = node('form', undefined, 'form-card inline-form');
+        form.dataset.form = 'property-association-dues-policy';
+        form.dataset.association = association.id;
+        form.dataset.property = property.property_id;
+        const cadence = field('Dues cadence', 'cadence_months', 'select', true);
+        cadence.input.append(
+          new Option(t('Monthly'), '1'),
+          new Option(t('Quarterly'), '3'),
+          new Option(t('Annual'), '12'),
+        );
+        const status = field('Policy status', 'status', 'select', true);
+        status.input.append(
+          new Option(t('Active'), 'active'),
+          new Option(t('Retired'), 'retired'),
+        );
+        form.append(
+          cadence.label,
+          field('Cycle anchor month (use first day)', 'anchor_period_start', 'date', true).label,
+          field('Amount', 'amount', 'number', true, { min: 0.01, step: 0.01 }).label,
+          field('Dues description', 'description', 'text', true, { minlength: 3, maxlength: 500 }).label,
+          status.label,
+          button(t('Create recurring dues policy version'), 'submit', 'button button-outline'),
+        );
+        item.append(form);
+      }
+      if (association.status === 'active' && canReportOn(property.property_id)) {
+        const form = node('form', undefined, 'form-card inline-form');
+        form.dataset.form = 'property-association-violation';
+        form.dataset.association = association.id;
+        form.dataset.property = property.property_id;
+        form.append(
+          field('Category or policy reference', 'category', 'text', true, { minlength: 2, maxlength: 80 }).label,
+          field('Observation summary', 'summary', 'text', true, { minlength: 3, maxlength: 160 }).label,
+          field('Describe the observed condition', 'description', 'textarea', true, {
+            minlength: 10,
+            maxlength: 2000,
+            rows: 3,
+          }).label,
+          field('Non-secret evidence reference', 'evidence_reference', 'text', true, {
+            minlength: 2,
+            maxlength: 200,
+          }).label,
+          button('Record evidence-based observation', 'submit', 'button button-outline'),
+        );
+        item.append(form);
+      }
+    }
+    if (canManage && association.status === 'active') {
+      const form = node('form', undefined, 'form-card inline-form');
+      form.dataset.form = 'property-assessment-create';
+      form.dataset.association = association.id;
+      const property = field('Property', 'property_id', 'select', true);
+      for (const linkedProperty of association.properties) {
+        property.input.append(new Option(linkedProperty.address, linkedProperty.property_id));
+      }
+      form.append(
+        property.label,
+        field('Assessment period start', 'period_start', 'date', true).label,
+        field('Due date', 'due_on', 'date', true).label,
+        field('Amount', 'amount', 'number', true, { min: 0.01, step: 0.01 }).label,
+        field('Assessment description', 'description', 'text', true, { minlength: 3, maxlength: 500 }).label,
+        button('Record assessment', 'submit', 'button button-primary'),
+      );
+      item.append(form);
+    }
+
+    const cycles = (data.dues_cycles ?? [])
+      .filter((cycle) => cycle.association_id === association.id);
+    if (cycles.length) item.append(node('h4', t('Recent dues cycles')));
+    for (const cycle of cycles) {
+      item.append(card(
+        `${t('Cycle')}: ${cycle.period_start}`,
+        `${t('Assessments generated')}: ${cycle.generated_assessment_count} · ${t('Due date')}: ${cycle.due_on}`,
+        cycle.status,
+      ));
+    }
+    if (canManage && association.status === 'active'
+      && [...latestDuesPolicies.values()].some((policy) => policy.status === 'active')) {
+      const form = node('form', undefined, 'form-card inline-form');
+      form.dataset.form = 'property-association-dues-cycle';
+      form.dataset.association = association.id;
+      form.append(
+        field('Cycle period start (first day of month)', 'period_start', 'date', true).label,
+        field('Assessment due date', 'due_on', 'date', true).label,
+        button(t('Run dues cycle'), 'submit', 'button button-primary'),
+      );
+      item.append(
+        node('p', t('Recurring dues are manually triggered and create assessments only. They do not post ledger entries or collect payments.'), 'muted'),
+        form,
+      );
+    }
+
+    const assessments = data.assessments.filter((assessment) => assessment.association_id === association.id);
+    if (!assessments.length) item.append(empty('No assessments have been recorded for this association.'));
+    for (const assessment of assessments) {
+      const heading = `${assessment.address}${assessment.unit_no ? ` · ${assessment.unit_no}` : ''}`;
+      const assessmentCard = card(heading, `${assessment.description} · ${assessment.period_start}`,
+        assessment.status);
+      const amountLine = node('p', undefined, 'muted');
+      amountLine.append(
+        node('span', 'Assessed amount'),
+        document.createTextNode(`: ${assessment.amount}${data.currency ? ` ${data.currency}` : ''}`),
+        document.createTextNode(' · '),
+        node('span', 'Due date'),
+        document.createTextNode(`: ${assessment.due_on}`),
+      );
+      assessmentCard.append(amountLine);
+      const receiptLine = node('p', undefined, 'muted');
+      receiptLine.append(
+        node('span', 'Reconciled receipts'),
+        document.createTextNode(`: ${assessment.reconciled_amount}${data.currency ? ` ${data.currency}` : ''}`),
+        document.createTextNode(' · '),
+        node('span', 'Pending receipt evidence'),
+        document.createTextNode(`: ${assessment.pending_amount}${data.currency ? ` ${data.currency}` : ''}`),
+      );
+      assessmentCard.append(receiptLine);
+      for (const receipt of assessment.receipts ?? []) {
+        const receiptCard = card(
+          `${receipt.amount}${data.currency ? ` ${data.currency}` : ''} · ${receipt.channel}`,
+          receipt.reference,
+          receipt.status,
+        );
+        if (receipt.review_reason) receiptCard.append(node('p', receipt.review_reason, 'muted'));
+        if (canManage && receipt.status === 'pending' && !receipt.is_recorder) {
+          receiptCard.append(
+            button('Confirm reconciliation', 'property-association-receipt-decision', 'button button-primary', {
+              id: receipt.id,
+              decision: 'reconciled',
+            }),
+            button('Reject receipt evidence', 'property-association-receipt-decision', 'button button-outline', {
+              id: receipt.id,
+              decision: 'rejected',
+            }),
+          );
+        }
+        assessmentCard.append(receiptCard);
+      }
+      if (assessment.is_owner) {
+        const receiptForm = node('form', undefined, 'form-card inline-form');
+        receiptForm.dataset.form = 'property-assessment-receipt';
+        receiptForm.dataset.assessment = assessment.id;
+        receiptForm.append(
+          field('Receipt amount', 'amount', 'number', true, { min: 0.01, step: 0.01 }).label,
+          field('Payment channel', 'channel', 'text', true, { minlength: 2, maxlength: 40 }).label,
+          field('External receipt reference', 'reference', 'text', true, { minlength: 3, maxlength: 160 }).label,
+          button('Submit receipt for reconciliation', 'submit', 'button button-outline'),
+        );
+        assessmentCard.append(
+          node('p', 'Submitting a receipt reference does not move money or confirm settlement.', 'muted'),
+          receiptForm,
+        );
+      }
+      item.append(assessmentCard);
+    }
+
+    const violations = (data.violations ?? [])
+      .filter((violation) => violation.association_id === association.id);
+    if (violations.length) item.append(node('h4', 'Recorded observations'));
+    for (const violation of violations) {
+      const location = `${violation.address}${violation.unit_no ? ` · ${violation.unit_no}` : ''}`;
+      const violationCard = card(location, `${violation.category} · ${violation.summary}`, violation.status);
+      violationCard.append(
+        node('p', violation.description),
+        node('p', `${t('Evidence reference')}: ${violation.evidence_reference}`, 'muted'),
+      );
+      if (violation.closure_reason) violationCard.append(node('p', violation.closure_reason, 'muted'));
+      for (const event of violation.events ?? []) {
+        const history = node('p', undefined, 'muted');
+        history.append(document.createTextNode(
+          `${new Date(event.created_at).toLocaleString(document.documentElement.lang)} · `,
+        ));
+        if (event.actor_name) history.append(document.createTextNode(`${event.actor_name} · `));
+        history.append(
+          node('span', event.event_type.replaceAll('_', ' ')),
+          document.createTextNode(` · ${event.reason}`),
+        );
+        if (event.evidence_reference) {
+          history.append(
+            document.createTextNode(' · '),
+            node('span', 'Evidence reference'),
+            document.createTextNode(`: ${event.evidence_reference}`),
+          );
+        }
+        violationCard.append(history);
+      }
+      if (violation.is_owner && violation.status === 'pending_review') {
+        violationCard.append(button(
+          'Submit response or resolution evidence',
+          'property-association-violation-response',
+          'button button-outline',
+          { id: violation.id },
+        ));
+      }
+      if (violation.can_decide && ['pending_review','response_submitted'].includes(violation.status)) {
+        violationCard.append(
+          button('Verify resolution', 'property-association-violation-decision', 'button button-primary', {
+            id: violation.id,
+            decision: 'resolved',
+          }),
+          button('Dismiss observation', 'property-association-violation-decision', 'button button-outline', {
+            id: violation.id,
+            decision: 'dismissed',
+          }),
+        );
+      }
+      item.append(violationCard);
+    }
+    const reservations = (data.amenity_reservations ?? [])
+      .filter((reservation) => reservation.association_id === association.id);
+    if (reservations.length) item.append(node('h4', t('Amenity reservations')));
+    for (const reservation of reservations) {
+      const start = new Date(reservation.starts_at).toLocaleString(document.documentElement.lang, {
+        timeZone: 'UTC',
+      });
+      const end = new Date(reservation.ends_at).toLocaleString(document.documentElement.lang, {
+        timeZone: 'UTC',
+      });
+      const reservationCard = card(
+        `${reservation.address} · ${reservation.amenity_name}`,
+        `${start} – ${end} UTC`,
+        t(reservation.status),
+      );
+      if (reservation.requester_name) {
+        reservationCard.append(node('p', `${t('Requested by')}: ${reservation.requester_name}`, 'muted'));
+      }
+      if (reservation.decision_reason) reservationCard.append(node('p', reservation.decision_reason, 'muted'));
+      if (reservation.cancel_reason) reservationCard.append(node('p', reservation.cancel_reason, 'muted'));
+      for (const event of reservation.events ?? []) {
+        reservationCard.append(node(
+          'p',
+          `${new Date(event.created_at).toLocaleString(document.documentElement.lang)} · ${t(event.event_type)} · ${event.reason}`,
+          'muted',
+        ));
+      }
+      if (reservation.status === 'pending' && reservation.can_decide) {
+        reservationCard.append(
+          button(t('Approve reservation'), 'property-amenity-reservation-decision', 'button button-primary', {
+            id: reservation.reservation_id,
+            decision: 'approved',
+          }),
+          button(t('Reject reservation'), 'property-amenity-reservation-decision', 'button button-outline', {
+            id: reservation.reservation_id,
+            decision: 'rejected',
+          }),
+        );
+      }
+      if (['pending','approved'].includes(reservation.status) && reservation.can_cancel) {
+        reservationCard.append(button(
+          t('Cancel reservation'),
+          'property-amenity-reservation-cancel',
+          'button button-outline',
+          { id: reservation.reservation_id },
+        ));
+      }
+      item.append(reservationCard);
+    }
+    wrap.append(item);
+  }
+  return wrap;
 }
 
 function renderProperties() {
@@ -3876,6 +4983,8 @@ function renderProperties() {
     emptyMessage: 'No property listings are currently available for this dashboard.',
     values: (data) => [['Property listings', data.totalListings], ['Units in listed properties', data.totalUnits]],
   }));
+  if (state.propertyTenantContextId) wrap.append(renderPropertyAssociations());
+  wrap.append(renderPropertyArc());
   if (['global_admin','super_admin','corporate_business_manager'].includes(state.user.role)) {
     const authorityQueue = node('section', undefined, 'panel');
     authorityQueue.append(
@@ -3940,7 +5049,7 @@ function renderProperties() {
   if (canManage && state.rentalApplications.length) {
     const applications = node('section', undefined, 'panel');
     applications.append(node('h3', 'Rental application review'),
-      node('p', 'Review applications manually. AfroLife does not run automated tenant screening. Rejections and requests for information require a reason.', 'muted'));
+      node('p', 'Review applications manually. AfroSherik does not run automated tenant screening. Rejections and requests for information require a reason.', 'muted'));
     for (const application of state.rentalApplications) {
       const item = card(`${application.address}${application.unit_no ? ` · ${application.unit_no}` : ''}`,
         `${application.applicant_name} · ${new Date(application.created_at).toLocaleDateString()}`,
@@ -3986,7 +5095,7 @@ function renderProperties() {
     }
     form.append(territory.label);
     if(['global_admin','super_admin','corporate_business_manager'].includes(state.user.role)){
-      const seller=field('Seller / agent represented','owner_user_id','select',false);const none=node('option','AfroLife managed listing');none.value='';seller.input.append(none);for(const user of state.marketplaceSellers){const option=node('option',`${user.legal_name} · ${roleLabel(user.role)}`);option.value=user.id;seller.input.append(option);}form.append(seller.label);
+      const seller=field('Seller / agent represented','owner_user_id','select',false);const none=node('option','AfroSherik managed listing');none.value='';seller.input.append(none);for(const user of state.marketplaceSellers){const option=node('option',`${user.legal_name} · ${roleLabel(user.role)}`);option.value=user.id;seller.input.append(option);}form.append(seller.label);
     }
     form.append(field('Description','description','textarea',false,{maxlength:5000,rows:3}).label);
     const listingMode=field('Listing transaction','listing_mode','select');for(const [value,label] of [['sale','For sale'],['rent','For rent'],['sale_or_rent','Sale or rent']]){const option=node('option',label);option.value=value;listingMode.input.append(option);}form.append(listingMode.label);
@@ -4032,7 +5141,7 @@ function renderProperties() {
       const statement = card(`${item.address} · ${item.unit_no}`, `Lease ${item.start_date} to ${item.end_date} · ${item.status}`);
       statement.append(node('p', t('Rent commencement: {{date}}.', { date: item.rent_start_on })));
       statement.append(node('p',`Rent charged ETB ${item.rent_charged} · reconciled ETB ${item.rent_reconciled} · pending reconciliation ETB ${item.rent_pending_reconciliation}`));
-      statement.append(node('p',`Deposit received ETB ${item.deposit_reconciled} · refunded ETB ${item.deposit_refunded} · agreed deposit ETB ${item.agreed_deposit}`));
+      statement.append(node('p',`Deposit received ETB ${item.deposit_reconciled} · refunded ETB ${item.deposit_refunded} · pending refund ETB ${item.deposit_refund_pending} · approved deduction ETB ${item.approved_deposit_deduction} · reviewed refundable balance ETB ${item.approved_deposit_refund_remaining} · agreed deposit ETB ${item.agreed_deposit}`));
       statements.append(statement);
     }
     wrap.append(statements);
@@ -4121,7 +5230,70 @@ function renderMaintenanceOperations() {
   const priority = field('Priority', 'priority', 'select');
   for (const [value, label] of [['normal','Normal'],['low','Low'],['urgent','Urgent']]) { const option = node('option', label); option.value = value; priority.input.append(option); }
   form.append(category.label, priority.label, field('Describe the issue', 'description', 'textarea', true, { minlength: 10, maxlength: 2000, rows: 3 }).label, button('Submit request', 'submit', 'button button-primary'));
-  section.append(form);
+  if (state.user.role !== 'field_agent') section.append(form);
+  const tenantMembership = state.propertyTenantMemberships.find((tenant) =>
+    tenant.id === state.propertyTenantContextId && tenant.status === 'active');
+  if (['tenant_admin','master_agent'].includes(tenantMembership?.tenant_role)
+    && !state.propertyTenantSupportGrantId) {
+    const scopePanel = node('section', undefined, 'panel form-card');
+    scopePanel.append(
+      node('h3', 'Property agent assignments'),
+      node('p', 'Assign tenant agents to specific properties before routing field work. Suspended or ended assignments immediately remove field-agent access.'),
+    );
+    const scopeForm = node('form', undefined, 'inline-form');
+    scopeForm.dataset.form = 'property-agent-scope';
+    const scopeProperty = field('Property', 'property_id', 'select', true);
+    scopeProperty.input.append(new Option('Choose a property', ''));
+    for (const property of state.properties) {
+      scopeProperty.input.append(new Option(property.address, property.id));
+    }
+    const scopeAgent = field('Tenant agent', 'user_id', 'select', true);
+    const renderCandidates = () => {
+      scopeAgent.input.replaceChildren(new Option('Choose an active agent', ''));
+      for (const candidate of state.propertyTenantAgentCandidates) {
+        if (candidate.property_id && candidate.property_id !== scopeProperty.input.value) continue;
+        scopeAgent.input.append(new Option(
+          `${candidate.legal_name} · ${candidate.tenant_role.replaceAll('_', ' ')}`,
+          candidate.user_id,
+        ));
+      }
+    };
+    scopeProperty.input.addEventListener('change', renderCandidates);
+    renderCandidates();
+    scopeForm.append(
+      scopeProperty.label,
+      scopeAgent.label,
+      field('Assignment reason (minimum 10 characters)', 'reason', 'textarea', true, {
+        minlength: 10, maxlength: 1000, rows: 2,
+      }).label,
+      button('Assign agent to property', 'submit', 'button button-primary'),
+    );
+    const submit = scopeForm.querySelector('button[type="submit"]');
+    if (!state.properties.length || !state.propertyTenantAgentCandidates.length) submit.disabled = true;
+    scopePanel.append(scopeForm);
+    const activeScopes = state.propertyAgentScopes.filter((scope) => scope.status === 'active');
+    if (!activeScopes.length) scopePanel.append(empty('No property agent assignments are active.'));
+    for (const scope of activeScopes) {
+      const item = card(
+        scope.address,
+        `${scope.legal_name} · ${scope.tenant_role.replaceAll('_', ' ')} · assigned ${new Date(scope.assigned_at).toLocaleDateString(document.documentElement.lang)}`,
+        scope.status,
+      );
+      if (tenantMembership.tenant_role === 'tenant_admin'
+        || (scope.tenant_role === 'field_agent' && scope.user_id !== state.user.id)) {
+        item.append(
+          button('Suspend', 'property-agent-scope-status', 'button button-outline', {
+            propertyId: scope.property_id, userId: scope.user_id, status: 'suspended',
+          }),
+          button('End assignment', 'property-agent-scope-status', 'button button-quiet', {
+            propertyId: scope.property_id, userId: scope.user_id, status: 'ended',
+          }),
+        );
+      }
+      scopePanel.append(item);
+    }
+    section.append(scopePanel);
+  }
   const filters = node('div', undefined, 'maintenance-filters');
   const search = field('Search requests', 'maintenance_search', 'search', false, { placeholder: 'Property, unit, or issue' });
   search.input.setAttribute('aria-label', 'Search maintenance requests by property, unit, or issue');
@@ -4184,7 +5356,7 @@ function renderMaintenanceOperations() {
       const actions = node('div', undefined, 'property-actions');
       actions.append(button('History', 'maintenance-events', 'button button-outline', { id: request.id }));
       if (request.evidence_count) actions.append(button(`Evidence (${request.evidence_count})`, 'maintenance-evidence', 'button button-outline', { id: request.id }));
-      if (['open','triaged','assigned','in_progress'].includes(request.status)) {
+      if (['open','triaged','assigned','in_progress','rework_required'].includes(request.status)) {
         actions.append(button('Add request photo', 'maintenance-evidence-upload', 'button button-outline', { id: request.id }));
       }
       if (mayUpdate && request.status === 'open') actions.append(button('Triage', 'maintenance-update', 'button button-outline', { id: request.id, status: 'triaged' }));
@@ -4199,7 +5371,10 @@ function renderMaintenanceOperations() {
         actions.append(button('Return for rework', 'maintenance-update', 'button button-outline', { id: request.id, status: 'rework_required' }));
       }
       if (mayUpdate && request.status === 'rework_required') actions.append(button('Resume rework', 'maintenance-update', 'button button-outline', { id: request.id, status: 'in_progress' }));
-      if (mayUpdate && ['open','triaged','assigned','in_progress','rework_required'].includes(request.status)) actions.append(button('Cancel', 'maintenance-update', 'button button-outline', { id: request.id, status: 'cancelled' }));
+      if (mayUpdate && state.user.role !== 'field_agent'
+        && ['open','triaged','assigned','in_progress','rework_required'].includes(request.status)) {
+        actions.append(button('Cancel', 'maintenance-update', 'button button-outline', { id: request.id, status: 'cancelled' }));
+      }
       item.append(actions); list.append(item);
     }
     if (state.maintenanceHasMore) {
@@ -4372,20 +5547,22 @@ function renderMarketplace() {
   if(manager) wrap.append(renderMarketplaceConfig());
   const ownedListings = state.marketplaceListings.filter((listing) =>
     listing.created_by === state.user.id || listing.seller_user_id === state.user.id);
-  const report = node('section', undefined, 'panel form-card');
-  report.append(node('h2', 'Marketplace report dashboard'));
-  const summary = node('div', undefined, 'enterprise-metrics');
-  for (const [label, value] of [
-    ['Published listings available', state.marketplaceListings.filter((listing) => listing.status === 'published').length],
-    ['Your listings', ownedListings.length],
-    ['Marketplace membership', 'Not available'],
-    ['Purchase ledger', 'Not live'],
-  ]) {
-    const metric = node('div', undefined, 'enterprise-metric');
-    metric.append(node('span', label), node('strong', value));
-    summary.append(metric);
-  }
-  report.append(summary, node('p', 'Marketplace listing prices are not payments. Local mock mode supports a sandbox order and simulated payment for published fixed-price sales; it never charges a buyer or posts to Accounting. Real checkout, buyer memberships, wallets, loans, and purchase history remain unavailable.'));
+  const marketplaceMetrics = marketplaceDashboardMetrics(state.marketplaceListings, state.user.id);
+  const report = renderAppDashboard({
+    title: 'Marketplace BI dashboard',
+    description: 'Listing status and ownership metrics from the marketplace records currently loaded for your account.',
+    source: '/marketplace/listings',
+    metrics: marketplaceMetrics,
+    statusTitle: 'Listing status',
+    statuses: marketplaceMetrics.byStatus,
+    emptyMessage: 'No marketplace listings are currently available for this dashboard.',
+    values: (data) => [
+      ['Loaded listings', data.totalListings],
+      ['Published listings', data.publishedListings],
+      ['Your listings', data.ownedListings],
+    ],
+  });
+  report.append(node('p', 'Marketplace listing prices are not payments. Local mock mode supports a sandbox order and simulated payment for published fixed-price sales; it never charges a buyer or posts to Accounting. Real checkout, buyer memberships, wallets, loans, and purchase history remain unavailable.'));
   const activity = node('div', undefined, 'list');
   activity.append(node('h3', 'Your detailed listing activity'));
   if (!ownedListings.length) activity.append(node('p', 'No marketplace listing activity is linked to your account.'));
@@ -4436,12 +5613,12 @@ function renderInsurance() {
   consentInput.type = 'checkbox';
   consentInput.name = 'consent';
   consentInput.required = true;
-  consent.append(consentInput, node('span', 'I consent to AfroLife forwarding this information request to the Insurance service team. This is not an application, policy, quote, or coverage confirmation.'));
+  consent.append(consentInput, node('span', 'I consent to AfroSherik forwarding this information request to the Insurance service team. This is not an application, policy, quote, or coverage confirmation.'));
   const agentConsent = node('label', undefined, 'benefit-check span-2');
   const agentConsentInput = document.createElement('input');
   agentConsentInput.type = 'checkbox';
   agentConsentInput.name = 'agent_referral_consent';
-  agentConsent.append(agentConsentInput, node('span', 'Optional: I consent to sharing my name, phone number, and selected topic with one assigned AfroLife Agent for non-binding follow-up and referral to the Insurance service team. The Agent cannot advise, quote, collect premiums, or issue or change a policy.'));
+  agentConsent.append(agentConsentInput, node('span', 'Optional: I consent to sharing my name, phone number, and selected topic with one assigned AfroSherik Agent for non-binding follow-up and referral to the Insurance service team. The Agent cannot advise, quote, collect premiums, or issue or change a policy.'));
   requestForm.append(consent, agentConsent, button('Submit information request', 'submit', 'button button-primary span-2'));
   wrap.append(notice, requestForm);
   const myRequests = node('section', undefined, 'panel form-card');
@@ -4724,6 +5901,21 @@ function renderAgents() {
 function renderRent() {
   const wrap = node('div');
   wrap.append(sectionHeading('Rent & deposits', 'Record payments first. A different finance officer reconciles them into the ledger.'));
+  const inspectionDrafts = state.propertyMoveOutInspectionDrafts.filter((draft) =>
+    draft.tenant_system_id === state.propertyTenantContextId);
+  if (state.propertyMoveOutInspectionSyncError) {
+    const error = node('p', undefined, 'alert error');
+    setLocalizedText(error,
+      'Move-out inspection sync stopped; encrypted drafts are preserved on this device: {{error}}',
+      { error: state.propertyMoveOutInspectionSyncError });
+    wrap.append(error);
+  }
+  if (inspectionDrafts.length) {
+    wrap.append(
+      node('p', t('Saved move-out inspection drafts: {{count}}. They are encrypted on this device and sync when online. Evidence files must be uploaded separately.', { count: inspectionDrafts.length }), 'muted'),
+      button('Retry move-out inspection sync', 'move-out-inspection-sync', 'button button-outline'),
+    );
+  }
   const maintenanceFinanceQueue = renderMaintenanceFinanceQueue();
   if (maintenanceFinanceQueue) wrap.append(maintenanceFinanceQueue);
   if (['global_admin','super_admin','finance','finance_manager'].includes(state.user.role)) {
@@ -4854,6 +6046,95 @@ function renderRent() {
       );
       item.append(noticeForm);
     }
+    const openRenewalOffer = (lease.renewal_offers ?? []).some((offer) =>
+      ['pending_approval', 'offered', 'accepted'].includes(offer.status));
+    if (lease.status === 'active' && hasActivity('property.tenancy.manage') && !openRenewalOffer) {
+      const renewalForm = node('form', undefined, 'inline-form');
+      renewalForm.dataset.form = 'lease-renewal-offer';
+      renewalForm.dataset.lease = lease.id;
+      const nextDay = new Date(`${lease.end_date}T00:00:00Z`);
+      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+      const renewalStart = nextDay.toISOString().slice(0, 10);
+      const expires = new Date(`${renewalStart}T00:00:00Z`);
+      expires.setUTCDate(expires.getUTCDate() - 1);
+      renewalForm.append(
+        node('h4', 'Prepare renewal terms for independent approval'),
+        field('Proposed monthly rent (ETB)', 'proposed_rent', 'number', true, { min: '0.01', step: '0.01', value: String(lease.rent) }).label,
+        field('Proposed deposit (ETB)', 'proposed_deposit', 'number', true, { min: '0', step: '0.01', value: String(lease.deposit) }).label,
+        field('Renewal start date', 'proposed_start_date', 'date', true, { min: renewalStart, value: renewalStart }).label,
+        field('Renewal term (months)', 'term_months', 'number', true, { min: '1', max: '120', value: String(lease.term_months ?? 24) }).label,
+        field('Rent due day', 'due_day', 'number', false, { min: '1', max: '28', value: String(lease.due_day ?? 5) }).label,
+        field('Offer expires on', 'expires_on', 'date', true, { min: new Date().toISOString().slice(0, 10), value: expires.toISOString().slice(0, 10) }).label,
+        field('Approval reason', 'reason', 'textarea', true, { minlength: '10', maxlength: '1000' }).label,
+        button('Submit renewal offer for approval', 'submit', 'button button-outline'),
+        node('p', 'An approved offer is sent to linked resident accounts. Acceptance creates only a new lease draft; it does not extend this lease or post rent.', 'muted'),
+      );
+      renewalForm.elements.proposed_start_date.addEventListener('change', () => {
+        const start = new Date(`${renewalForm.elements.proposed_start_date.value}T00:00:00Z`);
+        start.setUTCDate(start.getUTCDate() - 1);
+        renewalForm.elements.expires_on.max = start.toISOString().slice(0, 10);
+        if (renewalForm.elements.expires_on.value >= renewalForm.elements.proposed_start_date.value) {
+          renewalForm.elements.expires_on.value = start.toISOString().slice(0, 10);
+        }
+      });
+      renewalForm.elements.expires_on.max = expires.toISOString().slice(0, 10);
+      item.append(renewalForm);
+    }
+    for (const offer of lease.renewal_offers ?? []) {
+      if (offer.status === 'pending_approval'
+        && hasActivity('property.tenancy.approve') && hasActivity('property.tenancy.manage')) {
+        item.append(
+          button('Approve and send renewal offer', 'lease-renewal-offer', 'button button-primary', { id: offer.id, leaseId: lease.id }),
+          button('Reject renewal offer', 'lease-renewal-reject', 'button button-outline', { id: offer.id, leaseId: lease.id }),
+        );
+      }
+      if (offer.status === 'accepted' && !offer.converted_lease_id && hasActivity('property.tenancy.manage')) {
+        item.append(button('Create renewal lease draft', 'lease-renewal-convert', 'button button-primary', { id: offer.id }));
+      }
+      if (offer.converted_lease_id) {
+        item.append(node('p', `Renewal lease draft ${offer.converted_lease_id} was created and must complete normal approval, signature, and handover steps.`, 'muted'));
+      }
+    }
+    const moveOutInspections = lease.move_out_inspections ?? [];
+    for (const inspection of moveOutInspections) {
+      item.append(node('p',
+        `Move-out inspection revision ${inspection.revision}: ${inspection.status} · vacated ${inspection.actual_vacated_on} · inspected ${inspection.inspected_on} · keys returned ${inspection.keys_returned ? 'yes' : 'no'} · proposed deposit deduction ETB ${inspection.deposit_deduction}${inspection.deduction_reason ? ` (${inspection.deduction_reason})` : ''}${inspection.review_note ? ` · review: ${inspection.review_note}` : ''}`,
+        'muted'));
+      for (const evidence of inspection.evidence ?? []) {
+        item.append(
+          button(`Download move-out evidence · ${evidence.mime}`, 'resident-move-out-evidence', 'button button-outline', { id: evidence.id }),
+        );
+      }
+      if (inspection.status === 'pending_review') {
+        item.append(node(
+          'p',
+          t('Evidence uploads require internet and are not saved offline. Keep the original file until the upload is confirmed.'),
+          'muted',
+        ));
+        if (hasActivity('property.tenancy.manage')) {
+          item.append(button('Upload move-out evidence', 'move-out-evidence-upload', 'button button-outline', {
+            id: inspection.id, leaseId: lease.id,
+          }));
+        }
+      }
+      if (inspection.status === 'pending_review' && hasActivity('property.tenancy.approve')
+        && inspection.submitted_by !== state.user.id) {
+        item.append(
+          button('Approve move-out inspection', 'move-out-approve', 'button button-primary', {
+            id: inspection.id, leaseId: lease.id,
+          }),
+          button('Reject move-out inspection', 'move-out-reject', 'button button-outline', {
+            id: inspection.id, leaseId: lease.id,
+          }),
+        );
+      }
+    }
+    const approvedMoveOut = moveOutInspections.some((inspection) => inspection.status === 'approved');
+    const pendingMoveOut = moveOutInspections.some((inspection) => inspection.status === 'pending_review');
+    if (lease.status === 'active' && hasActivity('property.tenancy.manage')
+      && !approvedMoveOut && !pendingMoveOut) {
+      item.append(button('Submit move-out inspection', 'move-out-submit', 'button button-outline', { id: lease.id }));
+    }
     if (lease.status === 'draft' && hasActivity('property.tenancy.manage')
       && (lease.created_by === state.user.id || isPlatformAdmin())) {
       item.append(button('Submit for approval', 'lease-submit-approval', 'button button-primary', { id: lease.id }));
@@ -4885,9 +6166,11 @@ function renderRent() {
       }
     }
     item.append(button('View charges & payments', 'lease-payments', 'button button-outline', { id: lease.id }));
-    if (['global_admin', 'super_admin', 'master_agent', 'field_agent'].includes(state.user.role) && lease.status === 'active') item.append(button('End lease', 'lease-end', 'button button-outline', { id: lease.id }));
+    if (hasActivity('property.tenancy.manage') && lease.status === 'active' && approvedMoveOut) {
+      item.append(button('End lease after move-out review', 'lease-end', 'button button-outline', { id: lease.id }));
+    }
     if (['master_agent', 'field_agent', 'finance', 'finance_manager', 'global_admin', 'super_admin'].includes(state.user.role) && lease.status === 'active' && Number(lease.deposit) > 0) item.append(button('Record deposit', 'deposit-pay', 'button button-outline', { id: lease.id }));
-    if (['finance', 'finance_manager', 'global_admin', 'super_admin'].includes(state.user.role) && lease.status === 'ended' && Number(lease.deposit) > 0) item.append(button('Return deposit', 'deposit-refund', 'button button-outline', { id: lease.id }));
+    if (hasActivity('rent.deposit.refund_request') && lease.status === 'ended' && Number(lease.deposit) > 0 && approvedMoveOut) item.append(button('Return deposit', 'deposit-refund', 'button button-outline', { id: lease.id }));
     leases.append(item);
   }
   columns.append(leases); wrap.append(columns); return wrap;
@@ -5567,9 +6850,133 @@ function renderAdmin() {
   const isAdmin = isPlatformAdmin();
   const isGlobalAdmin = state.user.role === 'global_admin';
   const isBusinessManager=state.user.role==='corporate_business_manager';
-  const canProvisionAgents = isGlobalAdmin || state.user.role === 'super_admin' || isBusinessManager;
+  const canProvisionAgents = isGlobalAdmin || state.user.role === 'super_admin' || state.user.role === 'master_agent' || isBusinessManager;
   wrap.append(sectionHeading(isAdmin ? isGlobalAdmin ? 'Global System Administration' : 'Super Admin · Assigned entity management' : isBusinessManager ? 'Business manager workspace' : 'Compliance review', isAdmin ? isGlobalAdmin ? 'Configure platform services, packages, tenant boundaries, global identity, access, and operations.' : 'Manage only assigned business entities and the modules approved for them by the Global System Admin.' : isBusinessManager ? 'Manage business operations and review marketplace submissions.' : 'Review account verification before activation.'));
   if (isGlobalAdmin) {
+    const supportAccess = node('section', undefined, 'panel form-card');
+    supportAccess.style.marginTop = '20px';
+    supportAccess.append(
+      node('h3', t('Purpose-bound property support access')),
+      node('p', t('Tenant data access requires an independently approved grant and expires within eight hours. Approved grants appear in the property-tenant selector.')),
+    );
+    const requestForm = node('form', undefined, 'inline-form');
+    requestForm.dataset.form = 'property-tenant-support-request';
+    const tenantField = field('Tenant', 'tenant_system_id', 'select', true);
+    for (const tenant of state.propertyOperatingTenants.filter((item) => item.status === 'active')) {
+      tenantField.input.append(new Option(tenant.legal_name, tenant.id));
+    }
+    const durationField = field(t('Access duration'), 'duration_hours', 'select', true);
+    for (const hours of [1, 2, 4, 8]) {
+      durationField.input.append(new Option(`${hours} hour${hours === 1 ? '' : 's'}`, String(hours)));
+    }
+    requestForm.append(
+      tenantField.label,
+      durationField.label,
+      field('Purpose (minimum 10 characters)', 'purpose', 'textarea', true, { minlength: 10, maxlength: 1000, rows: 3 }).label,
+      button(t('Request support access'), 'submit', 'button button-primary'),
+    );
+    if (tenantField.input.options.length === 0) {
+      requestForm.querySelector('button[type="submit"]').disabled = true;
+      supportAccess.append(empty(t('There are no active property tenants to request.')));
+    }
+    supportAccess.append(requestForm);
+    supportAccess.append(button(t('Refresh my approved grants'), 'property-tenant-support-refresh', 'button button-outline'));
+    supportAccess.append(node('h4', t('My active support grants')));
+    if (!state.propertyTenantSupportGrants.length) supportAccess.append(empty(t('No approved, unexpired support grants are available.')));
+    for (const grant of state.propertyTenantSupportGrants) {
+      const item = card(grant.tenant_name, `${grant.purpose} · ${t('expires')} ${new Date(grant.expires_at).toLocaleString(document.documentElement.lang)}`, t('active support'));
+      item.append(button(t('Revoke my access'), 'property-tenant-support-revoke', 'button button-outline', { id: grant.id }));
+      supportAccess.append(item);
+    }
+    supportAccess.append(node('h4', t('Pending requests for independent approval')));
+    if (!state.propertyTenantPendingGrants.length) supportAccess.append(empty(t('No support requests are awaiting approval.')));
+    for (const grant of state.propertyTenantPendingGrants) {
+      const item = card(grant.tenant_system_id, `${grant.purpose} · ${t('requested by')} ${grant.requested_by} · ${t('expires')} ${new Date(grant.expires_at).toLocaleString(document.documentElement.lang)}`, t('pending'));
+      item.append(
+        button(t('Approve'), 'property-tenant-support-decision', 'button button-outline', { id: grant.id, decision: 'approve' }),
+        button(t('Reject'), 'property-tenant-support-decision', 'button button-quiet', { id: grant.id, decision: 'reject' }),
+      );
+      supportAccess.append(item);
+    }
+    wrap.append(supportAccess);
+
+    const tenantOffboarding = node('section', undefined, 'panel form-card');
+    tenantOffboarding.append(
+      node('h3', 'Tenant offboarding and external archive verification'),
+      node('p', 'AfroSherik does not generate or store tenant export archives. Register the archive reference, SHA-256 digest, byte size, and record count from the approved external export process. A different Global Admin must verify it before offboarding or closure.'),
+    );
+    const exportForm = node('form', undefined, 'inline-form');
+    exportForm.dataset.form = 'property-tenant-export-request';
+    const exportTenant = field('Tenant', 'tenant_system_id', 'select', true);
+    for (const tenant of state.propertyOperatingTenants.filter((item) => ['active','suspended'].includes(item.status))) {
+      exportTenant.input.append(new Option(`${tenant.legal_name} · ${tenant.status}`, tenant.id));
+    }
+    exportForm.append(
+      exportTenant.label,
+      field('External archive evidence reference (no URL or credentials)', 'artifact_reference', 'text', true, { minlength: 2, maxlength: 200 }).label,
+      field('Archive SHA-256 (lowercase hexadecimal)', 'sha256', 'text', true, { minlength: 64, maxlength: 64, pattern: '[0-9a-f]{64}' }).label,
+      field('Archive size in bytes', 'size_bytes', 'number', true, { min: 1, step: 1 }).label,
+      field('Exported record count', 'record_count', 'number', true, { min: 0, step: 1 }).label,
+      field('Export notes (minimum 10 characters)', 'notes', 'textarea', true, { minlength: 10, maxlength: 1000, rows: 2 }).label,
+      button('Register archive for independent verification', 'submit', 'button button-primary'),
+    );
+    if (!exportTenant.input.options.length) {
+      exportForm.querySelector('button[type="submit"]').disabled = true;
+      tenantOffboarding.append(empty('No active or suspended tenants are eligible for a new archive request.'));
+    }
+    tenantOffboarding.append(exportForm, node('h4', 'External archive requests'));
+    if (!state.propertyTenantExportRequests.length) tenantOffboarding.append(empty('No tenant export archive evidence has been registered.'));
+    for (const request of state.propertyTenantExportRequests) {
+      const requestStatus = request.decision ?? 'pending verification';
+      const item = card(
+        `${request.tenant_name} · ${requestStatus}`,
+        `Reference ${request.artifact_reference} · SHA-256 ${request.sha256} · ${Number(request.size_bytes).toLocaleString()} bytes · ${Number(request.record_count).toLocaleString()} records · requested by ${request.requested_by_name}`,
+        requestStatus,
+      );
+      item.append(node('p', request.notes));
+      if (request.decision) {
+        item.append(node('p', `${request.decision} by ${request.decided_by_name} · ${request.decision_reason}`));
+      } else if (request.requested_by !== state.user.id
+        && ['active','suspended'].includes(request.tenant_status)) {
+        item.append(
+          button('Verify archive', 'property-tenant-export-decision', 'button button-outline', {
+            id: request.id, tenantId: request.tenant_system_id, decision: 'verified',
+          }),
+          button('Reject archive', 'property-tenant-export-decision', 'button button-quiet', {
+            id: request.id, tenantId: request.tenant_system_id, decision: 'rejected',
+          }),
+        );
+      } else if (!request.decision) {
+        item.append(node('p', 'Independent verification is required; the requester cannot approve this archive.'));
+      }
+      tenantOffboarding.append(item);
+    }
+    tenantOffboarding.append(node('h4', 'Tenant lifecycle'));
+    for (const tenant of state.propertyOperatingTenants) {
+      const latestExport = state.propertyTenantExportRequests.find((request) =>
+        request.tenant_system_id === tenant.id);
+      const verified = latestExport?.decision === 'verified';
+      const item = card(tenant.legal_name, `${tenant.tenant_key} · ${tenant.jurisdiction}`, tenant.status);
+      if (['active','suspended'].includes(tenant.status)) {
+        const offboard = button('Begin offboarding', 'property-tenant-status', 'button button-outline', {
+          tenantId: tenant.id, status: 'offboarding',
+        });
+        offboard.disabled = !verified;
+        item.append(offboard);
+      } else if (tenant.status === 'offboarding') {
+        const close = button('Close tenant', 'property-tenant-status', 'button button-quiet', {
+          tenantId: tenant.id, status: 'closed',
+        });
+        close.disabled = !verified;
+        item.append(close);
+      }
+      if (!verified && ['active','suspended','offboarding'].includes(tenant.status)) {
+        item.append(node('p', 'A verified, latest external archive is required before this tenant can advance.'));
+      }
+      tenantOffboarding.append(item);
+    }
+    wrap.append(tenantOffboarding);
+
     const delivery = node('section', undefined, 'panel form-card');
     delivery.append(node('h3', 'Webhook notification delivery'));
     delivery.append(node('p', 'Delivery retries use bounded backoff. Manual retries are audited and keep the original notification ID as the downstream idempotency key.'));
@@ -5594,7 +7001,7 @@ function renderAdmin() {
   if (isNativeApp && canChangeServer(state.user.role)) {
     const serverTools = node('section', undefined, 'panel form-card admin-server-tools');
     serverTools.append(node('h3', 'Connection settings'));
-    serverTools.append(node('p', 'Change the configured AfroLife server for this device. This affects only this app installation.'));
+    serverTools.append(node('p', 'Change the configured AfroSherik server for this device. This affects only this app installation.'));
     const changeButton = button('Change server', 'change-server', 'button button-outline');
     changeButton.id = 'change-server';
     changeButton.addEventListener('click', () => {
@@ -5671,12 +7078,14 @@ function renderAdmin() {
   if (canProvisionAgents) {
     const form = node('form', undefined, 'panel form-card inline-form');
     form.dataset.form = 'user';
-    const title = node('h3', isGlobalAdmin ? 'Create a platform account' : 'Onboard an agent'); title.className = 'span-2'; form.append(title);
+    const title = node('h3', isGlobalAdmin ? 'Create a platform account' : state.user.role === 'master_agent' ? 'Onboard a sub-agent' : 'Onboard an agent'); title.className = 'span-2'; form.append(title);
     form.append(field('Legal name', 'legal_name').label, field('Phone', 'phone', 'tel', true, { placeholder: '0911 234 567' }).label);
     const role = field('Role', 'role', 'select');
     const accountRoles = isGlobalAdmin
       ? [['super_admin','Super Admin'],['corporate_business_manager','Business Admin'],['master_agent','Master agent'],['field_agent','Field agent'],['compliance','Compliance'],['finance','Finance'],['finance_manager','Finance manager'],['customer','Customer'],['worker','Worker'],['property_owner','Property owner'],['property_vendor','Property vendor']]
-      : [['master_agent','Master agent'],['field_agent','Field agent']];
+      : state.user.role === 'master_agent'
+        ? [['field_agent','Sub-agent (Field agent)']]
+        : [['master_agent','Master agent'],['field_agent','Field agent']];
     for (const [value, label] of accountRoles) {
       const option = node('option', label); option.value = value; role.input.append(option);
     }
@@ -5701,7 +7110,12 @@ function renderAdmin() {
     form.append(agentPlan.label);
     const parent = field('Master agent (required for field agents)', 'parent_agent_id', 'select', false);
     const parentEmpty = node('option', 'Choose master agent'); parentEmpty.value = ''; parent.input.append(parentEmpty);
-    for (const user of state.users.filter((item) => item.role === 'master_agent' && item.active && (isGlobalAdmin || item.created_by === state.user.id))) { const option = node('option', user.legal_name); option.value = user.id; parent.input.append(option); }
+    if (state.user.role === 'master_agent') {
+      const option = node('option', state.user.legal_name); option.value = state.user.id; parent.input.append(option);
+      parent.input.value = state.user.id;
+    } else {
+      for (const user of state.users.filter((item) => item.role === 'master_agent' && item.active && (isGlobalAdmin || item.created_by === state.user.id))) { const option = node('option', user.legal_name); option.value = user.id; parent.input.append(option); }
+    }
     form.append(parent.label);
     form.append(field('Email', 'email', 'email', false).label);
     form.append(button('Create account', 'submit', 'button button-primary span-2'));
@@ -5729,11 +7143,53 @@ function renderAdmin() {
       : `${user.phone} · ${roleLabel(user.role)}`;
     const requestedBenefits = [
       user.pension_match_interest && 'Pension match requested',
-      user.edir_member_interest && 'AfroLife Edir requested',
+      user.edir_member_interest && 'AfroSherik Edir requested',
       user.edir_life_interest && 'Life cover requested',
       user.household_cover_interest && 'Household cover requested',
     ].filter(Boolean).join(' · ');
     const item = card(user.legal_name, [signupDetails, requestedBenefits].filter(Boolean).join(' · '), user.active ? 'active' : user.kyc_status);
+    const editableRoles = editableAccountRoles(user, state.user);
+    if (editableRoles.length && isAdmin) {
+      const roleForm = node('form', undefined, 'inline-form user-role-edit');
+      roleForm.dataset.form = 'user-role';
+      roleForm.dataset.id = user.id;
+      const role = field('Account role', 'role', 'select');
+      for (const value of editableRoles) {
+        const option = node('option', roleLabel(value));
+        option.value = value;
+        role.input.append(option);
+      }
+      role.input.value = user.role;
+      roleForm.append(role.label);
+      if (editableRoles.includes('field_agent')) {
+        const parent = field('Active Master Agent in the same territory', 'parent_agent_id', 'select', false);
+        const emptyParent = node('option', 'Select Master Agent');
+        emptyParent.value = '';
+        parent.input.append(emptyParent);
+        for (const candidate of state.users.filter((candidate) =>
+          candidate.id !== user.id
+          && candidate.role === 'master_agent'
+          && candidate.active
+          && String(candidate.territory_id) === String(user.territory_id)
+          && (state.user.role !== 'super_admin' || candidate.created_by === state.user.id))) {
+          const option = node('option', candidate.legal_name);
+          option.value = candidate.id;
+          parent.input.append(option);
+        }
+        parent.input.value = user.parent_agent_id ?? '';
+        const updateParentVisibility = () => {
+          const needsParent = role.input.value === 'field_agent' && role.input.value !== user.role;
+          parent.label.hidden = !needsParent;
+          parent.input.required = needsParent;
+          parent.input.disabled = !needsParent;
+        };
+        role.input.addEventListener('change', updateParentVisibility);
+        updateParentVisibility();
+        roleForm.append(parent.label);
+      }
+      roleForm.append(button('Save role', 'submit', 'button button-primary span-2'));
+      item.append(roleForm);
+    }
     if (user.signup_account_type && ['global_admin', 'compliance'].includes(state.user.role)) {
       item.append(button(`KYC documents (${user.kyc_document_count ?? 0})`, 'user-documents', 'button button-outline', { id: user.id }));
     }
@@ -5765,7 +7221,7 @@ function renderPasswordChange() {
   form.style.maxWidth = '480px';
   form.dataset.form = 'password';
   form.append(node('h3', 'Set a new password'), node('p', 'Your account requires a password change before continuing.'));
-  form.append(field('Temporary password', 'current', 'password').label, field('New password (12+ characters)', 'next', 'password', true, { minlength: '12', maxlength: '72' }).label);
+  form.append(field('Temporary password', 'current', 'password').label, field('New password (8+ characters)', 'next', 'password', true, { minlength: '8', maxlength: '72' }).label);
   form.append(button('Update password', 'submit', 'button button-primary'));
   return form;
 }
@@ -5775,8 +7231,23 @@ function renderSecurity() {
   wrap.append(sectionHeading('Account security', 'Manage two-step verification and signed-in devices.'));
   const panel = node('section', undefined, 'panel form-card');
   panel.style.maxWidth = '620px';
+  panel.append(node('h3', 'WhatsApp password recovery'));
+  panel.append(node('p', 'If enabled by AfroSherik, recovery codes can be sent only to your registered phone. You can withdraw this consent at any time.'));
+  const whatsappConsent = node('label');
+  whatsappConsent.className = 'check-row';
+  const whatsappConsentInput = document.createElement('input');
+  whatsappConsentInput.type = 'checkbox';
+  whatsappConsentInput.checked = Boolean(state.user.whatsapp_opt_in);
+  whatsappConsentInput.dataset.whatsappOptIn = 'true';
+  whatsappConsent.append(whatsappConsentInput, node('span', 'Allow WhatsApp messages for password recovery'));
+  panel.append(whatsappConsent);
+  const mfaRequired = state.user.mfa_required ?? REQUIRED_MFA_ROLES.has(state.user.role);
   panel.append(node('h3', state.user.mfa_enabled ? 'Two-step verification is enabled' : 'Two-step verification'));
-  panel.append(node('p', state.user.mfa_enabled ? 'Your sign-in uses a password and authenticator code.' : 'Use an authenticator app to generate a one-time sign-in code.'));
+  panel.append(node('p', mfaRequired
+    ? 'Authenticator sign-in is required for administrative roles and cannot be disabled.'
+    : state.user.mfa_enabled
+      ? 'Your sign-in uses a password and authenticator code.'
+      : 'Optional: add an authenticator app for an extra sign-in step. You can turn it off later after verifying your password and code.'));
   if (!state.user.mfa_enabled && !state.mfaSetup) {
     panel.append(button('Set up authenticator', 'mfa-setup', 'button button-primary'));
   } else if (state.mfaSetup && !state.user.mfa_enabled) {
@@ -5794,10 +7265,103 @@ function renderSecurity() {
     const form = node('form', undefined, 'inline-form');
     form.dataset.form = 'mfa-enable';
     const code = field('Six-digit authenticator code', 'code', 'text', true, { inputMode: 'numeric', pattern: '[0-9]{6}', maxLength: 6 });
-    form.append(code.label, button('Verify and enable', 'submit', 'button button-primary'));
+    const trustLabel = node('label', undefined, 'check-row');
+    const trustInput = document.createElement('input');
+    trustInput.type = 'checkbox';
+    trustInput.name = 'trust_device';
+    trustInput.value = 'on';
+    trustLabel.append(trustInput, node('span', 'Trust this browser for 30 days after verifying this code'));
+    form.append(code.label, trustLabel, button('Verify and enable', 'submit', 'button button-primary'));
+    panel.append(form);
+  } else if (state.user.mfa_enabled && !mfaRequired) {
+    const form = node('form', undefined, 'inline-form');
+    form.dataset.form = 'mfa-disable';
+    form.append(node('p', 'To turn off the optional authenticator step, confirm your current password and a valid one-time code.', 'muted'));
+    form.append(field('Current password', 'password', 'password').label);
+    form.append(field('Six-digit authenticator code', 'code', 'text', true, { inputMode: 'numeric', pattern: '[0-9]{6}', maxLength: 6 }).label);
+    form.append(button('Turn off two-step verification', 'submit', 'button button-outline'));
     panel.append(form);
   }
+  const trustedDevices = node('section', undefined, 'panel');
+  trustedDevices.append(node('h3', 'Trusted browsers'));
+  trustedDevices.append(node('p', 'A trusted browser skips repeat authenticator codes for up to 30 days. It does not extend your sign-in session. You can revoke a browser here.', 'muted'));
+  if (!state.trustedDevices.length) {
+    trustedDevices.append(empty('No trusted browsers.'));
+  } else {
+    const list = node('div', undefined, 'record-list');
+    for (const device of state.trustedDevices) {
+      const item = node('article', undefined, 'record-card');
+      item.append(node('h4', device.current ? 'This browser' : device.user_agent || 'Browser details unavailable'));
+      const dates = node('p', undefined, 'muted');
+      setLocalizedText(dates, 'Last used {{lastUsed}} · Expires {{expires}}', {
+        lastUsed: new Date(device.last_used_at).toLocaleString(),
+        expires: new Date(device.expires_at).toLocaleString(),
+      });
+      item.append(dates);
+      item.append(node('p', device.active ? 'Active' : 'Revoked or expired', 'muted'));
+      if (device.active) item.append(button('Revoke trusted browser', 'revoke-trusted-device', 'button button-outline', { id: device.id }));
+      list.append(item);
+    }
+    trustedDevices.append(list);
+  }
+  const passkeyState = state.passkeySecurity ?? {
+    enabled: false,
+    message: 'Passkey registration is unavailable until secure server-side WebAuthn verification is configured. AfroSherik does not collect biometric data.',
+    credentials: [],
+  };
+  const browserSupportsPasskeys = Boolean(window.isSecureContext
+    && typeof window.PublicKeyCredential === 'function'
+    && typeof navigator.credentials?.create === 'function');
+  panel.append(node('h3', 'Passkeys and device registration'));
+  const passkeyMessage = passkeyState.enabled && !browserSupportsPasskeys
+    ? 'Passkey registration is unavailable in this browser or connection.'
+    : passkeyState.message;
+  panel.append(node('p', passkeyMessage));
+  panel.append(node('p', 'Passkey registration does not replace password sign-in or required administrator MFA; any biometric check stays on your device.', 'muted'));
+  if (state.passkeyOptions) {
+    panel.append(node('p', 'Continue on this device to approve passkey creation with its built-in screen lock or biometric prompt.'));
+    panel.append(button('Continue on this device', 'passkey-create', 'button button-primary'));
+    panel.append(button('Cancel setup', 'passkey-cancel', 'button button-outline'));
+  } else {
+    if (passkeyState.enabled && browserSupportsPasskeys) {
+      const deviceName = field('Device label', 'device_name', 'text', true, { maxLength: 80 });
+      deviceName.input.value = state.passkeyDeviceName;
+      deviceName.input.addEventListener('input', () => { state.passkeyDeviceName = deviceName.input.value; });
+      panel.append(deviceName.label);
+    }
+    const passkey = button(passkeyState.enabled && browserSupportsPasskeys
+      ? 'Register this device' : 'Passkey registration unavailable',
+    'passkey-register', 'button button-outline passkey-unavailable');
+    passkey.disabled = !passkeyState.enabled || !browserSupportsPasskeys;
+    passkey.setAttribute('aria-describedby', 'passkey-unavailable-note');
+    panel.append(passkey);
+    const passkeyNote = node('span', passkeyMessage);
+    passkeyNote.id = 'passkey-unavailable-note';
+    passkeyNote.className = 'sr-only';
+    panel.append(passkeyNote);
+  }
+  const passkeys = passkeyState.credentials;
+  if (!Array.isArray(passkeys)) {
+    panel.append(node('p', 'Registered passkeys could not be loaded.', 'form-error'));
+  } else if (!passkeys.length) {
+    panel.append(node('p', 'No passkeys are registered for this account.', 'muted'));
+  } else {
+    const passkeyList = node('div', undefined, 'record-list');
+    for (const credential of passkeys) {
+      const item = node('article', undefined, 'record-card');
+      item.append(node('h4', credential.device_name));
+      const credentialType = t(credential.device_type === 'multiDevice' ? 'Synced passkey' : 'Device-bound passkey');
+      item.append(node('p', t('{{type}} · added {{date}}', {
+        type: credentialType,
+        date: new Date(credential.created_at).toLocaleDateString(),
+      }), 'muted'));
+      item.append(button('Remove passkey', 'passkey-remove', 'button button-outline', { id: credential.id }));
+      passkeyList.append(item);
+    }
+    panel.append(passkeyList);
+  }
   wrap.append(panel);
+  wrap.append(trustedDevices);
   const sessions = node('section', undefined, 'panel');
   sessions.append(node('h3', 'Signed-in sessions'));
   sessions.append(node('p', 'Review recent sessions for your account and end any session you do not recognize.', 'muted'));
@@ -6083,7 +7647,7 @@ function renderPanel() {
     accounting: 'Accounting & Finance',
     'global-bi': 'Global BI',
     'tenant-data-admin': 'Tenant data administration',
-    edir: 'AfroLife Edir workspace',
+    edir: 'AfroSherik Edir workspace',
     insurance: 'Insurance information',
     marketplace: 'Marketplace',
     leads: 'Leads',
@@ -6131,10 +7695,17 @@ function renderPanel() {
       state.dataAdminTenantId,
       state.tenantDataWorkspace,
       state.tenantAnalyticsStatus,
+      state.tenantMigrationRuns,
+      state.user.id,
       async (tenantId) => {
         state.dataAdminTenantId = tenantId;
         state.tenantDataWorkspace = null;
         state.tenantAnalyticsStatus = null;
+        state.tenantMigrationRuns = [];
+        loadedPanels.delete('tenant-data-admin');
+        await refresh();
+      },
+      async () => {
         loadedPanels.delete('tenant-data-admin');
         await refresh();
       },
@@ -6183,6 +7754,10 @@ function renderPanel() {
 }
 
 function navigateToPanel(panel, { replace = false } = {}) {
+  if (isCrossMiniAppPanel(panel)) {
+    navigateToPanel('launcher', { replace });
+    return;
+  }
   const tab = panel === 'launcher' ? null : document.querySelector(`.tab[data-panel="${CSS.escape(panel)}"]`);
   if (!KNOWN_PANELS.has(panel) || (panel === 'launcher' ? !state.user : !tab || tab.hidden)) {
     showAlert('This workspace is unavailable for your account or deployment.', true);
@@ -6193,12 +7768,74 @@ function navigateToPanel(panel, { replace = false } = {}) {
   const url = panelUrl(window.location.href, panel);
   if (replace) history.replaceState(null, '', url);
   else if (url !== `${window.location.pathname}${window.location.search}${window.location.hash}`) history.pushState(null, '', url);
+  configureWorkspaceNavigation();
+  updateWorkspaceNavigationGroups();
+  renderMobileWorkspaceNav();
   renderPanel();
   void refresh(false);
 }
 
 async function submitForm(form) {
   const values = formData(form);
+  if (form.dataset.form === 'property-tenant-export-request') {
+    const sizeBytes = Number(values.size_bytes);
+    const recordCount = Number(values.record_count);
+    if (!Number.isSafeInteger(sizeBytes) || sizeBytes <= 0
+      || !Number.isSafeInteger(recordCount) || recordCount < 0) {
+      throw new Error(t('Archive size and record count must be whole numbers within the supported range.'));
+    }
+    await api(`/property/tenant-systems/${encodeURIComponent(values.tenant_system_id)}/offboarding-exports`, {
+      method: 'POST',
+      body: JSON.stringify({
+        artifact_reference: values.artifact_reference.trim(),
+        sha256: values.sha256.trim(),
+        size_bytes: sizeBytes,
+        record_count: recordCount,
+        notes: values.notes.trim(),
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert(t('External tenant archive registered for independent verification.'));
+    return;
+  }
+  if (form.dataset.form === 'property-tenant-support-request') {
+    const durationHours = Number(values.duration_hours);
+    if (![1, 2, 4, 8].includes(durationHours)) throw new Error(t('Choose a support duration of up to eight hours.'));
+    await api('/property/tenant-support-grants', {
+      method: 'POST',
+      body: JSON.stringify({
+        tenant_system_id: values.tenant_system_id,
+        purpose: values.purpose.trim(),
+        expires_at: new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString(),
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert(t('Purpose-bound support access requested for independent approval.'));
+    return;
+  }
+  if (form.dataset.form === 'property-agent-scope') {
+    const candidate = state.propertyTenantAgentCandidates.find((agent) =>
+      agent.user_id === values.user_id
+      && (!agent.property_id || agent.property_id === values.property_id));
+    if (!candidate || !state.propertyTenantContextId) {
+      throw new Error(t('Choose an active agent in the selected property tenant.'));
+    }
+    await api(`/property/tenant-systems/${encodeURIComponent(state.propertyTenantContextId)}/agent-scopes`, {
+      method: 'POST',
+      body: JSON.stringify({
+        property_id: form.dataset.property,
+        user_id: candidate.user_id,
+        tenant_role: candidate.tenant_role,
+        reason: values.reason.trim(),
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert(t('Property agent assignment saved.'));
+    return;
+  }
   if (form.dataset.form === 'assistant-start') {
     const conversation = await api('/assistant/conversations', {
       method: 'POST',
@@ -6218,6 +7855,31 @@ async function submitForm(form) {
     form.reset();
     await refreshAssistant();
     showAlert('');
+    return;
+  }
+  if (form.dataset.form === 'assistant-callback') {
+    await api('/support/callback-requests', {
+      method: 'POST',
+      body: JSON.stringify({
+        purpose: values.purpose,
+        ...(values.details.trim() ? { details: values.details.trim() } : {}),
+      }),
+    });
+    form.reset();
+    await refreshAssistant();
+    showAlert('Your call-back request has been added to the secure support queue.');
+    return;
+  }
+  if (form.dataset.form === 'worker-report-filters') {
+    if (values.start_date && values.end_date && values.start_date > values.end_date) {
+      throw new Error('The report start date must be on or before its end date.');
+    }
+    state.workerReportFilters = {
+      startDate: values.start_date,
+      endDate: values.end_date,
+      status: values.status || 'all',
+    };
+    renderPanel();
     return;
   }
   if (form.dataset.form === 'rental-application') {
@@ -6352,7 +8014,7 @@ async function submitForm(form) {
     }) });
     form.reset();
     await refresh();
-    showAlert('Your support request was sent to AfroLife.');
+    showAlert('Your support request was sent to AfroSherik.');
     return;
   }
   if (form.dataset.form === 'support-case-create') {
@@ -6543,6 +8205,21 @@ async function submitForm(form) {
     await loadMySubscriptions();
     renderSubscriptionCatalog();
     showAlert('Payment reference submitted for independent Finance review.');
+    return;
+  }
+  if (form.dataset.form === 'user-role') {
+    const body = { role: values.role };
+    if (values.parent_agent_id) body.parent_agent_id = values.parent_agent_id;
+    const result = await api(`/users/${encodeURIComponent(form.dataset.id)}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+    if (!result.changed) {
+      showAlert('The account already has this role.');
+      return;
+    }
+    await refresh();
+    showAlert('Account role saved.');
     return;
   }
   if (form.dataset.form === 'role-access') {
@@ -6832,6 +8509,12 @@ async function submitForm(form) {
     showAlert('Two-step verification enabled.');
     return;
   }
+  if (form.dataset.form === 'mfa-disable') {
+    await api('/auth/mfa/disable', { method: 'POST', body: JSON.stringify(values) });
+    await loadWorkspace();
+    showAlert('Two-step verification disabled.');
+    return;
+  }
   if (form.dataset.form === 'tenant') {
     const payload = { ...values };
     if (!payload.national_id) delete payload.national_id;
@@ -6842,6 +8525,27 @@ async function submitForm(form) {
     const payload = { ...values, rent: number(values.rent), deposit: number(values.deposit || '0'), months: number(values.months) };
     await api('/leases/workflow', { method: 'POST', body: JSON.stringify(payload) });
     await refresh(); showAlert('Lease draft created. Submit it for independent approval before collecting signatures or activating the unit.'); return;
+  }
+  if (form.dataset.form === 'lease-renewal-offer') {
+    form.dataset.idempotencyKey ||= crypto.randomUUID();
+    const payload = {
+      proposed_rent: values.proposed_rent,
+      proposed_deposit: values.proposed_deposit,
+      proposed_start_date: values.proposed_start_date,
+      term_months: number(values.term_months),
+      due_day: number(values.due_day || '5'),
+      expires_on: values.expires_on,
+      request_reason: values.reason.trim(),
+      idempotency_key: form.dataset.idempotencyKey,
+    };
+    await api(`/leases/${encodeURIComponent(form.dataset.lease)}/renewal-offers`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    form.dataset.idempotencyKey = crypto.randomUUID();
+    await refresh();
+    showAlert('Renewal terms submitted for independent approval. The existing lease remains unchanged.');
+    return;
   }
   if (form.dataset.form === 'lease-signature') {
     const file = form.querySelector('input[name="signature_document"]')?.files?.[0];
@@ -6932,6 +8636,173 @@ async function submitForm(form) {
     form.reset();
     await refresh();
     showAlert('Property listing saved. Upload ownership or delegated-authority evidence; it remains unavailable to customers until authority and listing reviews are approved.');
+    return;
+  }
+  if (form.dataset.form === 'property-association-create') {
+    const propertyIds = [...form.querySelectorAll('select[name="property_ids"] option:checked')]
+      .map((option) => option.value);
+    if (!propertyIds.length) throw new Error(t('Select at least one property for the association.'));
+    await api('/property/associations', {
+      method: 'POST',
+      body: JSON.stringify({ name: values.name.trim(), property_ids: propertyIds }),
+    });
+    form.reset();
+    await refresh();
+    showAlert('Property association created.');
+    return;
+  }
+  if (form.dataset.form === 'property-association-amenity-policy') {
+    await api(`/property/associations/${encodeURIComponent(form.dataset.association)}/amenity-policies`, {
+      method: 'POST',
+      body: JSON.stringify({
+        property_id: form.dataset.property,
+        amenity_name: values.amenity_name.trim(),
+        rules: values.rules.trim(),
+        status: values.status,
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert('Association amenity policy version recorded.');
+    return;
+  }
+  if (form.dataset.form === 'property-amenity-reservation') {
+    const utcDateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+    if (!utcDateTimePattern.test(values.starts_at) || !utcDateTimePattern.test(values.ends_at)) {
+      throw new Error(t('Enter UTC time as YYYY-MM-DDTHH:mm.'));
+    }
+    const startsAt = new Date(`${values.starts_at}:00Z`);
+    const endsAt = new Date(`${values.ends_at}:00Z`);
+    if (!Number.isFinite(startsAt.getTime()) || !Number.isFinite(endsAt.getTime())
+      || startsAt.toISOString().slice(0, 16) !== values.starts_at
+      || endsAt.toISOString().slice(0, 16) !== values.ends_at
+      || endsAt <= startsAt || startsAt <= new Date()
+      || endsAt - startsAt > 24 * 60 * 60 * 1000
+      || startsAt - new Date() > 365 * 24 * 60 * 60 * 1000) {
+      throw new Error(t('Choose a valid future interval, no longer than 24 hours and no more than 365 days ahead.'));
+    }
+    await api(`/property/associations/${encodeURIComponent(form.dataset.association)}/amenity-reservations`, {
+      method: 'POST',
+      body: JSON.stringify({
+        property_id: form.dataset.property,
+        amenity_name: values.amenity_name,
+        starts_at: startsAt.toISOString(),
+        ends_at: endsAt.toISOString(),
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert(t('Amenity reservation request submitted for approval.'));
+    return;
+  }
+  if (form.dataset.form === 'property-association-dues-policy') {
+    await api(`/property/associations/${encodeURIComponent(form.dataset.association)}/dues-policies`, {
+      method: 'POST',
+      body: JSON.stringify({
+        property_id: form.dataset.property,
+        cadence_months: Number(values.cadence_months),
+        anchor_period_start: values.anchor_period_start,
+        amount: values.amount,
+        description: values.description.trim(),
+        status: values.status,
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert('Recurring association dues policy version recorded.');
+    return;
+  }
+  if (form.dataset.form === 'property-association-dues-cycle') {
+    const result = await api(
+      `/property/associations/${encodeURIComponent(form.dataset.association)}/dues-cycles`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          period_start: values.period_start,
+          due_on: values.due_on,
+        }),
+      },
+    );
+    form.reset();
+    await refresh();
+    showAlert(result.already_run
+      ? 'This association dues cycle already existed; no duplicate assessments were created.'
+      : 'Association dues cycle completed.');
+    return;
+  }
+  if (form.dataset.form === 'property-association-report') {
+    const reportTenantId = state.propertyTenantContextId;
+    const query = new URLSearchParams({
+      period_start: values.period_start,
+      period_end: values.period_end,
+    });
+    const report = await api(`/property/association-report?${query}`);
+    if (state.propertyTenantContextId !== reportTenantId) return;
+    state.propertyAssociationReport = report;
+    renderPanel();
+    showAlert('Association activity report generated for the authorized tenant context.');
+    return;
+  }
+  if (form.dataset.form === 'property-assessment-create') {
+    await api(`/property/associations/${encodeURIComponent(form.dataset.association)}/assessments`, {
+      method: 'POST',
+      body: JSON.stringify({
+        property_id: values.property_id,
+        period_start: values.period_start,
+        due_on: values.due_on,
+        amount: values.amount,
+        description: values.description.trim(),
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert('Association assessment recorded.');
+    return;
+  }
+  if (form.dataset.form === 'property-assessment-receipt') {
+    await api(`/property/association-assessments/${encodeURIComponent(form.dataset.assessment)}/receipts`, {
+      method: 'POST',
+      body: JSON.stringify({
+        amount: values.amount,
+        channel: values.channel.trim(),
+        reference: values.reference.trim(),
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert('Receipt reference recorded for independent reconciliation.');
+    return;
+  }
+  if (form.dataset.form === 'property-association-violation') {
+    await api(`/property/associations/${encodeURIComponent(form.dataset.association)}/violations`, {
+      method: 'POST',
+      body: JSON.stringify({
+        property_id: form.dataset.property,
+        category: values.category.trim(),
+        summary: values.summary.trim(),
+        description: values.description.trim(),
+        evidence_reference: values.evidence_reference.trim(),
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert('Evidence-based property observation recorded for review.');
+    return;
+  }
+  if (form.dataset.form === 'property-arc-request') {
+    await api('/property/arc-requests', {
+      method: 'POST',
+      body: JSON.stringify({
+        property_id: values.property_id,
+        request_type: values.request_type,
+        summary: values.summary.trim(),
+        proposal: values.proposal.trim(),
+        ...(values.evidence_reference.trim() ? { evidence_reference: values.evidence_reference.trim() } : {}),
+      }),
+    });
+    form.reset();
+    await refresh();
+    showAlert('Property change request submitted for tenant-scoped review.');
     return;
   }
   if (form.dataset.form === 'property-authority-evidence') {
@@ -7039,6 +8910,101 @@ async function submitForm(form) {
     });
     await refresh();
     showAlert('Global Admin promotion request submitted for independent review.');
+    return;
+  }
+  if (form.dataset.form === 'marketplace') {
+    const token = sessionStorage.getItem(TOKEN_KEY);
+    if (!token) throw new Error('Your session expired. Sign in again before uploading listing media.');
+    const files = [...form.querySelector('input[name="media"]').files];
+    if (!files.length) throw new Error('Add at least one photo before posting this listing.');
+    const payload = marketplaceListingPayload(values);
+    const listing = await api('/marketplace/listings', { method: 'POST', body: JSON.stringify(payload) });
+    for (const file of files) {
+      const qs = new URLSearchParams();
+      const response = await fetch(`${apiRoot()}/marketplace/listings/${listing.id}/media/upload?${qs}`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': file.type },
+        body: file,
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.error ?? `Media upload failed (${response.status})`);
+    }
+    await api(`/marketplace/listings/${listing.id}/submit`, { method: 'POST', body: '{}' });
+    await refresh();
+    showAlert('Listing submitted. It will appear to buyers after any required review.');
+    return;
+  }
+  if (form.dataset.form === 'marketplace-existing-media') {
+    const token = sessionStorage.getItem(TOKEN_KEY);
+    if (!token) throw new Error('Your session expired. Sign in again before uploading listing media.');
+    const files = [...form.querySelector('input[name="media"]').files];
+    if (!files.length) throw new Error('Choose at least one file.');
+    for (const file of files) {
+      const response = await fetch(`${apiRoot()}/marketplace/listings/${form.dataset.listing}/media/upload`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': file.type },
+        body: file,
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.error ?? `Upload failed (${response.status})`);
+    }
+    await api(`/marketplace/listings/${form.dataset.listing}/submit`, { method: 'POST', body: '{}' });
+    await refresh();
+    showAlert('Listing submitted for publication review.');
+    return;
+  }
+  if (form.dataset.form === 'marketplace-config') {
+    const valuesToSave = [];
+    const enabled = ['products', 'services', 'equipment', 'properties']
+      .filter((key) => form.elements.namedItem(`domain:${key}`)?.checked);
+    if (enabled.length) valuesToSave.push({ scope: 'system', key: 'enabled_domains', value: enabled });
+    const categories = (scope) => form.elements.namedItem(`${scope}_categories`).value
+      .split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
+        const [key, ...rest] = line.split('|');
+        return { key: key.trim().toLowerCase().replaceAll(' ', '_'), label: rest.join('|').trim(), enabled: true };
+      });
+    for (const scope of ['products', 'services']) valuesToSave.push({ scope, key: 'categories', value: categories(scope) });
+    const property_types = form.elements.namedItem('property_types').value
+      .split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
+        const [key, ...rest] = line.split('|');
+        return { key: key.trim(), label: rest.join('|').trim(), enabled: true };
+      });
+    const periods = form.elements.namedItem('rental_periods').value
+      .split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
+        const [key, ...rest] = line.split('|');
+        return { key: key.trim(), label: rest.join('|').trim(), enabled: true };
+      });
+    valuesToSave.push(
+      { scope: 'properties', key: 'property_types', value: property_types },
+      { scope: 'rentals', key: 'periods', value: periods },
+    );
+    if (state.user.role === 'global_admin') {
+      valuesToSave.push({ scope: 'system', key: 'moderation_required', value: form.elements.namedItem('moderation_required').checked });
+      valuesToSave.push({ scope: 'system', key: 'image_max_bytes', value: Math.round(number(form.elements.namedItem('image_max_mb').value) * 1048576) });
+      valuesToSave.push({ scope: 'system', key: 'video_max_bytes', value: Math.round(number(form.elements.namedItem('video_max_mb').value) * 1048576) });
+      valuesToSave.push({ scope: 'system', key: 'max_media_per_listing', value: number(form.elements.namedItem('max_media_per_listing').value) });
+      const account_types = (state.marketplaceConfig.users?.account_types ?? [])
+        .map((account) => ({ ...account, enabled: form.elements.namedItem(`account:${account.key}`).checked }));
+      valuesToSave.push({ scope: 'users', key: 'account_types', value: account_types });
+      const kyc_requirements = {};
+      for (const role of ['worker', 'customer', 'agent', 'property_owner']) {
+        kyc_requirements[role] = ['national_id', 'police_clearance']
+          .filter((doc) => form.elements.namedItem(`kyc:${role}:${doc}`).checked);
+      }
+      kyc_requirements.property_vendor = ['national_id'];
+      valuesToSave.push({ scope: 'users', key: 'kyc_requirements', value: kyc_requirements });
+    }
+    if (!enabled.length) throw new Error('Enable at least one marketplace domain.');
+    if (valuesToSave.some((entry) => entry.scope === 'products' || entry.scope === 'services')
+      && valuesToSave.filter((entry) => ['products', 'services'].includes(entry.scope)).some((entry) => !entry.value.length)) {
+      throw new Error('Keep at least one category in each catalog.');
+    }
+    state.marketplaceConfig = await api('/marketplace/config', {
+      method: 'PATCH',
+      body: JSON.stringify({ values: valuesToSave }),
+    });
+    await refresh();
+    showAlert('Marketplace configuration saved.');
     return;
   }
   form.reset();
@@ -7245,7 +9211,8 @@ async function showPropertyPhotos(propertyId, container) {
     }
     const grid = node('div', undefined, 'property-photo-grid');
     for (const photo of photos) {
-      const response = await fetch(`${apiRoot()}/properties/${propertyId}/photos/${photo.id}/file`, {
+      const propertyContextHeaders = propertyTenantRequestHeaders();
+      const response = await authenticatedPropertyFetch(`/properties/${propertyId}/photos/${photo.id}/file`, {
         headers: { authorization: `Bearer ${sessionStorage.getItem(TOKEN_KEY)}` },
       });
       if (!response.ok) throw new Error(t('Could not load a property picture ({{status}}).', { status: response.status }));
@@ -7361,7 +9328,7 @@ async function uploadPropertyPhotos(propertyId, files, caption = '') {
       throw new Error(t('This file exceeds the configured upload size limit.'));
     }
     const query = new URLSearchParams({ caption });
-    const response = await fetch(`${apiRoot()}/properties/${propertyId}/photos/upload?${query}`, {
+    const response = await authenticatedPropertyFetch(`/properties/${propertyId}/photos/upload?${query}`, {
       method: 'POST',
       headers: {
         authorization: `Bearer ${sessionStorage.getItem(TOKEN_KEY)}`,
@@ -7375,6 +9342,29 @@ async function uploadPropertyPhotos(propertyId, files, caption = '') {
 }
 
 document.addEventListener('change', (event) => {
+  const propertyTenantSelect = event.target.closest('select[data-property-tenant-context]');
+  if (propertyTenantSelect) {
+    const [tenantSystemId, supportGrantId] = propertyTenantSelect.value.split(':');
+    state.propertyTenantContextId = tenantSystemId || null;
+    state.propertyAssociationReport = null;
+    state.propertyMoveOutInspectionDrafts = [];
+    state.propertyMoveOutInspectionSyncError = '';
+    state.propertyTenantSupportGrantId = supportGrantId || null;
+    if (state.propertyTenantContextId) localStorage.setItem(PROPERTY_TENANT_KEY, state.propertyTenantContextId);
+    else localStorage.removeItem(PROPERTY_TENANT_KEY);
+    if (state.propertyTenantSupportGrantId) {
+      localStorage.setItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY, state.propertyTenantSupportGrantId);
+    } else {
+      localStorage.removeItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
+    }
+    loadedPanels.clear();
+    void (async () => {
+      await syncPropertyMoveOutInspectionDrafts();
+      if (state.panel === 'properties' || state.panel === 'rent') await refresh();
+      else showAlert('Property tenant context updated.');
+    })().catch((error) => showAlert(error.message, true));
+    return;
+  }
   const contextSelect = event.target.closest('select[data-platform-tenant-context]');
   if (!contextSelect) return;
   state.platformTenantContextId = contextSelect.value || null;
@@ -7387,12 +9377,54 @@ document.addEventListener('submit', (event) => {
   event.preventDefault();
   showAlert('');
   const submit = form.querySelector('button[type="submit"]');
-  if (submit) submit.disabled = true;
+  const saveFeedbackForms = new Set([
+    'user-role', 'role-access', 'business-rules', 'marketplace-config',
+    'platform-service-package', 'platform-service-package-update', 'platform-service',
+    'platform-tenant', 'platform-tenant-admin', 'platform-tenant-update',
+    'platform-catalog-product', 'platform-catalog-product-update',
+    'tenant-module-config', 'tenant-deployment-registration', 'platform-tenant-capabilities',
+  ]);
+  if (submit) {
+    submit.disabled = true;
+    if (saveFeedbackForms.has(form.dataset.form)) {
+      submit.dataset.idleLabel = submit.textContent;
+      submit.textContent = 'Saving…';
+      submit.setAttribute('aria-busy', 'true');
+    }
+  }
   submitForm(form)
     .catch((error) => showAlert(error.message, true))
     .finally(() => {
-      if (submit?.isConnected) submit.disabled = false;
+      if (submit?.isConnected) {
+        submit.disabled = false;
+        if (submit.dataset.idleLabel) {
+          submit.textContent = submit.dataset.idleLabel;
+          delete submit.dataset.idleLabel;
+          submit.removeAttribute('aria-busy');
+        }
+      }
     });
+});
+
+document.addEventListener('change', async (event) => {
+  const checkbox = event.target.closest('input[data-whatsapp-opt-in]');
+  if (!checkbox || !state.user) return;
+  checkbox.disabled = true;
+  try {
+    const preference = await api('/auth/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify({ whatsapp_opt_in: checkbox.checked }),
+    });
+    state.user.whatsapp_opt_in = preference.whatsapp_opt_in;
+    showAlert(preference.whatsapp_opt_in
+      ? 'WhatsApp recovery consent saved. Recovery is still subject to service availability.'
+      : 'WhatsApp recovery consent withdrawn.');
+  } catch (error) {
+    checkbox.checked = !checkbox.checked;
+    showAlert(error.message, true);
+  } finally {
+    checkbox.disabled = false;
+  }
 });
 
 $('#assistant-dialog').addEventListener('close', () => {
@@ -7401,9 +9433,10 @@ $('#assistant-dialog').addEventListener('close', () => {
 });
 
 window.addEventListener('online', () => {
-  if (state.user?.role !== 'worker') return;
+  if (!state.user) return;
   void (async () => {
-    await syncWorkerClockQueue();
+    if (state.user.role === 'worker') await syncWorkerClockQueue();
+    await syncPropertyMoveOutInspectionDrafts();
     await refresh();
   })().catch((error) => showAlert(error.message, true));
 });
@@ -7436,6 +9469,9 @@ document.addEventListener('click', async (event) => {
       } else if (action === 'assistant-navigate') {
         $('#assistant-dialog').close();
         navigateToPanel(assistantAction.dataset.panel);
+      } else if (action === 'assistant-telegram-link') {
+        const result = await api('/auth/telegram/link', { method: 'POST', body: '{}' });
+        window.location.assign(result.url);
       }
     } catch (error) {
       showAlert(error.message, true);
@@ -7485,8 +9521,161 @@ document.addEventListener('click', async (event) => {
   const action = event.target.closest('button[data-action]');
   if (!action || action.type === 'submit') return;
   const { action: name, id } = action.dataset;
+  if (name === 'property-tenant-export-decision') {
+    const decision = action.dataset.decision;
+    const reason = window.prompt(t(`Explain why this tenant archive is being ${decision} (minimum 10 characters).`));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/tenant-systems/${encodeURIComponent(action.dataset.tenantId)}/offboarding-exports/${encodeURIComponent(id)}/decision`, {
+        method: 'POST',
+        body: JSON.stringify({ decision, reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(t('Tenant archive verification decision saved.'));
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
+  if (name === 'property-tenant-status') {
+    const status = action.dataset.status;
+    const reason = window.prompt(t(`Explain why this tenant is being moved to ${status} (minimum 10 characters).`));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/tenant-systems/${encodeURIComponent(action.dataset.tenantId)}/status`, {
+        method: 'POST',
+        body: JSON.stringify({ status, reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(t(`Property tenant status changed to ${status}.`));
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
+  if (name === 'property-agent-scope-status') {
+    const reason = window.prompt(t(`Explain why this assignment is being ${action.dataset.status} (minimum 10 characters).`));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/tenant-systems/${encodeURIComponent(state.propertyTenantContextId)}/agent-scopes/${encodeURIComponent(action.dataset.propertyId)}/${encodeURIComponent(action.dataset.userId)}/status`, {
+        method: 'POST',
+        body: JSON.stringify({ status: action.dataset.status, reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(t('Property agent assignment updated.'));
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
+  if (name === 'property-tenant-support-refresh') {
+    try {
+      state.propertyTenantSupportGrants = await api('/property/tenant-support-grants/mine');
+      if (state.propertyTenantSupportGrantId
+        && !state.propertyTenantSupportGrants.some((grant) => grant.id === state.propertyTenantSupportGrantId)) {
+        state.propertyTenantSupportGrantId = null;
+        state.propertyTenantContextId = null;
+        localStorage.removeItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
+        localStorage.removeItem(PROPERTY_TENANT_KEY);
+      }
+      renderPropertyTenantContext();
+      await refresh();
+      showAlert(t('Approved property support grants refreshed.'));
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
+  if (name === 'property-tenant-support-decision') {
+    const approve = action.dataset.decision === 'approve';
+    const reason = window.prompt(t(approve
+      ? 'Enter the independent approval reason (minimum 10 characters).'
+      : 'Enter the rejection reason (minimum 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/tenant-support-grants/${encodeURIComponent(id)}/decision`, {
+        method: 'POST',
+        body: JSON.stringify({ approve, reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(t(approve ? 'Property support grant approved.' : 'Property support grant rejected.'));
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
+  if (name === 'property-tenant-support-revoke') {
+    const reason = window.prompt(t('Explain why support access is being revoked (minimum 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/tenant-support-grants/${encodeURIComponent(id)}/revoke`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: reason.trim() }),
+      });
+      state.propertyTenantSupportGrants = state.propertyTenantSupportGrants.filter((grant) => grant.id !== id);
+      if (state.propertyTenantSupportGrantId === id) {
+        state.propertyTenantSupportGrantId = null;
+        localStorage.removeItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
+        state.propertyTenantContextId = null;
+        localStorage.removeItem(PROPERTY_TENANT_KEY);
+      }
+      await refresh();
+      showAlert(t('Property support access revoked.'));
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
   if (name === 'access-mode-choice') {
     await switchAccessMode(action.dataset.role);
+    return;
+  }
+  if (name === 'passkey-register') {
+    try {
+      state.passkeyDeviceName = state.passkeyDeviceName.trim();
+      if (!state.passkeyDeviceName) throw new Error(t('Enter a label for this device.'));
+      state.passkeyOptions = await api('/auth/passkeys/registration/options', {
+        method: 'POST',
+        body: '{}',
+      });
+      renderPanel();
+      showAlert(t('Passkey setup is ready. Continue to approve it on your device.'));
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'passkey-create') {
+    try {
+      if (!window.isSecureContext || typeof window.PublicKeyCredential !== 'function'
+        || typeof navigator.credentials?.create !== 'function') {
+        throw new Error(t('Passkey registration is unavailable in this browser or connection.'));
+      }
+      const credential = await navigator.credentials.create({
+        publicKey: preparePasskeyCreationOptions(state.passkeyOptions),
+      });
+      if (!credential) throw new Error(t('The device did not create a passkey.'));
+      await api('/auth/passkeys/registration/verify', {
+        method: 'POST',
+        body: JSON.stringify({
+          response: serializePasskeyRegistration(credential),
+          device_name: state.passkeyDeviceName,
+        }),
+      });
+      state.passkeyOptions = null;
+      state.passkeySecurity = await api('/auth/passkeys');
+      renderPanel();
+      showAlert(t('Passkey registered on this device. Your biometric or PIN data remains with your device.'));
+    } catch (error) {
+      if (error.name !== 'NotAllowedError') state.passkeyOptions = null;
+      renderPanel();
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'passkey-cancel') {
+    state.passkeyOptions = null;
+    renderPanel();
+    return;
+  }
+  if (name === 'passkey-remove') {
+    if (!window.confirm(t('Remove this passkey from your account?'))) return;
+    try {
+      await api(`/auth/passkeys/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      state.passkeySecurity = await api('/auth/passkeys');
+      renderPanel();
+      showAlert(t('Passkey removed from this account.'));
+    } catch (error) {
+      showAlert(error.message, true);
+    }
     return;
   }
   if (name === 'mfa-setup') {
@@ -7531,6 +9720,17 @@ document.addEventListener('click', async (event) => {
         ? t('More payable rows remain in this period. Continue with the next encrypted export.')
         : t('Encrypted payroll export generated. It has not been filed or paid.'));
     } catch (error) { showAlert(error.message, true); }
+  }
+  if (name === 'worker-report-export') {
+    const reports = filterWorkerActivityReports(state.workerPortalReports, state.workerReportFilters);
+    const csv = workerActivityReportsCsv(reports, state.workerPortalEngagements);
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `worker-activity-reports-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    showAlert(reports.length ? 'Worker activity report downloaded.' : 'There are no reports matching these filters to download.');
     return;
   }
   if (name === 'tenant-access-invite') {
@@ -7539,7 +9739,7 @@ document.addEventListener('click', async (event) => {
         method: 'POST', body: '{}',
       });
       window.prompt(
-        'Deliver this one-time resident access code only through a separately verified contact channel. AfroLife does not send the code.',
+        'Deliver this one-time resident access code only through a separately verified contact channel. AfroSherik does not send the code.',
         invitation.claim_code,
       );
       await refresh();
@@ -7562,6 +9762,12 @@ document.addEventListener('click', async (event) => {
   if (name === 'resident-lease-document') {
     try {
       await downloadAuthenticatedFile(`/lease-signature-documents/${encodeURIComponent(id)}/file`, `afrolife-lease-evidence-${id}`);
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
+  if (name === 'resident-move-out-evidence') {
+    try {
+      await downloadAuthenticatedFile(`/lease-move-out-evidence/${encodeURIComponent(id)}/file`, `afrolife-move-out-evidence-${id}`);
     } catch (error) { showAlert(error.message, true); }
     return;
   }
@@ -8073,43 +10279,6 @@ document.addEventListener('click', async (event) => {
     } catch (error) { showAlert(error.message, true); }
     return;
   }
-  if (form.dataset.form === 'marketplace') {
-    const files=[...form.querySelector('input[name="media"]').files];
-    if(!files.length) throw new Error('Add at least one photo before posting this listing.');
-    const payload=marketplaceListingPayload(values);
-    const listing=await api('/marketplace/listings',{method:'POST',body:JSON.stringify(payload)});
-    for(const file of files){const qs=new URLSearchParams();const response=await fetch(`${apiRoot()}/marketplace/listings/${listing.id}/media/upload?${qs}`,{method:'POST',headers:{authorization:`Bearer ${sessionStorage.getItem(TOKEN_KEY)}`,'content-type':file.type},body:file});const result=await response.json().catch(()=>null);if(!response.ok) throw new Error(result?.error??`Media upload failed (${response.status})`);}
-    await api(`/marketplace/listings/${listing.id}/submit`,{method:'POST',body:'{}'});
-    await refresh();showAlert('Listing submitted. It will appear to buyers after any required review.');return;
-  }
-  if(form.dataset.form==='marketplace-existing-media'){
-    const files=[...form.querySelector('input[name="media"]').files];if(!files.length)throw new Error('Choose at least one file.');
-    for(const file of files){const response=await fetch(`${apiRoot()}/marketplace/listings/${form.dataset.listing}/media/upload`,{method:'POST',headers:{authorization:`Bearer ${sessionStorage.getItem(TOKEN_KEY)}`,'content-type':file.type},body:file});const result=await response.json().catch(()=>null);if(!response.ok)throw new Error(result?.error??`Upload failed (${response.status})`);}
-    await api(`/marketplace/listings/${form.dataset.listing}/submit`,{method:'POST',body:'{}'});await refresh();showAlert('Listing submitted for publication review.');return;
-  }
-  if(form.dataset.form==='marketplace-config'){
-    const valuesToSave=[];const enabled=['products','services','equipment','properties'].filter((key)=>form.elements.namedItem(`domain:${key}`)?.checked);
-    if(enabled.length) valuesToSave.push({scope:'system',key:'enabled_domains',value:enabled});
-    const categories=(scope)=>form.elements.namedItem(`${scope}_categories`).value.split('\n').map((line)=>line.trim()).filter(Boolean).map((line)=>{const [key,...rest]=line.split('|');return {key:key.trim().toLowerCase().replaceAll(' ','_'),label:rest.join('|').trim(),enabled:true};});
-    for(const scope of ['products','services']) valuesToSave.push({scope,key:'categories',value:categories(scope)});
-    const property_types=form.elements.namedItem('property_types').value.split('\n').map((line)=>line.trim()).filter(Boolean).map((line)=>{const [key,...rest]=line.split('|');return {key:key.trim(),label:rest.join('|').trim(),enabled:true};});
-    const periods=form.elements.namedItem('rental_periods').value.split('\n').map((line)=>line.trim()).filter(Boolean).map((line)=>{const [key,...rest]=line.split('|');return {key:key.trim(),label:rest.join('|').trim(),enabled:true};});
-    valuesToSave.push({scope:'properties',key:'property_types',value:property_types},{scope:'rentals',key:'periods',value:periods});
-    if(state.user.role==='global_admin'){
-      valuesToSave.push({scope:'system',key:'moderation_required',value:form.elements.namedItem('moderation_required').checked});
-      valuesToSave.push({scope:'system',key:'image_max_bytes',value:Math.round(number(form.elements.namedItem('image_max_mb').value)*1048576)});
-      valuesToSave.push({scope:'system',key:'video_max_bytes',value:Math.round(number(form.elements.namedItem('video_max_mb').value)*1048576)});
-      valuesToSave.push({scope:'system',key:'max_media_per_listing',value:number(form.elements.namedItem('max_media_per_listing').value)});
-      const account_types=(state.marketplaceConfig.users?.account_types??[]).map((account)=>({...account,enabled:form.elements.namedItem(`account:${account.key}`).checked}));
-      valuesToSave.push({scope:'users',key:'account_types',value:account_types});
-      const kyc_requirements={};for(const role of ['worker','customer','agent','property_owner'])kyc_requirements[role]=['national_id','police_clearance'].filter((doc)=>form.elements.namedItem(`kyc:${role}:${doc}`).checked);kyc_requirements.property_vendor=['national_id'];
-      valuesToSave.push({scope:'users',key:'kyc_requirements',value:kyc_requirements});
-    }
-    if(!enabled.length) throw new Error('Enable at least one marketplace domain.');
-    if(valuesToSave.some((entry)=>entry.scope==='products'||entry.scope==='services')&&valuesToSave.filter((entry)=>['products','services'].includes(entry.scope)).some((entry)=>!entry.value.length)) throw new Error('Keep at least one category in each catalog.');
-    state.marketplaceConfig=await api('/marketplace/config',{method:'PATCH',body:JSON.stringify({values:valuesToSave})});
-    await refresh();showAlert('Marketplace configuration saved.');return;
-  }
   if (name === 'contract-document-download') {
     try {
       const response = await fetch(`${apiRoot()}/contract-documents/${id}/file`, { headers: { authorization: `Bearer ${sessionStorage.getItem(TOKEN_KEY)}` } });
@@ -8176,6 +10345,57 @@ document.addEventListener('click', async (event) => {
       .catch((error) => showAlert(error.message, true));
     return;
   }
+  if (name === 'lease-renewal-offer' || name === 'lease-renewal-reject') {
+    const reason = window.prompt(name === 'lease-renewal-offer'
+      ? t('Enter the independent approval reason (at least 10 characters).')
+      : t('Enter the reason for rejecting this renewal offer (at least 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    const decision = name === 'lease-renewal-offer' ? 'offer' : 'reject';
+    api(`/leases/${encodeURIComponent(action.dataset.leaseId)}/renewal-offers/${encodeURIComponent(id)}/decision`, {
+      method: 'POST',
+      body: JSON.stringify({ decision, reason: reason.trim() }),
+    })
+      .then(async () => {
+        await refresh();
+        showAlert(decision === 'offer' ? 'Renewal offer sent to linked resident accounts.' : 'Renewal offer rejected.');
+      })
+      .catch((error) => showAlert(error.message, true));
+    return;
+  }
+  if (name === 'lease-renewal-convert') {
+    const reason = window.prompt(t('Enter why the accepted offer is being converted into a new lease draft (at least 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    api(`/leases/renewal-offers/${encodeURIComponent(id)}/convert`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason.trim() }),
+    })
+      .then(async () => {
+        await refresh();
+        showAlert('Renewal lease draft created. It must complete the normal approval, signature, and handover steps.');
+      })
+      .catch((error) => showAlert(error.message, true));
+    return;
+  }
+  if (name === 'renewal-response-accept' || name === 'renewal-response-decline') {
+    const responseNote = name === 'renewal-response-decline'
+      ? window.prompt(t('Enter a reason for declining (at least 10 characters).'))
+      : window.prompt(t('Optional note for the property manager.'), '');
+    if (name === 'renewal-response-decline' && (!responseNote || responseNote.trim().length < 10)) return;
+    const response = { decision: name === 'renewal-response-accept' ? 'accept' : 'decline' };
+    if (responseNote?.trim()) response.response_note = responseNote.trim();
+    api(`/resident/leases/${encodeURIComponent(action.dataset.leaseId)}/renewal-offers/${encodeURIComponent(id)}/respond`, {
+      method: 'POST',
+      body: JSON.stringify(response),
+    })
+      .then(async (result) => {
+        await refresh();
+        showAlert(result.renewal_lease_draft_required
+          ? 'Renewal accepted. The property manager will prepare a separate lease draft for approval and signature.'
+          : 'Renewal response recorded.');
+      })
+      .catch((error) => showAlert(error.message, true));
+    return;
+  }
   if (name === 'lease-execute') {
     const lease = state.leases.find((item) => item.id === id);
     if (!lease) return;
@@ -8200,10 +10420,133 @@ document.addEventListener('click', async (event) => {
     return;
   }
   if (name === 'lease-end') {
-    if (!window.confirm(t('End this lease? Future rent charges will be waived.'))) return;
-    api(`/leases/${id}/end`, { method: 'POST', body: '{}' })
-      .then(async () => { await refresh(); showAlert('Lease ended.'); })
+    if (!window.confirm(t('End this lease using its independently reviewed move-out inspection? Future rent charges will be waived.'))) return;
+    const reason = window.prompt(t('Enter the lease closeout reason (at least 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    api(`/leases/${id}/end`, { method: 'POST', body: JSON.stringify({ reason: reason.trim() }) })
+      .then(async () => { await refresh(); showAlert('Lease ended after reviewed move-out; future rent charges were waived.'); })
       .catch((error) => showAlert(error.message, true));
+    return;
+  }
+  if (name === 'move-out-inspection-sync') {
+    try {
+      await syncPropertyMoveOutInspectionDrafts();
+      await refresh();
+      showAlert(state.propertyMoveOutInspectionSyncError
+        ? 'Move-out inspection sync stopped; encrypted drafts are preserved on this device: {{error}}'
+        : 'Queued move-out inspection drafts were synchronized.',
+      Boolean(state.propertyMoveOutInspectionSyncError), {
+        error: state.propertyMoveOutInspectionSyncError,
+      });
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'move-out-submit') {
+    const actualVacatedOn = window.prompt(t('Enter the actual move-out date (YYYY-MM-DD).'), new Date().toISOString().slice(0, 10));
+    if (!actualVacatedOn) return;
+    const inspectedOn = window.prompt(t('Enter the inspection date (YYYY-MM-DD).'), new Date().toISOString().slice(0, 10));
+    if (!inspectedOn) return;
+    const conditionNotes = window.prompt(t('Describe the property condition and any observed damage (at least 10 characters).'));
+    if (!conditionNotes || conditionNotes.trim().length < 10) return;
+    const keysReturned = window.prompt(t('Were all keys returned? Enter yes or no.'));
+    if (!keysReturned || !['yes', 'no'].includes(keysReturned.trim().toLowerCase())) return;
+    const deduction = window.prompt(t('Proposed deposit deduction in ETB (use up to two decimals).'), '0');
+    if (deduction === null) return;
+    const deductionReason = Number(deduction) > 0
+      ? window.prompt(t('Explain the proposed deposit deduction (at least 10 characters).'))
+      : undefined;
+    if (Number(deduction) > 0 && (!deductionReason || deductionReason.trim().length < 10)) return;
+    try {
+      if (!state.propertyTenantContextId) throw new Error('Select an active property tenant before submitting an inspection.');
+      const payload = {
+          actual_vacated_on: actualVacatedOn,
+          inspected_on: inspectedOn,
+          condition_notes: conditionNotes.trim(),
+          keys_returned: keysReturned.trim().toLowerCase() === 'yes',
+          deposit_deduction: deduction.trim(),
+          ...(deductionReason ? { deduction_reason: deductionReason.trim() } : {}),
+      };
+      const draft = {
+        tenant_system_id: state.propertyTenantContextId,
+        lease_id: id,
+        client_submission_id: crypto.randomUUID(),
+        enqueued_at: new Date().toISOString(),
+        payload,
+      };
+      state.propertyMoveOutInspectionDrafts = await enqueueMoveOutInspectionDraft(state.user.id, draft);
+      await syncPropertyMoveOutInspectionDrafts();
+      await refresh();
+      if (state.propertyMoveOutInspectionSyncError) {
+        showAlert(
+          'Move-out inspection sync stopped; encrypted drafts are preserved on this device: {{error}}',
+          true,
+          { error: state.propertyMoveOutInspectionSyncError },
+        );
+      } else if (state.propertyMoveOutInspectionDrafts.some((entry) => entry.client_submission_id === draft.client_submission_id)) {
+        showAlert('Move-out inspection draft saved securely on this device; it will sync when online. Evidence files are not included.');
+      } else {
+        showAlert('Move-out inspection submitted for independent review. The lease remains active until reviewed closeout.');
+      }
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
+  if (name === 'move-out-approve' || name === 'move-out-reject') {
+    const reason = window.prompt(t('Enter the independent inspection review reason (at least 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/leases/${encodeURIComponent(action.dataset.leaseId)}/move-out-inspections/${encodeURIComponent(id)}/decision`, {
+        method: 'POST',
+        body: JSON.stringify({ decision: name === 'move-out-approve' ? 'approve' : 'reject', reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(name === 'move-out-approve'
+        ? 'Move-out inspection and deposit disposition approved.'
+        : 'Move-out inspection rejected. The manager may submit a corrected revision.');
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
+  if (name === 'move-out-evidence-upload') {
+    if (!navigator.onLine) {
+      showAlert(t('Move-out evidence uploads require an internet connection. Evidence files are not saved offline; keep the original file and retry when connected.'), true);
+      return;
+    }
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/pdf,image/jpeg,image/png';
+    input.addEventListener('change', async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (file.size > 10 * 1024 * 1024) {
+        showAlert(t('Move-out evidence must be 10 MB or smaller.'), true);
+        return;
+      }
+      if (!navigator.onLine) {
+        showAlert(t('Connection was lost before upload was confirmed. The app does not keep an offline copy. Keep the original file; after reconnecting, check the evidence list before retrying.'), true);
+        return;
+      }
+      try {
+        await api(`/leases/${encodeURIComponent(action.dataset.leaseId)}/move-out-inspections/${encodeURIComponent(id)}/evidence`, {
+          method: 'POST', headers: { 'content-type': file.type || 'application/octet-stream' }, body: file,
+        });
+        showAlert('Move-out evidence uploaded to private storage.');
+        try {
+          await refresh();
+        } catch (error) {
+          showAlert(t('Evidence was uploaded, but the inspection list could not be refreshed: {{error}}. Refresh to verify.', {
+            error: error instanceof Error ? error.message : String(error),
+          }), true);
+        }
+      } catch (error) {
+        if (!navigator.onLine || error instanceof TypeError) {
+          showAlert(t('Connection was lost before upload was confirmed. The app does not keep an offline copy. Keep the original file; after reconnecting, check the evidence list before retrying.'), true);
+        } else {
+          showAlert(error.message, true);
+        }
+      }
+    }, { once: true });
+    input.click();
     return;
   }
   if (name === 'deposit-pay') {
@@ -8221,7 +10564,7 @@ document.addEventListener('click', async (event) => {
     if (!reason || reason.trim().length < 10) return;
     const reference = window.prompt(t('Enter the payout reference.'));
     if (!reference || reference.trim().length < 3) return;
-    api(`/leases/${id}/deposit/refund`, { method: 'POST', body: JSON.stringify({ amount: number(amount), reason: reason.trim(), reference: reference.trim(), channel: 'manual' }) })
+    api(`/leases/${id}/deposit/refund`, { method: 'POST', body: JSON.stringify({ amount: amount.trim(), reason: reason.trim(), reference: reference.trim(), channel: 'manual' }) })
       .then(async () => { await refresh(); showAlert('Deposit return recorded and awaiting independent reconciliation.'); })
       .catch((error) => showAlert(error.message, true));
     return;
@@ -8277,10 +10620,40 @@ document.addEventListener('click', async (event) => {
     }
     return;
   }
+  if (name === 'revoke-trusted-device') {
+    const device = state.trustedDevices.find((entry) => entry.id === id);
+    if (!device || !window.confirm(t('Revoke this trusted browser? It will need an authenticator code at the next sign-in.'))) return;
+    try {
+      await api(`/auth/trusted-devices/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      state.trustedDevices = state.trustedDevices.map((entry) => entry.id === id
+        ? { ...entry, active: false, revoked_at: new Date().toISOString() }
+        : entry);
+      renderPanel();
+      showAlert(t('Trusted browser revoked.'));
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
   if (name === 'worker-upload') { showDocumentUpload(id, container); return; }
   if (name === 'worker-documents') { void showWorkerDocuments(id, container); return; }
   if (name === 'property-photos') { void showPropertyPhotos(id, container); return; }
   if (name === 'property-units') { showPropertyUnitForm(id, container); return; }
+  if (name === 'property-turnover-complete') {
+    const completionNote = window.prompt(t('Describe the completed cleaning, repairs, and readiness checks (at least 10 characters).'));
+    if (!completionNote || completionNote.trim().length < 10) return;
+    try {
+      await api(`/properties/${encodeURIComponent(id)}/units/${encodeURIComponent(action.dataset.unit)}/turnover-complete`, {
+        method: 'POST',
+        body: JSON.stringify({ completion_note: completionNote.trim() }),
+      });
+      await refresh();
+      showAlert('Unit turnover completed. The unit is now available for rental workflows.');
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
   if (name === 'property-upload') { showPropertyUpload(id, container); return; }
   if(name==='marketplace-media'){
     try{const response=await fetch(`${apiRoot()}/marketplace/media/${id}/file`,{headers:{authorization:`Bearer ${sessionStorage.getItem(TOKEN_KEY)}`}});if(!response.ok)throw new Error(`Media unavailable (${response.status})`);const blob=await response.blob();const url=URL.createObjectURL(blob);propertyPhotoUrls.add(url);const viewer=node('div',undefined,'marketplace-viewer');let media;if(action.dataset.mime?.startsWith('video/')){media=node('video');media.controls=true;media.autoplay=false;media.playsInline=true;}else{media=node('img');media.alt=t('Marketplace listing photo');}media.src=url;viewer.append(media);container.append(viewer);}catch(error){showAlert(error.message,true);}return;
@@ -8328,6 +10701,129 @@ document.addEventListener('click', async (event) => {
         : action.dataset.decision === 'needs_info'
           ? 'Additional authority evidence requested.'
           : 'Property authority evidence rejected.');
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'property-association-violation-response') {
+    const response = window.prompt(t('Describe your response or corrective action (at least 10 characters).'));
+    if (!response || response.trim().length < 10) return;
+    const reference = window.prompt(t('Optional non-secret evidence reference (leave blank if none).'));
+    if (reference === null) return;
+    try {
+      await api(`/property/association-violations/${encodeURIComponent(id)}/response`, {
+        method: 'POST',
+        body: JSON.stringify({
+          response: response.trim(),
+          ...(reference.trim() ? { evidence_reference: reference.trim() } : {}),
+        }),
+      });
+      await refresh();
+      showAlert('Owner response submitted for independent human review.');
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'property-association-violation-decision') {
+    const reason = window.prompt(t('Document the independent review decision (at least 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/association-violations/${encodeURIComponent(id)}/decision`, {
+        method: 'POST',
+        body: JSON.stringify({ decision: action.dataset.decision, reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(action.dataset.decision === 'resolved'
+        ? 'Resolution evidence verified and recorded.'
+        : 'Observation dismissed with a recorded reason.');
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'property-association-receipt-decision') {
+    const reason = window.prompt(t('Document the reason for this association receipt decision (at least 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/association-receipts/${encodeURIComponent(id)}/decision`, {
+        method: 'POST',
+        body: JSON.stringify({ decision: action.dataset.decision, reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(action.dataset.decision === 'reconciled'
+        ? 'Association receipt reconciled and recorded.'
+        : 'Association receipt evidence rejected with a recorded reason.');
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'property-amenity-reservation-decision') {
+    const reason = window.prompt(t('Document the independent reservation decision (at least 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/amenity-reservations/${encodeURIComponent(id)}/decision`, {
+        method: 'POST',
+        body: JSON.stringify({ decision: action.dataset.decision, reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(action.dataset.decision === 'approved'
+        ? t('Amenity reservation approved.')
+        : t('Amenity reservation request rejected with a recorded reason.'));
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'property-amenity-reservation-cancel') {
+    const reason = window.prompt(t('Document why this reservation is being cancelled (at least 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/amenity-reservations/${encodeURIComponent(id)}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(t('Amenity reservation cancelled.'));
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'property-arc-decision') {
+    const reason = window.prompt(t('Document the reason for this property change decision (at least 10 characters).'));
+    if (!reason || reason.trim().length < 10) return;
+    try {
+      await api(`/property/arc-requests/${encodeURIComponent(id)}/decision`, {
+        method: 'POST',
+        body: JSON.stringify({ decision: action.dataset.decision, reason: reason.trim() }),
+      });
+      await refresh();
+      showAlert(action.dataset.decision === 'approved'
+        ? 'Property change request approved and recorded.'
+        : 'Property change request rejected with a recorded reason.');
+    } catch (error) {
+      showAlert(error.message, true);
+    }
+    return;
+  }
+  if (name === 'property-arc-inspection') {
+    const notes = window.prompt(t('Record inspection findings (at least 10 characters).'));
+    if (!notes || notes.trim().length < 10) return;
+    const reference = window.prompt(t('Optional non-secret evidence reference (leave blank if none).'));
+    if (reference === null) return;
+    try {
+      await api(`/property/arc-requests/${encodeURIComponent(id)}/inspection`, {
+        method: 'POST',
+        body: JSON.stringify({
+          notes: notes.trim(),
+          ...(reference.trim() ? { evidence_reference: reference.trim() } : {}),
+        }),
+      });
+      await refresh();
+      showAlert('Inspection findings recorded in the request history.');
     } catch (error) {
       showAlert(error.message, true);
     }
@@ -8495,6 +10991,30 @@ document.addEventListener('click', async (event) => {
     } catch (error) { showAlert(error.message, true); }
     return;
   }
+  if (name === 'resident-maintenance-feedback') {
+    let note;
+    if (action.dataset.response === 'confirmed') {
+      if (!window.confirm(t('Confirm that the maintenance work is complete?'))) return;
+    } else {
+      note = window.prompt(t('Describe the remaining issue (at least 10 characters).'));
+      if (!note || note.trim().length < 10) return;
+      note = note.trim();
+    }
+    action.dataset.idempotencyKey ||= crypto.randomUUID();
+    try {
+      await api(`/resident/maintenance/${encodeURIComponent(id)}/feedback`, {
+        method: 'POST',
+        body: JSON.stringify({
+          idempotency_key: action.dataset.idempotencyKey,
+          response: action.dataset.response,
+          ...(note ? { note } : {}),
+        }),
+      });
+      await refresh();
+      showAlert(t('Your maintenance feedback was recorded for follow-up.'));
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
   if (name === 'maintenance-update') {
     let assigned_to; let resolution_note; let review_note; let cost; let sla_hours;
     if (action.dataset.status === 'triaged') {
@@ -8508,8 +11028,25 @@ document.addEventListener('click', async (event) => {
       sla_hours = Number(selectedHours);
     }
     if (action.dataset.status === 'assigned') {
-      assigned_to = window.prompt(t('Enter the person or vendor assigned to this request.'));
-      if (!assigned_to?.trim()) return;
+      const request = state.maintenanceRequests.find((item) => item.id === id);
+      const eligibleAgents = state.propertyAgentScopes.filter((scope) =>
+        scope.status === 'active' && scope.property_id === request?.property_id
+        && scope.effective_from <= new Date().toISOString().slice(0, 10)
+        && (!scope.effective_to || scope.effective_to >= new Date().toISOString().slice(0, 10)));
+      if (!eligibleAgents.length) {
+        showAlert(t('Assign an active tenant agent to this property before routing maintenance work.'), true);
+        return;
+      }
+      const options = eligibleAgents.map((agent, index) =>
+        `${index + 1}. ${agent.legal_name} · ${agent.tenant_role.replaceAll('_', ' ')}`).join('\n');
+      const selectedAgent = window.prompt(`${t('Enter the number of the assigned internal technician:')}\n${options}`);
+      if (selectedAgent === null || !/^\d+$/.test(selectedAgent.trim())) return;
+      const selectedIndex = Number(selectedAgent) - 1;
+      if (selectedIndex < 0 || selectedIndex >= eligibleAgents.length) {
+        showAlert(t('Choose an agent from the listed property assignments.'), true);
+        return;
+      }
+      assigned_to = eligibleAgents[selectedIndex].user_id;
     }
     if (action.dataset.status === 'awaiting_review') {
       resolution_note = window.prompt(t('Describe the completed work (at least 5 characters).'));
@@ -8816,9 +11353,46 @@ document.addEventListener('click', async (event) => {
 });
 
 $('#login-form').addEventListener('submit', login);
+$('#toggle-login-password').addEventListener('click', () => {
+  const password = $('#login-form [name="password"]');
+  const visible = password.type === 'password';
+  password.type = visible ? 'text' : 'password';
+  const toggle = $('#toggle-login-password');
+  toggle.setAttribute('aria-pressed', String(visible));
+  setLocalizedAttribute(toggle, 'aria-label', visible ? 'Hide password' : 'Show password');
+  setLocalizedText(toggle, visible ? 'Hide' : 'Show');
+});
+$('#public-help-launcher').addEventListener('click', () => $('#public-help-dialog').showModal());
+$('#public-help-dialog').addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  event.preventDefault();
+  $('#public-help-dialog').close();
+});
+$('#public-help-close').addEventListener('click', () => $('#public-help-dialog').close());
+$('#public-help-dialog').addEventListener('close', () => {
+  state.publicHelpMessages = [];
+  $('#public-help-form').reset();
+  renderPublicHelpMessages();
+});
+$('#public-help-topics').addEventListener('click', (event) => {
+  const topic = event.target.closest('[data-public-help-question]');
+  if (topic) answerPublicHelpQuestion(topic.dataset.publicHelpQuestion);
+});
+$('#public-help-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const input = $('#public-help-input');
+  answerPublicHelpQuestion(input.value);
+  input.value = '';
+  input.focus();
+});
+$('#public-help-dialog').querySelectorAll('a[href="#login-form"]').forEach((link) => {
+  link.addEventListener('click', () => $('#public-help-dialog').close());
+});
 $('#access-mode-apply').addEventListener('click', () => {
   void switchAccessMode($('#access-mode-select').value);
 });
+$('#recovery-form').addEventListener('submit', requestPasswordRecovery);
+document.querySelector('[data-recovery-request]').addEventListener('click', () => void requestWhatsAppRecoveryCode());
 $('#signup-form').addEventListener('submit', submitSignup);
 $('#signup-followup-upload').addEventListener('click', () => uploadSignupReplacement()
   .catch((error) => setLocalizedText($('#signup-error'), error.message)));
@@ -8844,11 +11418,39 @@ $('#signup-agent-type').addEventListener('change', updateSignupFields);
 $('#signup-plan').addEventListener('change', updatePlanLabels);
 $('#signup-territory-search').addEventListener('input', syncSignupTerritory);
 $('#signup-territory-search').addEventListener('change', syncSignupTerritory);
+document.querySelectorAll('a[href="#login-form"]').forEach((link) => link.addEventListener('click', (event) => {
+  if (!$('#app-view').hidden || $('#login-view').hidden) return;
+  event.preventDefault();
+  const loginForm = $('#login-form');
+  if (loginForm.hidden) {
+    $('#signup-form').hidden = true;
+    loginForm.hidden = false;
+  }
+  if (window.location.hash !== '#login-form') window.history.pushState(null, '', '#login-form');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  loginForm.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+  loginForm.querySelector('input[name="phone"]').focus({ preventScroll: true });
+}));
 $('#create-account').addEventListener('click', () => openSignup(false));
 $('#public-create-account').addEventListener('click', () => openSignup(false));
 $('#join-edir').addEventListener('click', () => openSignup(false, true));
 $('#show-agent-plans').addEventListener('click', () => openSignup(true));
+$('#open-password-recovery').addEventListener('click', () => {
+  $('#login-form').hidden = true;
+  const form = $('#recovery-form');
+  form.hidden = false;
+  setLocalizedText($('#recovery-status'), '');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  form.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+  form.querySelector('[name="phone"]').focus({ preventScroll: true });
+});
+$('#back-to-sign-in').addEventListener('click', () => {
+  $('#recovery-form').hidden = true;
+  $('#login-form').hidden = false;
+  $('#login-form [name="phone"]').focus({ preventScroll: true });
+});
 document.querySelectorAll('[data-open-edir-registration]').forEach((button) => button.addEventListener('click', () => {
+  edirRegistrationTrigger = button;
   const form = $('#edir-registration-form');
   form.hidden = false;
   syncEdirRegistrationRequirements();
@@ -8858,8 +11460,13 @@ document.querySelectorAll('[data-open-edir-registration]').forEach((button) => b
     : form.querySelector('input[name="display_name"]');
   nextField?.focus({ preventScroll: true });
 }));
+$('#back-from-edir-registration').addEventListener('click', () => {
+  $('#edir-registration-form').hidden = true;
+  if (edirRegistrationTrigger?.isConnected) edirRegistrationTrigger.focus({ preventScroll: true });
+});
 $('#show-login').addEventListener('click', () => {
   $('#signup-form').hidden = true;
+  $('#recovery-form').hidden = true;
   $('#login-form').hidden = false;
   setLocalizedText($('#login-error'), '');
 });
@@ -8872,7 +11479,7 @@ $('#retry-session').addEventListener('click', async () => {
   try {
     await loadWorkspace();
   } catch (error) {
-    console.error('AfroLife could not restore the saved session.', error);
+    console.error('AfroSherik could not restore the saved session.', error);
     if (state.user && !$('#app-view').hidden) {
       showAlert('Your session is still active, but some workspace data could not be loaded. Check the connection and reload the workspace.', true);
       return;
@@ -8933,14 +11540,23 @@ $('#workspace-search-form').addEventListener('submit', async (event) => {
 window.addEventListener('popstate', () => {
   if (!state.user) return;
   const requested = panelFromUrl(window.location.href, KNOWN_PANELS);
-  const panel = visiblePanelNames().has(requested) ? requested : 'overview';
+  const panel = visiblePanelNames().has(requested)
+    ? requested
+    : isCrossMiniAppPanel(requested) ? 'launcher' : 'overview';
   if (panel !== requested) history.replaceState(null, '', panelUrl(window.location.href, panel));
   if (panel !== state.panel) navigateToPanel(panel, { replace: true });
 });
 
-initializeLocale(() => {
+initializeLocale((locale) => {
+  updatePublicFaqLanguageNotices(locale);
   renderSignupTerritoryOptions();
   updatePlanLabels();
+  if (state.publicSupportFaq) {
+    renderSupportFaq('#support-faq-list', state.publicSupportFaq);
+    renderSupportFaq('#assistant-support-faq-list', state.publicSupportFaq);
+    renderPublicHelpTopics();
+    renderPublicHelpMessages();
+  }
   document.querySelectorAll('[data-i18n-source]').forEach((element) => {
     element.textContent = t(element.dataset.i18nSource, JSON.parse(element.dataset.i18nValues ?? '{}'));
   });
@@ -8955,19 +11571,21 @@ initializeLocale(() => {
     renderAssistant();
   }
 });
+updatePublicFaqLanguageNotices(document.documentElement.lang);
 initializeNativeServer();
 syncEdirRegistrationRequirements();
 updateSignupFields();
+void loadPublicSupportContact();
 if (!isNativeApp || localStorage.getItem(API_URL_KEY)) void loadPublicSubscriptionCatalog();
 
 if (!isNativeApp && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch((error) => {
-    console.error('AfroLife offline support could not be enabled.', error);
+    console.error('AfroSherik offline support could not be enabled.', error);
   }));
 }
 if (sessionStorage.getItem(TOKEN_KEY)) {
   loadWorkspace().catch((error) => {
-    console.error('AfroLife could not restore the saved session.', error);
+    console.error('AfroSherik could not restore the saved session.', error);
     if (sessionStorage.getItem(TOKEN_KEY)) {
       if (state.user && !$('#app-view').hidden) {
         showAlert('Your session is still active, but some workspace data could not be loaded. Check the connection and reload the workspace.', true);

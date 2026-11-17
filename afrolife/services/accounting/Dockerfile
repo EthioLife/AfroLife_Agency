@@ -20,7 +20,7 @@ COPY services/accounting/003_accounting_entity_access.sql ./dist/services/accoun
 COPY services/accounting/004_accounting_transaction_controls.sql ./dist/services/accounting/004_accounting_transaction_controls.sql
 COPY services/accounting/005_accounting_subscriber_ownership.sql ./dist/services/accounting/005_accounting_subscriber_ownership.sql
 COPY services/accounting/web ./dist/services/accounting/web
-EXPOSE 3300
+EXPOSE 3301
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3300)+'/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3301)+'/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
 CMD ["node", "dist/services/accounting/server.js"]

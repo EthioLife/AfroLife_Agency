@@ -6,14 +6,23 @@ export interface ClamAvConfig {
   timeoutMs?: number;
 }
 
-export function isClamAvConfigured(config: ClamAvConfig = process.env): boolean {
+function environmentConfig(): ClamAvConfig {
+  const timeout = Number(process.env.CLAMAV_TIMEOUT_MS);
+  return {
+    host: process.env.CLAMAV_HOST,
+    port: process.env.CLAMAV_PORT,
+    timeoutMs: Number.isFinite(timeout) && timeout > 0 ? timeout : undefined,
+  };
+}
+
+export function isClamAvConfigured(config: ClamAvConfig = environmentConfig()): boolean {
   const port = Number(config.port ?? '3310');
   return Boolean(config.host?.trim()) && Number.isInteger(port) && port > 0 && port <= 65535;
 }
 
 export async function scanWithClamAv(
   content: Buffer,
-  config: ClamAvConfig = process.env,
+  config: ClamAvConfig = environmentConfig(),
 ): Promise<'clean' | 'infected'> {
   if (!isClamAvConfigured(config)) throw new Error('ClamAV host and a valid port must be configured');
   const port = Number(config.port ?? '3310');

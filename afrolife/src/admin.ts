@@ -1,11 +1,20 @@
 ﻿import { Router, Request, Response, RequestHandler } from 'express';
 import express from 'express';
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
+import { generateRegistrationOptions, verifyRegistrationResponse, type RegistrationResponseJSON } from '@simplewebauthn/server';
 import { pool, withUser, requireRole, HttpError, JWT_SECRET, invalidateUser, invalidateRolePermissions } from './core.js';
-import { normalizePhone } from './phone.js';
+import { normalizePhone, normalizePhoneParts } from './phone.js';
+import { canAccessAdminPortal, requiresMfaEnrollment, requiresMfaForRoles } from './auth-types.js';
+import {
+  getFaydaVerificationStatus,
+  getWebAuthnConfiguration,
+  getWebAuthnStatus,
+  getWhatsAppRecoveryStatus,
+  sendWhatsAppRecoveryCode,
+} from './auth-integrations.js';
 import { Phone } from './validators.js';
 import { audit, feeSnapshot } from './domain.js';
 import { mfaKeys, openAny, seal, passwordProblem, randomPassword } from './security.js';
@@ -17,9 +26,22 @@ import { createApiRateLimiter } from './rate-limit-store.js';
 import { sessionIdleTimeoutMinutes, WORKSPACE_MODULES } from './runtime-config.js';
 import { ROLE_ACTIVITIES, ROLE_NAMES, getRoleActivity, hasRoleActivityAccess, type RoleName } from './role-activities.js';
 import { MINI_APP_LABELS } from './mini-app-access.js';
-import { EXCLUDED_TENANT_CAPABILITY_ROLES, tenantCapabilitiesSchema, tenantOperatorRequestSchema } from './platform-data-admin.js';
+import {
+  EXCLUDED_TENANT_CAPABILITY_ROLES,
+  tenantCapabilitiesSchema,
+  tenantMigrationEventSchema,
+  tenantMigrationStartSchema,
+  tenantOperatorRequestSchema,
+} from './platform-data-admin.js';
 import { getMyTenantDataScopes, getTenantDataScope, requireTenantDataCapability } from './tenant-data-access.js';
 import { getKycRequirements, requiredKycDocuments, ConfigScope, validateMarketplaceConfig, loadMarketplaceConfig } from './marketplace-config.js';
+import {
+  clearTrustedDeviceCookie,
+  createTrustedDeviceToken,
+  hashTrustedDeviceToken,
+  readTrustedDeviceToken,
+  trustedDeviceCookie,
+} from './trusted-devices.js';
 
 const h = (fn: (req: Request, res: Response) => Promise<unknown>): RequestHandler => (req, res, next) => { fn(req, res).catch(next); };
 const STAFF = ['global_admin', 'super_admin', 'compliance', 'finance', 'finance_manager'];
@@ -81,22 +103,30 @@ const openSecret = (sealed: string) => openAny(sealed, MFA_KEYS);
 // Compared against when the phone is unknown, so response time does not reveal which numbers have accounts.
 const DUMMY_HASH = bcrypt.hashSync('no-such-user-placeholder', 12);
 
+async function getAccessOptions(userId: string, role: string): Promise<string[]> {
+  const grants = await withUser({ id: userId, role }, async (client) => {
+    const result = await client.query(
+      'SELECT role_name FROM user_admin_role_grants WHERE user_id=$1 ORDER BY role_name',
+      [userId],
+    );
+    return result.rows.map((row) => row.role_name as string);
+  });
+  return [...new Set([role, ...grants])];
+}
+
 /** A restricted token can only reach the security step it must complete (see the guard in server.ts). */
 async function issue(
   u: { id: string; role: string; must_change_password: boolean; mfa_enabled: boolean },
   replaceSessionId?: string,
   userAgent?: string,
+  accessOptions?: string[],
 ) {
-  const accessOptions = await withUser({ id: u.id, role: u.role }, async (client) => {
-    const grants = await client.query(
-      'SELECT role_name FROM user_admin_role_grants WHERE user_id=$1 ORDER BY role_name',
-      [u.id],
-    );
-    return [...new Set([u.role, ...grants.rows.map((row) => row.role_name as string)])];
-  });
-  const hasStaffAccess = accessOptions.some((role) => MFA_STAFF.includes(role));
+  const resolvedAccessOptions = accessOptions ?? await getAccessOptions(u.id, u.role);
+  const hasStaffAccess = resolvedAccessOptions.some((role) => MFA_STAFF.includes(role));
+  const hasMfaRequiredAccess = requiresMfaForRoles(resolvedAccessOptions);
   const rst = u.must_change_password ? 'password'
-    : process.env.REQUIRE_MFA_FOR_STAFF === '1' && hasStaffAccess && !u.mfa_enabled ? 'mfa' : null;
+    : (hasMfaRequiredAccess || (process.env.REQUIRE_MFA_FOR_STAFF === '1' && hasStaffAccess))
+      && !u.mfa_enabled ? 'mfa' : null;
   const sessionId = randomUUID();
   await pool.query(
     `DELETE FROM auth_sessions WHERE expires_at < now() - interval '30 days'
@@ -116,7 +146,7 @@ async function issue(
   return {
     token: jwt.sign({ sub: u.id, sid: sessionId, role: u.role, ...(rst ? { rst } : {}) }, JWT_SECRET, { expiresIn: '8h' }),
     restrict: rst,
-    access_options: accessOptions,
+    access_options: resolvedAccessOptions,
   };
 }
 
@@ -132,9 +162,20 @@ const recordFailure = (id: string) =>
 // ================= Public: login =================
 export const loginRouter = Router();
 loginRouter.post('/auth/login', h(async (req, res) => {
-  const b = z.object({ phone: z.string().min(8), password: z.string().min(1).max(200), code: z.string().optional() }).parse(req.body);
+  const b = z.object({
+    phone: z.string().optional(),
+    phone_country_code: z.string().optional(),
+    phone_national_number: z.string().optional(),
+    password: z.string().min(1).max(200),
+    code: z.string().optional(),
+    trust_device: z.literal('on').optional(),
+  }).parse(req.body);
+  const canonicalPhone = b.phone_country_code && b.phone_national_number
+    ? normalizePhoneParts(b.phone_country_code, b.phone_national_number)
+    : b.phone ? normalizePhone(b.phone) : null;
+  if (!canonicalPhone) throw new HttpError(422, 'Enter a valid country calling code and phone number.');
   // Match the canonical form, and the raw text too so accounts saved before normalisation still work.
-  const phones = [...new Set([normalizePhone(b.phone), b.phone.trim()].filter(Boolean))] as string[];
+  const phones = [...new Set([canonicalPhone, b.phone?.trim(), b.phone_national_number?.trim()].filter(Boolean))] as string[];
   const u = (await pool.query('SELECT id, role, active, password_hash, mfa_enabled, mfa_secret, must_change_password, locked_until FROM users WHERE phone = ANY($1::text[]) ORDER BY active DESC LIMIT 1', [phones])).rows[0];
   if (u?.locked_until && new Date(u.locked_until) > new Date()) throw new HttpError(429, 'Too many failed attempts. Try again in 15 minutes.');
   const matches = await bcrypt.compare(b.password, u?.password_hash ?? DUMMY_HASH);
@@ -143,18 +184,210 @@ loginRouter.post('/auth/login', h(async (req, res) => {
     if (u) await recordFailure(u.id);
     throw new HttpError(401, 'Invalid credentials or inactive account');
   }
+  const accessOptions = await getAccessOptions(u.id, u.role);
+  if (res.locals.adminPortal && !canAccessAdminPortal(accessOptions)) {
+    throw new HttpError(401, 'Invalid credentials or inactive account');
+  }
+  let trustedDeviceToken: string | undefined;
   if (u.mfa_enabled) {
-    if (!b.code) return res.json({ mfa_required: true });
-    const step = verifyTotpStep(openSecret(u.mfa_secret), b.code);
-    if (step === null) { await recordFailure(u.id); throw new HttpError(401, 'Invalid code'); }
-    const consumed = await pool.query(
-      'UPDATE users SET mfa_last_step = $2 WHERE id = $1 AND mfa_last_step < $2',
-      [u.id, step],
-    );
-    if (!consumed.rowCount) { await recordFailure(u.id); throw new HttpError(401, 'Invalid code'); }
+    const cookieToken = readTrustedDeviceToken(req.get('cookie'));
+    let trusted = false;
+    if (cookieToken) {
+      const device = await withUser({ id: u.id, role: u.role }, async (client) => (await client.query(
+        `UPDATE auth_trusted_devices SET last_used_at=now()
+         WHERE user_id=$1 AND token_hash=$2 AND revoked_at IS NULL AND expires_at>now()
+         RETURNING id`,
+        [u.id, hashTrustedDeviceToken(cookieToken)],
+      )).rows[0]);
+      trusted = Boolean(device);
+    }
+    if (!trusted) {
+      if (!b.code) return res.json({ mfa_required: true });
+      if (b.trust_device && !req.secure) throw new HttpError(400, 'Trusted browsers can only be enabled over HTTPS.');
+      if (!u.mfa_secret) throw new HttpError(401, 'Invalid credentials or inactive account');
+      const step = verifyTotpStep(openSecret(u.mfa_secret), b.code);
+      if (step === null) { await recordFailure(u.id); throw new HttpError(401, 'Invalid code'); }
+      const consumed = await pool.query(
+        'UPDATE users SET mfa_last_step = $2 WHERE id = $1 AND mfa_last_step < $2',
+        [u.id, step],
+      );
+      if (!consumed.rowCount) { await recordFailure(u.id); throw new HttpError(401, 'Invalid code'); }
+      if (b.trust_device) {
+        const token = createTrustedDeviceToken();
+        trustedDeviceToken = token;
+        await withUser({ id: u.id, role: u.role }, async (client) => {
+          await client.query(
+            `DELETE FROM auth_trusted_devices
+             WHERE user_id=$1 AND (expires_at<now()-interval '30 days' OR revoked_at<now()-interval '30 days')`,
+            [u.id],
+          );
+          const deviceId = randomUUID();
+          await client.query(
+            `INSERT INTO auth_trusted_devices (id,user_id,token_hash,user_agent,expires_at)
+             VALUES ($1,$2,$3,$4,now()+interval '30 days')`,
+            [deviceId, u.id, hashTrustedDeviceToken(token), req.get('user-agent')?.slice(0, 512) ?? null],
+          );
+          await audit(client, u.id, 'trusted_device_added', 'auth_trusted_device', deviceId, null, { expires_in_days: 30 });
+        });
+      }
+    }
   }
   await pool.query('UPDATE users SET failed_logins = 0, locked_until = NULL WHERE id = $1', [u.id]);
-  res.json(await issue(u, undefined, req.get('user-agent')));
+  if (trustedDeviceToken) res.append('Set-Cookie', trustedDeviceCookie(trustedDeviceToken));
+  res.json(await issue(u, undefined, req.get('user-agent'), accessOptions));
+}));
+
+const noStore = (_req: Request, res: Response, next: () => void) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+};
+const recoveryUnavailable = (_req: Request, res: Response) => {
+  res.status(503).json({ error: getWhatsAppRecoveryStatus().message });
+};
+const recoveryHash = (phone: string, code: string) =>
+  createHmac('sha256', JWT_SECRET).update(`${phone}:${code}`).digest();
+
+loginRouter.post('/auth/password-recovery/request', noStore, h(async (req, res) => {
+  const { phone: rawPhone, phone_country_code, phone_national_number } = z.object({
+    phone: z.string().optional(),
+    phone_country_code: z.string().optional(),
+    phone_national_number: z.string().optional(),
+  }).strict().parse(req.body);
+  const phone = phone_country_code && phone_national_number
+    ? normalizePhoneParts(phone_country_code, phone_national_number)
+    : rawPhone ? normalizePhone(rawPhone) : null;
+  if (!phone) throw new HttpError(422, 'Enter a valid phone number.');
+  if (!getWhatsAppRecoveryStatus().enabled) return recoveryUnavailable(req, res);
+
+  const user = (await pool.query(
+    `SELECT id FROM users
+     WHERE phone=$1 AND active=true AND whatsapp_opt_in=true
+     ORDER BY created_at DESC LIMIT 1`,
+    [phone],
+  )).rows[0];
+  if (!user) {
+    res.status(202).json({ message: 'If this number is eligible, recovery instructions will be sent privately.' });
+    return;
+  }
+
+  const code = String(randomInt(100_000, 1_000_000));
+  await pool.query(
+    `DELETE FROM auth_password_recovery_challenges
+     WHERE expires_at<now()-interval '1 day'
+        OR consumed_at<now()-interval '1 day'`,
+  );
+  await pool.query(
+    `UPDATE auth_password_recovery_challenges SET consumed_at=now()
+     WHERE phone=$1 AND consumed_at IS NULL`,
+    [phone],
+  );
+  const inserted = await pool.query(
+    `INSERT INTO auth_password_recovery_challenges (user_id,phone,code_hash,expires_at)
+     VALUES ($2,$1,$3,now()+interval '5 minutes')
+     RETURNING id`,
+    [phone, user.id, recoveryHash(phone, code)],
+  );
+  try {
+    await sendWhatsAppRecoveryCode(phone, code);
+  } catch (error) {
+    await pool.query(
+      'UPDATE auth_password_recovery_challenges SET consumed_at=now() WHERE id=$1 AND consumed_at IS NULL',
+      [inserted.rows[0].id],
+    );
+    console.error('WhatsApp password recovery delivery failed', error instanceof Error ? error.message : error);
+    res.status(202).json({ message: 'If this number is eligible, recovery instructions will be sent privately.' });
+    return;
+  }
+  res.status(202).json({ message: 'If this number is eligible, recovery instructions will be sent privately.' });
+}));
+
+loginRouter.post('/auth/password-recovery/complete', noStore, h(async (req, res) => {
+  const body = z.object({
+    phone: z.string().optional(),
+    phone_country_code: z.string().optional(),
+    phone_national_number: z.string().optional(),
+    code: z.string().regex(/^\d{6}$/),
+    next: z.string().min(8).max(72),
+  }).strict().parse(req.body);
+  const phone = body.phone_country_code && body.phone_national_number
+    ? normalizePhoneParts(body.phone_country_code, body.phone_national_number)
+    : body.phone ? normalizePhone(body.phone) : null;
+  if (!phone) throw new HttpError(422, 'Enter a valid phone number.');
+  if (!getWhatsAppRecoveryStatus().enabled) return recoveryUnavailable(req, res);
+  const bad = passwordProblem(body.next, phone);
+  if (bad) throw new HttpError(422, bad);
+
+  const client = await pool.connect();
+  let userId: string | undefined;
+  let invalidCode = false;
+  try {
+    await client.query('BEGIN');
+    const challenge = (await client.query(
+      `SELECT id,user_id,code_hash,failed_attempts
+       FROM auth_password_recovery_challenges
+       WHERE phone=$1 AND consumed_at IS NULL AND expires_at>now() AND failed_attempts<5
+       ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
+      [phone],
+    )).rows[0];
+    if (!challenge) throw new HttpError(400, 'The recovery code is invalid or expired. Request a new code.');
+    const expected = recoveryHash(phone, body.code);
+    const matches = challenge.code_hash.length === expected.length
+      && timingSafeEqual(challenge.code_hash, expected);
+    if (!matches) {
+      await client.query(
+        `UPDATE auth_password_recovery_challenges
+         SET failed_attempts=failed_attempts+1,
+             consumed_at=CASE WHEN failed_attempts>=4 THEN now() ELSE consumed_at END
+         WHERE id=$1`,
+        [challenge.id],
+      );
+      invalidCode = true;
+    } else {
+      const user = (await client.query(
+        'SELECT id,phone,password_hash,role FROM users WHERE id=$1 AND phone=$2 AND active=true AND whatsapp_opt_in=true FOR UPDATE',
+        [challenge.user_id, phone],
+      )).rows[0];
+      if (!user) throw new HttpError(400, 'The recovery code is invalid or expired. Request a new code.');
+      if (await bcrypt.compare(body.next, user.password_hash)) {
+        throw new HttpError(422, 'Choose a password you have not used just now.');
+      }
+      userId = user.id;
+      await client.query(
+        'UPDATE users SET password_hash=$2,must_change_password=false,failed_logins=0,locked_until=NULL WHERE id=$1',
+        [user.id, await bcrypt.hash(body.next, 12)],
+      );
+      await client.query(
+        'UPDATE auth_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL',
+        [user.id],
+      );
+      await client.query(
+        "SELECT set_config('app.user_id',$1,true), set_config('app.role',$2,true)",
+        [user.id, user.role],
+      );
+      await client.query(
+        'UPDATE auth_trusted_devices SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL',
+        [user.id],
+      );
+      await client.query(
+        'UPDATE auth_password_recovery_challenges SET consumed_at=now() WHERE id=$1',
+        [challenge.id],
+      );
+      await client.query(
+        `INSERT INTO audit_logs (actor_id,action,entity,entity_id,new_value)
+         VALUES ($1,'password_recovered','user',$1,'{"channel":"whatsapp"}'::jsonb)`,
+        [user.id],
+      );
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+  if (userId) invalidateUser(userId);
+  if (invalidCode) throw new HttpError(400, 'The recovery code is invalid or expired. Request a new code.');
+  res.json({ message: 'Password updated. Sign in with your new password.' });
 }));
 
 loginRouter.get('/auth/signup/options', h(async (_req, res) => {
@@ -184,16 +417,19 @@ loginRouter.get('/auth/signup/options', h(async (_req, res) => {
       { key: 'property_owner', label: 'Seller / property owner', enabled: true }, { key: 'agent', label: 'Agent', enabled: true },
     ],
     kyc_requirements: getKycRequirements(kycOptions.rows[0]?.config_value),
+    identity_verification: { fayda: getFaydaVerificationStatus() },
   });
 }));
 
 loginRouter.post('/auth/signup', h(async (req, res) => {
   const b = z.object({
     legal_name: z.string().trim().min(2).max(160),
-    phone: Phone,
+    phone: Phone.optional(),
+    phone_country_code: z.string().optional(),
+    phone_national_number: z.string().optional(),
     email: z.union([z.string().trim().email().max(254), z.literal('')]).optional(),
-    password: z.string().min(12).max(72),
-    password_confirmation: z.string(),
+    password: z.string().min(8).max(72),
+    password_confirmation: z.string().min(8).max(72),
     account_type: z.enum(['worker', 'customer', 'agent', 'property_owner']),
     pension_match_interest: z.boolean().default(false),
     edir_member_interest: z.boolean().default(false),
@@ -207,6 +443,10 @@ loginRouter.post('/auth/signup', h(async (req, res) => {
     requested_plan: z.enum(['free', 'pro', 'enterprise']).optional(),
     option_a_enterprise_interest: z.boolean().default(false),
   }).strict().parse(req.body);
+  const phone = b.phone_country_code && b.phone_national_number
+    ? normalizePhoneParts(b.phone_country_code, b.phone_national_number)
+    : b.phone ?? null;
+  if (!phone) throw new HttpError(422, 'Enter a valid country calling code and phone number.');
   if (b.account_type === 'worker' && !b.worker_document_consent) {
     throw new HttpError(422, 'Worker applicants must consent to identity and eligibility document review before uploading KYC documents.');
   }
@@ -229,7 +469,7 @@ loginRouter.post('/auth/signup', h(async (req, res) => {
     throw new HttpError(422, 'Date of birth is only collected for worker eligibility review.');
   }
   if (b.password !== b.password_confirmation) throw new HttpError(422, 'Password confirmation does not match.');
-  const passwordIssue = passwordProblem(b.password, b.phone);
+  const passwordIssue = passwordProblem(b.password, phone);
   if (passwordIssue) throw new HttpError(422, passwordIssue);
 
   let parentAgentId: string | null = null;
@@ -294,7 +534,7 @@ loginRouter.post('/auth/signup', h(async (req, res) => {
        RETURNING id`,
       [
         b.legal_name,
-        b.phone,
+        phone,
         b.email || null,
         role,
         b.account_type === 'agent' ? b.territory_id : null,
@@ -482,6 +722,7 @@ adminRouter.put('/users/:id/admin-access', requireRole('global_admin'), h(async 
         [userId, req.user!.id],
       );
     }
+    await client.query('UPDATE auth_trusted_devices SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [userId]);
     await audit(client, req.user!.id, 'administrator_access_updated', 'user', userId, null, {
       primary_role: target.role,
       grants,
@@ -870,12 +1111,29 @@ adminRouter.get('/platform/my-business-tenant', requireRole('super_admin','maste
 adminRouter.post('/platform/tenants/:tenantId/admins', requirePlatformControlPlaneAdmin, h(async (req, res) => {
   const tenantId = z.string().uuid().parse(req.params.tenantId);
   const { user_id } = z.object({ user_id: z.string().uuid() }).strict().parse(req.body);
+  if (user_id === req.user!.id) {
+    throw new HttpError(409, 'Use another Global Admin to assign tenant Super Admin access.');
+  }
   await withUser(req.user!, async (client) => {
     if (!(await client.query('SELECT 1 FROM platform_tenants WHERE id=$1', [tenantId])).rowCount) {
       throw new HttpError(404, 'Tenant not found.');
     }
-    const user = (await client.query('SELECT id,role,active FROM users WHERE id=$1 FOR UPDATE', [user_id])).rows[0];
-    if (!user || user.role !== 'super_admin' || !user.active) throw new HttpError(422, 'Choose an active Super Admin account.');
+    const user = (await client.query(
+      `SELECT u.id,u.role,u.active,u.mfa_enabled,
+              role_grant.user_id AS scoped_super_admin_grant
+       FROM users u
+       LEFT JOIN user_admin_role_grants role_grant
+         ON role_grant.user_id=u.id AND role_grant.role_name='super_admin' AND role_grant.all_tenants=false
+       WHERE u.id=$1
+       FOR UPDATE OF u`,
+      [user_id],
+    )).rows[0];
+    const eligiblePrimarySuperAdmin = user?.role === 'super_admin' && user.active;
+    const eligibleScopedGlobalAdmin = user?.role === 'global_admin'
+      && user.active && user.mfa_enabled && user.scoped_super_admin_grant;
+    if (!eligiblePrimarySuperAdmin && !eligibleScopedGlobalAdmin) {
+      throw new HttpError(422, 'Choose an active Super Admin or an active, MFA-enabled Global Admin with tenant-scoped Super Admin access.');
+    }
     await client.query(
       'INSERT INTO platform_tenant_admins(tenant_id,user_id,assigned_by) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',
       [tenantId, user_id, req.user!.id],
@@ -949,6 +1207,108 @@ adminRouter.get('/platform/my-data/:tenantId/analytics', h(async (req, res) => {
     metrics: [],
     series: [],
   });
+}));
+
+adminRouter.get('/platform/my-data/:tenantId/migration-runs', h(async (req, res) => {
+  const tenantId = z.string().uuid().parse(req.params.tenantId);
+  const result = await withUser(req.user!, async (client) => {
+    const scope = await getTenantDataScope(client, req.user!.id, tenantId);
+    if (!scope) throw new HttpError(404, 'No active data-administrator assignment exists for this tenant.');
+    requireTenantDataCapability(scope, 'database_admin');
+    const [runs, events] = await Promise.all([
+      client.query(
+        `SELECT id,tenant_id,created_by,source_reference,target_reference,summary,created_at
+         FROM platform_tenant_migration_runs
+         WHERE tenant_id=$1
+         ORDER BY created_at DESC,id DESC LIMIT 100`,
+        [tenantId],
+      ),
+      client.query(
+        `SELECT event.id,event.run_id,event.actor_id,
+                event.stage,event.manifest_sha256,event.source_record_count,event.staged_record_count,
+                event.unresolved_count,event.validation_error_count,event.evidence_reference,
+                event.notes,event.created_at
+         FROM platform_tenant_migration_events event
+         WHERE event.tenant_id=$1
+         ORDER BY event.id`,
+        [tenantId],
+      ),
+    ]);
+    const eventsByRun = new Map<string, typeof events.rows>();
+    for (const event of events.rows) {
+      const entries = eventsByRun.get(event.run_id) ?? [];
+      entries.push(event);
+      eventsByRun.set(event.run_id, entries);
+    }
+    return runs.rows.map((run) => {
+      const runEvents = eventsByRun.get(run.id) ?? [];
+      return { ...run, current_stage: runEvents[runEvents.length - 1]?.stage ?? 'invalid', events: runEvents };
+    });
+  });
+  res.json(result);
+}));
+
+adminRouter.post('/platform/my-data/:tenantId/migration-runs', h(async (req, res) => {
+  const tenantId = z.string().uuid().parse(req.params.tenantId);
+  const body = tenantMigrationStartSchema.parse(req.body);
+  const created = await withUser(req.user!, async (client) => {
+    const scope = await getTenantDataScope(client, req.user!.id, tenantId);
+    if (!scope) throw new HttpError(404, 'No active data-administrator assignment exists for this tenant.');
+    requireTenantDataCapability(scope, 'database_admin');
+    const run = (await client.query(
+      `INSERT INTO platform_tenant_migration_runs
+         (tenant_id,created_by,source_reference,target_reference,summary)
+       VALUES($1,$2,$3,$4,$5)
+       RETURNING id,tenant_id,created_by,source_reference,target_reference,summary,created_at`,
+      [tenantId,req.user!.id,body.source_reference,body.target_reference,body.summary],
+    )).rows[0];
+    const event = (await client.query(
+      `INSERT INTO platform_tenant_migration_events
+         (run_id,tenant_id,actor_id,stage,manifest_sha256,evidence_reference,notes)
+       VALUES($1,$2,$3,'planned',$4,$5,$6)
+       RETURNING id,stage,created_at`,
+      [run.id,tenantId,req.user!.id,body.manifest_sha256,body.evidence_reference,body.notes],
+    )).rows[0];
+    await audit(client, req.user!.id, 'platform_tenant_migration_planned',
+      'platform_tenant_migration_run', run.id, null, {
+        tenant_id: tenantId,
+        source_reference: body.source_reference,
+        target_reference: body.target_reference,
+        manifest_sha256: body.manifest_sha256,
+      });
+    return { ...run, current_stage: event.stage };
+  });
+  res.status(201).json(created);
+}));
+
+adminRouter.post('/platform/my-data/:tenantId/migration-runs/:runId/events', h(async (req, res) => {
+  const tenantId = z.string().uuid().parse(req.params.tenantId);
+  const runId = z.string().uuid().parse(req.params.runId);
+  const body = tenantMigrationEventSchema.parse(req.body);
+  const created = await withUser(req.user!, async (client) => {
+    const scope = await getTenantDataScope(client, req.user!.id, tenantId);
+    if (!scope) throw new HttpError(404, 'No active data-administrator assignment exists for this tenant.');
+    requireTenantDataCapability(scope, 'database_admin');
+    const event = (await client.query(
+      `INSERT INTO platform_tenant_migration_events
+         (run_id,tenant_id,actor_id,stage,manifest_sha256,source_record_count,staged_record_count,
+          unresolved_count,validation_error_count,evidence_reference,notes)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       RETURNING id,stage,created_at`,
+      [runId,tenantId,req.user!.id,body.stage,body.manifest_sha256 ?? null,
+        body.source_record_count ?? null,body.staged_record_count ?? null,body.unresolved_count,
+        body.validation_error_count,body.evidence_reference,body.notes],
+    )).rows[0];
+    await audit(client, req.user!.id, 'platform_tenant_migration_stage_recorded',
+      'platform_tenant_migration_run', runId, null, {
+        tenant_id: tenantId,
+        stage: event.stage,
+        evidence_reference: body.evidence_reference,
+        manifest_sha256: body.manifest_sha256 ?? null,
+      });
+    return event;
+  });
+  res.status(201).json(created);
 }));
 
 adminRouter.post('/platform/my-data/:tenantId/operator-requests', h(async (req, res) => {
@@ -1551,6 +1911,7 @@ adminRouter.get('/auth/me', h(async (req, res) => {
     role: req.user!.role,
     primary_role: req.user!.primaryRole,
     access_options: req.user!.accessOptions ?? [req.user!.role],
+    mfa_required: requiresMfaForRoles(req.user!.accessOptions ?? [req.user!.role]),
     active_role_all_tenants: req.user!.adminRoleAllTenants ?? false,
     required_security_step: req.user!.rst ?? null,
     edir_id: req.user!.edir_id,
@@ -1604,6 +1965,39 @@ adminRouter.get('/auth/sessions', h(async (req, res) => {
   })));
 }));
 
+adminRouter.get('/auth/trusted-devices', h(async (req, res) => {
+  const token = readTrustedDeviceToken(req.get('cookie'));
+  const devices = await withUser(req.user!, async (client) => (await client.query(
+    `SELECT id,created_at,last_used_at,expires_at,revoked_at,user_agent,token_hash=$2 AS current
+     FROM auth_trusted_devices
+     WHERE user_id=$1 AND (expires_at>now() OR revoked_at>now()-interval '30 days')
+     ORDER BY created_at DESC LIMIT 100`,
+    [req.user!.id, token ? hashTrustedDeviceToken(token) : null],
+  )).rows);
+  res.json(devices.map((device) => ({
+    ...device,
+    active: !device.revoked_at && new Date(device.expires_at) > new Date(),
+  })));
+}));
+
+adminRouter.delete('/auth/trusted-devices/:deviceId', h(async (req, res) => {
+  const deviceId = z.string().uuid().parse(req.params.deviceId);
+  const token = readTrustedDeviceToken(req.get('cookie'));
+  const revoked = await withUser(req.user!, async (client) => {
+    const row = (await client.query(
+      `UPDATE auth_trusted_devices SET revoked_at=now()
+       WHERE id=$1 AND user_id=$2 AND revoked_at IS NULL AND expires_at>now()
+       RETURNING token_hash=$3 AS current_browser`,
+      [deviceId, req.user!.id, token ? hashTrustedDeviceToken(token) : null],
+    )).rows[0];
+    if (row) await audit(client, req.user!.id, 'trusted_device_revoked', 'auth_trusted_device', deviceId);
+    return row;
+  });
+  if (!revoked) throw new HttpError(404, 'Active trusted device not found');
+  if (revoked.current_browser) res.append('Set-Cookie', clearTrustedDeviceCookie());
+  res.sendStatus(204);
+}));
+
 adminRouter.delete('/auth/sessions/:sessionId', h(async (req, res) => {
   const sessionId = z.string().uuid().parse(req.params.sessionId);
   await withUser(req.user!, async (client) => {
@@ -1628,8 +2022,39 @@ adminRouter.post('/auth/logout', h(async (req, res) => {
   res.sendStatus(204);
 }));
 
+adminRouter.post('/auth/telegram/link', h(async (req, res) => {
+  const username = process.env.TELEGRAM_BOT_USERNAME?.replace(/^@/, '');
+  if (!process.env.TELEGRAM_BOT_TOKEN || !username) {
+    throw new HttpError(503, 'Telegram account linking is not configured.');
+  }
+  const token = randomBytes(32).toString('hex');
+  await withUser(req.user!, async (client) => {
+    await client.query(
+      'DELETE FROM telegram_link_challenges WHERE user_id=$1 AND consumed_at IS NULL',
+      [req.user!.id],
+    );
+    await client.query(
+      `INSERT INTO telegram_link_challenges (user_id,token_hash,expires_at)
+       VALUES ($1,$2,now()+interval '10 minutes')`,
+      [req.user!.id, createHash('sha256').update(token).digest()],
+    );
+  });
+  res.json({ url: `https://t.me/${username}?start=${token}`, expires_in_seconds: 600 });
+}));
+
+adminRouter.delete('/auth/telegram/link', h(async (req, res) => {
+  await withUser(req.user!, async (client) => {
+    await client.query('DELETE FROM user_telegram_links WHERE user_id=$1', [req.user!.id]);
+    await client.query(
+      'DELETE FROM telegram_link_challenges WHERE user_id=$1 AND consumed_at IS NULL',
+      [req.user!.id],
+    );
+  });
+  res.sendStatus(204);
+}));
+
 adminRouter.post('/auth/change-password', h(async (req, res) => {
-  const b = z.object({ current: z.string().min(1).max(200), next: z.string().min(1).max(72) }).parse(req.body); // bcrypt only reads the first 72 bytes
+  const b = z.object({ current: z.string().min(1).max(200), next: z.string().min(8).max(72) }).parse(req.body); // bcrypt only reads the first 72 bytes
   const u = (await pool.query('SELECT id, role, phone, password_hash, mfa_enabled FROM users WHERE id = $1', [req.user!.id])).rows[0];
   if (!(await bcrypt.compare(b.current, u.password_hash))) throw new HttpError(401, 'Current password is incorrect');
   const bad = passwordProblem(b.next, u.phone);
@@ -1637,9 +2062,165 @@ adminRouter.post('/auth/change-password', h(async (req, res) => {
   if (await bcrypt.compare(b.next, u.password_hash)) throw new HttpError(422, 'Choose a password you have not used just now.');
   await withUser(req.user!, async (c) => {
     await c.query('UPDATE users SET password_hash = $2, must_change_password = false WHERE id = $1', [u.id, await bcrypt.hash(b.next, 12)]);
+    await c.query('UPDATE auth_trusted_devices SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [u.id]);
     await audit(c, u.id, 'password_changed', 'user', u.id);
   });
+  res.append('Set-Cookie', clearTrustedDeviceCookie());
   res.json(await issue({ ...u, must_change_password: false }, req.user!.sessionId, req.get('user-agent')));
+}));
+
+adminRouter.get('/auth/passkeys', h(async (req, res) => {
+  const credentials = await withUser(req.user!, async (client) => (await client.query(
+    `SELECT id,device_name,device_type,backed_up,created_at,last_used_at
+     FROM auth_passkey_credentials WHERE user_id=$1 ORDER BY created_at DESC`,
+    [req.user!.id],
+  )).rows);
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ ...getWebAuthnStatus(), credentials });
+}));
+
+adminRouter.post('/auth/passkeys/registration/options', createApiRateLimiter('passkey-registration-options', 10), h(async (req, res) => {
+  const config = getWebAuthnConfiguration();
+  if (!config) throw new HttpError(503, getWebAuthnStatus().message);
+  if (!req.user!.sessionId || !req.user!.phone) throw new HttpError(401, 'Sign in again before registering a passkey.');
+
+  const credentials = await withUser(req.user!, async (client) => (await client.query(
+    'SELECT credential_id,transports FROM auth_passkey_credentials WHERE user_id=$1',
+    [req.user!.id],
+  )).rows);
+  const options = await generateRegistrationOptions({
+    rpName: config.rpName,
+    rpID: config.rpID,
+    userID: new Uint8Array(Buffer.from(req.user!.id)),
+    userName: req.user!.phone,
+    userDisplayName: req.user!.legal_name ?? req.user!.phone,
+    attestationType: 'none',
+    excludeCredentials: credentials.map((credential) => ({
+      id: credential.credential_id,
+      ...(credential.transports?.length ? { transports: credential.transports } : {}),
+    })),
+    authenticatorSelection: {
+      authenticatorAttachment: 'platform',
+      residentKey: 'required',
+      userVerification: 'required',
+    },
+    preferredAuthenticatorType: 'localDevice',
+  });
+  await withUser(req.user!, async (client) => {
+    await client.query(
+      'DELETE FROM auth_passkey_registration_challenges WHERE user_id=$1 AND session_id=$2',
+      [req.user!.id, req.user!.sessionId],
+    );
+    await client.query(
+      `INSERT INTO auth_passkey_registration_challenges(user_id,session_id,challenge,expires_at)
+       VALUES($1,$2,$3,now()+interval '5 minutes')`,
+      [req.user!.id, req.user!.sessionId, options.challenge],
+    );
+  });
+  res.setHeader('Cache-Control', 'no-store');
+  res.json(options);
+}));
+
+adminRouter.post('/auth/passkeys/registration/verify', createApiRateLimiter('passkey-registration-verify', 8), h(async (req, res) => {
+  const body = z.object({
+    response: z.object({
+      id: z.string().min(1).max(2048),
+      rawId: z.string().regex(/^[A-Za-z0-9_-]+$/).max(2048),
+      type: z.literal('public-key'),
+      response: z.object({
+        attestationObject: z.string().min(1).max(32768),
+        clientDataJSON: z.string().min(1).max(8192),
+        transports: z.array(z.enum(['usb', 'nfc', 'ble', 'smart-card', 'hybrid', 'internal'])).max(8).optional(),
+      }).passthrough(),
+      clientExtensionResults: z.record(z.string(), z.unknown()).optional(),
+      authenticatorAttachment: z.string().nullable().optional(),
+    }).passthrough(),
+    device_name: z.string().trim().min(1).max(80)
+      .refine((value) => !/[\u0000-\u001f\u007f]/.test(value), 'Device name contains unsupported characters.'),
+  }).strict().parse(req.body);
+  if (body.response.id !== body.response.rawId) throw new HttpError(422, 'The device returned an invalid passkey response.');
+  if (!req.user!.sessionId) throw new HttpError(401, 'Sign in again before registering a passkey.');
+  const config = getWebAuthnConfiguration();
+  if (!config) throw new HttpError(503, getWebAuthnStatus().message);
+
+  const challenge = await withUser(req.user!, async (client) => (await client.query(
+    `SELECT id,challenge FROM auth_passkey_registration_challenges
+     WHERE user_id=$1 AND session_id=$2 AND consumed_at IS NULL AND expires_at>now()
+     ORDER BY created_at DESC LIMIT 1`,
+    [req.user!.id, req.user!.sessionId],
+  )).rows[0]);
+  if (!challenge) throw new HttpError(409, 'Passkey registration expired. Start again.');
+
+  let verification;
+  try {
+    verification = await verifyRegistrationResponse({
+      response: body.response as RegistrationResponseJSON,
+      expectedChallenge: challenge.challenge,
+      expectedOrigin: config.origin,
+      expectedRPID: config.rpID,
+      requireUserVerification: true,
+    });
+  } catch {
+    await withUser(req.user!, async (client) => {
+      await client.query(
+        'UPDATE auth_passkey_registration_challenges SET consumed_at=now() WHERE id=$1 AND consumed_at IS NULL',
+        [challenge.id],
+      );
+    });
+    throw new HttpError(422, 'The device passkey could not be verified. Start registration again.');
+  }
+  if (!verification.verified || !verification.registrationInfo.userVerified) {
+    await withUser(req.user!, async (client) => {
+      await client.query(
+        'UPDATE auth_passkey_registration_challenges SET consumed_at=now() WHERE id=$1 AND consumed_at IS NULL',
+        [challenge.id],
+      );
+    });
+    throw new HttpError(422, 'The device passkey could not be verified. Start registration again.');
+  }
+
+  const credential = verification.registrationInfo.credential;
+  const saved = await withUser(req.user!, async (client) => {
+    const consumed = await client.query(
+      `UPDATE auth_passkey_registration_challenges SET consumed_at=now()
+       WHERE id=$1 AND user_id=$2 AND session_id=$3 AND consumed_at IS NULL AND expires_at>now()
+       RETURNING id`,
+      [challenge.id, req.user!.id, req.user!.sessionId],
+    );
+    if (!consumed.rowCount) throw new HttpError(409, 'Passkey registration expired. Start again.');
+    const inserted = await client.query(
+      `INSERT INTO auth_passkey_credentials
+         (user_id,credential_id,public_key,sign_count,transports,device_type,backed_up,device_name)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+       RETURNING id,device_name,device_type,backed_up,created_at,last_used_at`,
+      [
+        req.user!.id, credential.id, Buffer.from(credential.publicKey), credential.counter,
+        credential.transports ?? [], verification.registrationInfo.credentialDeviceType,
+        verification.registrationInfo.credentialBackedUp, body.device_name,
+      ],
+    );
+    await audit(client, req.user!.id, 'passkey_registered', 'auth_passkey_credential', inserted.rows[0].id, null, {
+      device_name: body.device_name,
+      device_type: verification.registrationInfo.credentialDeviceType,
+    });
+    return inserted.rows[0];
+  });
+  res.setHeader('Cache-Control', 'no-store');
+  res.status(201).json(saved);
+}));
+
+adminRouter.delete('/auth/passkeys/:id', h(async (req, res) => {
+  const id = z.string().uuid().parse(req.params.id);
+  const removed = await withUser(req.user!, async (client) => {
+    const result = await client.query(
+      'DELETE FROM auth_passkey_credentials WHERE id=$1 AND user_id=$2 RETURNING id,device_name',
+      [id, req.user!.id],
+    );
+    if (!result.rowCount) throw new HttpError(404, 'Passkey not found.');
+    await audit(client, req.user!.id, 'passkey_removed', 'auth_passkey_credential', id, result.rows[0], null);
+    return result.rows[0];
+  });
+  res.json({ removed: true, device_name: removed.device_name });
 }));
 
 adminRouter.post('/auth/mfa/setup', h(async (req, res) => {
@@ -1651,19 +2232,38 @@ adminRouter.post('/auth/mfa/setup', h(async (req, res) => {
 }));
 
 adminRouter.post('/auth/mfa/enable', h(async (req, res) => {
-  const { code } = z.object({ code: z.string() }).parse(req.body);
+  const { code, trust_device } = z.object({ code: z.string(), trust_device: z.literal('on').optional() }).parse(req.body);
   const u = (await pool.query('SELECT id, role, mfa_secret, must_change_password FROM users WHERE id = $1', [req.user!.id])).rows[0];
   if (!u.mfa_secret) throw new HttpError(409, 'Start setup first');
+  if (trust_device && !req.secure) throw new HttpError(400, 'Trusted browsers can only be enabled over HTTPS.');
   const step = verifyTotpStep(openSecret(u.mfa_secret), code);
   if (step === null) throw new HttpError(422, 'That code is not right. Check the time on your phone and try again.');
+  let trustedDeviceToken: string | undefined;
   await withUser(req.user!, async (c) => {
     const enabled = await c.query(
       'UPDATE users SET mfa_enabled = true, mfa_last_step = $2 WHERE id = $1 AND mfa_enabled = false AND mfa_secret = $3',
       [u.id, step, u.mfa_secret],
     );
     if (!enabled.rowCount) throw new HttpError(409, 'Two-factor setup changed. Start setup again.');
+    if (trust_device) {
+      const token = createTrustedDeviceToken();
+      trustedDeviceToken = token;
+      await c.query(
+        `DELETE FROM auth_trusted_devices
+         WHERE user_id=$1 AND (expires_at<now()-interval '30 days' OR revoked_at<now()-interval '30 days')`,
+        [u.id],
+      );
+      const deviceId = randomUUID();
+      await c.query(
+        `INSERT INTO auth_trusted_devices (id,user_id,token_hash,user_agent,expires_at)
+         VALUES ($1,$2,$3,$4,now()+interval '30 days')`,
+        [deviceId, u.id, hashTrustedDeviceToken(token), req.get('user-agent')?.slice(0, 512) ?? null],
+      );
+      await audit(c, u.id, 'trusted_device_added', 'auth_trusted_device', deviceId, null, { expires_in_days: 30 });
+    }
     await audit(c, u.id, 'mfa_enabled', 'user', u.id);
   });
+  if (trustedDeviceToken) res.append('Set-Cookie', trustedDeviceCookie(trustedDeviceToken));
   res.json(await issue({ ...u, mfa_enabled: true }, req.user!.sessionId, req.get('user-agent')));
 }));
 
@@ -1671,17 +2271,23 @@ adminRouter.post('/auth/mfa/disable', h(async (req, res) => {
   const b = z.object({ password: z.string(), code: z.string() }).parse(req.body);
   const u = (await pool.query('SELECT id, role, password_hash, mfa_secret, mfa_enabled FROM users WHERE id = $1', [req.user!.id])).rows[0];
   if (!u.mfa_enabled) throw new HttpError(409, 'Two-factor sign-in is not on');
-  if (MFA_STAFF.includes(u.role) && process.env.REQUIRE_MFA_FOR_STAFF === '1') throw new HttpError(403, 'Two-factor sign-in is required for your role');
+  if (requiresMfaEnrollment(u.role)) throw new HttpError(403, 'Two-factor sign-in is required for your role');
   const step = verifyTotpStep(openSecret(u.mfa_secret), b.code);
   if (!(await bcrypt.compare(b.password, u.password_hash)) || step === null) throw new HttpError(401, 'Password or code is incorrect');
   await withUser(req.user!, async (c) => {
+    const grants = await c.query('SELECT role_name FROM user_admin_role_grants WHERE user_id=$1', [u.id]);
+    if (requiresMfaForRoles([u.role, ...grants.rows.map((grant) => grant.role_name as string)])) {
+      throw new HttpError(403, 'Two-factor sign-in is required for your administrator access.');
+    }
     const disabled = await c.query(
       'UPDATE users SET mfa_enabled = false, mfa_secret = NULL WHERE id = $1 AND mfa_enabled = true AND mfa_last_step < $2',
       [u.id, step],
     );
     if (!disabled.rowCount) throw new HttpError(401, 'Password or code is incorrect');
+    await c.query('UPDATE auth_trusted_devices SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [u.id]);
     await audit(c, u.id, 'mfa_disabled', 'user', u.id);
   });
+  res.append('Set-Cookie', clearTrustedDeviceCookie());
   res.json({ ok: true });
 }));
 
@@ -1697,10 +2303,10 @@ adminRouter.patch('/auth/preferences', h(async (req, res) => {
 // ================= Users: create, verify, activate (two different people) =================
 adminRouter.get('/users', requireRole('global_admin', 'compliance', 'corporate_business_manager', 'super_admin'), h(async (_req, res) => {
   const users = await withUser(_req.user!, async (c) => (await c.query(
-    `SELECT u.id, u.legal_name, u.phone, u.role, u.kyc_status, u.active, u.mfa_enabled, u.created_at, u.created_by,
+    `SELECT u.id, u.legal_name, u.phone, u.role, u.territory_id, u.kyc_status, u.active, u.mfa_enabled, u.created_at, u.created_by,
             s.account_type AS signup_account_type, s.requested_plan, s.payment_status AS signup_payment_status,
             s.status AS signup_status, s.pension_match_interest, s.edir_member_interest,
-            s.edir_life_interest, s.household_cover_interest, a.service_specialization,
+            s.edir_life_interest, s.household_cover_interest, s.parent_agent_id, a.service_specialization,
             (SELECT count(*)::int FROM user_documents d WHERE d.user_id = u.id) AS kyc_document_count
      FROM users u LEFT JOIN user_signups s ON s.user_id = u.id LEFT JOIN agents a ON a.id = u.id
      WHERE $1::text IN ('global_admin','compliance')
@@ -1711,6 +2317,109 @@ adminRouter.get('/users', requireRole('global_admin', 'compliance', 'corporate_b
     [_req.user!.role,_req.user!.id],
   )).rows);
   res.json(users);
+}));
+
+const ACCOUNT_ROLE_GROUPS = {
+  staff: ['corporate_business_manager', 'compliance', 'finance', 'finance_manager'],
+  agents: ['master_agent', 'field_agent'],
+  members: ['customer', 'worker', 'property_owner'],
+} as const;
+
+function accountRoleGroup(role: string) {
+  return Object.entries(ACCOUNT_ROLE_GROUPS).find(([, roles]) => (roles as readonly string[]).includes(role))?.[0];
+}
+
+adminRouter.patch('/users/:id/role', requireRole('global_admin', 'super_admin'), h(async (req, res) => {
+  const body = z.object({
+    role: z.enum([
+      'corporate_business_manager', 'compliance', 'finance', 'finance_manager',
+      'master_agent', 'field_agent', 'customer', 'worker', 'property_owner',
+    ]),
+    parent_agent_id: z.string().uuid().optional(),
+  }).strict().parse(req.body);
+  const userId = z.string().uuid().parse(req.params.id);
+  if (userId === req.user!.id) throw new HttpError(403, 'You cannot change your own account role.');
+
+  const result = await withUser(req.user!, async (c) => {
+    const target = (await c.query(
+      `SELECT id, role, active, created_by, territory_id FROM users
+       WHERE id=$1 AND ($2::text='global_admin' OR created_by=$3) FOR UPDATE`,
+      [userId, req.user!.role, req.user!.id],
+    )).rows[0];
+    if (!target) throw new HttpError(404, 'User not found.');
+    if (req.user!.role === 'super_admin' && !AGENT_ROLES.includes(body.role)) {
+      throw new HttpError(403, 'Super Admins may only assign Master Agent or Field Agent roles.');
+    }
+    const currentGroup = accountRoleGroup(target.role);
+    if (!currentGroup || currentGroup !== accountRoleGroup(body.role)) {
+      throw new HttpError(422, 'Role changes must stay within the account’s existing role group.');
+    }
+    if (target.role === body.role) return { user: target, changed: false };
+
+    if (currentGroup === 'agents') {
+      const signup = (await c.query(
+        'SELECT account_type, agent_type, territory_id, parent_agent_id FROM user_signups WHERE user_id=$1 FOR UPDATE',
+        [userId],
+      )).rows[0];
+      if (signup && signup.account_type !== 'agent') {
+        throw new HttpError(409, 'The account registration type does not match its agent role.');
+      }
+      const agent = (await c.query(
+        'SELECT agent_type, parent_id, territory_id FROM agents WHERE id=$1 FOR UPDATE',
+        [userId],
+      )).rows[0];
+      if (target.active && !agent) throw new HttpError(409, 'The active agent record is missing.');
+      if (!signup && !agent) throw new HttpError(409, 'The agent registration record is missing.');
+
+      const territoryId = agent?.territory_id ?? signup?.territory_id ?? target.territory_id;
+      let parentAgentId: string | null = null;
+      if (body.role === 'field_agent') {
+        if (!body.parent_agent_id) throw new HttpError(422, 'Choose an active Master Agent in the same territory.');
+        const parent = (await c.query(
+          `SELECT a.id FROM agents a JOIN users u ON u.id=a.id
+           WHERE a.id=$1 AND a.id<>$2 AND a.agent_type='master' AND u.role='master_agent'
+             AND u.active=true AND a.territory_id=$3
+             AND ($4::text<>'super_admin' OR u.created_by=$5) FOR SHARE`,
+          [body.parent_agent_id, userId, territoryId, req.user!.role, req.user!.id],
+        )).rows[0];
+        if (!parent) throw new HttpError(422, 'Choose an active Master Agent in the same territory.');
+        parentAgentId = parent.id;
+      } else {
+        const children = await c.query('SELECT 1 FROM agents WHERE parent_id=$1 LIMIT 1', [userId]);
+        if (children.rowCount) throw new HttpError(409, 'Reassign this Master Agent’s field agents before changing the role.');
+      }
+
+      if (agent) {
+        await c.query(
+          'UPDATE agents SET agent_type=$2,parent_id=$3 WHERE id=$1',
+          [userId, body.role === 'master_agent' ? 'master' : 'field', parentAgentId],
+        );
+      }
+      if (signup) {
+        await c.query(
+          `UPDATE user_signups SET agent_type=$2,parent_agent_id=$3
+           WHERE user_id=$1 AND account_type='agent'`,
+          [userId, body.role === 'master_agent' ? 'master' : 'field', parentAgentId],
+        );
+      }
+    } else if (currentGroup === 'members') {
+      await c.query(
+        `UPDATE user_signups SET account_type=$2
+         WHERE user_id=$1 AND account_type IN ('customer','worker','property_owner')`,
+        [userId, body.role],
+      );
+    }
+
+    const updated = (await c.query(
+      'UPDATE users SET role=$2 WHERE id=$1 RETURNING id,legal_name,phone,role,territory_id,active,created_by',
+      [userId, body.role],
+    )).rows[0];
+    await c.query('UPDATE auth_trusted_devices SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [userId]);
+    await audit(c, req.user!.id, 'user_role_updated', 'user', userId, { role: target.role }, { role: body.role });
+    return { user: updated, changed: true };
+  });
+  if (result.changed) invalidateUser(userId);
+  res.json(result);
 }));
 
 async function lockEligibleSuperAdmins(c: import('pg').PoolClient, userIds: string[]) {
@@ -1798,6 +2507,7 @@ async function decideGlobalAdminPromotion(req: Request, decision: 'approved' | '
     if (decision === 'approved') {
       await c.query("SELECT set_config('app.access_change_reason',$1,true)", [reason]);
       await c.query("UPDATE users SET role = 'global_admin' WHERE id = $1", [target.id]);
+      await c.query('UPDATE auth_trusted_devices SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [target.id]);
     }
     const updated = (await c.query(
       `UPDATE global_admin_role_change_requests
@@ -1889,7 +2599,7 @@ adminRouter.patch('/business-rules', requireRole('global_admin'), h(async (req, 
   res.json(result);
 }));
 
-adminRouter.post('/users', requireRole('global_admin','super_admin','corporate_business_manager'), h(async (req, res) => {
+adminRouter.post('/users', requireRole('global_admin','super_admin','master_agent','corporate_business_manager'), h(async (req, res) => {
   const b = z.object({
     legal_name: z.string().min(2), phone: Phone, email: z.string().email().optional(),
     role: z.enum(PROVISIONABLE_ROLES), territory_id: z.number().int().optional(), parent_agent_id: z.string().uuid().optional(),
@@ -1902,6 +2612,9 @@ adminRouter.post('/users', requireRole('global_admin','super_admin','corporate_b
   }
   if (req.user!.role === 'super_admin' && !['master_agent','field_agent'].includes(b.role)) {
     throw new HttpError(403, 'Super Admins may onboard Master Agents and Field Agents only.');
+  }
+  if (req.user!.role === 'master_agent' && b.role !== 'field_agent') {
+    throw new HttpError(403, 'Master Agents may onboard Field Agents only.');
   }
   if (b.role === 'property_vendor' && req.user!.role !== 'global_admin') {
     throw new HttpError(403, 'Only a Global Admin may provision a property-vendor account.');
@@ -1923,7 +2636,8 @@ adminRouter.post('/users', requireRole('global_admin','super_admin','corporate_b
       const parent = (await c.query(
         `SELECT a.id FROM agents a JOIN users u ON u.id=a.id
          WHERE a.id=$1 AND a.agent_type='master' AND u.role='master_agent' AND u.active=true AND a.territory_id=$2
-           AND ($3::text NOT IN ('corporate_business_manager','super_admin') OR u.created_by=$4)`,
+           AND ($3::text NOT IN ('corporate_business_manager','super_admin') OR u.created_by=$4)
+           AND ($3::text <> 'master_agent' OR a.id=$4)`,
         [b.parent_agent_id,b.territory_id,req.user!.role,req.user!.id],
       )).rows[0];
       if (!parent) throw new HttpError(422, 'Choose an active Master Agent in the selected territory.');
@@ -2134,14 +2848,14 @@ adminRouter.post('/users/:id/activate', requireRole('global_admin', 'super_admin
     }
     if (signup?.account_type === 'property_vendor') {
       const vendor = (await c.query(
-        'SELECT id FROM property_vendors WHERE id=$1 AND active FOR UPDATE',
+        'SELECT id,tenant_system_id FROM property_vendors WHERE id=$1 AND active FOR UPDATE',
         [signup.vendor_id],
       )).rows[0];
       if (!vendor) throw new HttpError(409, 'The property-vendor business is no longer active.');
       await c.query(
-        `INSERT INTO property_vendor_memberships(vendor_id,user_id,created_by)
-         VALUES($1,$2,$3)`,
-        [vendor.id, req.params.id, req.user!.id],
+        `INSERT INTO property_vendor_memberships(vendor_id,user_id,created_by,tenant_system_id)
+         VALUES($1,$2,$3,$4)`,
+        [vendor.id, req.params.id, req.user!.id, vendor.tenant_system_id],
       );
     }
     await c.query("SELECT set_config('app.access_change_reason',$1,true)", [reason]);
@@ -2173,13 +2887,14 @@ adminRouter.post('/users/:id/deactivate', requireRole('global_admin'), h(async (
     await c.query("SELECT set_config('app.access_change_reason',$1,true)", [reason ?? 'Account deactivated through the authorized Super Admin workflow']);
     const r = await c.query('UPDATE users SET active = false WHERE id = $1 RETURNING id, active', [req.params.id]);
     if (!r.rowCount) throw new HttpError(404, 'User not found');
+    await c.query('UPDATE auth_trusted_devices SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [req.params.id]);
     await audit(c, req.user!.id, 'user_deactivated', 'user', String(req.params.id));
     return r.rows[0];
   }));
   invalidateUser(String(req.params.id)); // takes effect immediately on this server, within AUTH_CACHE_MS elsewhere
 }));
 
-/** Lost phone: clears 2FA so the user can enrol again (staff with REQUIRE_MFA_FOR_STAFF are forced to on next sign-in). */
+/** Lost phone: clears 2FA so the user can enrol again; required roles are restricted at next sign-in. */
 adminRouter.post('/users/:id/mfa/reset', requireRole('global_admin'), h(async (req, res) => {
   if (req.params.id === req.user!.id) throw new HttpError(403, 'Ask another Super Admin to reset your two-factor sign-in');
   const out = await withUser(req.user!, async (c) => {
@@ -2191,6 +2906,7 @@ adminRouter.post('/users/:id/mfa/reset', requireRole('global_admin'), h(async (r
     const r = await c.query('UPDATE users SET mfa_enabled = false, mfa_secret = NULL, mfa_last_step = -1 WHERE id = $1 RETURNING id, role', [req.params.id]);
     if (!r.rowCount) throw new HttpError(404, 'User not found');
     await c.query('UPDATE auth_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [req.params.id]);
+    await c.query('UPDATE auth_trusted_devices SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [req.params.id]);
     await audit(c, req.user!.id, 'mfa_reset', 'user', String(req.params.id));
     return { ok: true };
   });
@@ -2210,6 +2926,7 @@ adminRouter.post('/users/:id/reset-password', requireRole('global_admin'), h(asy
     const r = await c.query('UPDATE users SET password_hash = $2, must_change_password = true, failed_logins = 0, locked_until = NULL WHERE id = $1', [req.params.id, await bcrypt.hash(temp, 12)]);
     if (!r.rowCount) throw new HttpError(404, 'User not found');
     await c.query('UPDATE auth_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [req.params.id]);
+    await c.query('UPDATE auth_trusted_devices SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [req.params.id]);
     await audit(c, req.user!.id, 'password_reset', 'user', String(req.params.id));
   });
   invalidateUser(String(req.params.id));

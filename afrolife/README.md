@@ -30,7 +30,9 @@ Same-origin TypeScript/Express API and installable web app for AfroLife agency o
    
 3. For an AletCloud release that must apply pending core migrations without running initial-administrator seeding, temporarily set `ALETCLOUD_BOOTSTRAP_DATABASE_URL` to the database provisioning URL and `ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY=1`, then deploy through the normal guarded startup. Verify `/readyz` reports all migrations current, then remove both temporary variables and redeploy. Never leave the provisioning URL in the running app configuration.
 
-4. Create the first administrator with environment variables; the password is read from the environment and is never printed:
+   To bootstrap the two initial AfroSherik platform administrators in the Development deployment, use the guarded one-time backend flow only after the required migrations are applied and the existing `platform_tenants` row is confirmed. Set `AFROLIFE_DEPLOYMENT_ENV=development`, `ALETCLOUD_APP_NAME=afrolife-development`, `ALLOW_INITIAL_AFROSHERIK_ADMIN_BOOTSTRAP=1`, `INITIAL_AFROSHERIK_ADMIN_BOOTSTRAP_CONFIRM=create-afrosherik-platform-admins`, `INITIAL_AFROSHERIK_TENANT_KEY` to the exact key of the existing tenant whose display name is AfroSherik, and `INITIAL_AFROSHERIK_ADMIN_BOOTSTRAP_REASON` to a non-secret change reason. Set `INITIAL_DAWIT_ADMIN_PASSWORD` and `INITIAL_YALEMWORK_ADMIN_PASSWORD` as separate AletCloud secrets, each at least 16 characters and no more than 72 UTF-8 bytes. The flow creates Dawit Asrade (`+251951076113`) and Yalemwork Antenh (`+251966302995`) as Global Admins and gives each a Super Admin access mode scoped only to that tenant; it does not create a tenant, overwrite an existing account, or run if any Global Admin already exists. Both accounts must change their distinct temporary passwords at first sign-in and enroll in MFA. The bootstrap is one-time, transactional, and audited. Remove the opt-in, confirmation, tenant key, reason, and both password variables from AletCloud immediately after a successful deployment. Never use a password disclosed in chat or store these secrets in source control.
+
+3. Create the first administrator with environment variables; the password is read from the environment and is never printed:
 
    ```powershell
    $env:SEED_ADMIN_NAME = "AfroLife Administrator"
@@ -46,17 +48,46 @@ Same-origin TypeScript/Express API and installable web app for AfroLife agency o
 
 5. Run `npm run dev`, then open `http://localhost:3010`.
 
-`http://localhost:3010` is the local browser entry point for the PWA and API.
+`http://localhost:3010` is the single client-facing local entry point for the
+PWA and API. All configured services, including Accounting, are reached through
+this gateway; their private listener ports are not browser-facing.
 The optional local Nginx preview on `http://localhost:8080` only proxies to
-that same app and is not needed for `npm run dev`. Users always open this
-single app URL (or the single public hostname in deployment); they do not open
+that same app and is not needed for `npm run dev`. Public users always open this
+single app URL (or the public hostname in deployment); they do not open
 service-specific ports. Extracted backends remain private behind the central
 API gateway, which routes each feature internally.
+
+An optional separate Admin/Staff entry hostname can be enabled with
+`ADMIN_PORTAL_URL=https://<your-admin-host>`. Configure DNS and the AletCloud
+host mapping to route that hostname to this same core app, then set the
+environment variable and redeploy. The public sign-in page will show an
+Admin/Staff link, and the admin hostname will hide public registration and
+present the staff sign-in flow. The login endpoint rejects accounts without an
+assigned role that requires MFA; password change and authenticator enrollment
+remain in the existing restricted-session flow. API role checks remain the
+security boundary. This separates the entry experience, not the API process or
+database; a standalone frontend deployment would additionally need a secured
+API proxy/origin configuration and is not enabled by this setting.
+For the Development deployment, the selected URL is
+`https://admin.afrosherik.app.aletcloud.com`. It is not enabled until AletCloud
+routes that hostname to the existing core app and provisions HTTPS; a public
+connectivity check could not reach it yet. Leave `ADMIN_PORTAL_URL` unset until
+that mapping is confirmed to avoid exposing a broken sign-in link.
+
+After a successful authenticator challenge, a user may opt to trust that
+browser for 30 days over HTTPS. The browser receives a host-only, secure, HTTP-only cookie;
+the database stores only its token hash. This skips repeat authenticator codes
+on that browser but does not extend the eight-hour sign-in session. Users can
+review and revoke trusted browsers from Account security. Password changes and
+resets, MFA changes and resets, and account deactivation revoke trusted devices.
+Administrator MFA remains required on every untrusted browser.
+When TLS terminates at a reverse proxy, configure `TRUST_PROXY` to the trusted
+proxy hop count so Express can verify that the request is HTTPS.
 
 For a containerized local QA environment, start Docker Desktop and run
 `npm run qa:docker:up` from `afrolife/`. This builds the application, starts an
 isolated PostgreSQL database on loopback port 5433, applies migrations, grants
-the restricted runtime role, and serves the app at `http://localhost:3000`.
+the restricted runtime role, and serves the app at `http://localhost:3010`.
 Database and private uploads use Docker-managed named volumes; host `data/`
 and any prior local database are not deleted or mounted. Locally generated
 secrets are kept in the Git-ignored `.env.docker`. Run
@@ -93,10 +124,12 @@ Before a shared or production launch, provision at least two Super Admin account
 
 Global Admin is the Global System Admin role and is the only role for platform-wide configuration: tenant onboarding, service and package definitions, platform module availability, Super Admin onboarding and assignment, global identity, role templates, and operations controls. Super Admin access is tenant-assigned by default: it can administer assigned business entities, choose a subset of the modules and services approved for each active entity, register its deployment reference, and onboard Master Agents or Field Agents it created. Without an assigned active entity context, a normal Super Admin receives no business modules. An explicit Global-Admin-managed grant can configure service modules and (for Super Admin only) tenant scope for an existing platform administrator; each authenticated session stores and revalidates its selected mode. Global Admin promotions continue to use the approved role-promotion workflow. Migration 115 grants Dawit's existing account both Global Admin and Super Admin access, with all currently defined workspace modules and cross-tenant platform-tenant scope in Super Admin mode. It does not change the default scope of other Super Admins. Future administrator service and tenant-scope grants are managed in the Administrator access panel; access to a service remains limited by deployment configuration, tenant package availability, and resource-level authorization. Even with cross-tenant scope, a Super Admin cannot create tenants, change shared service packages, alter global role templates, or assign other Super Admins. Business Admin (`corporate_business_manager`) is limited to business-entity operations and agent onboarding; system configuration remains unavailable. Super Admin and Business Admin user lists are limited to accounts they created. An active, MFA-enabled Super Admin can nominate another active, MFA-enabled Super Admin; a second, different eligible Super Admin must approve the request with a reason. Request and decision events are recorded in the audit log. No role bypasses financial maker-checker approvals.
 
+Super Admin business-service APIs independently check the selected tenant's active status, assignment, and service-package entitlement; filtering the launcher alone does not authorize API access.
+
 The initial database migration creates a starter Ethiopia → Addis Ababa → Bole territory path and default pricing/matching rules. Additional territories are managed through the API by a Super Admin.
 `/livez` confirms that the API process is running. `/healthz` checks PostgreSQL connectivity. `/readyz` is the deployment readiness probe: it checks the database, every workspace migration packaged with this release and its stored checksum, writable private-file storage, and all configured private services. It returns HTTP 503 if any required check fails and does not expose connection strings or exception details.
 The Docker image health check uses `/readyz`; a container can therefore remain live while being marked unhealthy when its schema, storage, or configured services are not ready.
-Core and standalone Accounting migration runners serialize migration execution with PostgreSQL advisory locks, record SHA-256 checksums, and stop if an already-checksummed migration file changes. Existing migration histories without checksums are baselined to the migration contents present at the first checksum-aware run; this cannot identify edits made before that baseline. Never edit an applied migration—add a new migration instead.
+Core and standalone Accounting migration runners serialize migration execution with PostgreSQL advisory locks, record SHA-256 checksums, and stop if an already-checksummed migration file changes. Existing migration histories without checksums are baselined to the migration contents present at the first checksum-aware run; this cannot identify edits made before that baseline. Never edit or rename an applied migration—add a new migration instead. Numeric prefixes must be unique for new migrations. Historical collisions (094, 095, 096, 106, and 115) remain unchanged because applied migrations are identified by their full filenames and checksums; new migrations must use the next unused numeric prefix.
 
 ## Workspace navigation, search, and service status
 
@@ -143,6 +176,18 @@ these grants do not provide database connectivity, SQL execution, or Global BI
 access. Migration, backup/restore, and database-change requests are audited
 records only and never execute operations.
 
+Database Admins can also record a staged tenant-data migration: immutable plan,
+dry-run, staging, reconciliation, independent cutover approval, and completion
+evidence. Only one unfinished run is allowed per tenant. A run cannot progress
+from a failed dry run, and cutover approval is blocked until the latest
+reconciliation reports zero unresolved records and validation errors. The
+approver must differ from the plan creator and reconciler; completion must be
+attested by an operator different from both the creator and approver. Evidence
+references and manifest hashes are recorded, not data. This is an evidence
+register only: AfroLife does not connect to, stage, transfer, reconcile, or
+modify tenant database records; the authorized tenant operator performs each
+operation externally and must maintain the approved backup and rollback plan.
+
 Each tenant operator owns any eventual local projector and scheduler. There is
 currently no tenant source extractor, trusted remote ingestion endpoint, or
 verified 30-minute schedule. Global BI reports projector/scheduler as not
@@ -169,6 +214,15 @@ an audit trail, or a substitute for durable infrastructure monitoring.
 - Agent applicants can select Free, Pro, or Enterprise. This records a plan request only: no payment is collected and no subscription is activated. Paid billing requires a payment provider and subscription lifecycle before production use.
 - Worker and customer self-service portals are not part of this MVP; approved accounts currently share the operations shell.
 - The sign-up page presents AfroLife's proposed worker pension match (5%) and Edir options: ETB 2,000 joining + ETB 200 monthly, optional ETB 5,000 annual ETB 1 million member/spouse life cover, and optional ETB 200 per household for tenant/property-owner fire, accidental-damage and burglary cover. Applicants may record non-binding interests; no contribution is collected and no pension match or insurance is active. Confirm funding, eligibility, licensed insurer/underwriter, policy wording, claims process, and commencement date before accepting money or advertising active cover. Staff can see requested benefits in KYC review.
+
+## Sign-in, recovery, identity, and passkeys
+
+- Sign-in, recovery, and registration default to Ethiopia's `+251` calling code. Other calling codes can be selected from suggestions or entered directly.
+- TOTP is optional for ordinary accounts. Administrative access continues to require MFA and cannot disable it.
+- The forgot-password flow is deliberately unavailable until an approved SMS provider is configured. Its endpoints return `503`, send no SMS, create no recovery challenge, and disclose no account or reset token. Users must contact AfroLife support for manual recovery.
+- National ID documents remain in the existing private, manual KYC review workflow. Fayda verification is disabled: this application makes no Fayda requests until AfroLife receives authorization and configures a verified adapter.
+- Optional passkey registration uses `@simplewebauthn/server` with a server-generated, session-bound five-minute challenge and required local user verification. The browser/device handles biometrics or its screen-lock PIN; the server stores only the public credential. Registration does not replace password sign-in or mandatory administrative MFA.
+- Passkey registration is disabled by default. To enable it, apply the core migrations and explicitly configure `WEBAUTHN_ORIGIN` as the exact HTTPS origin (no path) and `WEBAUTHN_RP_ID` as that origin's exact host. HTTP is accepted only for localhost development. `WEBAUTHN_RP_NAME` is optional and defaults to `AfroSherik`. Passkeys can be registered and removed in account security but are not yet a login method.
 
 ## AfroLife Edir standalone service
 
@@ -247,13 +301,70 @@ deployed, migrated, and reachable.
 
 ## AfroLife Accounting standalone service
 
-Accounting is a separately deployable multi-entity accounting backend and web workspace with its own PostgreSQL database, user mode, entity memberships, chart of accounts, periods, journals, and consolidation totals. See [services/accounting/README.md](./services/accounting/README.md) for standalone and AfroLife-connected deployment, credentials, migrations, and source-event mapping. The Super App exposes Accounting as a dedicated finance mini-app when the subscriber or internal Accounting gateway is configured. Accounting is included in the existing manual service-subscription request and finance payment-review flow; customer and property-owner access requires both the existing mini-app assignment and a confirmed, unexpired Accounting subscription. The service API continues to enforce those checks. Transactional source publishers are wired for property rent/deposit receipts, Agency contract fees, commission accruals and payouts, dispute refunds, approved MFI loan disbursements/write-offs, Edir transactions, and approved Insurance journals. Marketplace has local sandbox checkout only; real payment posting still requires a provider and entity/account mappings. Configure Accounting entity and account mappings before enabling delivery; historical entries are not backfilled.
+Accounting is available as a dedicated finance mini-app from the Super App catalog and existing manual service-subscription request and finance payment-review flow. Customer and property-owner access requires both the existing mini-app assignment and a confirmed, unexpired Accounting subscription; the service API enforces those checks. Internal Accounting and Finance integrations use the existing gateway route. Paid commercial subscription and payment fulfillment are not automated.
 
-## Property listings and secure uploads
+Accounting is a separately deployable multi-entity backend and web workspace with its own PostgreSQL database, user mode, entity memberships, chart of accounts, periods, journals, and consolidation totals. See [services/accounting/README.md](./services/accounting/README.md) for deployment, credentials, migrations, and source-event mapping. The Super App exposes Accounting through the client-facing port 3010 when `ACCOUNTING_SERVICE_URL` and the matching gateway secret are configured; the Accounting process listens privately on port 3301 and clients must use the main gateway. Docker QA starts Accounting with a separate database and restricted runtime role. For local integration outside Docker QA, run `npm run db:accounting:local:setup`, start `npm run start:accounting:local`, then restart the core API so it loads the generated gateway configuration. Transactional source publishers are wired for property rent/deposit receipts, Agency contract fees, commission accruals and payouts, dispute refunds, approved MFI loan disbursements/write-offs, Edir transactions, and approved Insurance journals. Marketplace has local sandbox checkout only; real payment posting still requires a provider and entity/account mappings. Configure Accounting entity and account mappings before enabling delivery; historical entries are not backfilled. The core catalog service entry can be assigned through service packages.
+
+## Property operations and secure uploads
 
 Agents and Super Admins can create and manage property listings, record unit and rental details, and attach JPEG or PNG property photos (up to 10 MB per image). Listing data and photo metadata are stored in PostgreSQL; the photo files and applicant KYC files are kept in private file storage, not served from the public web directory. Access to photos is checked against the listing owner's permissions, and downloads are marked private and non-cacheable.
 
+Lease renewals use a separate, auditable offer workflow: an authorized manager submits proposed terms, a different authorized reviewer issues or rejects the offer, and a linked resident can accept or decline it before its expiry date. Acceptance does not amend the current lease or activate a new one; a manager must create a separate renewal lease draft, which follows the ordinary approval, signature-evidence, and handover process. Renewal dates must follow the current lease term, and amounts are stored at cent precision.
+
+Lease closeout requires a move-out inspection report for the active lease, including the actual vacancy and inspection dates, condition notes, key return, and any proposed deposit deduction. PDF and image evidence is stored privately. A different user with lease-approval authority must approve or reject the report; rejected reports can be resubmitted as a new revision. Ending a lease places its unit into turnover, not vacancy. An authorized property-maintenance user must record completed readiness checks before the unit can return to vacant and re-enter rental workflows. Refund requests are bounded by the reconciled deposit less independently approved deductions, use exact cents, and still require separate reconciliation. Owner statements show approved deductions and refund balances alongside receipts. This records operational evidence only and does not determine legal deposit rights or authorize unlawful deductions.
+
+After a maintenance request is independently marked complete, the linked resident can confirm completion or report a remaining issue. Feedback is bound to the exact completion event, recorded once with an idempotency key, and shown to authorized maintenance reviewers. Reporting an issue does not reopen the work order, alter invoice approval, or initiate or change a payment.
+
+Move-out inspection form submissions can be captured without connectivity. Draft fields are encrypted with AES-GCM in the signed-in user's browser profile and remain there until the tenant-scoped server confirms receipt; a stable submission identifier makes retries idempotent. Evidence files are not queued or saved by the app and must be uploaded while online. Keep the original evidence file until upload is confirmed; if connectivity drops during upload, reconnect and check the inspection's evidence list before retrying. Local encryption protects stored draft bytes, not a compromised browser session or device.
+
+Property change requests are tenant-scoped: owners and residents with an active property relationship may submit a proposal, a different tenant administrator or property-scoped Master Agent records the decision, and an assigned Field Agent or reviewer may append inspection findings. Submission, inspection, and decision history is append-only. Evidence is recorded as a non-secret reference only; this workflow does not upload documents or determine legal compliance, replace permits or other approvals, or claim to establish board quorum.
+
+Association operations support tenant-admin association setup, manually entered property-level assessments, owner-submitted receipt references that require independent tenant-admin or accountant reconciliation, and versioned amenity/calendar policy references. Only tenant admins may record amenity and dues policy versions; authorized property owners and residents can view them. Owners and residents linked to the property can request reservations for amenities with an active policy. Requests are limited to 24 hours and the next 365 days. A tenant administrator or property-scoped Master Agent must independently approve or reject each request with a reason; the database serializes approval and prevents overlapping approved reservations for the same property and amenity. Requesters or authorized property managers can cancel a pending or approved reservation with a recorded reason. Reservation times are entered and displayed as UTC. Reservation requests, decisions, and cancellations are tenant/property scoped and append-only; requests do not create legal board authority, quorum, or an external calendar booking. Recurring dues cycles are explicitly triggered by a tenant administrator or accountant, generate one property-level assessment per applicable policy, and are idempotent by association and period. They do not post ledger entries, collect payments, or calculate opening balances. The current property model does not provide an association unit-owner roster, so these cycles do not generate per-unit charges. Tenant admins and accountants can generate an audited association assessment activity report for a date range of at most 366 days. It separates assessed amounts from reconciled and pending receipt references, is limited to 1,000 properties per result, and remains in the authenticated tenant workspace; it does not claim settlement or ledger balances or deliver reports externally. Policy and reservation histories are append-only. Assigned property reviewers can record evidence-based violation observations; owners can submit responses, but only a different tenant administrator or scoped Master Agent can record a resolution or dismissal. Access is tenant- and property-scoped and histories are append-only. Assessment receipts are bounded by the balance. These records do not initiate payments, calculate penalties, send legal notices, or determine legal violations. Apply organization-specific legal, board, and accounting policies outside this workflow; scoped board delegation remains future work.
+
 Set `FILE_STORAGE_DIR` to a persistent, access-controlled directory outside `public/` before accepting real documents or photos. Back up that directory together with the database, and establish retention/deletion procedures for personal identity documents before production use. Property listing and photo management are available in the responsive operations workspace, including on the Capacitor Android WebView.
+
+Property records are scoped to an operating tenant. Migration 118 assigns all
+existing property, resident, lease, maintenance, rent, and vendor records to
+the `legacy-property-operations` tenant; it requires an active user account
+before migration. New tenant records are provisioned by a Global Admin with an
+active initial tenant administrator. Tenant members select their operating
+tenant in the workspace; database row-level security enforces that selection
+for property data. Tenant membership must be explicitly assigned; only a
+Global Admin can assign tenant-administrator membership, while tenant admins
+can manage non-administrator roles in their tenant. Tenant records cannot be
+transferred by ordinary updates.
+
+Global Admin support access is not automatic: the administrator requests
+access for a selected tenant with a purpose and expiry of at most eight hours,
+and a different Global Admin must approve it. Access and lifecycle decisions
+are audited. Tenant lifecycle, support-grant, and membership administration
+are exposed through authenticated API workflows and the Global Admin workspace.
+Select an approved grant from the property-tenant selector to supply its
+purpose-bound context; refresh approved grants after another administrator
+approves a request. Global Admin accounts cannot be provisioned or assigned as
+ordinary tenant members; tenant access for these accounts must use the approved
+support-grant workflow. Do not grant the runtime database role table ownership
+or `BYPASSRLS`.
+
+Tenant administrators can assign active Master Agents and Field Agents to
+specific properties; an assigned Master Agent can delegate Field Agents only
+within that property. Internal maintenance assignments must target one of those
+active tenant members with an active scope for that property; the database
+checks the same rules as the API. Suspending or ending an assignment removes
+the field agent's access to the property's work orders, history, and evidence.
+Field-agent maintenance responses omit lease/resident identifiers and cost
+data. Database and API controls prevent field agents from editing assignment,
+priority, cost, or other protected work-order fields and from approving
+completion. Tenant
+roles that do not yet map to a distinct supported application role (including
+board member and inspector) cannot be activated as memberships.
+
+Tenant offboarding requires an externally generated archive registered with a
+non-secret evidence reference, SHA-256 digest, byte size, and record count. A
+different Global Admin must verify the latest archive request before the tenant
+can enter offboarding or be closed. AfroLife does not generate, download, or
+delete tenant archives through this workflow; tenant records remain retained
+after closure and must be handled under the tenant's approved retention process.
 
 ## Configurable business rules
 
@@ -325,7 +436,7 @@ boundaries have been verified.
 
 The central AfroLife API image is built from this directory with
 `docker build -t afrolife-api .`. It serves the `public/` application, listens
-on port 3000, and runs as the unprivileged Node user. Configure its production
+on private gateway port 3010, and runs as the unprivileged Node user. Configure its production
 database, authentication, and storage settings through the deployment secret
 manager, and mount persistent private storage at the configured
 `FILE_STORAGE_DIR`, writable by the image's unprivileged `node` user (UID
@@ -513,6 +624,15 @@ accurate privacy policy and App Store privacy disclosures for the data the
 deployed services actually collect; do not claim that the local mock data or a
 successful simulator build constitutes production or privacy approval.
 
+The `AfroLife iOS build` GitHub Actions workflow runs on relevant pushes and
+pull requests, or can be started manually from the repository's Actions tab.
+It builds an unsigned iOS Simulator app on a macOS runner and uploads
+`afrolife-ios-simulator` as a seven-day artifact. Download and unzip that
+artifact to use with an iOS Simulator; it cannot be installed on a physical
+iPhone or submitted to TestFlight. Device distribution still requires an Apple
+Developer account, signing certificate, provisioning profile, and a separately
+configured signed release workflow.
+
 For Windows Server self-hosting, see the deployment configuration and release
 gates in [PRODUCTION_HARDENING.md](./PRODUCTION_HARDENING.md). See
 [QUALITY_ASSURANCE.md](./QUALITY_ASSURANCE.md) for automated checks, staging
@@ -549,7 +669,7 @@ scenarios, launch evidence, and pilot operations.
 - `npm run test:ui:e2e:local` — headless Chrome smoke check for Super Admin login, SACCO forms, responsive layouts, and browser errors; requires local QA accounts and Chrome
 - `npm run test:integration` — run API/database tests against a running local instance
 - `npm run check:local-deployment` — check local WSL service state, loopback-only listeners, full `/readyz` status (database, migrations, storage, configured services), and whether the proxy serves the current checkout
-- GitHub Actions runs browser syntax/config checks, service builds, and unit tests on relevant pushes and pull requests. A macOS runner also syncs and builds the iOS app for the simulator without signing; device signing and App Store distribution still require Apple signing credentials and release review.
+- GitHub Actions runs browser syntax/config checks, service builds, and unit tests on relevant pushes and pull requests. Its macOS iOS workflow also uploads a versioned simulator app artifact; device signing and App Store distribution still require Apple signing credentials and release review.
 - `npm run android:add` — generate the Capacitor Android project
 - `npm run android:sync` — copy the web app into Android and sync native plugins
 - `npm run android:open` — open the Android project in Android Studio
@@ -566,7 +686,7 @@ To generate local signing/encryption secrets in PowerShell:
 node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
 ```
 
-Integration tests need a disposable database named `test_*` or `afrolife_test*`; never point them at production or ordinary development data. Run `npm run test:finance:e2e:local` to create a uniquely named temporary database on the isolated loopback PostgreSQL instance, apply migrations, create synthetic identities, and run the MFI/SACCO role journey, property-finance, staffing-accounting, and core HTTP integration suites. The runner uses the configured local migration administrator only to provision and migrate the disposable database, a non-superuser fixture role used only for test setup, and separate restricted application runtime roles for the core API and Staffing service. Both services use the same disposable database so test-created domain records are visible across the integration boundary, while role grants continue to enforce service-level access. The MFI E2E additionally requires its fixture and migration URLs to identify the same loopback `afrolife_test_*` database. The runner drops the database, roles, test credentials, and temporary file storage when finished. The local database setup intentionally does not set integration-test URLs because its `afrolife` database is persistent. Runtime commands load `%LOCALAPPDATA%\AfroLife\afrolife.env` when present, otherwise the project `.env`.
+Integration tests need a disposable database named `test_*` or `afrolife_test*`; never point them at production or ordinary development data. Run `npm run test:finance:e2e:local` to start a temporary PostgreSQL 16 container bound only to loopback, with its database stored in temporary memory, create a uniquely named test database, apply migrations, create synthetic identities, and run the MFI/SACCO role journey, property-finance, staffing-accounting, and core HTTP integration suites. The runner does not stop or change the existing PostgreSQL containers, database roles, or persistent data. It requires the already-installed `postgres:16-alpine` image and the local migration credential; no image is downloaded. A non-superuser fixture role is used only for test setup, and separate restricted application runtime roles are used for the core API and Staffing service. Both services use the same disposable database so test-created domain records are visible across the integration boundary, while role grants continue to enforce service-level access. The MFI E2E additionally requires its fixture and migration URLs to identify the same loopback `afrolife_test_*` database. The runner drops the test database, temporary roles, test credentials, and temporary file storage, then stops and removes the isolated container. The local database setup intentionally does not set integration-test URLs because its `afrolife` database is persistent. Runtime commands load `%LOCALAPPDATA%\AfroLife\afrolife.env` when present, otherwise the project `.env`.
 
 For manual integration runs, start the API with the restricted `DATABASE_URL` role and set `TEST_DATABASE_URL` to a disposable local database used only for fixtures. The test-only role may need bypass-RLS permissions to create synthetic fixtures, but it must not be a PostgreSQL superuser; API requests must always run through the restricted runtime role so the suite exercises row-level security.
 
@@ -639,7 +759,12 @@ The **Rent & deposits** workspace supports tenant and lease creation, rent recei
     GRANT EXECUTE ON FUNCTIONS TO afrolife_app;
   ```
 - The app is same-origin by default. The service worker caches only static shell files and never caches API responses.
-- Set `REQUIRE_MFA_FOR_STAFF=1` to require staff MFA. Configure `PAYMENT_WEBHOOK_SECRET` only when a payment provider has been integrated; signed events use the `x-payment-signature` HMAC-SHA256 header.
+- Administrative and sensitive staff roles must enroll in authenticator MFA; it cannot be disabled for those roles. Non-administrative users may enable or disable MFA after verifying their password and current authenticator code. Keep `REQUIRE_MFA_FOR_STAFF=1` in production as a deployment safety check.
+- AfroLife User Support is available through the signed-in App/Web assistant, with FAQ answers also available from the support page and Telegram/WhatsApp bots. Public support line: `+251708076113`. The bots are limited to user-support FAQs and contact guidance; they do not handle sales/buyer workflows or place automated calls. Signed-in users can request a support call back, which enters the existing staff support-case queue. Optional Telegram group notices contain only a generic new-request alert, never customer details.
+- WhatsApp password recovery is disabled by default (`WHATSAPP_RECOVERY_ENABLED=0`) and requires WhatsApp Cloud API credentials, an approved Authentication template with a copy-code OTP button, a Graph API version, and active user opt-in. The configured template must match `WHATSAPP_RECOVERY_TEMPLATE` and `WHATSAPP_RECOVERY_LANGUAGE` (for example, `afrolife_password_recovery` and `en_US`). Recovery sends the code in both the template body and OTP button parameters. Codes are short-lived and hash-stored; failed attempts are limited, and a successful reset revokes active sessions. Telegram is not a recovery factor: users can link it from a signed-in session for support use only. Migration 106 stores recovery challenges; migration 139 stores hashed, expiring Telegram-link challenges and account links. Apply all migrations before enabling either integration.
+- To configure messaging, create/verify the WhatsApp Business phone number and approved recovery template in Meta, then set `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `WHATSAPP_GRAPH_API_VERSION`, `WHATSAPP_RECOVERY_TEMPLATE`, and `WHATSAPP_RECOVERY_LANGUAGE` in the deployment secret store. Configure the Meta webhook callback at `/webhooks/whatsapp` using the exact same verify token and subscribe to the `messages` field. Enable `WHATSAPP_RECOVERY_ENABLED=1` only after a successful template-delivery test and required migrations are current. Do not share access tokens or app secrets in chat or commit them. Telegram uses `TELEGRAM_*` values and `setWebhook` at `/webhooks/telegram`; keep `TELEGRAM_BOT_GROUP_CHAT_ID` restricted to a staff group. The public support number alone does not provision a WhatsApp Business account, a Telegram bot, or voice calling. Official provider charges, where applicable, are separate from this application; keep recovery and bot credentials unset until provider setup and cost approval are complete.
+- Password recovery is unavailable until an approved provider is configured; SMS recovery remains disabled (`SMS_RECOVERY_ENABLED=0`), and WhatsApp recovery is opt-in and disabled by default. Fayda verification remains disabled (`FAYDA_VERIFICATION_ENABLED=0`) until approved access and a reviewed adapter are configured; secure document review remains the available KYC path. Passkey registration is available only when WebAuthn is configured with the exact production origin and RP ID documented in the account-security section above.
+- Configure `PAYMENT_WEBHOOK_SECRET` only when a payment provider has been integrated; signed events use the `x-payment-signature` HMAC-SHA256 header.
 - Configure `NOTIFY_WEBHOOK_URL` and `NOTIFY_WEBHOOK_SECRET` only for an HTTPS notification receiver. Events are sent with an `x-afrolife-signature` HMAC-SHA256 header.
 - Public sign-up creates an inactive account. Compliance must verify KYC and a Super Admin must activate it; agent records are created only as part of successful activation.
 - Buyer/customer applicants can browse available property listings and pictures without write access. Property-owner applicants register separately from buyers and agents; after national-ID verification and activation, they can create listings and manage their own units and photos. PostgreSQL row-level security isolates owner/agent data and limits buyers to available listings.
@@ -653,7 +778,7 @@ The **Rent & deposits** workspace supports tenant and lease creation, rent recei
 ## One public Super App URL (Windows/IIS)
 
 The public hostname serves the PWA and every API through the main AfroLife API
-origin. IIS must proxy the entire hostname to `http://127.0.0.1:3000`; the main
+origin. IIS must proxy the entire hostname to `http://127.0.0.1:3010`; the main
 API serves the PWA and owns `/api/v1` authentication. Its signed internal
 routes expose Edir at `/api/v1/edir` and Insurance at
 `/api/v1/insurance/ledger`. Agency operations and MFI remain under that same
@@ -681,9 +806,11 @@ legacy in-process implementation. The information-request API now runs in the
 Insurance service, but its records still use a second restricted connection to
 the central identity database until their explicit data migration is implemented.
 
-The public browser URL remains `https://afrolife-agency.duckdns.org`; routes
-stay same-origin, so no separate public subdomains or browser CORS origins are
-needed. Nginx is the only public ingress to the central API gateway; the
+The selected canonical public browser URL is `https://www.afrolife.com.et`;
+DNS, public ingress, and TLS must be completed using
+[`deploy/CUSTOM_DOMAIN_LOCAL_SERVER.md`](./deploy/CUSTOM_DOMAIN_LOCAL_SERVER.md)
+before it is live. Routes stay same-origin, so no separate public subdomains
+are needed. Nginx or IIS is the only public ingress to the central API gateway; the
 gateway dispatches signed requests to private Edir, Insurance, and SACCO/MFI
 services. Service-specific Nginx locations must continue to terminate at the
 central gateway rather than bypassing its identity assertions. Keep all

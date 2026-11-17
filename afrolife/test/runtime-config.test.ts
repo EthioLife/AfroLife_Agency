@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { enabledWorkspaceModules, loadRuntimeConfig, privateObjectStorageConfig, sessionIdleTimeoutMinutes, WORKSPACE_MODULES } from '../src/runtime-config.js';
+import { adminPortalConfig, enabledWorkspaceModules, isAdminPortalHost, loadRuntimeConfig, privateObjectStorageConfig, sessionIdleTimeoutMinutes, WORKSPACE_MODULES } from '../src/runtime-config.js';
 
 const safeProductionEnvironment = {
   NODE_ENV: 'production',
@@ -55,6 +55,31 @@ test('workspace module visibility is an optional validated deployment allowlist'
   assert.deepEqual(enabledWorkspaceModules({ AFROLIFE_ENABLED_MODULES: 'global-bi' }), ['global-bi']);
   assert.throws(() => enabledWorkspaceModules({ AFROLIFE_ENABLED_MODULES: 'leads,unknown' }), /unknown module/);
   assert.throws(() => enabledWorkspaceModules({ AFROLIFE_ENABLED_MODULES: 'leads,leads' }), /duplicate modules/);
+});
+
+test('Admin/Staff portal requires a distinct secure hostname and matches it exactly', () => {
+  const portal = adminPortalConfig({ NODE_ENV: 'production', ADMIN_PORTAL_URL: 'https://Staff.afrosherik.net/' });
+  assert.deepEqual(portal, { url: 'https://staff.afrosherik.net', hostname: 'staff.afrosherik.net' });
+  assert.equal(isAdminPortalHost('Staff.AfroSherik.net', portal), true);
+  assert.equal(isAdminPortalHost('staff.afrosherik.net.evil.example', portal), false);
+  assert.equal(isAdminPortalHost('afrosherik.net', portal), false);
+  assert.equal(loadRuntimeConfig({ NODE_ENV: 'development' }).adminPortal, undefined);
+  assert.equal(loadRuntimeConfig({
+    ...safeProductionEnvironment,
+    ADMIN_PORTAL_URL: 'https://staff.afrosherik.net',
+  }).adminPortal?.hostname, 'staff.afrosherik.net');
+  assert.throws(
+    () => adminPortalConfig({ NODE_ENV: 'production', ADMIN_PORTAL_URL: 'http://staff.afrosherik.net' }),
+    /standalone HTTPS origin/,
+  );
+  assert.throws(
+    () => adminPortalConfig({ NODE_ENV: 'production', ADMIN_PORTAL_URL: 'https://staff.afrosherik.net/login' }),
+    /standalone HTTPS origin/,
+  );
+  assert.throws(
+    () => adminPortalConfig({ NODE_ENV: 'production', ADMIN_PORTAL_URL: 'https://staff.example.com' }),
+    /standalone HTTPS origin/,
+  );
 });
 
 test('Global BI gateway requires an explicitly ready, unique service configuration', () => {

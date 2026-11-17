@@ -126,7 +126,7 @@ switch ($Action) {
 
     $envLines = @(
       'NODE_ENV=development',
-      'PORT=3000',
+      'PORT=3010',
       "DATABASE_URL=postgres://afrolife_app:$appPassword@127.0.0.1:$Port/afrolife",
       "MIGRATION_DATABASE_URL=postgres://postgres:$adminPassword@127.0.0.1:$Port/afrolife",
       "JWT_SECRET=$jwtSecret",

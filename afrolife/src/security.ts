@@ -46,7 +46,7 @@ export function verifySignature(body: Buffer, ts: string | undefined, sig: strin
 }
 
 export function passwordProblem(pw: string, phone: string): string | null {
-  if (pw.length < 10) return 'Use at least 10 characters.';
+  if (pw.length < 8) return 'Use at least 8 characters.';
   if (/^\d+$/.test(pw)) return 'Add letters; digits alone are too easy to guess.';
   const tail = phone.replace(/\D/g, '').slice(-7);
   if (tail && pw.replace(/\D/g, '').includes(tail)) return 'Do not use your phone number in your password.';
