@@ -96,6 +96,7 @@ test('Docker QA reapplies restricted Insurance ledger ACLs after broad runtime g
 test('Docker image includes migration inputs and generated QA credentials stay untracked', () => {
   assert.match(dockerfile, /COPY migrations \.\/migrations/);
   assert.match(dockerfile, /COPY scripts\/copy-migrations\.mjs \.\/scripts\/copy-migrations\.mjs/);
+  assert.match(dockerfile, /CMD \["node", "dist\/src\/aletcloud-bootstrap\.js"\]/);
   assert.match(dockerIgnore, /!scripts\/copy-migrations\.mjs/);
   assert.match(gitIgnore, /^\.env\.docker$/m);
   assert.match(gitIgnore, /^\.local-qa\/$/m);
