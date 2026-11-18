@@ -12,6 +12,7 @@ export interface RuntimeConfig {
 export interface AdminPortalConfig {
   url: string;
   hostname: string;
+  pathname: string;
 }
 
 type Environment = Record<string, string | undefined>;
@@ -28,11 +29,12 @@ export function adminPortalConfig(env: Environment): AdminPortalConfig | undefin
   }
 
   const hostname = url.hostname.toLowerCase();
+  const pathname = url.pathname.replace(/\/$/, '') || '/';
   const isLoopback = ['localhost', '127.0.0.1', '[::1]'].includes(hostname);
   if (
     url.username
     || url.password
-    || url.pathname !== '/'
+    || !['/', '/admin'].includes(pathname)
     || url.search
     || url.hash
     || (url.protocol !== 'https:' && !(env.NODE_ENV !== 'production' && isLoopback && url.protocol === 'http:'))
@@ -42,11 +44,18 @@ export function adminPortalConfig(env: Environment): AdminPortalConfig | undefin
     throw new Error('ADMIN_PORTAL_URL must be a standalone HTTPS origin (HTTP is allowed only for local development).');
   }
 
-  return { url: url.origin, hostname };
+  return { url: `${url.origin}${pathname === '/' ? '' : pathname}`, hostname, pathname };
 }
 
 export function isAdminPortalHost(hostname: string, config?: AdminPortalConfig): boolean {
   return Boolean(config && hostname.toLowerCase().replace(/\.$/, '') === config.hostname);
+}
+
+export function isAdminPortalRequest(hostname: string, pathname: string, config?: AdminPortalConfig): boolean {
+  if (!config || !isAdminPortalHost(hostname, config)) return false;
+  return config.pathname === '/'
+    || pathname === config.pathname
+    || pathname.startsWith(`${config.pathname}/`);
 }
 
 export interface PrivateObjectStorageConfig {

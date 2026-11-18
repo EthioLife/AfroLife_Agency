@@ -22,7 +22,7 @@ import { phonePayload as canonicalPhonePayload } from './phone-input.js';
 import { matchPublicFaq, suggestPublicFaqs } from './public-help.js';
 import { preparePasskeyCreationOptions, serializePasskeyRegistration } from './passkeys.js';
 
-const WEB_API_ROOT = '/api/v1';
+const WEB_API_ROOT = document.documentElement.dataset.apiRoot || '/api/v1';
 let API_ROOT = WEB_API_ROOT;
 const TOKEN_KEY = 'afrolife.session';
 const API_URL_KEY = 'afrolife.api-base';

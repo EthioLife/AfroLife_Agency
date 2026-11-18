@@ -919,14 +919,18 @@ test('administrator access selection waits until required password and MFA setup
   assert.match(workspace.slice(passwordGuardIndex, restrictedDataIndex), /if \(passwordRequired \|\| state\.mfaRequired\)/);
 });
 
-test('Admin/Staff portal has a host-specific entry and enforces eligible roles at login', () => {
+test('Admin/Staff portal supports host or path entry and enforces eligible roles at login', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const server = readFileSync(new URL('../src/server.ts', import.meta.url), 'utf8');
+  const client = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
   const auth = readFileSync(new URL('../src/admin.ts', import.meta.url), 'utf8');
   assert.match(html, /data-portal-mode="__PORTAL_MODE__"/);
+  assert.match(html, /data-api-root="__API_ROOT__"/);
   assert.match(html, /href="__ADMIN_PORTAL_URL__"/);
   assert.match(html, />Admin &amp; Staff portal</);
-  assert.match(server, /app\.get\(\['\/', '\/index\.html'\]/);
-  assert.match(server, /isAdminPortalHost\(req\.hostname, runtimeConfig\.adminPortal\)/);
+  assert.match(server, /appShellPaths\.push\(runtimeConfig\.adminPortal\.pathname/);
+  assert.match(server, /isAdminPortalRequest\(req\.hostname, req\.path, runtimeConfig\.adminPortal\)/);
+  assert.ok(server.includes('app.use(`${runtimeConfig.adminPortal.pathname}/api/v1`, api);'));
+  assert.match(client, /document\.documentElement\.dataset\.apiRoot/);
   assert.match(auth, /res\.locals\.adminPortal && !canAccessAdminPortal\(accessOptions\)/);
 });
