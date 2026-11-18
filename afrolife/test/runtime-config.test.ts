@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { adminPortalConfig, enabledWorkspaceModules, isAdminPortalHost, loadRuntimeConfig, privateObjectStorageConfig, sessionIdleTimeoutMinutes, WORKSPACE_MODULES } from '../src/runtime-config.js';
+import { adminPortalConfig, enabledWorkspaceModules, isAdminPortalHost, isAdminPortalRequest, loadRuntimeConfig, privateObjectStorageConfig, sessionIdleTimeoutMinutes, WORKSPACE_MODULES } from '../src/runtime-config.js';
 
 const safeProductionEnvironment = {
   NODE_ENV: 'production',
@@ -59,10 +59,12 @@ test('workspace module visibility is an optional validated deployment allowlist'
 
 test('Admin/Staff portal requires a distinct secure hostname and matches it exactly', () => {
   const portal = adminPortalConfig({ NODE_ENV: 'production', ADMIN_PORTAL_URL: 'https://Staff.afrosherik.net/' });
-  assert.deepEqual(portal, { url: 'https://staff.afrosherik.net', hostname: 'staff.afrosherik.net' });
+  assert.deepEqual(portal, { url: 'https://staff.afrosherik.net', hostname: 'staff.afrosherik.net', pathname: '/' });
   assert.equal(isAdminPortalHost('Staff.AfroSherik.net', portal), true);
   assert.equal(isAdminPortalHost('staff.afrosherik.net.evil.example', portal), false);
   assert.equal(isAdminPortalHost('afrosherik.net', portal), false);
+  assert.equal(isAdminPortalRequest('staff.afrosherik.net', '/', portal), true);
+  assert.equal(isAdminPortalRequest('staff.afrosherik.net', '/api/v1/auth/login', portal), true);
   assert.equal(loadRuntimeConfig({ NODE_ENV: 'development' }).adminPortal, undefined);
   assert.equal(loadRuntimeConfig({
     ...safeProductionEnvironment,
@@ -74,6 +76,24 @@ test('Admin/Staff portal requires a distinct secure hostname and matches it exac
   );
   assert.throws(
     () => adminPortalConfig({ NODE_ENV: 'production', ADMIN_PORTAL_URL: 'https://staff.afrosherik.net/login' }),
+    /standalone HTTPS origin/,
+  );
+  const pathPortal = adminPortalConfig({
+    NODE_ENV: 'production',
+    ADMIN_PORTAL_URL: 'https://afrolife-development.app.aletcloud.com/admin',
+  });
+  assert.deepEqual(pathPortal, {
+    url: 'https://afrolife-development.app.aletcloud.com/admin',
+    hostname: 'afrolife-development.app.aletcloud.com',
+    pathname: '/admin',
+  });
+  assert.equal(isAdminPortalRequest(pathPortal.hostname, '/admin', pathPortal), true);
+  assert.equal(isAdminPortalRequest(pathPortal.hostname, '/admin/api/v1/auth/login', pathPortal), true);
+  assert.equal(isAdminPortalRequest(pathPortal.hostname, '/administer', pathPortal), false);
+  assert.equal(isAdminPortalRequest(pathPortal.hostname, '/', pathPortal), false);
+  assert.equal(isAdminPortalRequest('other.app.aletcloud.com', '/admin', pathPortal), false);
+  assert.throws(
+    () => adminPortalConfig({ NODE_ENV: 'production', ADMIN_PORTAL_URL: 'https://staff.afrosherik.net/private' }),
     /standalone HTTPS origin/,
   );
   assert.throws(

@@ -57,22 +57,19 @@ single app URL (or the public hostname in deployment); they do not open
 service-specific ports. Extracted backends remain private behind the central
 API gateway, which routes each feature internally.
 
-An optional separate Admin/Staff entry hostname can be enabled with
-`ADMIN_PORTAL_URL=https://<your-admin-host>`. Configure DNS and the AletCloud
-host mapping to route that hostname to this same core app, then set the
-environment variable and redeploy. The public sign-in page will show an
-Admin/Staff link, and the admin hostname will hide public registration and
-present the staff sign-in flow. The login endpoint rejects accounts without an
+An Admin/Staff entry can use either a dedicated hostname or the same app
+hostname with the `/admin` path. Set `ADMIN_PORTAL_URL` to
+`https://<app-host>/admin` to use the existing app's TLS and hosting resources,
+or to `https://<admin-host>` after DNS, app routing, and HTTPS are verified.
+The public sign-in page shows an Admin/Staff link when this setting is enabled;
+the admin entry hides public registration and presents the staff sign-in flow.
+On the path-based entry, API requests use `/admin/api/v1`; a dedicated hostname
+continues to use `/api/v1`. The login endpoint rejects accounts without an
 assigned role that requires MFA; password change and authenticator enrollment
 remain in the existing restricted-session flow. API role checks remain the
 security boundary. This separates the entry experience, not the API process or
 database; a standalone frontend deployment would additionally need a secured
 API proxy/origin configuration and is not enabled by this setting.
-For the Development deployment, the selected URL is
-`https://admin.afrosherik.app.aletcloud.com`. It is not enabled until AletCloud
-routes that hostname to the existing core app and provisions HTTPS; a public
-connectivity check could not reach it yet. Leave `ADMIN_PORTAL_URL` unset until
-that mapping is confirmed to avoid exposing a broken sign-in link.
 
 After a successful authenticator challenge, a user may opt to trust that
 browser for 30 days over HTTPS. The browser receives a host-only, secure, HTTP-only cookie;
