@@ -161,6 +161,52 @@ h1 {
   line-height: 1.65;
 }
 
+.readiness-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin: -10px 0 24px;
+  padding: 17px 19px;
+  border: 1px solid #dfb879;
+  border-left: 5px solid #a85b12;
+  border-radius: 6px;
+  background: #fff3df;
+  color: #633b12;
+  animation: rise-in .35s ease-out both;
+}
+
+.readiness-banner[hidden] {
+  display: none;
+}
+
+.readiness-icon {
+  display: grid;
+  flex: 0 0 25px;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border-radius: 50%;
+  background: #a85b12;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.readiness-banner p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.readiness-heading {
+  margin-bottom: 3px !important;
+  font-size: 14px;
+  font-weight: 780;
+}
+
+.readiness-detail {
+  font-size: 13px;
+}
+
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(250px, 318px);
@@ -244,10 +290,30 @@ h1 {
 }
 
 .environment-indicator {
-  width: 34px;
-  height: 3px;
-  background: var(--environment-accent);
-  opacity: .7;
+  position: relative;
+  width: 40px;
+  height: 12px;
+  background: linear-gradient(var(--environment-accent), var(--environment-accent)) center / 24px 2px no-repeat;
+}
+
+.environment-indicator::before,
+.environment-indicator::after {
+  position: absolute;
+  top: 2px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--environment-accent);
+  border-radius: 50%;
+  background: var(--panel);
+  content: "";
+}
+
+.environment-indicator::before {
+  left: 3px;
+}
+
+.environment-indicator::after {
+  right: 3px;
 }
 
 .environment-copy {
@@ -496,13 +562,13 @@ h1 {
   }
 
   .environment {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 13px;
     padding: 20px 18px 17px 20px;
   }
 
   .environment-heading {
-    grid-column: 1 / -1;
+    grid-column: 1;
     grid-row: auto;
     flex-direction: row;
     align-items: center;
@@ -526,9 +592,9 @@ h1 {
   }
 
   .environment-action {
-    grid-column: 2;
-    grid-row: 2;
-    align-self: center;
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
   }
 
   .open-link,
@@ -539,35 +605,14 @@ h1 {
   }
 
   .environment-status {
-    grid-column: 1 / -1;
-    grid-row: 3;
+    grid-column: 1;
+    grid-row: auto;
   }
 
   .footer {
     width: calc(100% - 36px);
     flex-direction: column;
     gap: 5px;
-  }
-}
-
-@media (max-width: 390px) {
-  .environment {
-    grid-template-columns: 1fr;
-  }
-
-  .environment-heading {
-    grid-column: 1;
-  }
-
-  .environment-action {
-    grid-column: 1;
-    grid-row: auto;
-    justify-self: start;
-  }
-
-  .environment-status {
-    grid-column: 1;
-    grid-row: auto;
   }
 }
 

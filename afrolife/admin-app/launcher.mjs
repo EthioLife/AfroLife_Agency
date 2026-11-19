@@ -11,6 +11,7 @@ export function resolveEnvironmentUrl(value) {
     if (
       url.protocol !== 'https:' ||
       !ENVIRONMENT_HOSTS.has(url.hostname) ||
+      url.port !== '' ||
       !['/', '/admin'].includes(url.pathname) ||
       url.username !== '' ||
       url.password !== '' ||
@@ -58,11 +59,21 @@ function renderDestination(actionId, statusId, url, label, missingMessage, readi
     : missingMessage;
 }
 
+function renderReadinessBanner(message) {
+  const banner = document.getElementById('uat-readiness');
+  const detail = document.getElementById('uat-readiness-message');
+  const notice = typeof message === 'string' ? message.trim() : '';
+
+  banner.hidden = notice === '';
+  detail.textContent = notice;
+}
+
 async function loadDestinations() {
   try {
     const response = await fetch(new URL('./environments.json', import.meta.url));
     if (!response.ok) throw new Error('Environment configuration could not be loaded.');
     const config = await response.json();
+    renderReadinessBanner(config.uatCanaryNotice);
 
     renderDestination(
       'uat-action',
@@ -83,6 +94,9 @@ async function loadDestinations() {
       typeof config.developmentNotice === 'string' ? config.developmentNotice : ''
     );
   } catch {
+    renderReadinessBanner(
+      'Readiness information could not be loaded. Confirm UAT is ready with a platform administrator before continuing.'
+    );
     renderDestination(
       'uat-action',
       'uat-status',

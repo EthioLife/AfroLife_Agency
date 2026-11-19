@@ -29,6 +29,14 @@
         <p class="intro-copy">Select the existing environment you need. Sign-in, authorization, and MFA happen in that app; this launcher never collects or forwards credentials.</p>
       </section>
 
+      <div class="readiness-banner" id="uat-readiness" hidden role="status" aria-live="polite">
+        <span class="readiness-icon" aria-hidden="true">!</span>
+        <div>
+          <p class="readiness-heading">UAT Canary readiness notice</p>
+          <p class="readiness-detail" id="uat-readiness-message"></p>
+        </div>
+      </div>
+
       <div class="workspace">
         <section class="environment-list" aria-label="Available admin environments">
           <article class="environment environment-uat" aria-labelledby="uat-title">
