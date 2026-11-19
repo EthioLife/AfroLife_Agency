@@ -14,7 +14,7 @@ test('exposes UAT Canary with an explicit readiness warning', () => {
     resolveEnvironmentUrl(config.uatCanary),
     'https://afrolife-agency.app.aletcloud.com/'
   );
-  assert.match(config.uatCanaryNotice, /2026-11-19/);
+  assert.match(config.uatCanaryNotice, /2026-11-20/);
   assert.match(config.uatCanaryNotice, /118\/152 migrations applied/);
 });
 
@@ -23,7 +23,7 @@ test('uses the verified Development sign-in destination', () => {
     resolveEnvironmentUrl(config.development),
     'https://afrolife-development.app.aletcloud.com/'
   );
-  assert.match(config.developmentNotice, /2026-11-19/);
+  assert.match(config.developmentNotice, /2026-11-20/);
   assert.match(config.developmentNotice, /all 152 expected migrations/);
 });
 
