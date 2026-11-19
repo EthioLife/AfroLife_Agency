@@ -114,6 +114,8 @@ When no active Super Admin can sign in, a one-time recovery can be run at app st
 
 By default, recovery selects the unique active Super Admin/Global Admin matching the phone. To also update an existing admin's identity, optionally set `ALETCLOUD_ADMIN_RECOVERY_NAME` to the desired legal name. This mode proceeds only when exactly one active Super Admin/Global Admin account exists, then updates its name and phone. Both modes revoke the selected account's sessions and require a password change at next sign-in; existing MFA settings remain unchanged. After the recovery success message, remove all recovery variables and redeploy immediately. Never put recovery values in source control or logs.
 
+If recovery is not intended, remove the recovery variables or leave them all empty. Empty placeholders are ignored; any non-empty partial or invalid recovery configuration still fails startup.
+
 ## Official provider references
 
 - [AletCloud app deployment](https://aletcloud.com/docs/deploy-an-app)

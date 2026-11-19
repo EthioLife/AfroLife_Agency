@@ -51,7 +51,9 @@ jobs:
           node --check public/sw.js
       - name: Validate app configuration JSON
         run: |
-          node -e "for (const f of ['package.json','capacitor.config.json','public/manifest.webmanifest']) JSON.parse(require('node:fs').readFileSync(f,'utf8'))"
+          node -e "for (const f of ['package.json','capacitor.config.json','public/manifest.webmanifest','admin-app/environments.json']) JSON.parse(require('node:fs').readFileSync(f,'utf8'))"
+      - name: Test Admin environment launcher
+        run: node --test admin-app/test/launcher.test.mjs
       - name: Sync iOS Capacitor project
         run: npm run ios:sync
       - name: Sync Android Capacitor project
