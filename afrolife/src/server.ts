@@ -82,7 +82,7 @@ app.use((req, res, next) => {
   if (origin && corsOrigins.has(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
-    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-AfroLife-Edir-Id, X-AfroLife-Correlation-Id, X-AfroLife-Property-Tenant-Id, X-AfroLife-Property-Tenant-Purpose');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Idempotency-Key, X-AfroLife-Edir-Id, X-AfroLife-Correlation-Id, X-AfroLife-Property-Tenant-Id, X-AfroLife-Property-Tenant-Purpose');
     res.setHeader('Access-Control-Expose-Headers', 'X-AfroLife-Correlation-Id');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   }

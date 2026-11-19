@@ -50,6 +50,7 @@ const $ = (selector) => document.querySelector(selector);
 const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], trustedDevices: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [], amenity_reservations: [] }, propertyAssociationReport: null, propertyMoveOutInspectionDrafts: [], propertyMoveOutInspectionSyncError: '', rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
 let edirRegistrationTrigger = null;
 state.passkeySecurity = null;
+state.marketplaceServiceRequests = [];
 state.passkeyOptions = null;
 state.passkeyDeviceName = 'This device';
 state.propertyTenantSupportGrantId = localStorage.getItem(PROPERTY_TENANT_SUPPORT_GRANT_KEY);
@@ -1472,7 +1473,7 @@ function signOut({ revoke = true, message = '' } = {}) {
     commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], notificationDeliveryStatus: [],
     roleAccess: null, learningContent: [], contracts: [], leases: [], tenants: [], pendingRent: [],
     platformServices: [], platformServicePackages: [], platformTenants: [], platformSuperAdmins: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [],
-    marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [],
+    marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], marketplaceServiceRequests: [], insuranceRequests: [],
     insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [],
     edirMe: null, mfaSetup: null,
     serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null,
@@ -1955,6 +1956,11 @@ async function loadPanelData(panel) {
       ]);
       state.marketplaceSellers = ['global_admin', 'super_admin', 'corporate_business_manager'].includes(state.user.role)
         ? await safeGet('/marketplace/sellers', []) : [];
+      const serviceRequestManager = ['master_agent', 'field_agent', 'property_owner', 'super_admin',
+        'global_admin', 'corporate_business_manager'].includes(state.user.role);
+      state.marketplaceServiceRequests = state.user.role === 'customer'
+        ? await safeGet('/marketplace/service-requests/mine', [])
+        : serviceRequestManager ? await safeGet('/marketplace/service-requests/manage', []) : [];
       break;
     case 'contracts':
       [state.leads, state.contracts] = await Promise.all([safeGet('/leads', []), safeGet('/contracts', [])]);
@@ -5461,6 +5467,171 @@ function renderMaintenanceRequestLink(id) {
   return link;
 }
 
+function marketplaceAddisDate() {
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: 'Africa/Addis_Ababa', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const part = (type) => parts.find((entry) => entry.type === type)?.value;
+  const year = part('year'), month = part('month'), day = part('day');
+  if (!year || !month || !day) throw new Error('Could not determine today\'s date in Addis Ababa.');
+  return `${year}-${month}-${day}`;
+}
+
+function renderMarketplaceServiceRequests() {
+  const section = node('section', undefined, 'panel form-card marketplace-service-requests');
+  section.append(sectionHeading(
+    'Service quote requests',
+    'Track inquiries, written ETB quotes, scheduling, and completion. This workflow does not collect payment or issue invoices.',
+  ));
+  const managerRoles = ['master_agent', 'field_agent', 'property_owner', 'super_admin',
+    'global_admin', 'corporate_business_manager'];
+  const isManager = managerRoles.includes(state.user.role);
+  const requests = Array.isArray(state.marketplaceServiceRequests) ? state.marketplaceServiceRequests : [];
+  const list = node('div', undefined, 'list');
+  if (!requests.length) list.append(empty(
+    state.user.role === 'customer' ? 'You have not requested a service quote yet.' : 'No service quote requests are available.',
+  ));
+
+  const actionButton = (item, label, endpoint, body, message) => {
+    const control = button(label, 'marketplace-service-action', 'button button-outline');
+    control.addEventListener('click', async () => {
+      control.disabled = true;
+      try {
+        await api(`/marketplace/service-requests/${encodeURIComponent(item.id)}/${endpoint}`, {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+        await refresh();
+        showAlert(message);
+      } catch (error) {
+        showAlert(error.message, true);
+      } finally {
+        control.disabled = false;
+      }
+    });
+    return control;
+  };
+
+  for (const request of requests) {
+    const item = card(
+      request.listing_title ?? 'Service request',
+      `${t(request.status)} · ${request.category_key ?? ''}${request.preferred_date ? ` · Preferred ${String(request.preferred_date).slice(0, 10)}` : ''}`,
+      request.status,
+    );
+    item.append(node('p', request.request_details));
+    if (request.quote_amount != null) {
+      item.append(node('p', `Written quote: ETB ${Number(request.quote_amount).toLocaleString(document.documentElement.lang)} · expires ${String(request.quote_expires_on).slice(0, 10)}`));
+      if (request.quote_terms) item.append(node('p', `Terms: ${request.quote_terms}`));
+    }
+    if (request.scheduled_for) item.append(node('p', `Scheduled for ${String(request.scheduled_for).slice(0, 10)}`));
+    if (request.completion_note) item.append(node('p', `Provider completion: ${request.completion_note}`));
+
+    const isCustomerRequest = state.user.role === 'customer' && request.buyer_user_id === state.user.id;
+    const canManageRequest = isManager && (request.seller_user_id === state.user.id
+      || ['super_admin', 'global_admin', 'corporate_business_manager'].includes(state.user.role));
+    if (canManageRequest && request.status === 'requested') {
+      const quoteForm = node('form', undefined, 'inline-form');
+      quoteForm.dataset.form = 'marketplace-service-quote';
+      quoteForm.dataset.request = request.id;
+      quoteForm.append(node('h4', 'Send a written quote'));
+      quoteForm.append(field('Amount (ETB)', 'amount', 'number', true, { min: 0.01, step: 0.01 }).label);
+      const expiry=field('Quote expiry', 'expires_on', 'date', true);
+      expiry.input.min=marketplaceAddisDate();
+      quoteForm.append(expiry.label);
+      quoteForm.append(field('Terms and inclusions', 'terms', 'textarea', true, { minlength: 10, maxlength: 2000, rows: 3 }).label);
+      quoteForm.append(button('Send quote','submit','button button-primary'));
+      item.append(quoteForm);
+    }
+    if (isCustomerRequest && request.status === 'quoted') {
+      item.append(actionButton(request, 'Accept quote', 'decision', { decision: 'accept' },
+        'Quote accepted. The provider must confirm a schedule; no payment has been taken.'));
+      const decline = button('Decline quote', 'marketplace-service-action', 'button button-outline');
+      decline.addEventListener('click', async () => {
+        const reason = window.prompt(t('Explain why you are declining this quote (at least 10 characters).'));
+        if (!reason || reason.trim().length < 10) return;
+        decline.disabled = true;
+        try {
+          await api(`/marketplace/service-requests/${encodeURIComponent(request.id)}/decision`, {
+            method: 'POST',
+            body: JSON.stringify({ decision: 'decline', reason: reason.trim() }),
+          });
+          await refresh();
+          showAlert('Quote declined.');
+        } catch (error) {
+          showAlert(error.message, true);
+        } finally {
+          decline.disabled = false;
+        }
+      });
+      item.append(decline);
+    }
+    if (canManageRequest && request.status === 'accepted') {
+      const scheduleForm = node('form', undefined, 'inline-form');
+      scheduleForm.dataset.form = 'marketplace-service-schedule';
+      scheduleForm.dataset.request = request.id;
+      const scheduledDate=field('Confirm service date', 'scheduled_for', 'date', true);
+      scheduledDate.input.min=marketplaceAddisDate();
+      scheduleForm.append(scheduledDate.label);
+      scheduleForm.append(button('Confirm schedule','submit','button button-primary'));
+      item.append(scheduleForm);
+    }
+    if (canManageRequest && request.status === 'scheduled') {
+      item.append(actionButton(request, 'Start service', 'start', {},
+        'Service marked as started.'));
+    }
+    if (canManageRequest && request.status === 'in_progress') {
+      const complete = button('Submit work for customer confirmation', 'marketplace-service-action', 'button button-outline');
+      complete.addEventListener('click', async () => {
+        const completionNote = window.prompt(t('Describe the completed work (at least 10 characters).'));
+        if (!completionNote || completionNote.trim().length < 10) return;
+        complete.disabled = true;
+        try {
+          await api(`/marketplace/service-requests/${encodeURIComponent(request.id)}/provider-completion`, {
+            method: 'POST',
+            body: JSON.stringify({ completion_note: completionNote.trim() }),
+          });
+          await refresh();
+          showAlert('Completion submitted for customer confirmation.');
+        } catch (error) {
+          showAlert(error.message, true);
+        } finally {
+          complete.disabled = false;
+        }
+      });
+      item.append(complete);
+    }
+    if (isCustomerRequest && request.status === 'awaiting_customer_confirmation') {
+      item.append(actionButton(request, 'Confirm completion', 'confirm-completion', {},
+        'Completion confirmed. This is not a payment receipt or tax invoice.'));
+    }
+    if ((isCustomerRequest || canManageRequest)
+      && ['requested', 'quoted', 'accepted', 'scheduled'].includes(request.status)) {
+      const cancel = button('Cancel before work starts', 'marketplace-service-action', 'button button-outline');
+      cancel.addEventListener('click', async () => {
+        const reason = window.prompt(t('Explain why this service request is being cancelled (at least 10 characters).'));
+        if (!reason || reason.trim().length < 10) return;
+        cancel.disabled = true;
+        try {
+          await api(`/marketplace/service-requests/${encodeURIComponent(request.id)}/cancel`, {
+            method: 'POST',
+            body: JSON.stringify({ reason: reason.trim() }),
+          });
+          await refresh();
+          showAlert('Service request cancelled.');
+        } catch (error) {
+          showAlert(error.message, true);
+        } finally {
+          cancel.disabled = false;
+        }
+      });
+      item.append(cancel);
+    }
+    list.append(item);
+  }
+  section.append(list);
+  return section;
+}
+
 function renderMarketplace() {
   const wrap = node('div');
   const manager = ['global_admin','super_admin','corporate_business_manager'].includes(state.user.role);
@@ -5524,6 +5695,19 @@ function renderMarketplace() {
     item.append(node('p',listing.description,'marketplace-description'));
     if(listing.review_note) item.append(node('p',`Review note: ${listing.review_note}`,'form-error'));
     if(listing.media?.length){const gallery=node('div',undefined,'marketplace-gallery'); for(const media of listing.media){const figure=node('figure',undefined,'property-photo');const buttonEl=button(media.mime.startsWith('video/')?'Play video':'View photo','marketplace-media','button button-outline',{id:media.id,mime:media.mime});figure.append(buttonEl);if(media.caption)figure.append(node('figcaption',media.caption));gallery.append(figure);}item.append(gallery);}
+    if(state.user.role==='customer'&&listing.status==='published'&&listing.domain==='services'&&listing.transaction_mode==='service'){
+      const requestForm=node('form',undefined,'inline-form marketplace-service-request');
+      requestForm.dataset.form='marketplace-service-request';
+      requestForm.dataset.listing=listing.id;
+      requestForm.append(node('h4','Request a written quote'));
+      const preferredDate=field('Preferred service date (optional)','preferred_date','date',false);
+      preferredDate.input.min=marketplaceAddisDate();
+      requestForm.append(preferredDate.label);
+      requestForm.append(field('Describe the service you need','request_details','textarea',true,{minlength:20,maxlength:2000,rows:3}).label);
+      requestForm.append(node('p','Quote request only. Acceptance does not charge you or create an invoice.','muted'));
+      requestForm.append(button('Request quote','submit','button button-primary'));
+      item.append(requestForm);
+    }
     if(state.user.role==='customer'&&listing.status==='published'&&listing.transaction_mode==='sale'&&listing.price&&config.sandbox_checkout_available){const quantity=field('Quantity','quantity','number',true,{min:1,max:1000,step:1});quantity.input.value='1';const checkout=button('Create sandbox order & simulate payment','marketplace-sandbox-checkout','button button-outline',{id:listing.id});checkout.addEventListener('click',async()=>{checkout.disabled=true;try{const order=await api(`/marketplace/listings/${listing.id}/sandbox-orders`,{method:'POST',body:JSON.stringify({quantity:Number(quantity.input.value),idempotency_key:crypto.randomUUID()})});const paid=await api(`/marketplace/sandbox-orders/${order.id}/mock-payment`,{method:'POST',body:'{}'});showAlert(paid.notice);}catch(error){showAlert(error.message,true);}finally{checkout.disabled=false;}});const sandboxNote=node('p','Test checkout only. No real payment is taken.','muted');item.append(quantity.label,sandboxNote,checkout);}
     if(['draft','rejected'].includes(listing.status)&&listing.created_by===state.user.id){
       const form=document.createElement('form');form.className='inline-form marketplace-resume';form.dataset.form='marketplace-existing-media';form.dataset.listing=listing.id;
@@ -5535,6 +5719,7 @@ function renderMarketplace() {
     listingList.append(item);
   }
   columns.append(listingList); wrap.append(columns);
+  wrap.append(renderMarketplaceServiceRequests());
   if (enabled.includes('properties') && hasActivity('property.listings.view')) {
     const propertySection = node('section', undefined, 'panel form-card marketplace-property-listings');
     propertySection.append(sectionHeading('Property sale and rental listings', 'Browse available properties, prices, rental terms, and listing media.'));
@@ -7777,6 +7962,51 @@ function navigateToPanel(panel, { replace = false } = {}) {
 
 async function submitForm(form) {
   const values = formData(form);
+  if (form.dataset.form === 'marketplace-service-request') {
+    const payload = {
+      listing_id: form.dataset.listing,
+      ...(values.preferred_date ? { preferred_date: values.preferred_date } : {}),
+      request_details: values.request_details.trim(),
+    };
+    const payloadKey = JSON.stringify(payload);
+    if (form.dataset.idempotencyPayload !== payloadKey) {
+      form.dataset.idempotencyKey = crypto.randomUUID();
+      form.dataset.idempotencyPayload = payloadKey;
+    }
+    const request = await api('/marketplace/service-requests', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': form.dataset.idempotencyKey },
+      body: payloadKey,
+    });
+    delete form.dataset.idempotencyKey;
+    delete form.dataset.idempotencyPayload;
+    form.reset();
+    await refresh();
+    showAlert(request.notice ?? 'Quote request submitted. No payment has been taken.');
+    return;
+  }
+  if (form.dataset.form === 'marketplace-service-quote') {
+    await api(`/marketplace/service-requests/${encodeURIComponent(form.dataset.request)}/quote`, {
+      method: 'POST',
+      body: JSON.stringify({
+        amount: values.amount,
+        expires_on: values.expires_on,
+        terms: values.terms.trim(),
+      }),
+    });
+    await refresh();
+    showAlert('Quote sent. The customer must accept it before scheduling; no payment has been taken.');
+    return;
+  }
+  if (form.dataset.form === 'marketplace-service-schedule') {
+    await api(`/marketplace/service-requests/${encodeURIComponent(form.dataset.request)}/schedule`, {
+      method: 'POST',
+      body: JSON.stringify({ scheduled_for: values.scheduled_for }),
+    });
+    await refresh();
+    showAlert('Service scheduled.');
+    return;
+  }
   if (form.dataset.form === 'property-tenant-export-request') {
     const sizeBytes = Number(values.size_bytes);
     const recordCount = Number(values.record_count);

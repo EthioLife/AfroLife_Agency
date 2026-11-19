@@ -72,7 +72,7 @@ The lowest published combination previously reviewed was App Hosting Max (ETB 3,
    Migration 114 removes `FORCE ROW LEVEL SECURITY` from `property_tenant_account_links` so the table owner can use its narrowly scoped `SECURITY DEFINER` helper without requiring PostgreSQL `BYPASSRLS`; row-level security remains enabled and the restricted runtime role remains subject to its policies. Helper execution is revoked from `PUBLIC` and granted only to the configured runtime role.
 5. Trigger deployment and inspect build logs and runtime logs. Correct build, database, or health errors before adding a public production domain.
 6. Verify the staging app's `/healthz` returns healthy and confirms database connectivity. This endpoint alone is not a complete readiness or recovery check.
-7. Validate sign-in, MFA, role-specific navigation and API authorization, property/listing workflows, matching/search, forms, reports, and upload access. Use synthetic accounts/data only. Confirm denied roles cannot access another role's or tenant's records.
+7. Validate sign-in, MFA, role-specific navigation and API authorization, property/listing workflows, matching/search, forms, reports, and upload access. For marketplace service listings, test the full quote-to-completion lifecycle and verify the UI never implies a payment or invoice was created. Use synthetic accounts/data only. Confirm denied roles cannot access another role's or tenant's records.
 8. Check logs do not contain passwords, session tokens, national IDs, document contents, or unnecessary personal data. Review resource, connection, storage, and response-time usage under representative load.
 
 ### Recover an existing app with unapplied migrations

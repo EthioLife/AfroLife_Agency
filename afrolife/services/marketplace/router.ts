@@ -12,6 +12,14 @@ import { h, AGENT, num, requireListingPlan } from '../../src/supply-common.js';
 import { ConfigScope, validateMarketplaceConfig, loadMarketplaceConfig } from '../../src/marketplace-config.js';
 import { nonProductionMockEnabled } from '../../src/mock-provider-config.js';
 import { isClamAvConfigured, scanWithClamAv } from '../../src/clamav.js';
+import {
+  marketplaceServiceCancellationInput,
+  marketplaceServiceCompletionInput,
+  marketplaceServiceDecisionInput,
+  marketplaceServiceQuoteInput,
+  marketplaceServiceRequestInput,
+  marketplaceServiceScheduleInput,
+} from '../../src/marketplace-service-requests.js';
 
 export const router = Router();
 router.get('/marketplace/config', h(async (req, res) => {
@@ -304,6 +312,259 @@ router.post('/marketplace/rental-applications/:id/review', requireActivity('prop
 }));
 
 const sandboxPaymentsEnabled = () => nonProductionMockEnabled(process.env,'MARKETPLACE_PAYMENT_MODE');
+
+const serviceRequestManagers = [...AGENT,'property_owner','super_admin','global_admin','corporate_business_manager'] as const;
+function addisAbabaDate(): string {
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: 'Africa/Addis_Ababa', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((entry) => entry.type === type)?.value;
+  const year = part('year'), month = part('month'), day = part('day');
+  if (!year || !month || !day) throw new Error('Could not determine the current date in Africa/Addis_Ababa.');
+  return `${year}-${month}-${day}`;
+}
+const serviceRequestColumns = `id,listing_id,buyer_user_id,seller_user_id,preferred_date,request_details,status,
+  quote_amount,quote_currency,quote_expires_on,quote_terms,scheduled_for,completion_note,created_at,updated_at`;
+const serviceRequestJoin = `SELECT request.id,request.listing_id,request.buyer_user_id,request.seller_user_id,
+  request.preferred_date,request.request_details,request.status,request.quote_amount,request.quote_currency,
+  request.quote_expires_on,request.quote_terms,request.scheduled_for,request.completion_note,
+  request.created_at,request.updated_at,listing.title AS listing_title,listing.category_key
+  FROM marketplace_service_requests request
+  JOIN marketplace_listings listing ON listing.id=request.listing_id`;
+
+router.post('/marketplace/service-requests',requireRole('customer'),h(async(req,res)=>{
+  const body=marketplaceServiceRequestInput.parse(req.body);
+  const idempotencyKey=z.string().uuid().parse(req.get('Idempotency-Key'));
+  const payloadHash=createHash('sha256').update(JSON.stringify(body)).digest('hex');
+  const result=await withUser(req.user!,async(c)=>{
+    const prior=(await c.query(
+      `SELECT payload_hash,${serviceRequestColumns}
+       FROM marketplace_service_requests WHERE buyer_user_id=$1 AND idempotency_key=$2`,
+      [req.user!.id,idempotencyKey],
+    )).rows[0];
+    if(prior){
+      if(prior.payload_hash!==payloadHash)throw new HttpError(409,'Idempotency-Key was already used for a different service request.');
+      const safeRow = {...prior};
+      delete safeRow.payload_hash;
+      return {row:safeRow,replayed:true};
+    }
+    const listing=(await c.query(
+      `SELECT id,seller_user_id,title,category_key FROM marketplace_listings
+       WHERE id=$1 AND status='published' AND domain='services' AND transaction_mode='service'`,
+      [body.listing_id],
+    )).rows[0];
+    if(!listing)throw new HttpError(404,'Published service listing not found.');
+    if(listing.seller_user_id===req.user!.id)throw new HttpError(409,'You cannot request a quote from your own listing.');
+    const created=(await c.query(
+      `INSERT INTO marketplace_service_requests(
+         listing_id,buyer_user_id,seller_user_id,preferred_date,request_details,idempotency_key,payload_hash
+       ) VALUES($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT(buyer_user_id,idempotency_key) DO NOTHING RETURNING ${serviceRequestColumns}`,
+      [listing.id,req.user!.id,listing.seller_user_id,body.preferred_date??null,body.request_details,
+        idempotencyKey,payloadHash],
+    )).rows[0];
+    if(created){
+      await audit(c,req.user!.id,'marketplace_service_request_created','marketplace_service_request',created.id,null,
+        {listing_id:listing.id,category:listing.category_key,preferred_date:body.preferred_date??null});
+      await notify(c,listing.seller_user_id,'marketplace_service_request',{request_id:created.id,listing_title:listing.title});
+      return {row:created,replayed:false};
+    }
+    const concurrent=(await c.query(
+      `SELECT payload_hash,${serviceRequestColumns}
+       FROM marketplace_service_requests WHERE buyer_user_id=$1 AND idempotency_key=$2`,
+      [req.user!.id,idempotencyKey],
+    )).rows[0];
+    if(!concurrent||concurrent.payload_hash!==payloadHash)throw new HttpError(409,'Idempotency-Key was already used for a different service request.');
+    const safeRow = {...concurrent};
+    delete safeRow.payload_hash;
+    return {row:safeRow,replayed:true};
+  });
+  res.status(result.replayed?200:201).json({...result.row,replayed:result.replayed,
+    notice:'Quote request only. No booking, payment, or invoice has been created.'});
+}));
+
+router.get('/marketplace/service-requests/mine',requireRole('customer'),h(async(req,res)=>{
+  const rows=await withUser(req.user!,async(c)=>(await c.query(
+    `${serviceRequestJoin} WHERE request.buyer_user_id=$1 ORDER BY request.created_at DESC LIMIT 200`,
+    [req.user!.id],
+  )).rows);
+  res.json(rows);
+}));
+
+router.get('/marketplace/service-requests/manage',requireRole(...serviceRequestManagers),h(async(req,res)=>{
+  const rows=await withUser(req.user!,async(c)=>(await c.query(
+    `${serviceRequestJoin}
+     WHERE request.seller_user_id=$1 OR app_role() IN ('global_admin','super_admin','corporate_business_manager')
+     ORDER BY CASE WHEN request.status IN ('requested','quoted','awaiting_customer_confirmation') THEN 0 ELSE 1 END,
+       request.created_at DESC LIMIT 300`,
+    [req.user!.id],
+  )).rows);
+  res.json(rows);
+}));
+
+router.post('/marketplace/service-requests/:id/quote',requireRole(...serviceRequestManagers),h(async(req,res)=>{
+  const id=z.string().uuid().parse(req.params.id),body=marketplaceServiceQuoteInput.parse(req.body);
+  const result=await withUser(req.user!,async(c)=>{
+    const current=(await c.query(`${serviceRequestJoin} WHERE request.id=$1 FOR UPDATE OF request`,[id])).rows[0];
+    if(!current)throw new HttpError(404,'Service request not found.');
+    if(current.seller_user_id!==req.user!.id&&!isPlatformAdminRole(req.user!.role)&&req.user!.role!=='corporate_business_manager')
+      throw new HttpError(403,'Only the listing seller or an authorized marketplace manager can quote this request.');
+    if(current.status!=='requested')throw new HttpError(409,'Only an unquoted service request can receive a quote.');
+    if(body.expires_on<addisAbabaDate())throw new HttpError(422,'Quote expiry must be today or a future date in Addis Ababa.');
+    const row=(await c.query(
+      `UPDATE marketplace_service_requests SET status='quoted',quote_amount=$2,quote_currency='ETB',
+         quote_expires_on=$3,quote_terms=$4,quoted_by=$5,quoted_at=now()
+       WHERE id=$1 AND status='requested' RETURNING ${serviceRequestColumns}`,
+      [id,body.amount,body.expires_on,body.terms,req.user!.id],
+    )).rows[0];
+    await audit(c,req.user!.id,'marketplace_service_quote_offered','marketplace_service_request',id,
+      {status:current.status},{status:row.status,amount:row.quote_amount,currency:row.quote_currency,expires_on:row.quote_expires_on});
+    await notify(c,current.buyer_user_id,'marketplace_service_quote',{request_id:id,amount:row.quote_amount,currency:row.quote_currency});
+    return row;
+  });
+  res.json(result);
+}));
+
+router.post('/marketplace/service-requests/:id/decision',requireRole('customer'),h(async(req,res)=>{
+  const id=z.string().uuid().parse(req.params.id),body=marketplaceServiceDecisionInput.parse(req.body);
+  const row=await withUser(req.user!,async(c)=>{
+    const current=(await c.query(
+      'SELECT id,buyer_user_id,seller_user_id,status,quote_expires_on FROM marketplace_service_requests WHERE id=$1 FOR UPDATE',[id],
+    )).rows[0];
+    if(!current)throw new HttpError(404,'Service request not found.');
+    if(current.buyer_user_id!==req.user!.id)throw new HttpError(404,'Service request not found.');
+    if(current.status!=='quoted')throw new HttpError(409,'Only an open quote can be accepted or declined.');
+    if(String(current.quote_expires_on).slice(0,10)<addisAbabaDate())
+      throw new HttpError(409,'This quote has expired; submit a new quote request.');
+    const status=body.decision==='accept'?'accepted':'declined';
+    const updated=(await c.query(
+      `UPDATE marketplace_service_requests SET status=$2,customer_decision_by=$3,
+         customer_decision_at=now() WHERE id=$1 AND status='quoted' RETURNING ${serviceRequestColumns}`,
+      [id,status,req.user!.id],
+    )).rows[0];
+    await audit(c,req.user!.id,`marketplace_service_quote_${body.decision}d`,'marketplace_service_request',id,
+      {status:current.status},{status,reason:body.reason??null});
+    await notify(c,current.seller_user_id,`marketplace_service_quote_${body.decision}`,{request_id:id});
+    return updated;
+  });
+  res.json({...row,notice:row.status==='accepted'
+    ? 'Quote accepted. The provider must confirm a schedule; no payment has been taken.'
+    : 'Quote declined.'});
+}));
+
+router.post('/marketplace/service-requests/:id/schedule',requireRole(...serviceRequestManagers),h(async(req,res)=>{
+  const id=z.string().uuid().parse(req.params.id),body=marketplaceServiceScheduleInput.parse(req.body);
+  const row=await withUser(req.user!,async(c)=>{
+    const current=(await c.query('SELECT id,buyer_user_id,seller_user_id,status FROM marketplace_service_requests WHERE id=$1 FOR UPDATE',[id])).rows[0];
+    if(!current)throw new HttpError(404,'Service request not found.');
+    if(current.seller_user_id!==req.user!.id&&!isPlatformAdminRole(req.user!.role)&&req.user!.role!=='corporate_business_manager')
+      throw new HttpError(403,'Only the listing seller or an authorized marketplace manager can schedule this service.');
+    if(current.status!=='accepted')throw new HttpError(409,'Only a customer-accepted quote can be scheduled.');
+    if(body.scheduled_for<addisAbabaDate())throw new HttpError(422,'Service date must be today or a future date in Addis Ababa.');
+    const updated=(await c.query(
+      `UPDATE marketplace_service_requests SET status='scheduled',scheduled_for=$2,scheduled_by=$3,scheduled_at=now()
+       WHERE id=$1 AND status='accepted' RETURNING ${serviceRequestColumns}`,
+      [id,body.scheduled_for,req.user!.id],
+    )).rows[0];
+    await audit(c,req.user!.id,'marketplace_service_scheduled','marketplace_service_request',id,
+      {status:current.status},{status:updated.status,scheduled_for:updated.scheduled_for});
+    await notify(c,current.buyer_user_id,'marketplace_service_scheduled',{request_id:id,scheduled_for:updated.scheduled_for});
+    return updated;
+  });
+  res.json(row);
+}));
+
+router.post('/marketplace/service-requests/:id/start',requireRole(...serviceRequestManagers),h(async(req,res)=>{
+  const id=z.string().uuid().parse(req.params.id);
+  const row=await withUser(req.user!,async(c)=>{
+    const current=(await c.query('SELECT id,buyer_user_id,seller_user_id,status FROM marketplace_service_requests WHERE id=$1 FOR UPDATE',[id])).rows[0];
+    if(!current)throw new HttpError(404,'Service request not found.');
+    if(current.seller_user_id!==req.user!.id&&!isPlatformAdminRole(req.user!.role)&&req.user!.role!=='corporate_business_manager')
+      throw new HttpError(403,'Only the listing seller or an authorized marketplace manager can start this service.');
+    if(current.status!=='scheduled')throw new HttpError(409,'Only a scheduled service can be started.');
+    const updated=(await c.query(
+      `UPDATE marketplace_service_requests SET status='in_progress',work_started_by=$2,work_started_at=now()
+       WHERE id=$1 AND status='scheduled' RETURNING ${serviceRequestColumns}`,
+      [id,req.user!.id],
+    )).rows[0];
+    await audit(c,req.user!.id,'marketplace_service_started','marketplace_service_request',id,
+      {status:current.status},{status:updated.status});
+    await notify(c,current.buyer_user_id,'marketplace_service_started',{request_id:id});
+    return updated;
+  });
+  res.json(row);
+}));
+
+router.post('/marketplace/service-requests/:id/provider-completion',requireRole(...serviceRequestManagers),h(async(req,res)=>{
+  const id=z.string().uuid().parse(req.params.id),body=marketplaceServiceCompletionInput.parse(req.body);
+  const row=await withUser(req.user!,async(c)=>{
+    const current=(await c.query('SELECT id,seller_user_id,status FROM marketplace_service_requests WHERE id=$1 FOR UPDATE',[id])).rows[0];
+    if(!current)throw new HttpError(404,'Service request not found.');
+    if(current.seller_user_id!==req.user!.id&&!isPlatformAdminRole(req.user!.role)&&req.user!.role!=='corporate_business_manager')
+      throw new HttpError(403,'Only the listing seller or an authorized marketplace manager can report completion.');
+    if(current.status!=='in_progress')throw new HttpError(409,'Only in-progress work can be submitted for customer confirmation.');
+    const updated=(await c.query(
+      `UPDATE marketplace_service_requests SET status='awaiting_customer_confirmation',completion_note=$2,
+         provider_completed_by=$3,provider_completed_at=now()
+       WHERE id=$1 AND status='in_progress' RETURNING ${serviceRequestColumns}`,
+      [id,body.completion_note,req.user!.id],
+    )).rows[0];
+    await audit(c,req.user!.id,'marketplace_service_provider_completed','marketplace_service_request',id,
+      {status:current.status},{status:updated.status,completion_note:body.completion_note});
+    await notify(c,updated.buyer_user_id,'marketplace_service_completion',{request_id:id});
+    return updated;
+  });
+  res.json(row);
+}));
+
+router.post('/marketplace/service-requests/:id/confirm-completion',requireRole('customer'),h(async(req,res)=>{
+  const id=z.string().uuid().parse(req.params.id);
+  const row=await withUser(req.user!,async(c)=>{
+    const current=(await c.query(
+      'SELECT id,buyer_user_id,seller_user_id,status FROM marketplace_service_requests WHERE id=$1 FOR UPDATE',[id],
+    )).rows[0];
+    if(!current||current.buyer_user_id!==req.user!.id)throw new HttpError(404,'Service request not found.');
+    if(current.status!=='awaiting_customer_confirmation')throw new HttpError(409,'Provider completion is not awaiting confirmation.');
+    const updated=(await c.query(
+      `UPDATE marketplace_service_requests SET status='completed',customer_confirmed_by=$2,
+         customer_confirmed_at=now() WHERE id=$1 AND status='awaiting_customer_confirmation'
+       RETURNING ${serviceRequestColumns}`,
+      [id,req.user!.id],
+    )).rows[0];
+    await audit(c,req.user!.id,'marketplace_service_customer_confirmed','marketplace_service_request',id,
+      {status:current.status},{status:updated.status});
+    await notify(c,current.seller_user_id,'marketplace_service_customer_confirmed',{request_id:id});
+    return updated;
+  });
+  res.json({...row,notice:'Service completion confirmed. This record is not a payment receipt or tax invoice.'});
+}));
+
+router.post('/marketplace/service-requests/:id/cancel',requireRole('customer',...serviceRequestManagers),h(async(req,res)=>{
+  const id=z.string().uuid().parse(req.params.id),body=marketplaceServiceCancellationInput.parse(req.body);
+  const row=await withUser(req.user!,async(c)=>{
+    const current=(await c.query(
+      'SELECT id,buyer_user_id,seller_user_id,status FROM marketplace_service_requests WHERE id=$1 FOR UPDATE',[id],
+    )).rows[0];
+    if(!current)throw new HttpError(404,'Service request not found.');
+    if(current.buyer_user_id!==req.user!.id&&current.seller_user_id!==req.user!.id
+      &&!isPlatformAdminRole(req.user!.role)&&req.user!.role!=='corporate_business_manager')
+      throw new HttpError(404,'Service request not found.');
+    if(!['requested','quoted','accepted','scheduled'].includes(current.status))
+      throw new HttpError(409,'Service can only be cancelled before work begins.');
+    const updated=(await c.query(
+      `UPDATE marketplace_service_requests SET status='cancelled',cancelled_by=$2,
+         cancellation_reason=$3,cancelled_at=now() WHERE id=$1 RETURNING ${serviceRequestColumns}`,
+      [id,req.user!.id,body.reason],
+    )).rows[0];
+    await audit(c,req.user!.id,'marketplace_service_cancelled','marketplace_service_request',id,
+      {status:current.status},{status:updated.status,reason:body.reason});
+    const recipientId=current.buyer_user_id===req.user!.id?current.seller_user_id:current.buyer_user_id;
+    await notify(c,recipientId,'marketplace_service_cancelled',{request_id:id,reason:body.reason});
+    return updated;
+  });
+  res.json(row);
+}));
+
 router.post('/marketplace/listings/:id/sandbox-orders', requireRole('customer'), h(async (req,res) => {
   if(process.env.NODE_ENV==='production')throw new HttpError(404,'Marketplace sandbox orders are disabled in production.');
   const listingId=z.string().uuid().parse(req.params.id);
