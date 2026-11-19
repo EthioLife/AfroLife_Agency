@@ -11,7 +11,7 @@ if(process.env.ACCOUNTING_INGEST_SECRETS){const parsed=JSON.parse(process.env.AC
 else if(process.env.ACCOUNTING_INGEST_SECRET)secrets.set('*',process.env.ACCOUNTING_INGEST_SECRET);
 if(!secrets.size||[...secrets.values()].some(value=>value.length<32))throw new Error('Configure ACCOUNTING_INGEST_SECRETS or ACCOUNTING_INGEST_SECRET with key(s) of at least 32 characters');
 const serviceActor='00000000-0000-4000-8000-000000000099';
-const lineSchema=z.array(z.object({source_account_code:z.string().trim().min(1).max(80),debit:z.string().regex(/^\d{1,16}(?:\.\d{1,2})?$/),credit:z.string().regex(/^\d{1,16}(?:\.\d{1,2})?$/),description:z.string().max(255).optional()}).strict()).min(2).max(100);
+const lineSchema=z.array(z.object({source_account_code:z.string().trim().min(1).max(80),debit:z.string().regex(/^\d{1,16}(?:\.\d{1,2})?$/),credit:z.string().regex(/^\d{1,16}(?:\.\d{1,2})?$/),description:z.string().max(255).optional(),product_code:z.string().trim().toUpperCase().regex(/^[A-Z0-9][A-Z0-9_-]{1,39}$/).optional()}).strict()).min(2).max(100);
 const eventSchema=z.object({source_event_id:z.string().uuid(),source_entity_id:z.string().trim().min(1).max(160),entry_date:z.string().date(),source_reference:z.string().trim().min(1).max(160),description:z.string().trim().min(10).max(1000),lines:lineSchema,maker_id:z.string().uuid(),checker_id:z.string().uuid(),checker_reason:z.string().trim().min(10).max(1000)}).strict();
 const centsDecimal=(value:bigint)=>`${value/100n}.${String(value%100n).padStart(2,'0')}`;
 
@@ -50,10 +50,15 @@ export function createIngestHandler(withUser:WithUser){
         WHERE entity_id=$1 AND source_system=$2 AND active AND source_account_code=ANY($3::text[])`,[entityId,source,codes])).rows;
       const accountIds=new Map(mapped.map(x=>[x.source_account_code,x.account_id]));
       if(accountIds.size!==new Set(codes).size)throw new HttpError(409,'A source account has no approved mapping in the Accounting entity');
+      const productCodes=[...new Set(body.lines.flatMap(line=>line.product_code?[line.product_code]:[]))];
+      const products=productCodes.length?(await client.query(`SELECT id,code FROM accounting_products WHERE entity_id=$1
+        AND product_type='offering' AND status='active' AND code=ANY($2::text[])`,[entityId,productCodes])).rows:[];
+      const productIds=new Map(products.map(product=>[product.code,product.id]));
+      if(productIds.size!==productCodes.length)throw new HttpError(409,'A source product has no active offering in the mapped Accounting entity');
       const journal=(await client.query(`INSERT INTO accounting_journals(entity_id,period_id,idempotency_key,payload_hash,entry_date,source_reference,description,amount,created_by)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,[entityId,period.id,body.source_event_id,hash,body.entry_date,body.source_reference,body.description,centsDecimal(debit),body.maker_id])).rows[0];
-      for(const [i,line] of body.lines.entries())await client.query(`INSERT INTO accounting_journal_lines(journal_id,entity_id,line_no,account_id,description,debit,credit)
-        VALUES($1,$2,$3,$4,$5,$6,$7)`,[journal.id,entityId,i+1,accountIds.get(line.source_account_code),line.description??null,line.debit,line.credit]);
+      for(const [i,line] of body.lines.entries())await client.query(`INSERT INTO accounting_journal_lines(journal_id,entity_id,line_no,account_id,description,debit,credit,product_id)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,[journal.id,entityId,i+1,accountIds.get(line.source_account_code),line.description??null,line.debit,line.credit,line.product_code?productIds.get(line.product_code):null]);
       await client.query("UPDATE accounting_journals SET status='pending_approval' WHERE id=$1",[journal.id]);
       await client.query("UPDATE accounting_journals SET status='posted',approved_by=$2,approval_reason=$3 WHERE id=$1",[journal.id,body.checker_id,`Source ${source} finalized transaction ${body.source_event_id}: ${body.checker_reason}`]);
       await client.query(`INSERT INTO accounting_source_events(entity_id,source_system,source_event_id,payload_hash,journal_id) VALUES($1,$2,$3,$4,$5)`,[entityId,source,body.source_event_id,hash,journal.id]);

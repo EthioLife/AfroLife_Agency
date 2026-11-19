@@ -7,6 +7,7 @@ import type { AuthUser } from '../../src/auth-types.js';
 import { HttpError } from '../../src/http-error.js';
 import { hashPassword } from './auth.js';
 import type { WithUser } from './router-types.js';
+import { createAccountingProductRouter } from './products.js';
 import { createAccountingWorkflowRouter } from './workflows.js';
 import { toCents, validateBalancedJournal } from './journal-validation.js';
 
@@ -43,6 +44,7 @@ function sendReport(req:Request,res:Response,data:{report:string;rows:any[];[key
 
 export function createAccountingRouter(withUser: WithUser): RouterType {
   const router = Router();
+  router.use(createAccountingProductRouter(withUser));
   router.use(createAccountingWorkflowRouter(withUser));
 
   router.get('/entities', h(async (req,res) => {
@@ -218,7 +220,7 @@ export function createAccountingRouter(withUser: WithUser): RouterType {
     });res.json(row);
   }));
 
-  const journalLines=z.array(z.object({account_code:accountCode,debit:money,credit:money,description:z.string().max(255).optional()}).strict()).min(2).max(100);
+  const journalLines=z.array(z.object({account_code:accountCode,debit:money,credit:money,description:z.string().max(255).optional(),product_id:UUID.optional().nullable()}).strict()).min(2).max(100);
   router.post('/entities/:entityId/journals', h(async(req,res) => {
     const entityId=UUID.parse(req.params.entityId); await assertAccess(withUser,req.user!,entityId,writers);
     const body=z.object({idempotency_key:UUID,period_id:UUID,entry_date:z.string().date(),source_reference:z.string().trim().min(1).max(160),description:z.string().trim().min(10).max(1000),lines:journalLines}).strict().parse(req.body);
@@ -233,10 +235,16 @@ export function createAccountingRouter(withUser: WithUser): RouterType {
       if(referenceOwner)throw new HttpError(409,'Accounting transaction reference is already in use');
       const accounts=(await client.query('SELECT id,code FROM accounting_accounts WHERE entity_id=$1 AND active AND code=ANY($2::text[])',[entityId,body.lines.map(x=>x.account_code)])).rows;
       const ids=new Map(accounts.map(a=>[a.code,a.id])); if(ids.size!==new Set(body.lines.map(x=>x.account_code)).size) throw new HttpError(400,'Journal references an inactive or unknown account');
+      const productIds=[...new Set(body.lines.flatMap(line=>line.product_id?[line.product_id]:[]))];
+      if(productIds.length){
+        const products=(await client.query(`SELECT id FROM accounting_products WHERE entity_id=$1
+          AND product_type='offering' AND status='active' AND id=ANY($2::uuid[])`,[entityId,productIds])).rows;
+        if(products.length!==productIds.length)throw new HttpError(422,'Journal lines must reference active offerings in this Accounting entity');
+      }
       const j=(await client.query(`INSERT INTO accounting_journals(entity_id,period_id,idempotency_key,payload_hash,entry_date,source_reference,description,amount,created_by)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,[entityId,body.period_id??null,body.idempotency_key,payloadHash,body.entry_date,body.source_reference,body.description,centsDecimal(debit),req.user!.id])).rows[0];
-      for(const [i,line] of body.lines.entries()) await client.query(`INSERT INTO accounting_journal_lines(journal_id,entity_id,line_no,account_id,description,debit,credit)
-        VALUES($1,$2,$3,$4,$5,$6,$7)`,[j.id,entityId,i+1,ids.get(line.account_code),line.description??null,line.debit,line.credit]);
+      for(const [i,line] of body.lines.entries()) await client.query(`INSERT INTO accounting_journal_lines(journal_id,entity_id,line_no,account_id,description,debit,credit,product_id)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,[j.id,entityId,i+1,ids.get(line.account_code),line.description??null,line.debit,line.credit,line.product_id??null]);
       const pending=(await client.query("UPDATE accounting_journals SET status='pending_approval' WHERE id=$1 RETURNING *",[j.id])).rows[0];
       await audit(client,entityId,req.user!.id,'journal_submitted','accounting_journal',j.id,{amount:(Number(debit)/100).toFixed(2),source_reference:body.source_reference});
       return {...pending,replayed:false};
@@ -257,7 +265,7 @@ export function createAccountingRouter(withUser: WithUser): RouterType {
       const referenceOwner=(await client.query('SELECT id FROM accounting_journals WHERE entity_id=$1 AND source_reference=$2',[entityId,body.source_reference])).rows[0];
       if(referenceOwner)throw new HttpError(409,'Accounting transaction reference is already in use');
       const source=(await client.query(`SELECT j.id,j.status,j.transaction_type,
-        jsonb_agg(jsonb_build_object('account_id',l.account_id,'debit',l.credit::text,'credit',l.debit::text,'description',l.description) ORDER BY l.line_no) AS lines,
+        jsonb_agg(jsonb_build_object('account_id',l.account_id,'product_id',l.product_id,'debit',l.credit::text,'credit',l.debit::text,'description',l.description) ORDER BY l.line_no) AS lines,
         coalesce(sum(l.debit),0)::numeric(18,2) AS amount FROM accounting_journals j
         JOIN accounting_journal_lines l ON l.journal_id=j.id AND l.entity_id=j.entity_id
         WHERE j.id=$1 AND j.entity_id=$2 GROUP BY j.id`,[journalId,entityId])).rows[0];
@@ -266,8 +274,8 @@ export function createAccountingRouter(withUser: WithUser): RouterType {
       if(!period||period.status!=='open'||body.entry_date<period.period_start||body.entry_date>period.period_end)throw new HttpError(422,'Choose an open period that covers the reversal date');
       const reversal=(await client.query(`INSERT INTO accounting_journals(entity_id,period_id,idempotency_key,payload_hash,entry_date,source_reference,description,amount,transaction_type,reversal_of,reversal_reason,created_by)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8,'reversal',$9,$10,$11) RETURNING *`,[entityId,body.period_id,body.idempotency_key,payloadHash,body.entry_date,body.source_reference,body.description,source.amount,journalId,body.reason,req.user!.id])).rows[0];
-      for(const [index,line] of source.lines.entries())await client.query(`INSERT INTO accounting_journal_lines(journal_id,entity_id,line_no,account_id,description,debit,credit)
-        VALUES($1,$2,$3,$4,$5,$6,$7)`,[reversal.id,entityId,index+1,line.account_id,line.description,line.debit,line.credit]);
+      for(const [index,line] of source.lines.entries())await client.query(`INSERT INTO accounting_journal_lines(journal_id,entity_id,line_no,account_id,description,debit,credit,product_id)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,[reversal.id,entityId,index+1,line.account_id,line.description,line.debit,line.credit,line.product_id??null]);
       const pending=(await client.query("UPDATE accounting_journals SET status='pending_approval' WHERE id=$1 RETURNING *",[reversal.id])).rows[0];
       await audit(client,entityId,req.user!.id,'reversal_submitted','accounting_journal',reversal.id,{reversal_of:journalId,reason:body.reason});return {...pending,replayed:false};
     });res.status(result.replayed?200:201).json(result);
@@ -289,9 +297,10 @@ export function createAccountingRouter(withUser: WithUser): RouterType {
   router.get('/entities/:entityId/journals', h(async(req,res)=>{
     const entityId=UUID.parse(req.params.entityId); await assertAccess(withUser,req.user!,entityId,roles);
     const rows=await withUser(req.user!,async(client)=>(await client.query(`SELECT j.*,
-      coalesce(jsonb_agg(jsonb_build_object('account_code',a.code,'account_name',a.name,'debit',l.debit::text,'credit',l.credit::text,'description',l.description) ORDER BY l.line_no) FILTER(WHERE l.id IS NOT NULL),'[]'::jsonb) AS lines
+      coalesce(jsonb_agg(jsonb_build_object('account_code',a.code,'account_name',a.name,'debit',l.debit::text,'credit',l.credit::text,'description',l.description,'product_id',l.product_id,'product_code',p.code,'product_name',p.name) ORDER BY l.line_no) FILTER(WHERE l.id IS NOT NULL),'[]'::jsonb) AS lines
       FROM accounting_journals j LEFT JOIN accounting_journal_lines l ON l.journal_id=j.id AND l.entity_id=j.entity_id
-      LEFT JOIN accounting_accounts a ON a.id=l.account_id AND a.entity_id=l.entity_id WHERE j.entity_id=$1
+      LEFT JOIN accounting_accounts a ON a.id=l.account_id AND a.entity_id=l.entity_id
+      LEFT JOIN accounting_products p ON p.id=l.product_id AND p.entity_id=l.entity_id WHERE j.entity_id=$1
       GROUP BY j.id ORDER BY j.entry_date DESC,j.created_at DESC LIMIT 500`,[entityId])).rows);
     res.json(rows);
   }));
