@@ -5542,7 +5542,12 @@ function renderMarketplaceServiceRequests() {
       quoteForm.append(button('Send quote','submit','button button-primary'));
       item.append(quoteForm);
     }
-    if (isCustomerRequest && request.status === 'quoted') {
+    const quoteExpired = request.quote_expires_on
+      && String(request.quote_expires_on).slice(0, 10) < marketplaceAddisDate();
+    if (isCustomerRequest && request.status === 'quoted' && quoteExpired) {
+      item.append(node('p', 'This quote has expired. Submit a new quote request before proceeding.', 'muted'));
+    }
+    if (isCustomerRequest && request.status === 'quoted' && !quoteExpired) {
       item.append(actionButton(request, 'Accept quote', 'decision', { decision: 'accept' },
         'Quote accepted. The provider must confirm a schedule; no payment has been taken.'));
       const decline = button('Decline quote', 'marketplace-service-action', 'button button-outline');
@@ -5689,7 +5694,9 @@ function renderMarketplace() {
       ? t(config.rentals?.periods?.find((period) => period.key === listing.rent_period)?.label ?? listing.rent_period)
       : '';
     const price = listing.price == null ? '' : ` · ETB ${Number(listing.price).toLocaleString(document.documentElement.lang)}${rentalPeriod ? ` / ${rentalPeriod}` : ''}`;
-    const details = `${listing.seller_name} · ${t(listing.domain)} · ${t(transaction)}${price}`;
+    const servicePriceNote = listing.transaction_mode === 'service' && price
+      ? ' · Indicative only; final written quote required' : '';
+    const details = `${listing.seller_name} · ${t(listing.domain)} · ${t(transaction)}${price}${servicePriceNote}`;
     const item=card(listing.title,details,listing.status);
     item.classList.add('marketplace-card');
     item.append(node('p',listing.description,'marketplace-description'));

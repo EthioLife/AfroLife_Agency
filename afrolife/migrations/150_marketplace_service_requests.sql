@@ -82,6 +82,16 @@ BEGIN
     IF NEW.status<>'requested' OR NEW.buyer_user_id IS DISTINCT FROM actor
        OR role_name<>'customer'
        OR NEW.seller_user_id IS NOT DISTINCT FROM actor
+       OR NEW.quoted_by IS NOT NULL OR NEW.quoted_at IS NOT NULL
+       OR NEW.customer_decision_by IS NOT NULL OR NEW.customer_decision_at IS NOT NULL
+       OR NEW.scheduled_by IS NOT NULL OR NEW.scheduled_at IS NOT NULL
+       OR NEW.scheduled_for IS NOT NULL
+       OR NEW.work_started_by IS NOT NULL OR NEW.work_started_at IS NOT NULL
+       OR NEW.provider_completed_by IS NOT NULL OR NEW.provider_completed_at IS NOT NULL
+       OR NEW.completion_note IS NOT NULL
+       OR NEW.customer_confirmed_by IS NOT NULL OR NEW.customer_confirmed_at IS NOT NULL
+       OR NEW.cancelled_by IS NOT NULL OR NEW.cancelled_at IS NOT NULL
+       OR NEW.cancellation_reason IS NOT NULL
        OR NOT EXISTS (
          SELECT 1 FROM marketplace_listings listing
          WHERE listing.id=NEW.listing_id AND listing.seller_user_id=NEW.seller_user_id
