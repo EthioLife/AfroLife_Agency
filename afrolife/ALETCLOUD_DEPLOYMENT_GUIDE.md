@@ -75,6 +75,12 @@ The lowest published combination previously reviewed was App Hosting Max (ETB 3,
 7. Validate sign-in, MFA, role-specific navigation and API authorization, property/listing workflows, matching/search, forms, reports, and upload access. Use synthetic accounts/data only. Confirm denied roles cannot access another role's or tenant's records.
 8. Check logs do not contain passwords, session tokens, national IDs, document contents, or unnecessary personal data. Review resource, connection, storage, and response-time usage under representative load.
 
+### Recover an existing app with unapplied migrations
+
+Before applying migrations, take a database snapshot and verify that the runtime and owner URLs target the same database. Temporarily set `ALETCLOUD_BOOTSTRAP_DATABASE_URL` to the migration-owner URL and `ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY=1`. Keep `DATABASE_URL` on the restricted runtime role and retain the required distinct `JWT_SECRET` and `MFA_ENC_KEY`.
+
+Redeploy once and inspect startup logs for each migration. Stop on the first failure and resolve it before retrying. When `/readyz` reports all expected migrations applied with zero checksum mismatches, unverified checksums, and unexpected migrations, remove both temporary bootstrap variables and redeploy. This mode skips administrator seeding.
+
 ## 6. Complete production readiness checks
 
 Before creating production traffic, record evidence for each item:
