@@ -1,12 +1,16 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { resolveEnvironmentUrl } from '../launcher.mjs';
+import { resolveEnvironmentUrl } from '../launcher.js';
 
 const config = JSON.parse(
   await readFile(new URL('../environments.json', import.meta.url), 'utf8')
 );
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+
+test('loads the launcher from a JavaScript asset supported by static hosts', () => {
+  assert.match(html, /<script type="module" src="\.\/launcher\.js"><\/script>/);
+});
 
 test('exposes the recovered UAT Canary destination without a stale warning', () => {
   assert.match(html, /id="uat-readiness"[^>]*role="status"/);

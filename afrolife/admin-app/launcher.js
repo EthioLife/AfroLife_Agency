@@ -114,4 +114,4 @@ async function loadDestinations() {
   }
 }
 
-if (typeof document !== 'undefined') loadDestinations();
+if (typeof document !== 'undefined') void loadDestinations();
