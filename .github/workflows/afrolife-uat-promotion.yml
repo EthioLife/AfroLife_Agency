@@ -1,0 +1,52 @@
+name: Promote AfroLife Development to UAT
+
+on:
+  workflow_run:
+    workflows: ["AfroLife quality checks"]
+    types: [completed]
+    branches: [aletcloud-development]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: afrolife-uat-promotion
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: >-
+      ${{
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_repository.full_name == github.repository
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: aletcloud-prod-disabled-insurance
+          fetch-depth: 0
+
+      - name: Merge the exact tested Development commit
+        id: merge
+        env:
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin refs/heads/aletcloud-development:refs/remotes/origin/aletcloud-development
+          git merge-base --is-ancestor "$SOURCE_SHA" refs/remotes/origin/aletcloud-development
+
+          if git merge-base --is-ancestor "$SOURCE_SHA" HEAD; then
+            echo "promoted=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-ff --no-edit "$SOURCE_SHA"
+          echo "promoted=true" >> "$GITHUB_OUTPUT"
+
+      - name: Push to the UAT deployment branch
+        if: steps.merge.outputs.promoted == 'true'
+        run: git push origin HEAD:refs/heads/aletcloud-prod-disabled-insurance

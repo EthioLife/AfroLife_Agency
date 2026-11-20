@@ -102,6 +102,8 @@ Before creating production traffic, record evidence for each item:
 
 ## 8. Ongoing operations
 
+- The `Promote AfroLife Development to UAT` workflow runs from the repository's default branch after the `AfroLife quality checks` workflow succeeds for a push to `aletcloud-development`. It merges the exact tested commit into `aletcloud-prod-disabled-insurance`, which must be the UAT app's connected deployment branch. A merge conflict, missing source commit, or branch-protection rejection fails closed and requires operator review.
+- The promotion transfers source commits only. Keep the UAT app's database, storage bucket, and environment secrets separate; do not copy Development variables into UAT.
 - Every push to the connected deployment branch may trigger a deployment; protect the branch and review each change.
 - Test migrations and releases in staging first. Promote a reviewed commit; do not use staging credentials in production.
 - Check backup success and wallet/budget alerts regularly. Perform and document restore rehearsals at least quarterly and after material database/storage changes.
