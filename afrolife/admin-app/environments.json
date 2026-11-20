@@ -1,6 +1,6 @@
 {
   "uatCanary": "https://afrolife-agency.app.aletcloud.com/",
-  "uatCanaryNotice": "Readiness warning · last checked 2026-11-20: /readyz returned 503 with 118/152 migrations applied. Some UAT workflows may be unavailable.",
+  "uatCanaryNotice": "",
   "development": "https://afrolife-development.app.aletcloud.com/",
-  "developmentNotice": "Ready · last checked 2026-11-20: all 152 expected migrations are applied."
+  "developmentNotice": "Readiness warning · last checked 2026-11-20: /readyz returned 503 with 152/153 migrations applied. Some Development workflows may be unavailable."
 }

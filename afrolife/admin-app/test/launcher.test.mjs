@@ -8,23 +8,22 @@ const config = JSON.parse(
 );
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
-test('exposes UAT Canary with an explicit readiness warning', () => {
+test('exposes the recovered UAT Canary destination without a stale warning', () => {
   assert.match(html, /id="uat-readiness"[^>]*role="status"/);
   assert.equal(
     resolveEnvironmentUrl(config.uatCanary),
     'https://afrolife-agency.app.aletcloud.com/'
   );
-  assert.match(config.uatCanaryNotice, /2026-11-20/);
-  assert.match(config.uatCanaryNotice, /118\/152 migrations applied/);
+  assert.equal(config.uatCanaryNotice, '');
 });
 
-test('uses the verified Development sign-in destination', () => {
+test('warns that Development is missing the latest migration', () => {
   assert.equal(
     resolveEnvironmentUrl(config.development),
     'https://afrolife-development.app.aletcloud.com/'
   );
   assert.match(config.developmentNotice, /2026-11-20/);
-  assert.match(config.developmentNotice, /all 152 expected migrations/);
+  assert.match(config.developmentNotice, /152\/153 migrations applied/);
 });
 
 test('rejects destinations that are not an exact secure admin URL', () => {
