@@ -322,7 +322,7 @@ test('resident maintenance completion feedback is tenant-scoped, immutable, and 
   assert.match(app, /does not reopen work or change charges/);
 
   const serviceWorker = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
-  assert.match(serviceWorker, /afrolife-shell-v47/);
+  assert.match(serviceWorker, /afrolife-shell-v48/);
 });
 
 test('property tenant migration backfills members using an explicit users alias', async () => {

@@ -46,7 +46,7 @@ CREATE TABLE marketplace_service_requests (
           ((quote_amount IS NULL AND quote_currency IS NULL AND quote_expires_on IS NULL
             AND quote_terms IS NULL AND quoted_by IS NULL AND quoted_at IS NULL)
            OR (quote_amount IS NOT NULL AND quote_currency IS NOT NULL AND quote_expires_on IS NOT NULL
-            AND quote_terms IS NOT NULL AND quoted_by IS NOT NULL AND quoted_at IS NOT NULL))),
+            AND quote_terms IS NOT NULL AND quoted_by IS NOT NULL AND quoted_at IS NOT NULL)))),
   CHECK (status NOT IN ('accepted','declined','scheduled','in_progress','awaiting_customer_confirmation','completed')
       OR (customer_decision_by = buyer_user_id AND customer_decision_at IS NOT NULL)),
   CHECK (status NOT IN ('scheduled','in_progress','awaiting_customer_confirmation','completed')

@@ -35,6 +35,7 @@ import { createAgencyOperationsRouter } from './agency-operations.js';
 import { getMessagingStatus } from './auth-integrations.js';
 import { telegramWebhook, whatsappWebhook, whatsappWebhookVerify } from './messaging-webhooks.js';
 import { SUPPORT_FAQ } from './support-faq.js';
+import { isMalformedJsonRequestError } from './api-request-errors.js';
 
 const app = express();
 app.use(correlationIdMiddleware);
@@ -932,6 +933,10 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
   const correlationId = getCorrelationId(req);
   const reply = (status: number, body: Record<string, unknown>) =>
     res.status(status).json({ ...body, correlation_id: correlationId });
+  if (isMalformedJsonRequestError(err)) {
+    console.warn(`Malformed JSON request [${correlationId}]`);
+    return reply(400, { error: 'Invalid JSON' });
+  }
   if (err instanceof HttpError) return reply(err.status, { error: err.message });
   if (err instanceof z.ZodError) return reply(400, { error: 'Invalid input', details: err.flatten() });
   if (err?.code === '22P02') return reply(400, { error: 'Invalid id or value' }); // e.g. a malformed UUID in the URL
