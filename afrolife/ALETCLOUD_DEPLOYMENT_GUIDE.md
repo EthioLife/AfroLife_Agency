@@ -82,6 +82,17 @@ Before applying migrations, take a database snapshot and verify that the runtime
 
 Redeploy once and inspect startup logs for each migration. Stop on the first failure and resolve it before retrying. When `/readyz` reports all expected migrations applied with zero checksum mismatches, unverified checksums, and unexpected migrations, remove both temporary bootstrap variables and redeploy. This mode skips administrator seeding.
 
+### Automatically apply Development migrations
+
+The `AfroLife Development database migrations` workflow applies checksummed migrations after a successful `AfroLife quality checks` run on `aletcloud-development`. It runs the exact tested commit, serializes runs, and accesses credentials only through the protected GitHub Environment named `afrolife-development`.
+
+Configure these environment secrets in GitHub without putting their values in repository files or workflow logs:
+
+- `ALETCLOUD_DEVELOPMENT_DATABASE_URL`: the restricted Development runtime connection URL.
+- `ALETCLOUD_DEVELOPMENT_MIGRATION_DATABASE_URL`: the Development migration-owner connection URL for the same database.
+
+Keep the runtime and migration roles separate. Do not use UAT or production credentials in this environment. A failed migration workflow must be investigated before retrying; `/readyz` remains the release check for migration completeness. This workflow does not migrate UAT or production.
+
 ### Rotate the MFA encryption key
 
 The app supports a short-lived `MFA_ENC_KEY_PREVIOUS` compatibility key so existing authenticator secrets remain usable during rotation. Do not remove the old key until all stored secrets have been re-encrypted and MFA sign-in has been verified.
