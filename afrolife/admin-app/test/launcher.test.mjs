@@ -27,7 +27,7 @@ test('warns that Development is missing the latest migration', () => {
     resolveEnvironmentUrl(config.development),
     'https://afrolife-development.app.aletcloud.com/'
   );
-  assert.match(config.developmentNotice, /2026-11-20/);
+  assert.match(config.developmentNotice, /2026-11-21/);
   assert.match(config.developmentNotice, /152\/153 migrations applied/);
 });
 
