@@ -86,6 +86,16 @@ test('signup uploads enforce configured KYC documents and limit server changes t
     '/edir/public/registration-applications/application%2F1/documents/legal_registration');
 });
 
+test('architecture governance catalog and CI SBOM are part of the quality contract', () => {
+  const catalog = readFileSync(new URL('../ARCHITECTURE_GOVERNANCE_CATALOG.md', import.meta.url), 'utf8');
+  const workflow = readFileSync(new URL('../../.github/workflows/afrolife-quality.yml', import.meta.url), 'utf8');
+  assert.match(catalog, /Architecture Governance Catalog/);
+  assert.match(catalog, /disposable loopback PostgreSQL databases/i);
+  assert.match(workflow, /Generate CycloneDX SBOM/);
+  assert.match(workflow, /actions\/upload-artifact@v4/);
+  assert.match(workflow, /afrolife-cyclonedx-sbom/);
+});
+
 test('workforce documents are scanned before storage and fail closed without a clean result', () => {
   const router = readFileSync(new URL('../services/workforce-management/router.ts', import.meta.url), 'utf8');
   const upload = router.slice(

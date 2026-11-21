@@ -7,6 +7,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:net';
 import dotenv from 'dotenv';
 import pg from 'pg';
+import { completeClamAvStream } from './clamav-test-fixture.mjs';
 
 const localEnv = process.env.LOCALAPPDATA
   ? join(process.env.LOCALAPPDATA, 'AfroLife', 'afrolife.env')
@@ -127,22 +128,6 @@ async function findPort() {
 }
 
 const [propertyPort, staffingPort, staffingServicePort, clamAvPort] = await findPorts(4);
-const clamAvCommand = Buffer.from('zINSTREAM\0', 'ascii');
-function completeClamAvStream(buffer) {
-  if (buffer.length < clamAvCommand.length) return undefined;
-  if (!buffer.subarray(0, clamAvCommand.length).equals(clamAvCommand)) return false;
-
-  let offset = clamAvCommand.length;
-  while (offset < buffer.length) {
-    if (buffer.length - offset < 4) return undefined;
-    const chunkLength = buffer.readUInt32BE(offset);
-    offset += 4;
-    if (chunkLength === 0) return offset === buffer.length;
-    if (buffer.length - offset < chunkLength) return undefined;
-    offset += chunkLength;
-  }
-  return undefined;
-}
 let clamAvConnectionCount = 0;
 let clamAvScanCount = 0;
 const clamAvTestServer = createServer((socket) => {
