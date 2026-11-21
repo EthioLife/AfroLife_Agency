@@ -99,3 +99,40 @@ jobs:
       - run: npm ci
       - name: Run integration workflows against disposable PostgreSQL service
         run: node scripts/run-local-finance-e2e.mjs
+
+  migrate-development:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/aletcloud-development'
+    needs:
+      - unit-and-build
+      - disposable-database-integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: afrolife-development
+    concurrency:
+      group: afrolife-development-schema
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: afrolife
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: afrolife/package-lock.json
+      - run: npm ci
+      - name: Require Development database credentials
+        env:
+          DATABASE_URL: ${{ secrets.ALETCLOUD_DEVELOPMENT_DATABASE_URL }}
+          MIGRATION_DATABASE_URL: ${{ secrets.ALETCLOUD_DEVELOPMENT_MIGRATION_DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$MIGRATION_DATABASE_URL" ]; then
+            echo "::error::Configure the Development runtime and migration URLs in the afrolife-development GitHub Environment."
+            exit 1
+          fi
+      - name: Apply checksummed Development migrations
+        env:
+          DATABASE_URL: ${{ secrets.ALETCLOUD_DEVELOPMENT_DATABASE_URL }}
+          MIGRATION_DATABASE_URL: ${{ secrets.ALETCLOUD_DEVELOPMENT_MIGRATION_DATABASE_URL }}
+        run: npm run db:migrate

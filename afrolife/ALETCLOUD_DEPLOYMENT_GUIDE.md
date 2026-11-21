@@ -84,9 +84,9 @@ Redeploy once and inspect startup logs for each migration. Stop on the first fai
 
 ### Automatically apply Development migrations
 
-The `AfroLife Development database migrations` workflow applies checksummed migrations after a successful `AfroLife quality checks` run on `aletcloud-development`. It runs the exact tested commit, serializes runs, and accesses credentials only through the protected GitHub Environment named `afrolife-development`.
+The `migrate-development` job in `AfroLife quality checks` applies checksummed migrations after both quality jobs pass on a push to `aletcloud-development`. It runs the exact tested commit, serializes runs, and accesses credentials only through the protected GitHub Environment named `afrolife-development`.
 
-Configure these environment secrets in GitHub without putting their values in repository files or workflow logs:
+Configure the GitHub Environment to accept deployments only from the protected `aletcloud-development` branch. Store these environment secrets there without putting their values in repository files or workflow logs:
 
 - `ALETCLOUD_DEVELOPMENT_DATABASE_URL`: the restricted Development runtime connection URL.
 - `ALETCLOUD_DEVELOPMENT_MIGRATION_DATABASE_URL`: the Development migration-owner connection URL for the same database.
