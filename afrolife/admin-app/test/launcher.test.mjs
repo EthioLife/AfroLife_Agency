@@ -22,13 +22,12 @@ test('exposes the recovered UAT Canary destination without a stale warning', () 
   assert.equal(config.uatCanaryNotice, '');
 });
 
-test('warns that Development is missing the latest migration', () => {
+test('does not show a stale warning when Development is ready', () => {
   assert.equal(
     resolveEnvironmentUrl(config.development),
     'https://afrolife-development.app.aletcloud.com/'
   );
-  assert.match(config.developmentNotice, /2026-11-21/);
-  assert.match(config.developmentNotice, /152\/153 migrations applied/);
+  assert.equal(config.developmentNotice, '');
 });
 
 test('rejects destinations that are not an exact secure admin URL', () => {
