@@ -69,6 +69,7 @@
     "seed:mfi:e2e:local": "node --require ./.codex-osinfo-fallback.cjs --import tsx scripts/seed-local-mfi-e2e-users.ts",
     "db:migrate": "tsx src/migrate.ts",
     "db:mfa:rotate-key": "tsx scripts/rotate-mfa-secrets.ts",
+    "db:mfa:verify-key": "tsx scripts/verify-mfa-secrets.ts",
     "db:check-runtime-acls": "node scripts/check-runtime-acls.mjs",
     "migrate:insurance": "npm run build:insurance && node dist/services/insurance-ledger/migrate.js",
     "migrate:accounting": "npm run build:accounting && node dist/services/accounting/migrate.js",

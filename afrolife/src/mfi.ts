@@ -10,6 +10,7 @@ import { centsToAmount, decimalToCents, mfiAmountSchema as amountSchema, normali
 import { Phone } from './validators.js';
 import { sniff } from './files.js';
 import { getFile, putFile } from './storage.js';
+import { assertCleanUpload } from './clamav.js';
 import { toCsv } from './csv.js';
 import { creditPolicySchema, principalSchedule, scoreLoan } from './mfi-credit.js';
 import { cooldownRemainingDays, evaluateLoanEligibility, lendingProductTermsSchema, quoteLoan, type LendingProductTerms } from './lending-products.js';
@@ -1350,6 +1351,7 @@ mfiRouter.post('/institutions/:institutionId/members/:memberId/documents/:docume
       ['institution_admin','loan_officer','compliance'],async(client)=>{
         if(!(await client.query('SELECT id FROM mfi_members WHERE institution_id=$1 AND id=$2',
           [req.params.institutionId,req.params.memberId])).rowCount)throw new HttpError(404,'Member not found');
+        await assertCleanUpload(file);
         const storageKey=randomUUID();
         const document=(await client.query(
           `INSERT INTO mfi_loan_documents(institution_id,member_id,document_type,storage_key,sha256,mime,size_bytes,uploaded_by)

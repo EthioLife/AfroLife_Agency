@@ -913,6 +913,10 @@ test('worker sign-up uploads private KYC documents and requires separate complia
     [user.id],
   )).rows[0];
   assert.ok(identityDocument);
+  const deniedDownload = await fetch(`${API}/users/${user.id}/documents/${identityDocument.id}/file`, {
+    headers: { authorization: `Bearer ${fa.token}` },
+  });
+  assert.equal(deniedDownload.status, 403, 'An unrelated role must not retrieve private KYC content');
   assert.equal((await call(compliance, 'POST', `/users/${user.id}/documents/${identityDocument.id}/review`, {
     decision: 'rejected',
   })).status, 422);

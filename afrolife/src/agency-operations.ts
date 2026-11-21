@@ -7,6 +7,7 @@ import { notify } from './notify.js';
 import { enqueueAccountingEvent } from './accounting-outbox.js';
 import { sniff } from './files.js';
 import { getFile, putFile } from './storage.js';
+import { assertCleanUpload } from './clamav.js';
 import { Phone } from './validators.js';
 import { requireMiniAppAccess } from './mini-app-access.js';
 import { AGENT, h } from './supply-common.js';
@@ -144,6 +145,7 @@ export function createAgencyOperationsRouter(): Router {
     if (!Buffer.isBuffer(buf) || buf.length === 0) throw new HttpError(400, 'No file received');
     const mime = sniff(buf);
     if (!mime) throw new HttpError(415, 'Only PDF, JPEG or PNG files are accepted');
+    await assertCleanUpload(buf);
     const row = await withUser(req.user!, async (c) => {
       const contract = (await c.query('SELECT id, state FROM contracts WHERE id = $1 FOR UPDATE', [req.params.id])).rows[0];
       if (!contract) throw new HttpError(404, 'Contract not found');

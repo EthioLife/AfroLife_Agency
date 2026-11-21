@@ -7,6 +7,7 @@ import type { AuthUser } from '../../src/auth-types.js';
 import { HttpError } from '../../src/http-error.js';
 import { sniff } from '../../src/files.js';
 import { getFile, putFile } from '../../src/storage.js';
+import { assertCleanUpload } from '../../src/clamav.js';
 import { withUser } from './db.js';
 import { edirFinanceRouter } from './finance-router.js';
 import { edirCreditRouter } from './credit-router.js';
@@ -124,6 +125,7 @@ edirRouter.post(
       if (existing && existing.status !== 'rejected') {
         throw new HttpError(409, 'This official document is already on file and cannot be replaced unless returned by review.');
       }
+      await assertCleanUpload(file);
       await putFile(storageKey, file);
       if (existing) {
         const updated = (await client.query(
