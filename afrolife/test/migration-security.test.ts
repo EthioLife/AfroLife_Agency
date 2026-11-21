@@ -64,6 +64,7 @@ const notificationDispatcher = readFileSync(new URL('../src/dispatch.ts', import
 const workforceOperations = readFileSync(new URL('../src/workforce-operations.ts', import.meta.url), 'utf8');
 const coreMigrator = readFileSync(new URL('../src/migrate.ts', import.meta.url), 'utf8');
 const aletcloudBootstrap = readFileSync(new URL('../src/aletcloud-bootstrap.ts', import.meta.url), 'utf8');
+const aletcloudMigrationEnvironment = readFileSync(new URL('../src/aletcloud-migration-environment.ts', import.meta.url), 'utf8');
 const accountingMigrator = readFileSync(new URL('../services/accounting/migrate.ts', import.meta.url), 'utf8');
 
 test('migration runners persist and enforce immutable SQL checksums', () => {
@@ -191,8 +192,10 @@ test('migration runners persist and enforce immutable SQL checksums', () => {
   assert.match(aletcloudBootstrap, /ALETCLOUD_BOOTSTRAP_DATABASE_URL is required for a migrations-only bootstrap/);
   assert.match(aletcloudBootstrap, /migrationsOnly \? false : await seedFirstSuperAdmin/);
   assert.match(aletcloudBootstrap, /ALTER ROLE \$\{roleName\} WITH LOGIN PASSWORD \$\{quoteLiteral\(runtime\.password\)\}/);
-  assert.match(aletcloudBootstrap, /if \(migrationsOnly\)[\s\S]*?delete migrationEnv\.SEED_ADMIN_PASSWORD[\s\S]*?AFROLIFE_SEED_ADMIN_BEFORE_PROPERTY_TENANT_MIGRATION = '1'/);
-  assert.match(aletcloudBootstrap, /delete migrationEnv\.ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY/);
+  assert.match(aletcloudMigrationEnvironment, /if \(migrationsOnly\)[\s\S]*?delete migrationEnv\.SEED_ADMIN_PASSWORD/);
+  assert.match(aletcloudMigrationEnvironment, /migrationEnv\.AFROLIFE_SEED_ADMIN_BEFORE_PROPERTY_TENANT_MIGRATION = '1'/);
+  assert.match(aletcloudMigrationEnvironment, /delete migrationEnv\.ALETCLOUD_BOOTSTRAP_DATABASE_URL/);
+  assert.match(aletcloudMigrationEnvironment, /delete migrationEnv\.ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY/);
   assert.match(aletcloudBootstrap, /Migration \(\[\^:\\r\\n\]\+\) failed/);
   assert.match(aletcloudBootstrap, /failed\(\?: at stage/);
   assert.match(aletcloudBootstrap, /migration\.stdout\) process\.stdout\.write/);
