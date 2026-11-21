@@ -48,6 +48,18 @@ test('rotating JWT_SECRET does not strand 2FA secrets once MFA_ENC_KEY is set', 
   assert.throws(() => mfaKeys('j'.repeat(32), 'short'), /32\+/);
 });
 
+test('MFA_ENC_KEY_PREVIOUS can decrypt old records while new records use the active key', () => {
+  const oldKeys = mfaKeys('old-jwt'.repeat(5), 'o'.repeat(40));
+  const oldSealed = seal('OLD-MFA-SECRET', oldKeys[0]);
+  const activeKeys = mfaKeys('new-jwt'.repeat(5), 'n'.repeat(40), 'o'.repeat(40));
+
+  assert.equal(openAny(oldSealed, activeKeys), 'OLD-MFA-SECRET');
+  const newlySealed = seal('NEW-MFA-SECRET', activeKeys[0]);
+  assert.equal(openAny(newlySealed, activeKeys), 'NEW-MFA-SECRET');
+  assert.throws(() => mfaKeys('new-jwt'.repeat(5), 'n'.repeat(40), 'short'), /MFA_ENC_KEY_PREVIOUS/);
+  assert.throws(() => mfaKeys('new-jwt'.repeat(5), 'n'.repeat(40), 'n'.repeat(40)), /different/);
+});
+
 test('random passwords use every character class roughly evenly (no modulo bias)', () => {
   const counts = new Map<string, number>();
   for (let i = 0; i < 4000; i++) for (const ch of randomPassword(12)) counts.set(ch, (counts.get(ch) ?? 0) + 1);

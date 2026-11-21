@@ -200,6 +200,11 @@ test('production requires separate financial service gateways and blocks in-proc
 test('production configuration requires separate strong JWT and MFA secrets', () => {
   assert.throws(() => loadRuntimeConfig({ ...safeProductionEnvironment, MFA_ENC_KEY: undefined }), /MFA_ENC_KEY/);
   assert.throws(() => loadRuntimeConfig({ ...safeProductionEnvironment, MFA_ENC_KEY: safeProductionEnvironment.JWT_SECRET }), /must be different/);
+  assert.throws(() => loadRuntimeConfig({ ...safeProductionEnvironment, MFA_ENC_KEY_PREVIOUS: 'short' }), /MFA_ENC_KEY_PREVIOUS/);
+  assert.throws(() => loadRuntimeConfig({
+    ...safeProductionEnvironment,
+    MFA_ENC_KEY_PREVIOUS: safeProductionEnvironment.MFA_ENC_KEY,
+  }), /MFA_ENC_KEY_PREVIOUS/);
   assert.throws(() => loadRuntimeConfig({ ...safeProductionEnvironment, JWT_SECRET: 'REPLACE_WITH_A_RANDOM_SECRET_1234567890' }), /JWT_SECRET/);
   assert.throws(() => loadRuntimeConfig({ ...safeProductionEnvironment, REQUIRE_MFA_FOR_STAFF: '0' }), /REQUIRE_MFA_FOR_STAFF=1/);
 });

@@ -9,7 +9,8 @@ const config = JSON.parse(
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
 test('loads the launcher from a JavaScript asset supported by static hosts', () => {
-  assert.match(html, /<script type="module" src="\.\/launcher\.js"><\/script>/);
+  assert.match(html, /<link rel="stylesheet" href="\/admin\/styles\.css">/);
+  assert.match(html, /<script type="module" src="\/admin\/launcher\.js"><\/script>/);
 });
 
 test('exposes the recovered UAT Canary destination without a stale warning', () => {

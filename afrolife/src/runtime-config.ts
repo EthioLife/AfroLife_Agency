@@ -298,6 +298,15 @@ function productionConfig(
   const jwtSecret = requiredSecret('JWT_SECRET');
   const mfaKey = requiredSecret('MFA_ENC_KEY');
   if (jwtSecret === mfaKey) throw new Error('JWT_SECRET and MFA_ENC_KEY must be different in production');
+  const previousMfaKey = env.MFA_ENC_KEY_PREVIOUS?.trim();
+  if (previousMfaKey && (
+    previousMfaKey.length < 32
+    || isPlaceholder(previousMfaKey)
+    || previousMfaKey === jwtSecret
+    || previousMfaKey === mfaKey
+  )) {
+    throw new Error('MFA_ENC_KEY_PREVIOUS must be a unique, non-placeholder secret of at least 32 characters');
+  }
   if (env.REQUIRE_MFA_FOR_STAFF !== '1') throw new Error('REQUIRE_MFA_FOR_STAFF=1 is required in production');
 
   const databaseUrl = env.DATABASE_URL?.trim();

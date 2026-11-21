@@ -6,7 +6,7 @@ This runbook describes a staged deployment of the AfroLife Node.js API and web a
 
 - **Application:** one Node.js 22+ app, built with `npm run build` and started with `npm start` (`node dist/src/aletcloud-bootstrap.js`). The one-time bootstrap provisions the restricted database role and applies migrations when its temporary owner URL is configured, then starts the API. The server reads `PORT` and listens on all interfaces when `HOST` is unset.
 - **Database:** private managed PostgreSQL. The runtime database identity must remain a restricted, non-owner role without `BYPASSRLS`; migrations use a separate owner identity.
-- **Documents and media:** private S3-compatible object storage. The current app configuration has `FILE_STORAGE_DIR`, which points to local disk. AletCloud app disk is not a durable shared document store. Implement and verify an S3 storage adapter before accepting real user uploads or running production workflows that depend on documents.
+- **Documents and media:** the app includes a server-mediated S3-compatible storage adapter and a local-filesystem fallback. Use a private, durable S3-compatible bucket in hosted environments; do not rely on ephemeral app disk for user documents. The adapter signs requests, uses UUID object keys, refuses overwrites, and exposes storage readiness, but production upload authorization, malware scanning, retention, and restore behavior must still be verified before enabling real-user uploads.
 - **Availability and recovery:** AletCloud's published backup and recovery features may not meet AfroLife's proposed RPO <= 15 minutes and RTO <= 4 hours. Get written, service-specific commitments or formally approve revised targets before production.
 - **External modules:** leave service cutovers disabled until each service is separately deployed, secured, and accepted. Do not point production at localhost service URLs.
 
@@ -44,7 +44,7 @@ The lowest published combination previously reviewed was App Hosting Max (ETB 3,
 3. Configure the app's server-mediated S3 adapter with `S3_ENDPOINT`, `S3_BUCKET`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` (plus `AWS_SESSION_TOKEN` when supplied). AletCloud's bucket connection injects these settings and redeploys the app. Enforce authorization for every document operation, including tenant/property boundaries; credentials remain server-side and are never exposed in browser responses.
 4. Test upload, download, file type/size validation, and access denial across roles and tenants. Confirm no bucket listing or anonymous object read is possible. Objects use a UUID-only key and signed server-side S3 requests; replacing an existing key is refused, while retention/deletion follows the bucket's configured policy.
 5. If existing documents must be moved, inventory them, copy with checksums and metadata, reconcile database references, and preserve an auditable rollback copy before switching reads/writes. Do not mix local filesystem objects and bucket objects without a separately verified migration.
-6. Keep production uploads disabled until these checks pass. Do not point `FILE_STORAGE_DIR` at ephemeral app storage as a production substitute.
+6. Keep production uploads disabled until these checks pass. Do not point `FILE_STORAGE_DIR` at ephemeral app storage as a production substitute. A passing `/readyz` storage check confirms bucket connectivity only; it does not prove tenant/role authorization, malware scanning, or backup and restore behavior.
 
 ## 5. Configure and deploy staging
 
@@ -56,6 +56,7 @@ The lowest published combination previously reviewed was App Hosting Max (ETB 3,
    - `PORT` only if AletCloud requires it to be declared; the app must use the value injected by the platform
    - `DATABASE_URL` and `MIGRATION_DATABASE_URL`
    - unique strong `JWT_SECRET` and `MFA_ENC_KEY`
+   - optionally `MFA_ENC_KEY_PREVIOUS` during a controlled MFA-key rotation only
    - `REQUIRE_MFA_FOR_STAFF=1`
    - `TRUST_PROXY=1` only when requests reach the app through AletCloud's trusted proxy
    - `CORS_ORIGINS` set to the exact staging origin(s)
@@ -81,11 +82,20 @@ Before applying migrations, take a database snapshot and verify that the runtime
 
 Redeploy once and inspect startup logs for each migration. Stop on the first failure and resolve it before retrying. When `/readyz` reports all expected migrations applied with zero checksum mismatches, unverified checksums, and unexpected migrations, remove both temporary bootstrap variables and redeploy. This mode skips administrator seeding.
 
+### Rotate the MFA encryption key
+
+The app supports a short-lived `MFA_ENC_KEY_PREVIOUS` compatibility key so existing authenticator secrets remain usable during rotation. Do not remove the old key until all stored secrets have been re-encrypted and MFA sign-in has been verified.
+
+1. Deploy the compatibility release while the currently active MFA key is unchanged.
+2. Set `MFA_ENC_KEY` to a new unique secret and `MFA_ENC_KEY_PREVIOUS` to the prior MFA key. If existing records were encrypted using an older JWT secret, preserve that old JWT secret separately for the one-time rotation command; do not put it in persistent app settings.
+3. In a controlled maintenance window, run `npm run db:mfa:rotate-key` from a trusted operator environment configured with the current runtime `DATABASE_URL`, a separate owner `MIGRATION_DATABASE_URL`, current `JWT_SECRET`, the new active `MFA_ENC_KEY`, the prior `MFA_ENC_KEY_PREVIOUS`, and (only if needed) `MFA_LEGACY_JWT_SECRET`. All values must be supplied through the approved secret manager or environment, never command-line arguments, logs, or chat. The script confirms both URLs refer to the same database, locks the users table, and re-encrypts all MFA secrets in one transaction. Any undecryptable secret aborts and rolls back the entire operation.
+4. Verify MFA sign-in for representative staff accounts. Then remove `MFA_ENC_KEY_PREVIOUS` and any one-time `MFA_LEGACY_JWT_SECRET`; redeploy and confirm MFA still works before revoking old key material.
+
 ## 6. Complete production readiness checks
 
 Before creating production traffic, record evidence for each item:
 
-- S3/private document storage adapter is deployed and authorization tests pass.
+- S3/private document storage is configured; signed upload/download behavior, role and tenant authorization, malware scanning, and backup/restore have been independently tested.
 - AletCloud has confirmed contractual availability, backups, restore time, data location, and support for the exact services purchased; recovery meets the approved RPO/RTO.
 - Production uses a separate project/app, PostgreSQL database, bucket, credentials, and domain from staging.
 - The migration and runtime database identities are separate; the runtime ACL/RLS check passes.
