@@ -7,6 +7,7 @@ import { HttpError } from '../../src/http-error.js';
 import { toCsv } from '../../src/csv.js';
 import { sniff } from '../../src/files.js';
 import { getFile, putFile } from '../../src/storage.js';
+import { assertCleanUpload } from '../../src/clamav.js';
 import { withUser } from './db.js';
 import { assessEdirLoan, edirCreditPolicySchema } from './credit.js';
 import { formatEdirMoney, parseEdirMoney } from './money.js';
@@ -567,6 +568,7 @@ edirCreditRouter.post('/documents/:documentType',express.raw({type:()=>true,limi
       `SELECT id FROM edir_memberships WHERE user_id=$1 AND status='active'`,[req.user!.id],
     )).rows[0];
     if(!member)throw new HttpError(403,'An active Edir membership is required to upload loan documents');
+    await assertCleanUpload(file);
     const storageKey=randomUUID();
     const row=(await client.query(
       `INSERT INTO edir_loan_documents(member_id,document_type,storage_key,sha256,mime,size_bytes,uploaded_by)

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { keyFrom, seal, open, sign, verifySignature, passwordProblem, randomPassword, mfaKeys, openAny } from '../src/security.js';
+import { keyFrom, keyFromMfaEncryptionSecret, seal, open, sign, verifySignature, passwordProblem, randomPassword, mfaKeys, openAny } from '../src/security.js';
 
 test('sealed secrets round-trip and cannot be tampered with', () => {
   const k = keyFrom('a'.repeat(32));
@@ -58,6 +58,12 @@ test('MFA_ENC_KEY_PREVIOUS can decrypt old records while new records use the act
   assert.equal(openAny(newlySealed, activeKeys), 'NEW-MFA-SECRET');
   assert.throws(() => mfaKeys('new-jwt'.repeat(5), 'n'.repeat(40), 'short'), /MFA_ENC_KEY_PREVIOUS/);
   assert.throws(() => mfaKeys('new-jwt'.repeat(5), 'n'.repeat(40), 'n'.repeat(40)), /different/);
+});
+
+test('active MFA key derivation matches runtime encryption and rejects weak keys', () => {
+  const secret = 'active-mfa-key'.repeat(3);
+  assert.deepEqual(keyFromMfaEncryptionSecret(secret), mfaKeys('jwt'.repeat(12), secret)[0]);
+  assert.throws(() => keyFromMfaEncryptionSecret('too-short'), /MFA_ENC_KEY/);
 });
 
 test('random passwords use every character class roughly evenly (no modulo bias)', () => {

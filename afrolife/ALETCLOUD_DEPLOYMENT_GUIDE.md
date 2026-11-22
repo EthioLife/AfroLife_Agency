@@ -61,7 +61,7 @@ The lowest published combination previously reviewed was App Hosting Max (ETB 3,
    - `TRUST_PROXY=1` only when requests reach the app through AletCloud's trusted proxy
    - `CORS_ORIGINS` set to the exact staging origin(s)
    - a private AletCloud S3 bucket linked to the app, or a separately verified persistent `FILE_STORAGE_DIR`
-   - Configure a private ClamAV service with `CLAMAV_HOST`, `CLAMAV_PORT`, and `CLAMAV_TIMEOUT_MS`. Uploads fail closed unless scanning is configured and clean.
+   - Configure a private ClamAV service with `CLAMAV_HOST`, `CLAMAV_PORT`, and `CLAMAV_TIMEOUT_MS`. All document and evidence upload routes fail closed unless scanning is configured and clean; missing, unavailable, or inconclusive scans reject the upload.
    - service URLs/secrets only for separately deployed services that have passed their own readiness checks
 
    Keep optional service cutover flags off, including `MFI_PILOT_ENABLED=0`, `INSURANCE_SERVICE_CUTOVER_READY=0`, and `GLOBAL_BI_SERVICE_CUTOVER_READY=0`, until the related integrations are independently deployed and approved. With Insurance unset, its production workspace is hidden and its API routes return 503; the core platform can deploy without that integration. Set all real secrets in the dashboard's secret fields, not plain GitHub files.
@@ -100,7 +100,8 @@ The app supports a short-lived `MFA_ENC_KEY_PREVIOUS` compatibility key so exist
 1. Deploy the compatibility release while the currently active MFA key is unchanged.
 2. Set `MFA_ENC_KEY` to a new unique secret and `MFA_ENC_KEY_PREVIOUS` to the prior MFA key. If existing records were encrypted using an older JWT secret, preserve that old JWT secret separately for the one-time rotation command; do not put it in persistent app settings.
 3. In a controlled maintenance window, run `npm run db:mfa:rotate-key` from a trusted operator environment configured with the current runtime `DATABASE_URL`, a separate owner `MIGRATION_DATABASE_URL`, current `JWT_SECRET`, the new active `MFA_ENC_KEY`, the prior `MFA_ENC_KEY_PREVIOUS`, and (only if needed) `MFA_LEGACY_JWT_SECRET`. All values must be supplied through the approved secret manager or environment, never command-line arguments, logs, or chat. The script confirms both URLs refer to the same database, locks the users table, and re-encrypts all MFA secrets in one transaction. Any undecryptable secret aborts and rolls back the entire operation.
-4. Verify MFA sign-in for representative staff accounts. Then remove `MFA_ENC_KEY_PREVIOUS` and any one-time `MFA_LEGACY_JWT_SECRET`; redeploy and confirm MFA still works before revoking old key material.
+4. Run `npm run db:mfa:verify-key` with the same database URLs, current `JWT_SECRET`, and active `MFA_ENC_KEY`. This read-only check opens every stored MFA secret with the active key only and prints sanitized counts; require `result: PASS` and zero failures as evidence. Verify MFA sign-in for representative staff accounts.
+5. Then remove `MFA_ENC_KEY_PREVIOUS` and any one-time `MFA_LEGACY_JWT_SECRET`; redeploy and confirm MFA still works before revoking old key material.
 
 ## 6. Complete production readiness checks
 

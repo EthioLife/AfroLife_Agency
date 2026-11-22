@@ -68,12 +68,15 @@ try {
     } catch {
       throw new Error('An MFA secret could not be decrypted; no records were changed.');
     }
-    const updated = await client.query(
-      'UPDATE public.users SET mfa_secret = $2 WHERE id = $1 AND mfa_secret = $3',
+    const updated = await client.query<{ mfa_secret: string }>(
+      'UPDATE public.users SET mfa_secret = $2 WHERE id = $1 AND mfa_secret = $3 RETURNING mfa_secret',
       [user.id, seal(plaintext, activeKey), user.mfa_secret],
     );
-    if (updated.rowCount !== 1) {
-      throw new Error('An MFA secret changed during rotation; no records were committed.');
+    if (
+      updated.rowCount !== 1
+      || openAny(updated.rows[0].mfa_secret, [activeKey]) !== plaintext
+    ) {
+      throw new Error('An MFA secret changed or failed active-key verification; no records were committed.');
     }
   }
 

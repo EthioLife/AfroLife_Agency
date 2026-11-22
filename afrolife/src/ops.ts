@@ -9,6 +9,7 @@ import { rentSchedule, rentScheduleForPeriod, endDate } from './rent.js';
 import { refundLimit } from './refunds.js';
 import { loadRules } from './domain.js';
 import { getFile, putFile } from './storage.js';
+import { assertCleanUpload } from './clamav.js';
 import { Phone } from './validators.js';
 import { legacyImmediateLeasesEnabled } from './runtime-config.js';
 import { toCsv } from './csv.js';
@@ -2238,6 +2239,7 @@ ops.post('/leases/:id/signature-documents', requireActivity('property.tenancy.ma
     if (!Buffer.isBuffer(buffer) || buffer.length === 0) throw new HttpError(400, 'No file received');
     const mime = sniff(buffer);
     if (!mime) throw new HttpError(415, 'Only PDF, JPEG or PNG files are accepted');
+    await assertCleanUpload(buffer);
     const document = await withUser(req.user!, async (c) => {
       const lease = (await c.query('SELECT id,status FROM leases WHERE id=$1 FOR UPDATE', [req.params.id])).rows[0];
       if (!lease) throw new HttpError(404, 'Lease not found');
@@ -2658,6 +2660,7 @@ ops.post('/leases/:id/move-out-inspections/:inspectionId/evidence',
     if (!Buffer.isBuffer(buffer) || buffer.length === 0) throw new HttpError(400, 'No file received');
     const mime = sniff(buffer);
     if (!mime) throw new HttpError(415, 'Only PDF, JPEG or PNG evidence is accepted');
+    await assertCleanUpload(buffer);
     const evidence = await withUser(req.user!, async (c) => {
       const inspection = (await c.query(
         `SELECT inspection.id,inspection.status,lease.status AS lease_status
