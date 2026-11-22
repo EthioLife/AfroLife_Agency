@@ -94,6 +94,10 @@ test('architecture governance catalog and CI SBOM are part of the quality contra
   assert.match(workflow, /Generate CycloneDX SBOM/);
   assert.match(workflow, /actions\/upload-artifact@v4/);
   assert.match(workflow, /afrolife-cyclonedx-sbom/);
+  assert.match(workflow, /Detect migration changes in this push/);
+  assert.match(workflow, /afrolife\/migrations\//);
+  assert.match(workflow, /Cannot verify the push base commit; refusing to skip migrations/);
+  assert.match(workflow, /needs\.migration-changes\.outputs\.changed == 'true'/);
 });
 
 test('workforce documents are scanned before storage and fail closed without a clean result', () => {
