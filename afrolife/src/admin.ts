@@ -22,6 +22,7 @@ import { newSecret, otpauthUri, verifyTotpStep } from './totp.js';
 import { BUSINESS_RULES, validateBusinessRuleUpdates } from './business-rules.js';
 import { sniff } from './files.js';
 import { getFile, putFile } from './storage.js';
+import { assertCleanUpload } from './clamav.js';
 import { createApiRateLimiter } from './rate-limit-store.js';
 import { sessionIdleTimeoutMinutes, WORKSPACE_MODULES } from './runtime-config.js';
 import { ROLE_ACTIVITIES, ROLE_NAMES, getRoleActivity, hasRoleActivityAccess, type RoleName } from './role-activities.js';
@@ -35,6 +36,7 @@ import {
 } from './platform-data-admin.js';
 import { getMyTenantDataScopes, getTenantDataScope, requireTenantDataCapability } from './tenant-data-access.js';
 import { getKycRequirements, requiredKycDocuments, ConfigScope, validateMarketplaceConfig, loadMarketplaceConfig } from './marketplace-config.js';
+import { getArchitectureGovernanceSnapshot } from './architecture-governance.js';
 import {
   clearTrustedDeviceCookie,
   createTrustedDeviceToken,
@@ -602,6 +604,7 @@ loginRouter.post('/auth/signup/documents', createApiRateLimiter('signup-document
   if (!requiredKycDocuments(requirements, applicant.account_type).includes(docType)) {
     throw new HttpError(422, 'This document is not required for the selected account type.');
   }
+  await assertCleanUpload(file);
   const id = randomUUID();
   let responseId = id;
   const key = randomUUID();
@@ -772,6 +775,10 @@ adminRouter.patch('/marketplace/config', requireRole('global_admin', 'corporate_
     return loadMarketplaceConfig(c);
   });
   res.json(config);
+}));
+
+adminRouter.get('/platform/architecture-governance', requirePlatformControlPlaneAdmin, h(async (_req, res) => {
+  res.json(getArchitectureGovernanceSnapshot());
 }));
 
 adminRouter.get('/platform/services', requirePlatformControlPlaneAdmin, h(async (req, res) => {

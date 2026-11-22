@@ -119,7 +119,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   box-shadow: var(--surface-shadow);
 }
 .metric strong { display: block; margin-top: 8px; color: var(--green-dark); font-size: clamp(1.2rem, 2vw, 1.55rem); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.line { display: grid; grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(100px, 1fr)); gap: 8px; margin: 8px 0; }
+.line { display: grid; grid-template-columns: repeat(2, minmax(0, 1.4fr)) repeat(2, minmax(100px, 1fr)); gap: 8px; margin: 8px 0; }
 .row { padding: 12px 0; border-bottom: 1px solid #e5ebe7; }
 .row:last-child { border-bottom: 0; }
 .muted { color: var(--muted); }

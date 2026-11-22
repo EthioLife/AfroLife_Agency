@@ -1,4 +1,5 @@
 import net from 'node:net';
+import { HttpError } from './http-error.js';
 
 export interface ClamAvConfig {
   host?: string;
@@ -18,6 +19,22 @@ function environmentConfig(): ClamAvConfig {
 export function isClamAvConfigured(config: ClamAvConfig = environmentConfig()): boolean {
   const port = Number(config.port ?? '3310');
   return Boolean(config.host?.trim()) && Number.isInteger(port) && port > 0 && port <= 65535;
+}
+
+export async function assertCleanUpload(content: Buffer, config?: ClamAvConfig): Promise<void> {
+  if (!isClamAvConfigured(config)) {
+    throw new HttpError(503, 'File upload is unavailable until the malware scanner is configured');
+  }
+
+  try {
+    if (await scanWithClamAv(content, config) !== 'clean') {
+      throw new HttpError(422, 'The file was rejected by the malware scanner');
+    }
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    console.error('File malware scan failed', error instanceof Error ? error.name : 'UnknownError');
+    throw new HttpError(503, 'File upload is unavailable because the malware scan could not be completed');
+  }
 }
 
 export async function scanWithClamAv(

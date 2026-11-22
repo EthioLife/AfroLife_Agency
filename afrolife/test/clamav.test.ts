@@ -2,17 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import net from 'node:net';
 import { once } from 'node:events';
-import { isClamAvConfigured, scanWithClamAv } from '../src/clamav.js';
+import { assertCleanUpload, isClamAvConfigured, scanWithClamAv } from '../src/clamav.js';
 
 async function withScanner(response: string, run: (port: number, received: () => Buffer) => Promise<void>) {
   let received = Buffer.alloc(0);
   const server = net.createServer((socket) => {
     socket.on('data', (chunk) => {
       received = Buffer.concat([received, chunk]);
-      if (received.length >= 4 && received.subarray(-4).equals(Buffer.alloc(4))) {
-        socket.end(Buffer.from(response, 'utf8'));
-      }
     });
+    socket.on('end', () => socket.end(Buffer.from(response, 'utf8')));
   });
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
@@ -51,8 +49,14 @@ test('ClamAV streaming scan sends framed bytes and accepts only a clean response
   const content = Buffer.from('private evidence bytes');
   await withScanner('stream: OK\0', async (port, received) => {
     assert.equal(await scanWithClamAv(content, { host: '127.0.0.1', port: String(port) }), 'clean');
-    assert.ok(received().includes(Buffer.from('zINSTREAM\0')));
-    assert.ok(received().includes(content));
+    const stream = received();
+    const command = Buffer.from('zINSTREAM\0', 'ascii');
+    assert.ok(stream.subarray(0, command.length).equals(command));
+    assert.equal(stream.readUInt32BE(command.length), content.length);
+    const contentOffset = command.length + 4;
+    assert.deepEqual(stream.subarray(contentOffset, contentOffset + content.length), content);
+    assert.equal(stream.readUInt32BE(contentOffset + content.length), 0);
+    assert.equal(stream.length, contentOffset + content.length + 4);
   });
 });
 
@@ -66,4 +70,19 @@ test('ClamAV streaming scan reports infected content without treating it as clea
 
 test('ClamAV scans fail explicitly when scanner configuration is missing', async () => {
   await assert.rejects(scanWithClamAv(Buffer.from('evidence'), {}), /host and a valid port must be configured/);
+});
+
+test('uploads fail closed unless ClamAV reports clean content', async () => {
+  const content = Buffer.from('synthetic upload');
+  await assert.rejects(assertCleanUpload(content, {}), (error: unknown) =>
+    error instanceof Error && 'status' in error && error.status === 503);
+
+  await withScanner('stream: Eicar-Test-Signature FOUND\0', async (port) => {
+    await assert.rejects(assertCleanUpload(content, { host: '127.0.0.1', port: String(port) }),
+      (error: unknown) => error instanceof Error && 'status' in error && error.status === 422);
+  });
+
+  await withScanner('stream: OK\0', async (port) => {
+    await assert.doesNotReject(assertCleanUpload(content, { host: '127.0.0.1', port: String(port) }));
+  });
 });

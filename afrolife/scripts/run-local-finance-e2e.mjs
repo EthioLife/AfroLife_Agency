@@ -127,23 +127,47 @@ async function findPort() {
 }
 
 const [propertyPort, staffingPort, staffingServicePort, clamAvPort] = await findPorts(4);
+const clamAvCommand = Buffer.from('zINSTREAM\0', 'ascii');
+function completeClamAvStream(buffer) {
+  if (buffer.length < clamAvCommand.length) return undefined;
+  if (!buffer.subarray(0, clamAvCommand.length).equals(clamAvCommand)) return false;
+
+  let offset = clamAvCommand.length;
+  while (offset < buffer.length) {
+    if (buffer.length - offset < 4) return undefined;
+    const chunkLength = buffer.readUInt32BE(offset);
+    offset += 4;
+    if (chunkLength === 0) return offset === buffer.length;
+    if (buffer.length - offset < chunkLength) return undefined;
+    offset += chunkLength;
+  }
+  return undefined;
+}
+let clamAvConnectionCount = 0;
 let clamAvScanCount = 0;
 const clamAvTestServer = createServer((socket) => {
+  clamAvConnectionCount++;
   let buffer = Buffer.alloc(0);
   let replied = false;
   const respond = () => {
     if (replied) return;
     replied = true;
     clamAvScanCount++;
-    const validStream = buffer.includes(Buffer.from('zINSTREAM\0'))
-      && buffer.length >= 4 && buffer.subarray(-4).equals(Buffer.alloc(4));
+    const validStream = completeClamAvStream(buffer) === true;
+    if (!validStream) {
+      console.error(`E2E ClamAV fixture received an invalid INSTREAM request (${buffer.length} bytes).`);
+    }
     socket.end(validStream ? 'stream: OK\0' : 'stream: ERROR\0');
   };
   socket.on('data', (chunk) => {
     buffer = Buffer.concat([buffer, chunk]);
-    if (buffer.length >= 4 && buffer.subarray(-4).equals(Buffer.alloc(4))) respond();
   });
   socket.on('end', respond);
+  socket.on('close', () => {
+    if (!replied) {
+      console.error(`E2E ClamAV fixture connection closed before stream completion (${buffer.length} bytes).`);
+    }
+  });
   socket.on('error', (error) => console.error('E2E ClamAV protocol fixture socket failed', error.message));
 });
 await new Promise((resolveListen, rejectListen) => {
@@ -359,7 +383,12 @@ try {
     MFI_PLATFORM_TENANT_ID: mfiPlatformTenantId,
   };
 
-  runNode(['scripts/local-property-finance-e2e.mjs'], suiteEnv, 'Property finance E2E');
+  const propertyExitCode = await runNodeAsync(
+    ['scripts/local-property-finance-e2e.mjs'],
+    suiteEnv,
+    'Property finance E2E',
+  );
+  assert.equal(propertyExitCode, 0, `Property finance E2E failed with exit code ${propertyExitCode}`);
 
   const staffingRuntimeUrl = new URL(migrationUrl);
   staffingRuntimeUrl.username = staffingRole;
@@ -406,21 +435,27 @@ try {
   suiteEnv.STAFFING_DATABASE_URL = staffingRuntimeUrl.toString();
   suiteEnv.STAFFING_TEST_DATABASE_URL = testDatabaseUrl;
   suiteEnv.TEST_DATABASE_URL = testDatabaseUrl;
-  runNode(['scripts/local-staffing-accounting-e2e.mjs'], suiteEnv, 'Staffing Accounting E2E');
+  const staffingExitCode = await runNodeAsync(
+    ['scripts/local-staffing-accounting-e2e.mjs'],
+    suiteEnv,
+    'Staffing Accounting E2E',
+  );
+  assert.equal(staffingExitCode, 0, `Staffing Accounting E2E failed with exit code ${staffingExitCode}`);
+  assert.ok(clamAvScanCount > 0, 'Workforce document uploads must pass through the ClamAV fixture');
 
   const port = await findPort();
   await startApi(port, suiteEnv);
-  runNode(
+  const mfiExitCode = await runNodeAsync(
     ['--require', './.codex-osinfo-fallback.cjs', '--import', 'tsx', 'scripts/local-mfi-e2e.ts'],
     { ...suiteEnv, API_URL: `http://127.0.0.1:${port}` },
     'SACCO/MFI role journey E2E',
   );
+  assert.equal(mfiExitCode, 0, `SACCO/MFI role journey E2E failed with exit code ${mfiExitCode}`);
   suiteExitCode = await runNodeAsync(
     ['--import', 'tsx', '--test', 'test/api.test.ts', 'test/supply.test.ts'],
     { ...suiteEnv, API_URL: `http://127.0.0.1:${port}` },
     'Core HTTP integration suite',
   );
-  console.log(`E2E ClamAV protocol fixture handled ${clamAvScanCount} scan request(s).`);
   if (suiteExitCode !== 0) console.error(`Core API logs before E2E failure:\n${apiLogs}`);
   assert.equal(suiteExitCode, 0, 'Core HTTP integration suite failed');
   console.log('Finance E2E passed on a temporary database with a non-superuser runtime role.');
@@ -429,6 +464,7 @@ try {
   await new Promise((resolveClose, rejectClose) => {
     clamAvTestServer.close((error) => error ? rejectClose(error) : resolveClose());
   });
+  console.log(`E2E ClamAV fixture observed ${clamAvConnectionCount} connection(s) and completed ${clamAvScanCount} scan(s).`);
   try { await adminClient.end(); } catch {}
   if (databaseCreated) {
     const cleanup = new pg.Client({ connectionString: adminConnectionString, connectionTimeoutMillis: 5000 });

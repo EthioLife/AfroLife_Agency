@@ -85,8 +85,9 @@ const completeSchemas: Record<AgencyDomain, { tables: string[]; rls: string[] }>
     ],
   },
   marketplace: {
-    tables: ['agents', 'audit_logs', 'marketplace_configuration', 'marketplace_listings', 'marketplace_media', 'notifications', 'territories', 'users', 'user_signups'],
-    rls: ['agents', 'marketplace_configuration', 'marketplace_listings', 'marketplace_media'],
+    tables: ['agents', 'audit_logs', 'marketplace_configuration', 'marketplace_listings', 'marketplace_media',
+      'marketplace_service_requests', 'notifications', 'territories', 'users', 'user_signups'],
+    rls: ['agents', 'marketplace_configuration', 'marketplace_listings', 'marketplace_media', 'marketplace_service_requests'],
   },
 };
 
@@ -122,6 +123,20 @@ test('database readiness rejects an incomplete service schema column set', async
       undefined, requiredColumns.slice(1),
     )),
     /missing columns:.*users\.id/,
+  );
+});
+
+test('marketplace readiness requires all service request lifecycle columns', async () => {
+  const requiredColumns = agencyDomainSchemaRequirements.marketplace.requiredColumns;
+  await assert.rejects(
+    assertAgencyDomainDatabaseReady('marketplace', databaseFor(
+      'marketplace',
+      completeSchemas.marketplace.tables,
+      completeSchemas.marketplace.rls,
+      undefined,
+      requiredColumns.filter((column) => column !== 'marketplace_service_requests.quote_terms'),
+    )),
+    /missing columns:.*marketplace_service_requests\.quote_terms/,
   );
 });
 

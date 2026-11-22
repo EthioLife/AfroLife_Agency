@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { HttpError, requireActivity, requireRole, withUser } from './core.js';
 import { requireMiniAppAccess } from './mini-app-access.js';
 import { audit } from './domain.js';
-import { isClamAvConfigured, scanWithClamAv } from './clamav.js';
+import { assertCleanUpload } from './clamav.js';
 import { sniff } from './files.js';
 import { getFile, putFile } from './storage.js';
 
@@ -149,15 +149,7 @@ const uploadMaintenanceEvidence = h(async (req, res) => {
   if (buffer.length > 10 * 1024 * 1024) throw new HttpError(413, 'Evidence images must be 10 MB or smaller');
   const mime = sniff(buffer);
   if (mime !== 'image/jpeg' && mime !== 'image/png') throw new HttpError(415, 'Evidence must be a JPEG or PNG image');
-  if (!isClamAvConfigured()) throw new HttpError(503, 'Evidence upload is unavailable until the malware scanner is configured');
-  let scanResult: 'clean' | 'infected';
-  try {
-    scanResult = await scanWithClamAv(buffer);
-  } catch (error) {
-    console.error('Maintenance evidence malware scan failed', error instanceof Error ? error.message : error);
-    throw new HttpError(503, 'Evidence upload is unavailable because the malware scan could not be completed');
-  }
-  if (scanResult !== 'clean') throw new HttpError(422, 'The evidence image was rejected by the malware scanner');
+  await assertCleanUpload(buffer);
 
   const row = await withUser(req.user!, async (client) => {
     const maintenance = (await client.query(
@@ -352,14 +344,7 @@ portal.post('/maintenance/vendor/:id/invoice', vendorOnly, h(async (req, res) =>
   if (buffer.length > 10 * 1024 * 1024) throw new HttpError(413, 'Invoice evidence must be 10 MB or smaller');
   const mime = sniff(buffer);
   if (!mime) throw new HttpError(415, 'Invoice evidence must be a PDF, JPEG, or PNG file');
-  if (!isClamAvConfigured()) throw new HttpError(503, 'Invoice submission is unavailable until the malware scanner is configured');
-  try {
-    if (await scanWithClamAv(buffer) !== 'clean') throw new HttpError(422, 'Invoice evidence was rejected by the malware scanner');
-  } catch (error) {
-    if (error instanceof HttpError) throw error;
-    console.error('Maintenance invoice malware scan failed', error instanceof Error ? error.message : error);
-    throw new HttpError(503, 'Invoice submission is unavailable because the malware scan could not be completed');
-  }
+  await assertCleanUpload(buffer);
 
   const amountCents = Math.round(body.amount * 100);
   if (!Number.isSafeInteger(amountCents) || Math.abs(body.amount * 100 - amountCents) > 1e-7) {

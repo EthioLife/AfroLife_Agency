@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
+import { getAletCloudAdminRecoveryConfig } from './aletcloud-admin-recovery-config.js';
+import { createAletCloudMigrationEnvironment } from './aletcloud-migration-environment.js';
 import { normalizePhone } from './phone.js';
 
 function databaseUrlDetails(connectionString: string) {
@@ -173,16 +175,7 @@ if (provisioningUrl) {
 
   const effectiveRuntimeUrl = await provisionRuntimeRole(provisioningUrl, runtimeUrl);
   process.env.DATABASE_URL = effectiveRuntimeUrl;
-  const migrationEnv: NodeJS.ProcessEnv = { ...process.env, MIGRATION_DATABASE_URL: provisioningUrl };
-  if (migrationsOnly) {
-    delete migrationEnv.SEED_ADMIN_NAME;
-    delete migrationEnv.SEED_ADMIN_PHONE;
-    delete migrationEnv.SEED_ADMIN_PASSWORD;
-  } else {
-    migrationEnv.AFROLIFE_SEED_ADMIN_BEFORE_PROPERTY_TENANT_MIGRATION = '1';
-  }
-  delete migrationEnv.ALETCLOUD_BOOTSTRAP_DATABASE_URL;
-  delete migrationEnv.ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY;
+  const migrationEnv = createAletCloudMigrationEnvironment(process.env, provisioningUrl, migrationsOnly);
   const migration = spawnSync(
     process.execPath,
     [fileURLToPath(new URL('./migrate.js', import.meta.url))],
@@ -217,30 +210,8 @@ if (provisioningUrl) {
   delete process.env.SEED_ADMIN_PASSWORD;
 }
 
-const recoveryEnabled = process.env.ALETCLOUD_ADMIN_RECOVERY_ENABLED;
-const recoveryPhoneInput = process.env.ALETCLOUD_ADMIN_RECOVERY_PHONE;
-const recoveryName = process.env.ALETCLOUD_ADMIN_RECOVERY_NAME?.trim();
-const recoveryPassword = process.env.ALETCLOUD_ADMIN_RECOVERY_PASSWORD;
-const recoveryConfirm = process.env.ALETCLOUD_ADMIN_RECOVERY_CONFIRM;
-if (
-  recoveryEnabled !== undefined
-  || recoveryPhoneInput !== undefined
-  || recoveryName !== undefined
-  || recoveryPassword !== undefined
-  || recoveryConfirm !== undefined
-) {
-  const phone = normalizePhone(recoveryPhoneInput ?? '');
-  if (
-    recoveryEnabled !== '1'
-    || recoveryConfirm !== 'rotate-super-admin'
-    || !phone
-    || (recoveryName !== undefined && recoveryName.length < 2)
-    || !recoveryPassword
-    || recoveryPassword.length < 16
-    || Buffer.byteLength(recoveryPassword, 'utf8') > 72
-  ) {
-    throw new Error('Valid one-time Super Admin recovery settings are required.');
-  }
+const recovery = getAletCloudAdminRecoveryConfig(process.env);
+if (recovery) {
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required for Super Admin recovery.');
 
   const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
@@ -248,7 +219,7 @@ if (
   try {
     await client.query('BEGIN');
     await client.query("SELECT set_config('app.role', 'global_admin', true)");
-    const user = recoveryName
+    const user = recovery.name
       ? await client.query<{ id: string }>(
         `SELECT id FROM users
          WHERE role IN ('super_admin', 'global_admin') AND active = true
@@ -258,7 +229,7 @@ if (
         `SELECT id FROM users
          WHERE phone = $1 AND role IN ('super_admin', 'global_admin') AND active = true
          FOR UPDATE`,
-        [phone],
+        [recovery.phone],
       );
     if (user.rowCount !== 1) {
       throw new Error('Super Admin recovery requires exactly one active administrator for the selected recovery mode.');
@@ -266,20 +237,20 @@ if (
 
     const userId = user.rows[0].id;
     await client.query("SELECT set_config('app.user_id', $1, true)", [userId]);
-    if (recoveryName) {
+    if (recovery.name) {
       await client.query(
         `UPDATE users
          SET legal_name = $2, phone = $3, password_hash = $4, must_change_password = true,
              failed_logins = 0, locked_until = NULL
          WHERE id = $1`,
-        [userId, recoveryName, phone, await bcrypt.hash(recoveryPassword, 12)],
+        [userId, recovery.name, recovery.phone, await bcrypt.hash(recovery.password, 12)],
       );
     } else {
       await client.query(
         `UPDATE users
          SET password_hash = $2, must_change_password = true, failed_logins = 0, locked_until = NULL
          WHERE id = $1`,
-        [userId, await bcrypt.hash(recoveryPassword, 12)],
+        [userId, await bcrypt.hash(recovery.password, 12)],
       );
     }
     await client.query(

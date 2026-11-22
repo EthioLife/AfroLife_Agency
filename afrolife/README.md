@@ -27,8 +27,8 @@ Same-origin TypeScript/Express API and installable web app for AfroLife agency o
    This initializes PostgreSQL 18 in `%LOCALAPPDATA%\AfroLife\postgresql` on port `5433` without changing the separate Windows PostgreSQL service on port `5432`. It creates the `afrolife` database, enables `pgcrypto`, applies all migrations, and grants the API a non-superuser `afrolife_app` role that does not bypass row-level security. Random credentials and application secrets are stored outside the project in `%LOCALAPPDATA%\AfroLife\afrolife.env`; do not share that file. Database files persist between restarts.
 
    To use an existing PostgreSQL instance instead, copy `.env.example` to `.env` and configure `DATABASE_URL` for the runtime role and `MIGRATION_DATABASE_URL` for a migration owner. Use distinct, randomly generated `JWT_SECRET` and `MFA_ENC_KEY` values of at least 32 characters. The runtime role must not own tables or have `BYPASSRLS`; apply schema changes with `npm run db:migrate`.
-
-   For an AletCloud release that must apply pending core migrations without running initial-administrator seeding, temporarily set `ALETCLOUD_BOOTSTRAP_DATABASE_URL` to the database provisioning URL and `ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY=1`, then deploy through the normal guarded startup. Verify `/readyz` reports all migrations current, then remove both temporary variables and redeploy. Never leave the provisioning URL in the running app configuration.
+   
+3. For an AletCloud release that must apply pending core migrations without running initial-administrator seeding, temporarily set `ALETCLOUD_BOOTSTRAP_DATABASE_URL` to the database provisioning URL and `ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY=1`, then deploy through the normal guarded startup. Verify `/readyz` reports all migrations current, then remove both temporary variables and redeploy. Never leave the provisioning URL in the running app configuration.
 
    To bootstrap the two initial AfroSherik platform administrators in the Development deployment, use the guarded one-time backend flow only after the required migrations are applied and the existing `platform_tenants` row is confirmed. Set `AFROLIFE_DEPLOYMENT_ENV=development`, `ALETCLOUD_APP_NAME=afrolife-development`, `ALLOW_INITIAL_AFROSHERIK_ADMIN_BOOTSTRAP=1`, `INITIAL_AFROSHERIK_ADMIN_BOOTSTRAP_CONFIRM=create-afrosherik-platform-admins`, `INITIAL_AFROSHERIK_TENANT_KEY` to the exact key of the existing tenant whose display name is AfroSherik, and `INITIAL_AFROSHERIK_ADMIN_BOOTSTRAP_REASON` to a non-secret change reason. Set `INITIAL_DAWIT_ADMIN_PASSWORD` and `INITIAL_YALEMWORK_ADMIN_PASSWORD` as separate AletCloud secrets, each at least 16 characters and no more than 72 UTF-8 bytes. The flow creates Dawit Asrade (`+251951076113`) and Yalemwork Antenh (`+251966302995`) as Global Admins and gives each a Super Admin access mode scoped only to that tenant; it does not create a tenant, overwrite an existing account, or run if any Global Admin already exists. Both accounts must change their distinct temporary passwords at first sign-in and enroll in MFA. The bootstrap is one-time, transactional, and audited. Remove the opt-in, confirmation, tenant key, reason, and both password variables from AletCloud immediately after a successful deployment. Never use a password disclosed in chat or store these secrets in source control.
 
@@ -46,7 +46,7 @@ Same-origin TypeScript/Express API and installable web app for AfroLife agency o
 
    For initial UAT recovery only, `npm run bootstrap:uat-global-admin` can establish the first Global Admin when no Global Admin exists and the normal independent promotion workflow is not yet possible. It requires `AFROLIFE_DEPLOYMENT_ENV=uat`, `ALETCLOUD_APP_NAME=afrolife-uat-canary`, `ALLOW_UAT_GLOBAL_ADMIN_BOOTSTRAP=1`, `DATABASE_URL`, `UAT_GLOBAL_ADMIN_TARGET_ID`, and `UAT_GLOBAL_ADMIN_REASON`. The target must already be an active, MFA-enabled Super Admin. The operation uses a serializable transaction and advisory lock, rejects any existing Global Admin or prior bootstrap, writes the role-change history and an audit record, and can succeed only once. Set the environment values only for the confirmed UAT database, run the command once, then immediately remove the opt-in and target/reason values. This is not a production recovery path; normal Global Admin promotions must use the two-person approval workflow.
 
-4. Run `npm run dev`, then open `http://localhost:3010`.
+5. Run `npm run dev`, then open `http://localhost:3010`.
 
 `http://localhost:3010` is the single client-facing local entry point for the
 PWA and API. All configured services, including Accounting, are reached through
@@ -57,22 +57,19 @@ single app URL (or the public hostname in deployment); they do not open
 service-specific ports. Extracted backends remain private behind the central
 API gateway, which routes each feature internally.
 
-An optional separate Admin/Staff entry hostname can be enabled with
-`ADMIN_PORTAL_URL=https://<your-admin-host>`. Configure DNS and the AletCloud
-host mapping to route that hostname to this same core app, then set the
-environment variable and redeploy. The public sign-in page will show an
-Admin/Staff link, and the admin hostname will hide public registration and
-present the staff sign-in flow. The login endpoint rejects accounts without an
+An Admin/Staff entry can use either a dedicated hostname or the same app
+hostname with the `/admin` path. Set `ADMIN_PORTAL_URL` to
+`https://<app-host>/admin` to use the existing app's TLS and hosting resources,
+or to `https://<admin-host>` after DNS, app routing, and HTTPS are verified.
+The public sign-in page shows an Admin/Staff link when this setting is enabled;
+the admin entry hides public registration and presents the staff sign-in flow.
+On the path-based entry, API requests use `/admin/api/v1`; a dedicated hostname
+continues to use `/api/v1`. The login endpoint rejects accounts without an
 assigned role that requires MFA; password change and authenticator enrollment
 remain in the existing restricted-session flow. API role checks remain the
 security boundary. This separates the entry experience, not the API process or
 database; a standalone frontend deployment would additionally need a secured
 API proxy/origin configuration and is not enabled by this setting.
-For the Development deployment, the selected URL is
-`https://admin.afrosherik.app.aletcloud.com`. It is not enabled until AletCloud
-routes that hostname to the existing core app and provisions HTTPS; a public
-connectivity check could not reach it yet. Leave `ADMIN_PORTAL_URL` unset until
-that mapping is confirmed to avoid exposing a broken sign-in link.
 
 After a successful authenticator challenge, a user may opt to trust that
 browser for 30 days over HTTPS. The browser receives a host-only, secure, HTTP-only cookie;

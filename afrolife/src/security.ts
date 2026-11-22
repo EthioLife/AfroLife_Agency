@@ -3,16 +3,33 @@ import { createCipheriv, createDecipheriv, createHash, createHmac, hkdfSync, ran
 /** Key for encrypting 2FA secrets at rest, derived from the server secret. */
 export const keyFrom = (secret: string) => createHash('sha256').update(secret + ':mfa').digest();
 
+export function keyFromMfaEncryptionSecret(secret: string): Buffer {
+  if (secret.length < 32) throw new Error('MFA_ENC_KEY must be 32+ characters');
+  return Buffer.from(hkdfSync('sha256', secret, 'afrolife-mfa', 'mfa-secret-v1', 32));
+}
+
 /**
  * Keys for MFA secrets, newest first (new data is sealed with the first; any can open old data).
  * Set MFA_ENC_KEY (32+ chars) so rotating JWT_SECRET no longer makes every stored 2FA secret unreadable.
  * The JWT-derived key stays as a fallback so existing users keep working until their secrets are re-sealed.
  */
-export function mfaKeys(jwtSecret: string, encKey = process.env.MFA_ENC_KEY): Buffer[] {
+export function mfaKeys(
+  jwtSecret: string,
+  encKey = process.env.MFA_ENC_KEY,
+  previousEncKey = process.env.MFA_ENC_KEY_PREVIOUS,
+): Buffer[] {
   const legacy = keyFrom(jwtSecret);
   if (!encKey) return [legacy];
-  if (encKey.length < 32) throw new Error('MFA_ENC_KEY must be 32+ characters');
-  return [Buffer.from(hkdfSync('sha256', encKey, 'afrolife-mfa', 'mfa-secret-v1', 32)), legacy];
+  const keys = [keyFromMfaEncryptionSecret(encKey)];
+  if (previousEncKey) {
+    if (previousEncKey.length < 32) throw new Error('MFA_ENC_KEY_PREVIOUS must be 32+ characters');
+    if (previousEncKey === encKey || previousEncKey === jwtSecret) {
+      throw new Error('MFA_ENC_KEY_PREVIOUS must be different from the active MFA and JWT secrets');
+    }
+    keys.push(Buffer.from(hkdfSync('sha256', previousEncKey, 'afrolife-mfa', 'mfa-secret-v1', 32)));
+  }
+  keys.push(legacy);
+  return keys;
 }
 
 export function openAny(sealed: string, keys: Buffer[]): string {

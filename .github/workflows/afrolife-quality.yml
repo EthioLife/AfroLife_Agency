@@ -31,6 +31,15 @@ jobs:
       - run: npm ci
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+      - name: Generate CycloneDX SBOM
+        run: npm sbom --sbom-format=cyclonedx --sbom-type=application > afrolife.cdx.json
+      - name: Retain SBOM release evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: afrolife-cyclonedx-sbom
+          path: afrolife/afrolife.cdx.json
+          if-no-files-found: error
+          retention-days: 90
       - name: Check browser JavaScript syntax
         run: |
           node --check public/app.js
@@ -42,7 +51,9 @@ jobs:
           node --check public/sw.js
       - name: Validate app configuration JSON
         run: |
-          node -e "for (const f of ['package.json','capacitor.config.json','public/manifest.webmanifest']) JSON.parse(require('node:fs').readFileSync(f,'utf8'))"
+          node -e "for (const f of ['package.json','capacitor.config.json','public/manifest.webmanifest','admin-app/environments.json']) JSON.parse(require('node:fs').readFileSync(f,'utf8'))"
+      - name: Test Admin environment launcher
+        run: node --test admin-app/test/launcher.test.mjs
       - name: Sync iOS Capacitor project
         run: npm run ios:sync
       - name: Sync Android Capacitor project
@@ -88,3 +99,40 @@ jobs:
       - run: npm ci
       - name: Run integration workflows against disposable PostgreSQL service
         run: node scripts/run-local-finance-e2e.mjs
+
+  migrate-development:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/aletcloud-development'
+    needs:
+      - unit-and-build
+      - disposable-database-integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: afrolife-development
+    concurrency:
+      group: afrolife-development-schema
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: afrolife
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: afrolife/package-lock.json
+      - run: npm ci
+      - name: Require Development database credentials
+        env:
+          DATABASE_URL: ${{ secrets.ALETCLOUD_DEVELOPMENT_DATABASE_URL }}
+          MIGRATION_DATABASE_URL: ${{ secrets.ALETCLOUD_DEVELOPMENT_MIGRATION_DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$MIGRATION_DATABASE_URL" ]; then
+            echo "::error::Configure the Development runtime and migration URLs in the afrolife-development GitHub Environment."
+            exit 1
+          fi
+      - name: Apply checksummed Development migrations
+        env:
+          DATABASE_URL: ${{ secrets.ALETCLOUD_DEVELOPMENT_DATABASE_URL }}
+          MIGRATION_DATABASE_URL: ${{ secrets.ALETCLOUD_DEVELOPMENT_MIGRATION_DATABASE_URL }}
+        run: npm run db:migrate

@@ -21,6 +21,7 @@ try{
     ['accounting-v3-direct-entity-access','003_accounting_entity_access.sql'],
     ['accounting-v4-transaction-controls','004_accounting_transaction_controls.sql'],
     ['accounting-v5-subscriber-owned-businesses','005_accounting_subscriber_ownership.sql'],
+    ['accounting-v6-tenant-products-and-pricing','006_accounting_products_and_pricing.sql'],
   ]){
     let sql:string;
     try{sql=await readFile(new URL(`./${file}`,import.meta.url),'utf8');}

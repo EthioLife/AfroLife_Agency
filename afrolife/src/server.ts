@@ -7,7 +7,7 @@ import type { PoolClient } from 'pg';
 import helmet from 'helmet';
 import { z } from 'zod';
 import { pool, withUser, authenticate, requireRole, HttpError, JWT_SECRET, assertRuntimeDatabaseSafety } from './core.js';
-import { isAdminPortalHost, loadRuntimeConfig, workspaceModulesForServices } from './runtime-config.js';
+import { isAdminPortalRequest, loadRuntimeConfig, workspaceModulesForServices } from './runtime-config.js';
 import { apiMetricsMiddleware, checkWorkspaceServices, createWorkspaceServiceStatusCache, flushApiMetrics, readPersistedApiMetrics, startApiMetricsPersistence, type ServiceProbe } from './workspace-status.js';
 import { createApiRateLimiter } from './rate-limit-store.js';
 import { audit } from './domain.js';
@@ -35,6 +35,7 @@ import { createAgencyOperationsRouter } from './agency-operations.js';
 import { getMessagingStatus } from './auth-integrations.js';
 import { telegramWebhook, whatsappWebhook, whatsappWebhookVerify } from './messaging-webhooks.js';
 import { SUPPORT_FAQ } from './support-faq.js';
+import { isMalformedJsonRequestError } from './api-request-errors.js';
 
 const app = express();
 app.use(correlationIdMiddleware);
@@ -82,7 +83,7 @@ app.use((req, res, next) => {
   if (origin && corsOrigins.has(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
-    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-AfroLife-Edir-Id, X-AfroLife-Correlation-Id, X-AfroLife-Property-Tenant-Id, X-AfroLife-Property-Tenant-Purpose');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Idempotency-Key, X-AfroLife-Edir-Id, X-AfroLife-Correlation-Id, X-AfroLife-Property-Tenant-Id, X-AfroLife-Property-Tenant-Purpose');
     res.setHeader('Access-Control-Expose-Headers', 'X-AfroLife-Correlation-Id');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   }
@@ -178,10 +179,17 @@ if (!staticDirs.length) throw new Error('Web assets were not found; expected a p
 const indexHtmlPath = staticDirs.map((dir) => join(dir, 'index.html')).find(existsSync);
 if (!indexHtmlPath) throw new Error('Web assets were found without an index.html entry point');
 const indexHtmlTemplate = readFileSync(indexHtmlPath, 'utf8');
-app.get(['/', '/index.html'], (req, res) => {
-  const adminPortal = isAdminPortalHost(req.hostname, runtimeConfig.adminPortal);
+const appShellPaths = ['/', '/index.html'];
+if (runtimeConfig.adminPortal?.pathname && runtimeConfig.adminPortal.pathname !== '/') {
+  appShellPaths.push(runtimeConfig.adminPortal.pathname, `${runtimeConfig.adminPortal.pathname}/`);
+}
+app.get(appShellPaths, (req, res) => {
+  const adminPortal = isAdminPortalRequest(req.hostname, req.path, runtimeConfig.adminPortal);
   const html = indexHtmlTemplate
     .replace('data-portal-mode="__PORTAL_MODE__"', `data-portal-mode="${adminPortal ? 'admin' : 'public'}"`)
+    .replace('data-api-root="__API_ROOT__"', `data-api-root="${adminPortal && runtimeConfig.adminPortal?.pathname !== '/'
+      ? `${runtimeConfig.adminPortal?.pathname}/api/v1`
+      : '/api/v1'}"`)
     .replace('href="__ADMIN_PORTAL_URL__"', `href="${runtimeConfig.adminPortal?.url ?? '#'}"`)
     .replace('__ADMIN_PORTAL_LINK_HIDDEN__', runtimeConfig.adminPortal ? '' : 'hidden');
   res.setHeader('Cache-Control', 'no-store');
@@ -201,7 +209,7 @@ const AGENT = ['master_agent', 'field_agent'];
 const api = express.Router();
 api.use(apiMetricsMiddleware);
 api.use((req, res, next) => {
-  res.locals.adminPortal = isAdminPortalHost(req.hostname, runtimeConfig.adminPortal);
+  res.locals.adminPortal = isAdminPortalRequest(req.hostname, req.originalUrl.split('?')[0], runtimeConfig.adminPortal);
   next();
 });
 
@@ -916,12 +924,19 @@ if (runtimeConfig.mfiPilotEnabled) {
 api.use(createAgencyOperationsRouter());
 
 app.use('/api/v1', api);
+if (runtimeConfig.adminPortal?.pathname && runtimeConfig.adminPortal.pathname !== '/') {
+  app.use(`${runtimeConfig.adminPortal.pathname}/api/v1`, api);
+}
 
 // ---- Errors: translate validation and database rule violations into clear responses ----
 app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
   const correlationId = getCorrelationId(req);
   const reply = (status: number, body: Record<string, unknown>) =>
     res.status(status).json({ ...body, correlation_id: correlationId });
+  if (isMalformedJsonRequestError(err)) {
+    console.warn(`Malformed JSON request [${correlationId}]`);
+    return reply(400, { error: 'Invalid JSON' });
+  }
   if (err instanceof HttpError) return reply(err.status, { error: err.message });
   if (err instanceof z.ZodError) return reply(400, { error: 'Invalid input', details: err.flatten() });
   if (err?.code === '22P02') return reply(400, { error: 'Invalid id or value' }); // e.g. a malformed UUID in the URL

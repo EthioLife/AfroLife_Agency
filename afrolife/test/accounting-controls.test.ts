@@ -7,6 +7,12 @@ import {
   toCents,
   validateBalancedJournal,
 } from '../services/accounting/journal-validation.js';
+import {
+  ethioLifePlanScenario,
+  ethioLifePrices,
+  ethioLifeProducts,
+  ethioLifeRevenueTargets,
+} from '../services/accounting/product-catalog.js';
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
@@ -94,10 +100,57 @@ test('accounting production image packages every migration required by the migra
     '002_accounting_workflows.sql',
     '003_accounting_entity_access.sql',
     '004_accounting_transaction_controls.sql',
+    '005_accounting_subscriber_ownership.sql',
+    '006_accounting_products_and_pricing.sql',
   ];
 
   for (const migration of migrations) {
     assert.match(migrator, new RegExp(`'[^']+','${migration.replaceAll('.', '\\.')}'`));
     assert.match(dockerfile, new RegExp(`COPY services/accounting/${migration.replaceAll('.', '\\.')} \\.\\/dist\\/services\\/accounting\\/${migration.replaceAll('.', '\\.')}`));
   }
+});
+
+test('tenant service template keeps historical references subordinate to divisions', () => {
+  const divisions = new Set(ethioLifeProducts.filter((product) => product.productType === 'division').map((product) => product.code));
+  const offerings = new Set(ethioLifeProducts.filter((product) => product.productType === 'offering').map((product) => product.code));
+
+  assert.deepEqual([...divisions].sort(), [
+    'BRIGHT_SPACES', 'DLS', 'ETHIOCARE', 'RPM', 'SKS', 'TRAINING',
+  ]);
+  assert.ok(ethioLifeProducts
+    .filter((product) => product.productType === 'offering')
+    .every((product) => product.parentCode && divisions.has(product.parentCode)));
+  assert.ok(ethioLifePrices.every((price) => offerings.has(price.productCode)));
+  assert.ok(ethioLifePrices.every((price) => /Draft guidance only/.test(price.sourceNote)));
+  assert.ok(ethioLifePrices.every((price) => price.pricingModel !== 'percentage'
+    || (price.priceUnit === 'percentage_of_gross_monthly_rent' && price.currency === null)));
+  assert.ok(ethioLifeRevenueTargets.every((target) => divisions.has(target.productCode)));
+  assert.match(ethioLifePlanScenario.name, /historical reference/i);
+  assert.match(ethioLifePlanScenario.sourceNote, /not calendar years or approved current budgets/i);
+});
+
+test('tenant product migration and workflows enforce isolated, reviewed price references', () => {
+  const migration = source('services/accounting/006_accounting_products_and_pricing.sql');
+  const productsRouter = source('services/accounting/products.ts');
+  const accountingRouter = source('services/accounting/router.ts');
+  const workflows = source('services/accounting/workflows.ts');
+  const operationsUi = source('public/accounting-operations.js');
+  const journalUi = source('services/accounting/web/app.js');
+
+  assert.match(migration, /FOREIGN KEY \(parent_product_id,entity_id\)/);
+  assert.match(migration, /FOREIGN KEY \(product_id,entity_id\) REFERENCES accounting_products/);
+  assert.match(migration, /CHECK \(minimum_rate IS NULL OR minimum_rate>=0\)/);
+  assert.match(migration, /CHECK \(maximum_rate IS NULL OR maximum_rate>=0\)/);
+  assert.match(migration, /FORCE ROW LEVEL SECURITY/);
+  assert.match(migration, /Product price review requires an independent reviewer and reason/);
+  assert.match(migration, /overlapping effective dates/);
+  assert.match(accountingRouter, /createAccountingProductRouter\(withUser\)/);
+  assert.match(productsRouter, /product-profitability/);
+  assert.match(productsRouter, /sendProfitabilityCsv/);
+  assert.match(accountingRouter, /product_id/);
+  assert.match(workflows, /product_id:UUID\.optional\(\)\.nullable\(\)/);
+  assert.match(workflows, /l\.product_id/);
+  assert.match(operationsUi, /select\('product_id','Service offering \(optional\)'/);
+  assert.match(operationsUi, /\.\.\.\(v\.product_id\?\{product_id:v\.product_id\}:\{\}\)/);
+  assert.match(journalUi, /name='product_id'/);
 });
