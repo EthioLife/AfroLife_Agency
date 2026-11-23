@@ -1,6 +1,7 @@
 const ENVIRONMENT_HOSTS = new Set([
   'afrolife-agency.app.aletcloud.com',
-  'afrolife-development.app.aletcloud.com'
+  'afrolife-development.app.aletcloud.com',
+  'afrolife-production.app.aletcloud.com'
 ]);
 
 export function resolveEnvironmentUrl(value) {
@@ -93,6 +94,14 @@ async function loadDestinations() {
       'Unavailable · the Development URL is not configured.',
       typeof config.developmentNotice === 'string' ? config.developmentNotice : ''
     );
+    renderDestination(
+      'production-action',
+      'production-status',
+      config.production,
+      'Production',
+      'Unavailable · the Production URL is not configured.',
+      typeof config.productionNotice === 'string' ? config.productionNotice : ''
+    );
   } catch {
     renderReadinessBanner(
       'Readiness information could not be loaded. Confirm UAT is ready with a platform administrator before continuing.'
@@ -109,6 +118,13 @@ async function loadDestinations() {
       'development-status',
       null,
       'Development',
+      'Unavailable · environment configuration could not be loaded.'
+    );
+    renderDestination(
+      'production-action',
+      'production-status',
+      null,
+      'Production',
       'Unavailable · environment configuration could not be loaded.'
     );
   }

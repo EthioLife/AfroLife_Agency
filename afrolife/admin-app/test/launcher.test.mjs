@@ -30,6 +30,15 @@ test('does not show a stale warning when Development is ready', () => {
   assert.equal(config.developmentNotice, '');
 });
 
+test('exposes the configured Production portal', () => {
+  assert.equal(
+    resolveEnvironmentUrl(config.production),
+    'https://afrolife-production.app.aletcloud.com/'
+  );
+  assert.match(html, /id="production-action"/);
+  assert.match(html, /<h2 id="production-title">Production<\/h2>/);
+});
+
 test('rejects destinations that are not an exact secure admin URL', () => {
   for (const value of [
     'http://example.com/admin',
@@ -41,6 +50,7 @@ test('rejects destinations that are not an exact secure admin URL', () => {
     'https://user:pass@example.com/admin',
     '/admin',
     'https://afrolife-agency.app.aletcloud.com/unverified-path',
+    'https://afrolife-production.app.aletcloud.com.evil.example/',
     'https://afrolife-agency.app.aletcloud.com:8443/admin',
     'https://evil.example/admin',
   ]) {
