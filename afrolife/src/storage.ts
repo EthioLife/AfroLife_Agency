@@ -78,6 +78,12 @@ export function createPrivateStorage(env: Environment) {
             if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
           }
         }
+        try {
+          await send(bucketUrl(), 'HEAD', undefined, AbortSignal.timeout(5_000));
+          return;
+        } catch {
+          // Keep readiness fail-closed if neither the marker nor bucket is readable.
+        }
         throw lastHeadError;
       },
       putFile: async (key: string, content: Buffer) => {
