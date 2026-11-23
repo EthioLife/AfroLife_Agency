@@ -253,6 +253,11 @@ h1 {
   animation-delay: .14s;
 }
 
+.environment-production {
+  --environment-accent: #a63f35;
+  animation-delay: .21s;
+}
+
 .environment-heading {
   display: flex;
   grid-column: 1;
@@ -287,6 +292,12 @@ h1 {
   border-color: #c2ded4;
   background: var(--teal-wash);
   color: #15574f;
+}
+
+.environment-production .environment-badge {
+  border-color: #ebc7c3;
+  background: #fae9e7;
+  color: #85342d;
 }
 
 .environment-indicator {
