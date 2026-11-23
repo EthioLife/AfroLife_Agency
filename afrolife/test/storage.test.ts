@@ -21,15 +21,30 @@ test('private file storage preserves local filesystem behavior', async (t) => {
 
 test('private object storage signs requests and round-trips private objects', async (t) => {
   const bucket = 'afrolife-private-files';
+  const healthCheckKey = '00000000-0000-4000-8000-000000000002';
   const content = Buffer.from('private object contents');
   const stored = new Map<string, Buffer>();
   let signedRequests = 0;
+  let healthCheckPath = '';
+  let healthCheckObjectExists = true;
+  let healthCheckPutAllowed = true;
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
     const request = new Request(input, init);
     if (request.headers.get('authorization')?.startsWith('AWS4-HMAC-SHA256')) signedRequests += 1;
     const path = new URL(request.url).pathname;
-    if (request.method === 'HEAD' && path === `/${bucket}`) return new Response(null, { status: 200 });
+    if (request.method === 'HEAD') {
+      healthCheckPath = path;
+      return (path === `/${bucket}/${healthCheckKey}` && healthCheckObjectExists)
+        || path === `/${bucket}`
+        ? new Response(null, { status: 200 })
+        : new Response(null, { status: 404 });
+    }
+    if (request.method === 'PUT' && path === `/${bucket}/${healthCheckKey}`) {
+      if (!healthCheckPutAllowed) return new Response(null, { status: 403 });
+      healthCheckObjectExists = true;
+      return new Response(null, { status: 200 });
+    }
     if (path !== `/${bucket}/${fileKey}`) return new Response(null, { status: 404 });
     if (request.method === 'PUT') {
       if (request.headers.get('if-none-match') !== '*') return new Response(null, { status: 400 });
@@ -48,16 +63,31 @@ test('private object storage signs requests and round-trips private objects', as
       NODE_ENV: 'test',
       S3_BUCKET: bucket,
       S3_ENDPOINT: 'https://s3.aletcloud.test',
+      S3_HEALTHCHECK_OBJECT_KEY: healthCheckKey,
       AWS_REGION: 'test-region',
       AWS_ACCESS_KEY_ID: 'test-access-key',
       AWS_SECRET_ACCESS_KEY: 'test-secret-key',
     });
 
     await storage.check();
+    assert.equal(healthCheckPath, `/${bucket}/${healthCheckKey}`);
     await storage.putFile(fileKey, content);
     await assert.rejects(storage.putFile(fileKey, Buffer.from('replacement')), /HTTP 412/);
     assert.deepEqual(await storage.getFile(fileKey), content);
-    assert.equal(signedRequests, 4);
+    assert.equal(signedRequests, 5);
+    healthCheckObjectExists = false;
+    healthCheckPutAllowed = false;
+    await assert.rejects(storage.check(), /health-marker setup failed|HTTP 404/);
+    const legacyStorage = createPrivateStorage({
+      NODE_ENV: 'test',
+      S3_BUCKET: bucket,
+      S3_ENDPOINT: 'https://s3.aletcloud.test',
+      AWS_REGION: 'test-region',
+      AWS_ACCESS_KEY_ID: 'test-access-key',
+      AWS_SECRET_ACCESS_KEY: 'test-secret-key',
+    });
+    await legacyStorage.check();
+    assert.equal(healthCheckPath, `/${bucket}`);
     await assert.rejects(storage.getFile('../invalid'), /Invalid private file key/);
   } finally {
     globalThis.fetch = originalFetch;
