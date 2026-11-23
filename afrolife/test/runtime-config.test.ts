@@ -151,6 +151,32 @@ test('private service port defaults do not overlap between MFI and Accounting in
   assert.equal(new Set([mfiPort, accountingPort, subscriberPort]).size, 3);
 });
 
+test('private object storage health check key is an optional UUID object key', () => {
+  const storageEnvironment = {
+    NODE_ENV: 'production',
+    S3_BUCKET: 'afrolife-private-files',
+    S3_ENDPOINT: 'https://s3.example.net',
+    AWS_ACCESS_KEY_ID: 'test-access-key',
+    AWS_SECRET_ACCESS_KEY: 'test-secret-key',
+  };
+  assert.equal(privateObjectStorageConfig(storageEnvironment)?.healthCheckObjectKey, undefined);
+  assert.equal(
+    privateObjectStorageConfig({
+      ...storageEnvironment,
+      S3_HEALTHCHECK_OBJECT_KEY: '00000000-0000-4000-8000-000000000002',
+    })?.healthCheckObjectKey,
+    '00000000-0000-4000-8000-000000000002',
+  );
+  assert.throws(
+    () => privateObjectStorageConfig({ ...storageEnvironment, S3_HEALTHCHECK_OBJECT_KEY: '../health' }),
+    /S3_HEALTHCHECK_OBJECT_KEY must be a UUID object key/,
+  );
+  assert.throws(
+    () => privateObjectStorageConfig({ S3_HEALTHCHECK_OBJECT_KEY: '00000000-0000-4000-8000-000000000002' }),
+    /Private object storage requires a bucket, endpoint, access key, and secret key/,
+  );
+});
+
 test('production blocks legacy immediate lease activation unless explicitly enabled', () => {
   assert.equal(loadRuntimeConfig(safeProductionEnvironment).legacyImmediateLeasesEnabled, false);
   assert.equal(loadRuntimeConfig({

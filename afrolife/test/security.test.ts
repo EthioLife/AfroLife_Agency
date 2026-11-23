@@ -71,5 +71,7 @@ test('random passwords use every character class roughly evenly (no modulo bias)
   for (let i = 0; i < 4000; i++) for (const ch of randomPassword(12)) counts.set(ch, (counts.get(ch) ?? 0) + 1);
   const vals = [...counts.values()];
   assert.equal(counts.size, 57);
-  assert.ok(Math.max(...vals) / Math.min(...vals) < 1.25);
+  const expected = vals.reduce((sum, count) => sum + count, 0) / vals.length;
+  const chiSquare = vals.reduce((sum, count) => sum + ((count - expected) ** 2) / expected, 0);
+  assert.ok(chiSquare < 110);
 });

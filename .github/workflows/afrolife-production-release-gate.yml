@@ -1,0 +1,241 @@
+name: AfroLife Production release gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Run the one-time schema migration, or verify after deploying the migrated release
+        required: true
+        type: choice
+        options:
+          - diagnose
+          - migrate
+          - verify
+      release_sha:
+        description: Exact commit already tested and promoted to UAT
+        required: true
+        type: string
+      backup_reference:
+        description: Verified pre-release Production backup or snapshot reference
+        required: false
+        type: string
+      storage_evidence_reference:
+        description: Evidence reference for private-storage upload, download, and authorization tests
+        required: false
+        type: string
+      credentials_rotated:
+        description: Confirm exposed credentials were rotated and affected sessions revoked
+        required: true
+        type: boolean
+
+permissions:
+  contents: read
+  checks: read
+
+concurrency:
+  group: afrolife-production-schema
+  cancel-in-progress: false
+
+jobs:
+  migrate-and-verify:
+    runs-on: [self-hosted, linux, afrolife-production-network]
+    timeout-minutes: 45
+    environment: afrolife-production
+    defaults:
+      run:
+        working-directory: afrolife
+    steps:
+      - name: Validate release evidence
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+          STORAGE_EVIDENCE_REFERENCE: ${{ inputs.storage_evidence_reference }}
+          CREDENTIALS_ROTATED: ${{ inputs.credentials_rotated }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "::error::release_sha must be a full 40-character commit SHA."
+            exit 1
+          }
+          if [[ "${{ inputs.operation }}" == "migrate" ]]; then
+            [[ -n "$BACKUP_REFERENCE" ]] || {
+              echo "::error::A verified Production backup reference is required before migration."
+              exit 1
+            }
+            [[ "$CREDENTIALS_ROTATED" == "true" ]] || {
+              echo "::error::Rotate exposed credentials and revoke affected sessions before migration."
+              exit 1
+            }
+          fi
+          if [[ "${{ inputs.operation }}" == "verify" && -z "$STORAGE_EVIDENCE_REFERENCE" ]]; then
+            echo "::error::Storage authorization-test evidence is required for full Production verification."
+            exit 1
+          }
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 0
+
+      - name: Require exact commit in main and UAT
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin \
+            refs/heads/main:refs/remotes/origin/main \
+            refs/heads/aletcloud-prod-disabled-insurance:refs/remotes/origin/aletcloud-prod-disabled-insurance
+          git merge-base --is-ancestor "$RELEASE_SHA" refs/remotes/origin/main
+          git merge-base --is-ancestor "$RELEASE_SHA" refs/remotes/origin/aletcloud-prod-disabled-insurance
+
+      - name: Require successful tested build and database integration checks
+        uses: actions/github-script@v7
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+        with:
+          script: |
+            const { data } = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: process.env.RELEASE_SHA,
+              per_page: 100,
+            });
+            const required = ['unit-and-build', 'disposable-database-integration'];
+            const failed = required.filter((name) =>
+              !data.check_runs.some((run) =>
+                run.name === name && run.status === 'completed' && run.conclusion === 'success'));
+            if (failed.length) {
+              core.setFailed(`Required successful checks are missing for the release commit: ${failed.join(', ')}`);
+            }
+
+      - name: Require healthy UAT readiness
+        env:
+          UAT_READINESS_URL: https://afrolife-agency.app.aletcloud.com/readyz
+        run: |
+          set -euo pipefail
+          response="$RUNNER_TEMP/afrolife-uat-readiness.json"
+          curl --fail --silent --show-error --max-time 20 "$UAT_READINESS_URL" --output "$response"
+          jq -e '
+            .ok == true and
+            .checks.migrations.current == true and
+            .checks.migrations.checksumMismatches == 0 and
+            .checks.migrations.checksumsUnverified == 0 and
+            .checks.migrations.unexpectedMigrations == 0 and
+            .checks.private_storage == "available"
+          ' "$response" > /dev/null
+          echo "UAT readiness, migration checksums, and private storage passed."
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: afrolife/package-lock.json
+
+      - run: npm ci
+
+      - name: Require Production runtime database credential
+        if: inputs.operation == 'diagnose' || inputs.operation == 'migrate'
+        env:
+          DATABASE_URL: ${{ secrets.ALETCLOUD_PRODUCTION_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          [[ -n "$DATABASE_URL" ]] || {
+            echo "::error::Configure the Production runtime database URL in the protected afrolife-production environment."
+            exit 1
+          }
+
+      - name: Diagnose Production migrations without writes
+        if: inputs.operation == 'diagnose'
+        env:
+          DATABASE_URL: ${{ secrets.ALETCLOUD_PRODUCTION_DATABASE_URL }}
+        run: node scripts/diagnose-production-migrations.mjs
+
+      - name: Require Production migration-owner credential
+        if: inputs.operation == 'migrate'
+        env:
+          MIGRATION_DATABASE_URL: ${{ secrets.ALETCLOUD_PRODUCTION_MIGRATION_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          [[ -n "$MIGRATION_DATABASE_URL" ]] || {
+            echo "::error::Configure the Production migration-owner URL in the protected afrolife-production environment."
+            exit 1
+          }
+
+      - name: Verify Production database targets before any migration
+        if: inputs.operation == 'migrate'
+        env:
+          DATABASE_URL: ${{ secrets.ALETCLOUD_PRODUCTION_DATABASE_URL }}
+          MIGRATION_DATABASE_URL: ${{ secrets.ALETCLOUD_PRODUCTION_MIGRATION_DATABASE_URL }}
+        run: node scripts/verify-database-targets.mjs
+
+      - name: Apply checksummed Production migrations
+        if: inputs.operation == 'migrate'
+        env:
+          DATABASE_URL: ${{ secrets.ALETCLOUD_PRODUCTION_DATABASE_URL }}
+          MIGRATION_DATABASE_URL: ${{ secrets.ALETCLOUD_PRODUCTION_MIGRATION_DATABASE_URL }}
+        run: npm run db:migrate
+
+      - name: Verify restricted Production runtime role
+        if: inputs.operation == 'migrate'
+        env:
+          DATABASE_URL: ${{ secrets.ALETCLOUD_PRODUCTION_DATABASE_URL }}
+          MIGRATION_DATABASE_URL: ${{ secrets.ALETCLOUD_PRODUCTION_MIGRATION_DATABASE_URL }}
+        run: npm run db:check-runtime-acls
+
+      - name: Require Production migration readiness
+        if: inputs.operation == 'migrate'
+        env:
+          PRODUCTION_READINESS_URL: https://afrolife-production.app.aletcloud.com/readyz
+        run: |
+          set -euo pipefail
+          readiness="$RUNNER_TEMP/afrolife-production-readiness.json"
+          migrations_ready=false
+          for attempt in $(seq 1 18); do
+            if status="$(curl --silent --show-error --max-time 20 \
+              --output "$readiness" --write-out '%{http_code}' "$PRODUCTION_READINESS_URL")"; then
+              :
+            else
+              status=000
+            fi
+            if [[ "$status" == "200" || "$status" == "503" ]] && jq -e '
+              .checks.migrations.current == true and
+              .checks.migrations.checksumMismatches == 0 and
+              .checks.migrations.checksumsUnverified == 0 and
+              .checks.migrations.unexpectedMigrations == 0
+            ' "$readiness" > /dev/null; then
+              migrations_ready=true
+              break
+            fi
+            sleep 10
+          done
+
+          if [[ "$migrations_ready" != true ]]; then
+            jq '{ok, checks: {database, migrations, private_storage}}' "$readiness" || true
+            echo "::error::Production migration readiness did not pass; keep public traffic gated and investigate."
+            exit 1
+          fi
+          jq '{migrations: .checks.migrations, private_storage: .checks.private_storage}' "$readiness"
+          echo "Production migrations and checksums passed. Storage must pass the separate post-deployment verification."
+
+      - name: Require full Production readiness after AletCloud deployment
+        if: inputs.operation == 'verify'
+        env:
+          PRODUCTION_HEALTH_URL: https://afrolife-production.app.aletcloud.com/healthz
+          PRODUCTION_READINESS_URL: https://afrolife-production.app.aletcloud.com/readyz
+        run: |
+          set -euo pipefail
+          health="$RUNNER_TEMP/afrolife-production-health.json"
+          readiness="$RUNNER_TEMP/afrolife-production-readiness.json"
+
+          curl --fail --silent --show-error --max-time 20 "$PRODUCTION_HEALTH_URL" --output "$health"
+          jq -e '.ok == true and .database == "connected"' "$health" > /dev/null
+          curl --fail --silent --show-error --max-time 20 "$PRODUCTION_READINESS_URL" --output "$readiness"
+          jq -e '
+            .ok == true and
+            .checks.migrations.current == true and
+            .checks.migrations.checksumMismatches == 0 and
+            .checks.migrations.checksumsUnverified == 0 and
+            .checks.migrations.unexpectedMigrations == 0 and
+            .checks.private_storage == "available"
+          ' "$readiness" > /dev/null
+          echo "Production health, migration integrity, and private-storage readiness passed."

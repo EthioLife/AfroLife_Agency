@@ -9,6 +9,29 @@ import { normalizePhone } from './phone.js';
 const connectionString = process.env.MIGRATION_DATABASE_URL ?? process.env.DATABASE_URL;
 if (!connectionString) throw new Error('Set MIGRATION_DATABASE_URL or DATABASE_URL');
 const appConnectionString = process.env.DATABASE_URL;
+if (process.env.MIGRATION_DATABASE_URL && appConnectionString) {
+  let migrationUrl: URL;
+  let runtimeUrl: URL;
+  try {
+    migrationUrl = new URL(connectionString);
+    runtimeUrl = new URL(appConnectionString);
+  } catch {
+    throw new Error('DATABASE_URL and MIGRATION_DATABASE_URL must be valid PostgreSQL connection URLs.');
+  }
+  if (
+    !['postgres:', 'postgresql:'].includes(migrationUrl.protocol)
+    || !['postgres:', 'postgresql:'].includes(runtimeUrl.protocol)
+    || migrationUrl.protocol !== runtimeUrl.protocol
+    || migrationUrl.hostname !== runtimeUrl.hostname
+    || migrationUrl.port !== runtimeUrl.port
+    || migrationUrl.pathname !== runtimeUrl.pathname
+  ) {
+    throw new Error('DATABASE_URL and MIGRATION_DATABASE_URL must target the same host, port, and database.');
+  }
+  if (migrationUrl.username === runtimeUrl.username) {
+    throw new Error('DATABASE_URL and MIGRATION_DATABASE_URL must use separate database roles.');
+  }
+}
 const appRole = appConnectionString ? decodeURIComponent(new URL(appConnectionString).username) : '';
 if (appRole && !/^[a-zA-Z_][a-zA-Z0-9_$]*$/.test(appRole)) {
   throw new Error('DATABASE_URL must use a simple PostgreSQL role name before migrations can grant runtime access.');

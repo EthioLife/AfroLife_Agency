@@ -15,7 +15,7 @@ function databaseUrlDetails(connectionString: string) {
   if (!/^[a-zA-Z_][a-zA-Z0-9_$]*$/.test(role) || !database || !password) {
     throw new Error('Database URLs must include a simple role name, password, and database.');
   }
-  return { role, password, database };
+  return { role, password, database, protocol: url.protocol, hostname: url.hostname, port: url.port };
 }
 
 function quoteIdentifier(identifier: string) {
@@ -31,6 +31,14 @@ async function provisionRuntimeRole(adminUrl: string, runtimeUrl: string) {
   const runtime = databaseUrlDetails(runtimeUrl);
   if (admin.role === runtime.role) {
     throw new Error('The application runtime role must be different from the database provisioning role.');
+  }
+  if (
+    admin.protocol !== runtime.protocol
+    || admin.hostname !== runtime.hostname
+    || admin.port !== runtime.port
+    || admin.database !== runtime.database
+  ) {
+    throw new Error('Provisioning and runtime URLs must target the same host, port, and database.');
   }
 
   const client = new pg.Client({ connectionString: adminUrl });

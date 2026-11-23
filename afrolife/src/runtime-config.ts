@@ -62,6 +62,7 @@ export interface PrivateObjectStorageConfig {
   accessKeyId: string;
   bucket: string;
   endpoint: string;
+  healthCheckObjectKey?: string;
   region: string;
   secretAccessKey: string;
   sessionToken?: string;
@@ -74,9 +75,13 @@ export function privateObjectStorageConfig(env: Environment): PrivateObjectStora
     || env.AWS_ENDPOINT_URL?.trim();
   const accessKeyId = env.AWS_ACCESS_KEY_ID?.trim() || env.S3_ACCESS_KEY_ID?.trim();
   const secretAccessKey = env.AWS_SECRET_ACCESS_KEY?.trim() || env.S3_SECRET_ACCESS_KEY?.trim();
-  if (![bucket, endpoint, accessKeyId, secretAccessKey].some(Boolean)) return undefined;
+  const healthCheckObjectKey = env.S3_HEALTHCHECK_OBJECT_KEY?.trim() || undefined;
+  if (![bucket, endpoint, accessKeyId, secretAccessKey, healthCheckObjectKey].some(Boolean)) return undefined;
   if (!bucket || !endpoint || !accessKeyId || !secretAccessKey) {
     throw new Error('Private object storage requires a bucket, endpoint, access key, and secret key.');
+  }
+  if (healthCheckObjectKey && !/^[0-9a-f-]{36}$/i.test(healthCheckObjectKey)) {
+    throw new Error('S3_HEALTHCHECK_OBJECT_KEY must be a UUID object key.');
   }
   if (!/^(?=.{3,63}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(bucket)) {
     throw new Error('S3_BUCKET must be a valid lowercase S3 bucket name.');
@@ -111,6 +116,7 @@ export function privateObjectStorageConfig(env: Environment): PrivateObjectStora
     accessKeyId,
     bucket,
     endpoint,
+    healthCheckObjectKey,
     region,
     secretAccessKey,
     sessionToken: env.AWS_SESSION_TOKEN?.trim() || undefined,

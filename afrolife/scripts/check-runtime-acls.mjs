@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import dotenv from 'dotenv';
 import pg from 'pg';
+import { assertSameDatabaseTarget } from './database-targets.mjs';
 
 const localEnvironment = process.env.LOCALAPPDATA
   ? join(process.env.LOCALAPPDATA, 'AfroLife', 'afrolife.env')
@@ -21,9 +22,7 @@ if (!runtimeUrl || !migrationUrl) {
 
 const runtime = new URL(runtimeUrl);
 const migration = new URL(migrationUrl);
-if (runtime.pathname !== migration.pathname) {
-  throw new Error('DATABASE_URL and MIGRATION_DATABASE_URL must target the same database for ACL verification.');
-}
+assertSameDatabaseTarget(runtimeUrl, migrationUrl);
 const runtimeRole = decodeURIComponent(runtime.username);
 if (!runtimeRole || runtimeRole === decodeURIComponent(migration.username)) {
   throw new Error('DATABASE_URL must use a separate runtime role from MIGRATION_DATABASE_URL.');

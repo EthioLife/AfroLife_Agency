@@ -42,6 +42,7 @@ The lowest published combination previously reviewed was App Hosting Max (ETB 3,
 1. Create a private S3-compatible bucket for staging. Enable versioning if available and appropriate; set a lifecycle/retention policy that matches business and legal requirements.
 2. Create a least-privilege key scoped to this bucket. Keep the secret in AletCloud environment settings, never in the repository or browser code.
 3. Configure the app's server-mediated S3 adapter with `S3_ENDPOINT`, `S3_BUCKET`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` (plus `AWS_SESSION_TOKEN` when supplied). AletCloud's bucket connection injects these settings and redeploys the app. Enforce authorization for every document operation, including tenant/property boundaries; credentials remain server-side and are never exposed in browser responses.
+   For production readiness, provision a private, zero-byte health marker object in this bucket and set `S3_HEALTHCHECK_OBJECT_KEY` to its UUID key. The check performs a signed `HEAD` on that object, exercising the app's object-read permission without requiring bucket listing. Keep the marker key out of normal uploads and do not grant anonymous access. Without this setting, the legacy bucket-level `HEAD` check is used and may require bucket-level permission from the provider.
 4. Test upload, download, file type/size validation, and access denial across roles and tenants. Confirm no bucket listing or anonymous object read is possible. Objects use a UUID-only key and signed server-side S3 requests; replacing an existing key is refused, while retention/deletion follows the bucket's configured policy.
 5. If existing documents must be moved, inventory them, copy with checksums and metadata, reconcile database references, and preserve an auditable rollback copy before switching reads/writes. Do not mix local filesystem objects and bucket objects without a separately verified migration.
 6. Keep production uploads disabled until these checks pass. Do not point `FILE_STORAGE_DIR` at ephemeral app storage as a production substitute.
@@ -59,7 +60,7 @@ The lowest published combination previously reviewed was App Hosting Max (ETB 3,
    - `REQUIRE_MFA_FOR_STAFF=1`
    - `TRUST_PROXY=1` only when requests reach the app through AletCloud's trusted proxy
    - `CORS_ORIGINS` set to the exact staging origin(s)
-   - a private AletCloud S3 bucket linked to the app, or a separately verified persistent `FILE_STORAGE_DIR`
+   - a private AletCloud S3 bucket linked to the app, or a separately verified persistent `FILE_STORAGE_DIR`; for S3, set `S3_HEALTHCHECK_OBJECT_KEY` to a provisioned private marker object's UUID key
    - Configure a private ClamAV service with `CLAMAV_HOST`, `CLAMAV_PORT`, and `CLAMAV_TIMEOUT_MS`. Uploads fail closed unless scanning is configured and clean.
    - service URLs/secrets only for separately deployed services that have passed their own readiness checks
 
@@ -83,6 +84,7 @@ Before creating production traffic, record evidence for each item:
 - AletCloud has confirmed contractual availability, backups, restore time, data location, and support for the exact services purchased; recovery meets the approved RPO/RTO.
 - Production uses a separate project/app, PostgreSQL database, bucket, credentials, and domain from staging.
 - The migration and runtime database identities are separate; the runtime ACL/RLS check passes.
+- The protected Production release gate passed for the exact tested commit, with a verified pre-migration backup reference and rotated-credential/session-revocation evidence.
 - Two distinct Super Admin accounts are provisioned through the documented seed process, and staff MFA is required. Seed credentials are handled out of band and removed from the release operator's temporary environment after use.
 - No test seeders or test credentials are used in production. `npm run seed:local-test-users` is strictly local-only.
 - Named owners are assigned for releases, security incidents, backups/restores, billing, and user support.
@@ -92,17 +94,19 @@ Before creating production traffic, record evidence for each item:
 
 ## 7. Deploy production and attach the domain
 
-1. Create a separate production app from the protected release branch. Reuse the tested build/start configuration, but set production-only database, storage, and secret values.
-2. Take a database backup/snapshot before the first production migration. Apply `npm run db:migrate` once with the migration identity. Check the runtime ACLs with the production runtime identity.
-3. Deploy the reviewed commit. Verify logs, `/healthz`, database connectivity, and a small authorized smoke workflow before public DNS cutover.
-4. Add the custom domain in the AletCloud app settings. Publish the exact TXT ownership-verification record AletCloud provides (typically `_alet-challenge.<domain>`), wait for verification, then publish the exact A or CNAME record it specifies. Do not assume the target value.
-5. Wait for AletCloud to issue TLS. Verify HTTPS, certificate validity/renewal status, redirect behavior, and the app's exact `CORS_ORIGINS`. If an external DNS proxy is enabled, follow AletCloud's instructions for DNS-only/proxied mode.
-6. Route a small controlled group first. Watch health, errors, database connections, upload behavior, and business workflows. Expand only after the release owner accepts the evidence.
-7. For a rollback, redeploy the previous known-good commit and follow the documented database compatibility plan. DNS rollback is useful only if the prior service is still operational. Do not restore a database backup without assessing data written since that backup.
+1. Configure the `afrolife-production` GitHub Environment with required human reviewers and only the Production runtime and migration-owner database secrets. Attach a dedicated, ephemeral, private-network runner labeled `afrolife-production-network`; it must resolve and reach the Production database's private endpoint and must not run untrusted pull-request jobs. Protect the Production release workflow and restrict who can dispatch it.
+2. Disable AletCloud's automatic deploy-on-push for the Production app before publishing release-gate changes. Do not copy Development/UAT variables into Production. Use the **AfroLife Production release gate** with the exact commit already present in both `main` and UAT. First dispatch operation `diagnose`; it queries `schema_migrations` in a read-only transaction using only the restricted runtime role and reports missing, checksum-mismatched, unverified, or unexpected migration names without printing checksums or connection data.
+3. Before migration, confirm the backup is restorable and the credentials in the protected GitHub Environment are the rotated Production credentials. Dispatch the gate with operation `migrate` and the verified backup reference. It checks successful build and disposable-database tests for the exact commit, healthy UAT readiness, validates both database URLs target the same host/port/database with separate roles, applies checksummed migrations, and runs the runtime ACL check. The migration phase verifies schema integrity only; it deliberately does not require the current deployed app's storage check to pass.
+4. After the migration phase passes, configure the private storage health-marker object and `S3_HEALTHCHECK_OBJECT_KEY`, then deploy/redeploy that exact reviewed commit from AletCloud. Dispatch the gate with operation `verify` and the private upload/download and role/tenant authorization evidence reference; it requires Production `/healthz` and full `/readyz`, including storage, to pass. Repeat malware-scan and business smoke tests. Keep public traffic gated until the release owner accepts the evidence.
+5. Add the custom domain in the AletCloud app settings. Publish the exact TXT ownership-verification record AletCloud provides (typically `_alet-challenge.<domain>`), wait for verification, then publish the exact A or CNAME record it specifies. Do not assume the target value.
+6. Wait for AletCloud to issue TLS. Verify HTTPS, certificate validity/renewal status, redirect behavior, and the app's exact `CORS_ORIGINS`. If an external DNS proxy is enabled, follow AletCloud's instructions for DNS-only/proxied mode.
+7. Route a small controlled group first. Watch health, errors, database connections, storage, upload behavior, and business workflows. Expand only after the release owner accepts the evidence.
+8. For a rollback, redeploy the previous known-good commit and follow the documented database compatibility plan. DNS rollback is useful only if the prior service is still operational. Do not restore a database backup without assessing data written since that backup.
 
 ## 8. Ongoing operations
 
 - The `Promote AfroLife Development to UAT` workflow runs from the repository's default branch after the `AfroLife quality checks` workflow succeeds for a push to `aletcloud-development`. It merges the exact tested commit into `aletcloud-prod-disabled-insurance`, which must be the UAT app's connected deployment branch. A merge conflict, missing source commit, or branch-protection rejection fails closed and requires operator review.
+- **Production database migrations never run automatically on a source push.** Use the manually approved Production release gate from a private-network runner; keep AletCloud automatic Production deployments disabled until the gate passes.
 - The promotion transfers source commits only. Keep the UAT app's database, storage bucket, and environment secrets separate; do not copy Development variables into UAT.
 - Every push to the connected deployment branch may trigger a deployment; protect the branch and review each change.
 - Test migrations and releases in staging first. Promote a reviewed commit; do not use staging credentials in production.
