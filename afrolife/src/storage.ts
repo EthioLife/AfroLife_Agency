@@ -64,9 +64,13 @@ export function createPrivateStorage(env: Environment) {
           try {
             await send(putUrl, 'PUT', new Uint8Array(0), AbortSignal.timeout(5_000));
           } catch (error) {
-            await send(url, 'HEAD', undefined, AbortSignal.timeout(5_000)).catch((headError) => {
+            let headError: unknown = error;
+            try {
+              await send(url, 'HEAD', undefined, AbortSignal.timeout(5_000));
+            } catch (caughtHeadError) {
+              headError = caughtHeadError;
               throw new AggregateError([error, headError], 'Private object storage health-marker setup failed.');
-            });
+            }
           }
         }
         let lastHeadError: unknown;
