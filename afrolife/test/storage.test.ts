@@ -27,6 +27,7 @@ test('private object storage signs requests and round-trips private objects', as
   let signedRequests = 0;
   let healthCheckPath = '';
   let healthCheckObjectExists = true;
+  let healthCheckPutAllowed = true;
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
     const request = new Request(input, init);
@@ -38,6 +39,11 @@ test('private object storage signs requests and round-trips private objects', as
         || path === `/${bucket}`
         ? new Response(null, { status: 200 })
         : new Response(null, { status: 404 });
+    }
+    if (request.method === 'PUT' && path === `/${bucket}/${healthCheckKey}`) {
+      if (!healthCheckPutAllowed) return new Response(null, { status: 403 });
+      healthCheckObjectExists = true;
+      return new Response(null, { status: 200 });
     }
     if (path !== `/${bucket}/${fileKey}`) return new Response(null, { status: 404 });
     if (request.method === 'PUT') {
@@ -68,9 +74,10 @@ test('private object storage signs requests and round-trips private objects', as
     await storage.putFile(fileKey, content);
     await assert.rejects(storage.putFile(fileKey, Buffer.from('replacement')), /HTTP 412/);
     assert.deepEqual(await storage.getFile(fileKey), content);
-    assert.equal(signedRequests, 4);
+    assert.equal(signedRequests, 5);
     healthCheckObjectExists = false;
-    await assert.rejects(storage.check(), /HTTP 404/);
+    healthCheckPutAllowed = false;
+    await assert.rejects(storage.check(), /health-marker setup failed|HTTP 404/);
     const legacyStorage = createPrivateStorage({
       NODE_ENV: 'test',
       S3_BUCKET: bucket,

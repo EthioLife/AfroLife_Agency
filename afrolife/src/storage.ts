@@ -58,6 +58,16 @@ export function createPrivateStorage(env: Environment) {
         const url = objectStorage.healthCheckObjectKey
           ? objectUrl(objectStorage.healthCheckObjectKey)
           : bucketUrl();
+        if (objectStorage.healthCheckObjectKey) {
+          const putUrl = objectUrl(objectStorage.healthCheckObjectKey);
+          try {
+            await send(putUrl, 'PUT', new Uint8Array(0), AbortSignal.timeout(5_000));
+          } catch (error) {
+            await send(url, 'HEAD', undefined, AbortSignal.timeout(5_000)).catch((headError) => {
+              throw new AggregateError([error, headError], 'Private object storage health-marker setup failed.');
+            });
+          }
+        }
         await send(url, 'HEAD', undefined, AbortSignal.timeout(5_000));
       },
       putFile: async (key: string, content: Buffer) => {
