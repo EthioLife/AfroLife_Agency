@@ -39,10 +39,11 @@ export function createPrivateStorage(env: Environment) {
       method: 'GET' | 'HEAD' | 'PUT',
       body?: Uint8Array<ArrayBuffer>,
       signal?: AbortSignal,
+      requireAbsent = false,
     ) => {
       const response = await client.fetch(url, {
         method,
-        headers: method === 'PUT' ? { 'If-None-Match': '*' } : undefined,
+        headers: method === 'PUT' && requireAbsent ? { 'If-None-Match': '*' } : undefined,
         body,
         signal,
       });
@@ -74,7 +75,7 @@ export function createPrivateStorage(env: Environment) {
         if (!/^[0-9a-f-]{36}$/i.test(key)) throw new Error('Invalid private file key');
         const body = new Uint8Array(content.byteLength);
         body.set(content);
-        await send(objectUrl(key), 'PUT', body);
+        await send(objectUrl(key), 'PUT', body, undefined, true);
       },
       getFile: async (key: string) => {
         if (!/^[0-9a-f-]{36}$/i.test(key)) throw new Error('Invalid private file key');
