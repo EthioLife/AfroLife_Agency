@@ -69,7 +69,17 @@ export function createPrivateStorage(env: Environment) {
             });
           }
         }
-        await send(url, 'HEAD', undefined, AbortSignal.timeout(5_000));
+        let lastHeadError: unknown;
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          try {
+            await send(url, 'HEAD', undefined, AbortSignal.timeout(5_000));
+            return;
+          } catch (error) {
+            lastHeadError = error;
+            if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+          }
+        }
+        throw lastHeadError;
       },
       putFile: async (key: string, content: Buffer) => {
         if (!/^[0-9a-f-]{36}$/i.test(key)) throw new Error('Invalid private file key');

@@ -28,6 +28,7 @@ test('private object storage signs requests and round-trips private objects', as
   let healthCheckPath = '';
   let healthCheckObjectExists = true;
   let healthCheckPutAllowed = true;
+  let healthCheckHeadFailures = 2;
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
     const request = new Request(input, init);
@@ -35,6 +36,10 @@ test('private object storage signs requests and round-trips private objects', as
     const path = new URL(request.url).pathname;
     if (request.method === 'HEAD') {
       healthCheckPath = path;
+      if (healthCheckHeadFailures > 0) {
+        healthCheckHeadFailures -= 1;
+        return new Response(null, { status: 404 });
+      }
       return (path === `/${bucket}/${healthCheckKey}` && healthCheckObjectExists)
         || path === `/${bucket}`
         ? new Response(null, { status: 200 })
@@ -74,7 +79,7 @@ test('private object storage signs requests and round-trips private objects', as
     await storage.putFile(fileKey, content);
     await assert.rejects(storage.putFile(fileKey, Buffer.from('replacement')), /HTTP 412/);
     assert.deepEqual(await storage.getFile(fileKey), content);
-    assert.equal(signedRequests, 5);
+    assert.equal(signedRequests, 7);
     healthCheckObjectExists = false;
     healthCheckPutAllowed = false;
     await assert.rejects(storage.check(), /health-marker setup failed|HTTP 404/);
