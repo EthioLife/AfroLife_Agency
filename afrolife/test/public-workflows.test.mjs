@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
+import { inflateSync } from 'node:zlib';
 import {
   marketplaceDashboardMetrics,
   workforceDashboardMetrics,
@@ -594,6 +595,7 @@ test('AfroSherik sign-in keeps a compact shared brand header and campaign artwor
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
   const icon = readFileSync(new URL('../public/icons/afrosherik-icon-192.png', import.meta.url));
   const transparentMark = readFileSync(new URL('../public/brand/afrosherik-mark-transparent.svg', import.meta.url), 'utf8');
+  const lockup = readFileSync(new URL('../public/brand/afrosherik-brand-lockup.png', import.meta.url));
   const transparentLockup = readFileSync(new URL('../public/brand/afrosherik-brand-lockup-transparent.png', import.meta.url));
   const hero = readFileSync(new URL('../public/brand/afrosherik-campaign-hero.png', import.meta.url));
   const header = html.slice(html.indexOf('<header class="topbar">'), html.indexOf('</header>') + '</header>'.length);
@@ -601,14 +603,29 @@ test('AfroSherik sign-in keeps a compact shared brand header and campaign artwor
     assert.equal(image.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
     return [image.readUInt32BE(16), image.readUInt32BE(20)];
   };
+  const hasTransparentTopLeftPixel = (image) => {
+    const idatChunks = [];
+    for (let offset = 8; offset < image.length;) {
+      const length = image.readUInt32BE(offset);
+      if (image.toString('ascii', offset + 4, offset + 8) === 'IDAT') {
+        idatChunks.push(image.subarray(offset + 8, offset + 8 + length));
+      }
+      offset += length + 12;
+    }
+    return inflateSync(Buffer.concat(idatChunks))[4] === 0;
+  };
   assert.match(header, /<a class="brand" href="\/" aria-label="AfroSherik — Connect · Access · Thrive">\s*<img class="brand-mark" src="\/brand\/afrosherik-mark-transparent\.svg" alt="" aria-hidden="true" width="48" height="48">\s*<span class="brand-copy">\s*<span class="brand-name">AfroSherik<\/span>\s*<span class="brand-detail">Connect <span aria-hidden="true">·<\/span> Access <span aria-hidden="true">·<\/span> Thrive<\/span>/);
   assert.doesNotMatch(header, /afrosherik-brand-lockup/);
   assert.match(html, /<img src="\/brand\/afrosherik-campaign-hero\.png" alt="AfroSherik campaign artwork showing a woman with a phone and the Addis Ababa skyline beside the message: More Opportunities\. Stronger Communities\." width="427" height="204">/);
   assert.deepEqual(pngDimensions(icon), [192, 192]);
   assert.match(transparentMark, /viewBox="89 96 334 353"/);
   assert.doesNotMatch(transparentMark, /<rect\b[^>]*fill="#174b3d"/);
+  assert.deepEqual(pngDimensions(lockup), [490, 152]);
+  assert.equal(lockup[25], 6, 'brand lockup should retain its RGBA alpha channel');
+  assert.equal(hasTransparentTopLeftPixel(lockup), true, 'brand lockup background should be transparent');
   assert.deepEqual(pngDimensions(transparentLockup), [490, 152]);
   assert.equal(transparentLockup[25], 6, 'transparent lockup should retain its RGBA alpha channel');
+  assert.equal(hasTransparentTopLeftPixel(transparentLockup), true, 'transparent export background should be transparent');
   assert.deepEqual(pngDimensions(hero), [427, 204]);
   assert.match(styles, /\.brand-mark\s*\{[^}]*flex:\s*0 0 48px;[^}]*width:\s*48px;[^}]*height:\s*48px;[^}]*object-fit:\s*contain;/s);
   assert.doesNotMatch(styles, /\.brand-mark\s*\{[^}]*box-shadow:/s);
@@ -727,7 +744,7 @@ test('public hub integrates the campaign artwork with the existing public action
   assert.match(styles, /@media \(max-width: 700px\) \{[\s\S]*?\.hub-service-network \{ min-height: 220px; \}/);
   assert.match(styles, /\.hub-heading \{ grid-template-columns: minmax\(0, 1fr\); gap:/);
   assert.match(styles, /#public-hub \.service-card\[data-panel\] \.service-icon\s*\{[^}]*background:\s*var\(--mini-app-tint\);[^}]*color:\s*var\(--mini-app-ink/s);
-  assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v49'/);
+  assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v50'/);
   assert.match(serviceWorker, /'\/passkeys\.js'/);
   assert.match(serviceWorker, /'\/tenant-data-admin\.js'/);
   for (const asset of [
