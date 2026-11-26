@@ -1,160 +1,118 @@
 # AfroLife deployment guide for AletCloud
 
-This runbook describes a staged deployment of the AfroLife Node.js API and web app on AletCloud. It uses the application configuration in this repository and the AletCloud app, database, and object-storage workflows. Confirm prices, limits, and current product behavior in the AletCloud console before purchase; catalogue values can change.
+This runbook describes a staged deployment of the AfroLife Node.js API and web app on AletCloud. Confirm current prices, limits, and product behavior in the AletCloud console before purchase.
 
 ## Deployment shape and release gates
 
-- **Application:** one Node.js 22+ app, built with `npm run build` and started with `npm start` (`node dist/src/aletcloud-bootstrap.js`). The one-time bootstrap provisions the restricted database role and applies migrations when its temporary owner URL is configured, then starts the API. The server reads `PORT` and listens on all interfaces when `HOST` is unset.
-- **Database:** private managed PostgreSQL. The runtime database identity must remain a restricted, non-owner role without `BYPASSRLS`; migrations use a separate owner identity.
-- **Documents and media:** the app includes a server-mediated S3-compatible storage adapter and a local-filesystem fallback. Use a private, durable S3-compatible bucket in hosted environments; do not rely on ephemeral app disk for user documents. The adapter signs requests, uses UUID object keys, refuses overwrites, and exposes storage readiness, but production upload authorization, malware scanning, retention, and restore behavior must still be verified before enabling real-user uploads.
-- **Availability and recovery:** AletCloud's published backup and recovery features may not meet AfroLife's proposed RPO <= 15 minutes and RTO <= 4 hours. Get written, service-specific commitments or formally approve revised targets before production.
-- **External modules:** leave service cutovers disabled until each service is separately deployed, secured, and accepted. Do not point production at localhost service URLs.
+- **Application:** Node.js 22+, built with `npm run build` and started with `npm start`. The API uses the platform-provided `PORT`.
+- **Database:** private managed PostgreSQL. Runtime and migration identities must be separate; the runtime identity is restricted, is not the table owner, and does not have `BYPASSRLS`.
+- **Documents:** use private, durable S3-compatible storage in hosted environments. Keep uploads disabled until authorization, malware scanning, storage access, and recovery have been tested. Do not rely on ephemeral app disk.
+- **Recovery:** obtain written, service-specific backup and restore commitments and approve RPO/RTO targets before production.
+- **External modules:** leave service cutovers disabled until each separately deployed service is secured and accepted.
 
-The lowest published combination previously reviewed was App Hosting Max (ETB 3,600/month), PostgreSQL Ultra (ETB 500/month), and 50 GB object storage (ETB 400/month): ETB 4,500 before VAT, approximately ETB 5,175 including 15% VAT. Verify the present price, resource scope, tax, and billing period in the console. App Hosting Max was listed at 2 CPU / 2 GiB memory; PostgreSQL Ultra at 1 CPU / 2 GiB / 20 GiB / 100 connections. Start with staging and measure before choosing production size.
+The previously reviewed lowest published combination was App Hosting Max, PostgreSQL Ultra, and 50 GB object storage at ETB 4,500 before VAT (about ETB 5,175 including 15% VAT). Verify current pricing, resources, taxes, and billing periods in the console.
 
 ## 1. Secure the account and credentials
 
-1. Revoke the AletCloud personal access token previously pasted into chat. Treat it as compromised. Do not reuse it or copy secrets into chat, Git, tickets, or this document.
-2. The current MCP token documentation and stated scope behavior need provider clarification. Do not issue a replacement token until AletCloud confirms the effective scopes and intended endpoint. Use the AletCloud dashboard directly for this runbook.
-3. Enable MFA on the AletCloud account. Use named accounts for staff, restrict administrator access, and record who owns billing, DNS, application releases, and database recovery.
-4. Store generated credentials only in the provider's secret/environment settings or an approved secret manager. Use different secrets for staging and production.
+1. Revoke any access token previously exposed in chat. Never put secrets in source control, tickets, logs, or this guide.
+2. Use named accounts, enable account MFA, restrict administrator access, and assign owners for billing, DNS, releases, and database recovery.
+3. Store credentials only in provider secret settings or an approved secret manager. Use distinct secrets and resources for Development, UAT, and Production.
+4. Rotate MFA encryption keys through the one-time `npm run db:mfa:rotate-key` operation; do not replace `MFA_ENC_KEY` alone. Deploy compatibility code first. In a controlled maintenance window, set a new `MFA_ENC_KEY`, the prior dedicated key as `MFA_ENC_KEY_PREVIOUS`, and keep `JWT_SECRET` unchanged during re-encryption. If legacy records require it, provide `MFA_LEGACY_JWT_SECRET` only to the one-time operator process.
+5. Run `npm run db:mfa:rotate-key`, then `npm run db:mfa:verify-key` with the correct runtime and owner database URLs and active keys. Require a passing verification and confirm representative MFA sign-ins. Only then remove previous/legacy keys. Rotate `JWT_SECRET` separately afterward. Take and verify a restorable backup first.
 
-## 2. Prepare the project and release branch
+The rotation locks the users table and re-encrypts stored MFA secrets in one transaction; undecryptable data aborts and rolls back the operation. Supply secrets only through the approved operator environment, never command-line arguments or logs.
 
-1. Push the reviewed application source to a private GitHub repository. Protect the production branch and require review before merging releases.
-2. Confirm the deployable directory is `afrolife/`. In the AletCloud app configuration set the project/root directory to `afrolife` if that option is available. If the platform cannot build from a monorepo subdirectory, create a deployment repository containing this app or use the provider's documented monorepo setup; do not guess a root setting.
-3. Confirm `package.json` has Node `>=22`, build command `npm run build`, and start command `npm start`. The API listens on the platform-provided `PORT`; do not hard-code port 3000 in the hosting settings.
-4. Review the exact commit and ensure no `.env` files, local credential files, uploaded documents, database dumps, or access tokens are tracked by Git.
-5. Create a separate staging app/environment. Give it a staging hostname and isolated database, bucket, and secrets. Do not use production data for initial verification.
+## 2. Prepare the project and environments
 
-## 3. Create and secure the staging database
+1. Protect release branches and require review. Confirm the deployable directory is `afrolife/`; configure it as the app root if supported.
+2. Use Node 22 or newer, build command `npm run build`, and start command `npm start`. Do not hard-code the listening port.
+3. Check that `.env` files, credentials, uploads, and database dumps are not tracked.
+4. Create isolated Development, UAT, and Production apps, databases, buckets, hostnames, and credentials. Use synthetic data for initial validation.
 
-1. In AletCloud, create a **paid PostgreSQL** database in the intended region. Avoid a free tier for any environment requiring managed backups.
-2. Keep network access private and allow only the application to connect. Confirm PostgreSQL version compatibility with the repository and the app's TLS requirements.
-3. Create two database identities: a migration owner used only for schema changes, and an application runtime identity with the restricted grants expected by the app. Never run the API as the database owner or a superuser.
-4. Enable the longest practical automated backup retention for staging. Before production, confirm backup frequency, retention, restore workflow, and restore timing in writing.
-5. Copy the provider connection values into the staging app's secret settings. Set `DATABASE_URL` for the runtime identity and `MIGRATION_DATABASE_URL` for the migration identity. Use the provider's CA/TLS instructions. For AletCloud's private `.svc.cluster.local` database endpoints with a provider self-signed certificate, use `sslmode=require&uselibpqcompat=true`; use `sslmode=verify-full` for other remote database hosts.
-6. Apply migrations once as a controlled release operation from the app directory: `npm run db:migrate`. Do not make every app replica run migrations at startup.
-7. Run the repository's runtime database ACL check (`npm run db:check-runtime-acls`) with the same runtime identity the app will use. Resolve any failure before proceeding.
+## 3. Create and secure the database
 
-## 4. Provision private document storage
+1. Create private managed PostgreSQL in the intended region. Confirm version, TLS, backups, retention, restore workflow, and restore timing.
+2. Use separate migration-owner and restricted runtime identities. Do not run the API as an owner or superuser.
+3. Set `DATABASE_URL` to the runtime identity and `MIGRATION_DATABASE_URL` to the migration identity. For AletCloud private `.svc.cluster.local` endpoints use `sslmode=require&uselibpqcompat=true`; use `sslmode=verify-full` for other remote hosts.
+4. Apply migrations as a controlled operation with `npm run db:migrate`, then run `npm run db:check-runtime-acls` using the runtime identity.
 
-1. Create a private S3-compatible bucket for staging. Enable versioning if available and appropriate; set a lifecycle/retention policy that matches business and legal requirements.
-2. Create a least-privilege key scoped to this bucket. Keep the secret in AletCloud environment settings, never in the repository or browser code.
-3. Configure the app's server-mediated S3 adapter with `S3_ENDPOINT`, `S3_BUCKET`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` (plus `AWS_SESSION_TOKEN` when supplied). AletCloud's bucket connection injects these settings and redeploys the app. Enforce authorization for every document operation, including tenant/property boundaries; credentials remain server-side and are never exposed in browser responses.
-4. Test upload, download, file type/size validation, and access denial across roles and tenants. Confirm no bucket listing or anonymous object read is possible. Objects use a UUID-only key and signed server-side S3 requests; replacing an existing key is refused, while retention/deletion follows the bucket's configured policy.
-5. If existing documents must be moved, inventory them, copy with checksums and metadata, reconcile database references, and preserve an auditable rollback copy before switching reads/writes. Do not mix local filesystem objects and bucket objects without a separately verified migration.
-6. Keep production uploads disabled until these checks pass. Do not point `FILE_STORAGE_DIR` at ephemeral app storage as a production substitute. A passing `/readyz` storage check confirms bucket connectivity only; it does not prove tenant/role authorization, malware scanning, or backup and restore behavior.
+For initial setup where no SQL console is available, the one-time bootstrap may use `ALETCLOUD_BOOTSTRAP_DATABASE_URL` with owner privileges to provision the restricted role and apply migrations. Keep `DATABASE_URL` on the intended runtime identity and use distinct `JWT_SECRET` and `MFA_ENC_KEY`. Remove bootstrap and seed variables after `/readyz` passes with the runtime URL; never leave an owner URL as a runtime secret.
 
-## 5. Configure and deploy staging
-
-1. In the AletCloud dashboard choose **App Hosting → Create app**, connect the private repository, and select the staging branch.
-2. Set root directory `afrolife` if supported, build command `npm run build`, and start command `npm start`. Select a Node runtime version 22 or newer. Confirm the platform injects `PORT` and routes traffic to the app's listener.
-3. Add staging environment variables using `.env.production.example` as a reference. At minimum configure:
-
-   - `NODE_ENV=production`
-   - `PORT` only if AletCloud requires it to be declared; the app must use the value injected by the platform
-   - `DATABASE_URL` and `MIGRATION_DATABASE_URL`
-   - unique strong `JWT_SECRET` and `MFA_ENC_KEY`
-   - optionally `MFA_ENC_KEY_PREVIOUS` during a controlled MFA-key rotation only
-   - `REQUIRE_MFA_FOR_STAFF=1`
-   - `TRUST_PROXY=1` only when requests reach the app through AletCloud's trusted proxy
-   - `CORS_ORIGINS` set to the exact staging origin(s)
-   - a private AletCloud S3 bucket linked to the app, or a separately verified persistent `FILE_STORAGE_DIR`
-   - Configure a private ClamAV service with `CLAMAV_HOST`, `CLAMAV_PORT`, and `CLAMAV_TIMEOUT_MS`. All document and evidence upload routes fail closed unless scanning is configured and clean; missing, unavailable, or inconclusive scans reject the upload.
-   - service URLs/secrets only for separately deployed services that have passed their own readiness checks
-
-   Keep optional service cutover flags off, including `MFI_PILOT_ENABLED=0`, `INSURANCE_SERVICE_CUTOVER_READY=0`, and `GLOBAL_BI_SERVICE_CUTOVER_READY=0`, until the related integrations are independently deployed and approved. With Insurance unset, its production workspace is hidden and its API routes return 503; the core platform can deploy without that integration. Set all real secrets in the dashboard's secret fields, not plain GitHub files.
-4. For a database without a SQL console, the app's one-time AletCloud bootstrap can provision the restricted role and apply migrations. Set `DATABASE_URL` to the intended runtime username and password, set `ALETCLOUD_BOOTSTRAP_DATABASE_URL` to a database-owner connection with role-creation privileges, and configure distinct `JWT_SECRET` and `MFA_ENC_KEY` values. If the database has no Super Admin, also set `SEED_ADMIN_NAME`, `SEED_ADMIN_PHONE`, and a unique `SEED_ADMIN_PASSWORD` (12–72 UTF-8 bytes).
-   On startup, the bootstrap reuses an existing runtime role only if its PostgreSQL privilege flags are restricted, synchronizes that role's login password to the password in `DATABASE_URL`, and otherwise creates a separate role with the `_afrolife_runtime` suffix. It runs checksummed migrations with a migration-session-only `app.role=global_admin` setting so RLS-protected catalog seeds can be applied, and seeds the initial Super Admin on the owner connection inside a transaction with a transaction-local policy context.
-   With a separate `MIGRATION_DATABASE_URL`, the migration runner disables `FORCE ROW LEVEL SECURITY` on `support_cases`, `support_case_access_requests`, and `support_case_events` for the migration role so the support-case `SECURITY DEFINER` policies can operate without PostgreSQL superuser privileges; the restricted runtime role is not the table owner and remains subject to RLS. Migration 113 keeps RLS enabled on `assistant_conversations` without forcing the table owner through its policies, allowing its `SECURITY DEFINER` support functions to run; the restricted runtime role remains subject to RLS.
-   If a separate runtime role was created, copy the exact role name from the startup log and update `DATABASE_URL` in AletCloud to use this username with the same password before removing bootstrap secrets. After `/readyz` succeeds with the updated runtime URL, remove `ALETCLOUD_BOOTSTRAP_DATABASE_URL` and all `SEED_ADMIN_*` values from AletCloud and redeploy so the owner credential is no longer present in the deployment configuration. Do not leave an owner/superuser URL in `DATABASE_URL` or as a permanent runtime secret.
-   The migration runner grants the restricted runtime role SELECT/INSERT/UPDATE/DELETE on application tables, read-only access to `schema_migrations`, and sequence usage/updates. These SQL privileges do not bypass enabled row-level security policies.
-   Migration 114 removes `FORCE ROW LEVEL SECURITY` from `property_tenant_account_links` so the table owner can use its narrowly scoped `SECURITY DEFINER` helper without requiring PostgreSQL `BYPASSRLS`; row-level security remains enabled and the restricted runtime role remains subject to its policies. Helper execution is revoked from `PUBLIC` and granted only to the configured runtime role.
-5. Trigger deployment and inspect build logs and runtime logs. Correct build, database, or health errors before adding a public production domain.
-6. Verify the staging app's `/healthz` returns healthy and confirms database connectivity. This endpoint alone is not a complete readiness or recovery check.
-7. Validate sign-in, MFA, role-specific navigation and API authorization, property/listing workflows, matching/search, forms, reports, and upload access. For marketplace service listings, test the full quote-to-completion lifecycle and verify the UI never implies a payment or invoice was created. Use synthetic accounts/data only. Confirm denied roles cannot access another role's or tenant's records.
-8. Check logs do not contain passwords, session tokens, national IDs, document contents, or unnecessary personal data. Review resource, connection, storage, and response-time usage under representative load.
+The migration runner applies checksummed migrations with a migration-session-only policy context. With a separate `MIGRATION_DATABASE_URL`, it disables `FORCE ROW LEVEL SECURITY` on support-case tables for the migration role; migration 113 keeps RLS enabled on `assistant_conversations` without forcing the table owner through its policies. Migration 114 removes `FORCE ROW LEVEL SECURITY` from `property_tenant_account_links` so its narrowly scoped `SECURITY DEFINER` helper works without `BYPASSRLS`. RLS remains enabled, the restricted runtime role remains subject to its policies, and helper execution is limited to that role.
 
 ### Recover an existing app with unapplied migrations
 
-Before applying migrations, take a database snapshot and verify that the runtime and owner URLs target the same database. Temporarily set `ALETCLOUD_BOOTSTRAP_DATABASE_URL` to the migration-owner URL and `ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY=1`. Keep `DATABASE_URL` on the restricted runtime role and retain the required distinct `JWT_SECRET` and `MFA_ENC_KEY`.
+Take a database snapshot and verify both URLs target the same database. Temporarily set `ALETCLOUD_BOOTSTRAP_DATABASE_URL` to the migration owner and `ALETCLOUD_BOOTSTRAP_MIGRATIONS_ONLY=1`. Keep `DATABASE_URL` restricted and retain the required distinct JWT and MFA secrets. Redeploy once, inspect every migration result, and stop at the first failure. Remove both temporary variables after `/readyz` confirms expected migrations with no checksum or unverified-migration errors. This mode skips administrator seeding.
 
-Redeploy once and inspect startup logs for each migration. Stop on the first failure and resolve it before retrying. When `/readyz` reports all expected migrations applied with zero checksum mismatches, unverified checksums, and unexpected migrations, remove both temporary bootstrap variables and redeploy. This mode skips administrator seeding.
+## 4. Provision private document storage
+
+1. Create a private S3-compatible bucket. Configure versioning and lifecycle/retention to meet business and legal requirements.
+2. Create a least-privilege key scoped to this bucket. Keep credentials server-side.
+3. Configure `S3_ENDPOINT`, `S3_BUCKET`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` (and `AWS_SESSION_TOKEN` if supplied).
+4. For marker-based readiness, provision a private zero-byte health-marker object and set `S3_HEALTHCHECK_OBJECT_KEY` to its UUID key. Readiness attempts a signed marker `PUT`, then checks the marker with signed `HEAD` retries; it falls back to a signed bucket `HEAD` and fails closed if neither works. Without the marker setting, readiness uses the legacy bucket `HEAD`.
+5. Test upload, download, size/type validation, and role/tenant authorization—including denied access. Confirm no anonymous reads or bucket listing. Private object keys are UUIDs and uploads refuse overwrites.
+6. Configure a private ClamAV service with `CLAMAV_HOST`, `CLAMAV_PORT`, and `CLAMAV_TIMEOUT_MS`. Upload routes fail closed unless scanning is configured and clean.
+7. Test backup/restore and retention independently. `/readyz` confirms storage connectivity, not upload authorization, malware scanning, or recovery. Keep production uploads disabled until those checks pass.
+
+If existing documents must be moved, inventory them, copy with checksums and metadata, reconcile database references, and retain an auditable rollback copy. Do not mix local filesystem objects and bucket objects without a separately verified migration.
+
+## 5. Configure and validate staging
+
+Configure `NODE_ENV=production`, `DATABASE_URL`, `MIGRATION_DATABASE_URL`, distinct strong `JWT_SECRET` and `MFA_ENC_KEY`, `REQUIRE_MFA_FOR_STAFF=1`, exact `CORS_ORIGINS`, and the trusted proxy setting only for the actual AletCloud proxy. Add private storage and scanning settings above. Keep optional service cutover flags off until the related services are independently approved; do not point Production at localhost services.
+
+For initial Super Admin bootstrap, set `SEED_ADMIN_NAME`, `SEED_ADMIN_PHONE`, and a unique `SEED_ADMIN_PASSWORD` only when needed. Remove all seed and owner-bootstrap values after confirming the app uses the restricted runtime identity.
+
+Deploy staging and verify `/healthz` and `/readyz`. Test sign-in, MFA, role-specific UI and API access, tenant boundaries, upload/download, malware rejection, representative workflows, and denied access using synthetic accounts. Review logs for secrets, tokens, document contents, and unnecessary personal data. Monitor resource use and errors.
 
 ### Automatically apply Development migrations
 
-The `migrate-development` job in `AfroLife quality checks` applies checksummed migrations after both quality jobs pass when a push to `aletcloud-development` changes files under `afrolife/migrations/`. It fails closed if it cannot verify the push base, runs the exact tested commit, serializes runs, and accesses credentials only through the protected GitHub Environment named `afrolife-development`.
+The `migrate-development` job in `AfroLife quality checks` runs after quality jobs pass for a push to `aletcloud-development` that changes `afrolife/migrations/`. It runs the exact tested commit, serializes runs, and fails closed if the push base cannot be verified. Configure the protected `afrolife-development` GitHub Environment for that branch and store only the Development runtime and migration-owner URLs there. Never use UAT or Production credentials. This workflow does not migrate UAT or Production.
 
-Configure the GitHub Environment to accept deployments only from the protected `aletcloud-development` branch. Store these environment secrets there without putting their values in repository files or workflow logs:
+## 6. Production readiness evidence
 
-- `ALETCLOUD_DEVELOPMENT_DATABASE_URL`: the restricted Development runtime connection URL.
-- `ALETCLOUD_DEVELOPMENT_MIGRATION_DATABASE_URL`: the Development migration-owner connection URL for the same database.
+Before any Production release, record evidence that:
 
-Keep the runtime and migration roles separate. Do not use UAT or production credentials in this environment. A failed migration workflow must be investigated before retrying; `/readyz` remains the release check for migration completeness. This workflow does not migrate UAT or production.
+- The exact release SHA is in both `main` and UAT, required CI passed, and UAT `/readyz` is healthy.
+- A database backup reference is verified restorable before migration.
+- Production runtime and migration credentials have been rotated as required; session revocation and credential rotation are confirmed.
+- Private storage marker behavior, signed upload/download, role/tenant authorization, malware scanning, and backup/restore have been independently tested.
+- The runtime ACL/RLS check passes; separate Super Admin accounts and staff MFA are configured.
+- The provider has confirmed backup, restore, data location, availability, and support for the purchased services against approved RPO/RTO targets.
+- Production resources and credentials are isolated from Development and UAT; automatic Production deploy-on-push is disabled.
+- Owners, monitoring, budget alerts, rollback procedures, and a restore rehearsal are documented.
 
-### Rotate the MFA encryption key
+Do not treat a bucket URL as a database backup reference. Do not proceed while any required evidence is missing.
 
-The app supports a short-lived `MFA_ENC_KEY_PREVIOUS` compatibility key so existing authenticator secrets remain usable during rotation. Do not remove the old key until all stored secrets have been re-encrypted and MFA sign-in has been verified.
+## 7. Promote to UAT and release Production
 
-1. Deploy the compatibility release while the currently active MFA key is unchanged.
-2. Set `MFA_ENC_KEY` to a new unique secret and `MFA_ENC_KEY_PREVIOUS` to the prior MFA key. If existing records were encrypted using an older JWT secret, preserve that old JWT secret separately for the one-time rotation command; do not put it in persistent app settings.
-3. In a controlled maintenance window, run `npm run db:mfa:rotate-key` from a trusted operator environment configured with the current runtime `DATABASE_URL`, a separate owner `MIGRATION_DATABASE_URL`, current `JWT_SECRET`, the new active `MFA_ENC_KEY`, the prior `MFA_ENC_KEY_PREVIOUS`, and (only if needed) `MFA_LEGACY_JWT_SECRET`. All values must be supplied through the approved secret manager or environment, never command-line arguments, logs, or chat. The script confirms both URLs refer to the same database, locks the users table, and re-encrypts all MFA secrets in one transaction. Any undecryptable secret aborts and rolls back the entire operation.
-4. Run `npm run db:mfa:verify-key` with the same database URLs, current `JWT_SECRET`, and active `MFA_ENC_KEY`. This read-only check opens every stored MFA secret with the active key only and prints sanitized counts; require `result: PASS` and zero failures as evidence. Verify MFA sign-in for representative staff accounts.
-5. Then remove `MFA_ENC_KEY_PREVIOUS` and any one-time `MFA_LEGACY_JWT_SECRET`; redeploy and confirm MFA still works before revoking old key material.
+### UAT
 
-## 6. Complete production readiness checks
+The `Promote AfroLife Development to UAT` workflow runs after `AfroLife quality checks` succeeds for a push to `aletcloud-development`. It promotes the exact tested commit to `aletcloud-prod-disabled-insurance`, which must be the UAT app's deployment branch. A merge conflict, missing commit, or branch-protection rejection fails closed and needs operator review. Promotion transfers source only; keep UAT database, bucket, and environment secrets separate.
 
-Before creating production traffic, record evidence for each item:
+### Production release gate
 
-- S3/private document storage is configured; signed upload/download behavior, role and tenant authorization, malware scanning, and backup/restore have been independently tested.
-- AletCloud has confirmed contractual availability, backups, restore time, data location, and support for the exact services purchased; recovery meets the approved RPO/RTO.
-- Production uses a separate project/app, PostgreSQL database, bucket, credentials, and domain from staging.
-- The migration and runtime database identities are separate; the runtime ACL/RLS check passes.
-- Two distinct Super Admin accounts are provisioned through the documented seed process, and staff MFA is required. Seed credentials are handled out of band and removed from the release operator's temporary environment after use.
-- No test seeders or test credentials are used in production. `npm run seed:local-test-users` is strictly local-only.
-- Named owners are assigned for releases, security incidents, backups/restores, billing, and user support.
-- Wallet balance and budget alerts are set. At zero/depleted balance the service may be suspended; confirm the alert and reactivation behavior.
-- Monitoring/alerts cover uptime, latency/5xx, database health and capacity, storage, failed uploads, backup age/results, and authentication lockouts.
-- A rollback and restore rehearsal has been completed and recorded.
+Keep AletCloud automatic Production deployments disabled. Configure the protected `afrolife-production` GitHub Environment with required human reviewers and only Production runtime/migration secrets. The dedicated private-network runner must reach the Production database and must not run untrusted pull-request jobs. Restrict who can dispatch the gate.
 
-## 7. Deploy production and attach the domain
+1. Dispatch the Production release gate with operation `diagnose`. It reads migration state using only the restricted runtime role and reports missing, mismatched, unverified, or unexpected migrations without printing checksums or connection data.
+2. Verify the restorable backup reference and rotated Production credentials. Dispatch `migrate` for the exact reviewed SHA after build, disposable-database tests, healthy UAT readiness, same-database/separate-role checks, and runtime ACL checks pass. This phase checks schema only and does not require the deployed storage check to pass.
+3. Provision the private marker and configure `S3_HEALTHCHECK_OBJECT_KEY`, then deploy that exact reviewed commit. Dispatch `verify` with evidence for private upload/download and role/tenant authorization. Require Production `/healthz` and full `/readyz`, including storage, plus malware-scan and business smoke tests.
+4. Keep public traffic gated until the release owner accepts all evidence. Then attach the custom domain using only the exact DNS records supplied by AletCloud; verify TLS, redirects, and `CORS_ORIGINS` before controlled traffic rollout.
 
-1. Create a separate production app from the protected release branch. Reuse the tested build/start configuration, but set production-only database, storage, and secret values.
-2. Take a database backup/snapshot before the first production migration. Apply `npm run db:migrate` once with the migration identity. Check the runtime ACLs with the production runtime identity.
-3. Deploy the reviewed commit. Verify logs, `/healthz`, database connectivity, and a small authorized smoke workflow before public DNS cutover.
-4. Add the custom domain in the AletCloud app settings. Publish the exact TXT ownership-verification record AletCloud provides (typically `_alet-challenge.<domain>`), wait for verification, then publish the exact A or CNAME record it specifies. Do not assume the target value.
-5. Wait for AletCloud to issue TLS. Verify HTTPS, certificate validity/renewal status, redirect behavior, and the app's exact `CORS_ORIGINS`. If an external DNS proxy is enabled, follow AletCloud's instructions for DNS-only/proxied mode.
-6. Route a small controlled group first. Watch health, errors, database connections, upload behavior, and business workflows. Expand only after the release owner accepts the evidence.
-7. For a rollback, redeploy the previous known-good commit and follow the documented database compatibility plan. DNS rollback is useful only if the prior service is still operational. Do not restore a database backup without assessing data written since that backup.
+For rollback, redeploy the previous known-good commit and follow the database compatibility plan. Assess writes since the backup before restoring it.
 
-## 8. Ongoing operations
+## 8. Ongoing operations and emergency recovery
 
-- Every push to the connected deployment branch may trigger a deployment; protect the branch and review each change.
-- Test migrations and releases in staging first. Promote a reviewed commit; do not use staging credentials in production.
-- Check backup success and wallet/budget alerts regularly. Perform and document restore rehearsals at least quarterly and after material database/storage changes.
-- Review account access, tokens, service keys, MFA, dependency updates, and audit logs on a defined schedule. Revoke unused or exposed credentials immediately.
-- Size up only after measuring peak concurrent users, CPU/memory, database connections/IO, data growth, upload volume, and report/matching durations.
+- Protect every connected deployment branch; review each push that can trigger deployment.
+- Test migrations and releases in staging first. Production migrations never run automatically on source push.
+- Check backup results and budget alerts regularly; conduct and document restore rehearsals at least quarterly and after material storage/database changes.
+- Review accounts, tokens, service keys, MFA, dependencies, and audit logs. Revoke exposed credentials immediately.
+- Monitor uptime, latency/5xx, database health/capacity, storage, failed uploads, backup age/results, and authentication lockouts.
 
-### Emergency Super Admin recovery
+When no active Super Admin can sign in, one-time startup recovery requires `ALETCLOUD_ADMIN_RECOVERY_ENABLED=1`, `ALETCLOUD_ADMIN_RECOVERY_CONFIRM=rotate-super-admin`, a recovery phone, and a unique password. It proceeds only for exactly one active Super Admin/Global Admin, revokes that account's sessions, and requires a password change. Remove recovery variables and redeploy immediately after success. Never commit or log recovery values.
 
-When no active Super Admin can sign in, a one-time recovery can be run at app startup by setting `ALETCLOUD_ADMIN_RECOVERY_ENABLED=1`, `ALETCLOUD_ADMIN_RECOVERY_CONFIRM=rotate-super-admin`, `ALETCLOUD_ADMIN_RECOVERY_PHONE`, and `ALETCLOUD_ADMIN_RECOVERY_PASSWORD` in that app's private environment. The password must be 16–72 UTF-8 bytes.
-
-By default, recovery selects the unique active Super Admin/Global Admin matching the phone. To also update an existing admin's identity, optionally set `ALETCLOUD_ADMIN_RECOVERY_NAME` to the desired legal name. This mode proceeds only when exactly one active Super Admin/Global Admin account exists, then updates its name and phone. Both modes revoke the selected account's sessions and require a password change at next sign-in; existing MFA settings remain unchanged. After the recovery success message, remove all recovery variables and redeploy immediately. Never put recovery values in source control or logs.
-
-If recovery is not intended, remove the recovery variables or leave them all empty. Empty placeholders are ignored; any non-empty partial or invalid recovery configuration still fails startup.
-
-## Official provider references
+## References
 
 - [AletCloud app deployment](https://aletcloud.com/docs/deploy-an-app)
-- [AletCloud framework guides](https://aletcloud.com/docs/framework-guides)
 - [AletCloud managed databases](https://aletcloud.com/docs/managed-databases)
 - [AletCloud object storage](https://aletcloud.com/docs/object-storage)
-- [AletCloud pricing](https://aletcloud.com/pricing)
-
-## Repository references
-
-- `.env.production.example` — deployment variable names and defaults
-- `package.json` — Node version, build/start scripts, database scripts
-- `README.md` — local setup, admin provisioning, and role/security behavior
-- `ETHIO_TELECOM_CLOUD_REQUIREMENTS.md` — provider-independent infrastructure, backup, and recovery requirements
+- `package.json`, `.env.production.example`, `README.md`, and `ETHIO_TELECOM_CLOUD_REQUIREMENTS.md`

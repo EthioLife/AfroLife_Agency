@@ -252,12 +252,21 @@ test('production accepts complete private S3 storage and rejects incomplete or i
     FILE_STORAGE_DIR: undefined,
     S3_BUCKET: 't978-afrolife-private-files',
     S3_ENDPOINT: 'https://s3.aletcloud.com',
+    S3_HEALTHCHECK_OBJECT_KEY: '00000000-0000-4000-8000-000000000002',
     AWS_REGION: 'et-addis-1',
     AWS_ACCESS_KEY_ID: 'test-access-key',
     AWS_SECRET_ACCESS_KEY: 'test-secret-key',
   };
   assert.doesNotThrow(() => loadRuntimeConfig(objectStorageEnvironment));
   assert.equal(privateObjectStorageConfig(objectStorageEnvironment)?.bucket, 't978-afrolife-private-files');
+  assert.equal(
+    privateObjectStorageConfig(objectStorageEnvironment)?.healthCheckObjectKey,
+    '00000000-0000-4000-8000-000000000002',
+  );
+  assert.throws(
+    () => privateObjectStorageConfig({ ...objectStorageEnvironment, S3_HEALTHCHECK_OBJECT_KEY: 'invalid' }),
+    /S3_HEALTHCHECK_OBJECT_KEY must be a UUID object key/,
+  );
   assert.throws(
     () => loadRuntimeConfig({ ...objectStorageEnvironment, AWS_SECRET_ACCESS_KEY: undefined }),
     /requires a bucket, endpoint, access key, and secret key/,
