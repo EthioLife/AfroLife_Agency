@@ -10,6 +10,21 @@ Same-origin TypeScript/Express API and installable web app for AfroLife agency o
 - Android Studio with the Android SDK to build/install the Android app
 - macOS with Xcode 16 or later to build, run, sign, and distribute the iOS app
 
+## Native release builds
+
+For a signed Android Play Store bundle, provide `AFROLIFE_RELEASE_STORE_FILE`,
+`AFROLIFE_RELEASE_STORE_PASSWORD`, `AFROLIFE_RELEASE_KEY_ALIAS`, and
+`AFROLIFE_RELEASE_KEY_PASSWORD` through a protected local environment or CI
+secret store, then run `npm run android:bundle:release`. The Gradle release
+task refuses to build when any signing value is missing. Never commit the
+keystore or signing credentials.
+
+The quality workflows compile Android Debug, iOS Simulator, and an unsigned
+iOS device Release configuration. These builds validate compilation only;
+they do not sign, upload, or establish store approval. iOS distribution still
+requires the Apple Developer team, signing certificate, provisioning profile,
+privacy details, and App Store Connect review.
+
 ## Local setup
 
 1. Install dependencies:

@@ -3,6 +3,7 @@ const rows = [
   ['AfroSherik home', 'የAfroSherik መነሻ', 'Fuula jalqabaa AfroSherik', 'መበገሲ ገጽ AfroSherik'],
   ['More', 'ተጨማሪ', 'Dabalata', 'ተወሳኺ'],
   ['More workspace sections', 'ተጨማሪ የሥራ ቦታ ክፍሎች', 'Kutaa hojii dabalataa', 'ተወሳኺ ክፍልታት ቦታ ስራሕ'],
+  ['Admin activities', 'የአስተዳደር ተግባራት', 'Hojiiwwan bulchiinsaa', 'ንጥፈታት ምምሕዳር'],
   ['YOUR WORKSPACE', 'የእርስዎ የሥራ ቦታ', 'IDDOO HOJII KEESSAN', 'ቦታ ስራሕኩም'],
   ['All sections', 'ሁሉም ክፍሎች', 'Kutaa hunda', 'ኩሎም ክፍልታት'],
   ['Close', 'ዝጋ', 'Cufi', 'ዕጸው'],

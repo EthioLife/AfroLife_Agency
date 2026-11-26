@@ -1216,6 +1216,28 @@ body {
 }
 .workspace-nav-core { display: grid; gap: 4px; }
 .workspace-nav-groups { display: grid; gap: 13px; }
+.admin-submenu { display: grid; gap: 4px; margin: 3px 0 7px; padding-inline-start: 12px; }
+.admin-activity-menu { display: none; }
+.admin-activity-link {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 0;
+  border-inline-start: 2px solid #d5e3d8;
+  border-radius: 0 7px 7px 0;
+  background: transparent;
+  color: #536b5f;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.admin-activity-link:hover, .admin-activity-link:focus-visible {
+  border-inline-start-color: var(--gold);
+  background: #f2f7f2;
+  color: var(--green-dark);
+}
 .workspace-nav-business, .workspace-nav-configuration {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1272,6 +1294,18 @@ body {
   .workspace-layout { display: block; }
   .workspace-layout > .tabs { display: none; }
   .workspace-layout > .workspace { padding-block-start: 22px; }
+  .admin-activity-menu {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+    gap: 5px;
+    margin-block-end: 10px;
+  }
+  .admin-activity-menu .admin-activity-link {
+    min-height: 40px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: #fff;
+  }
   .row-pagination { justify-content: flex-start; }
   .row-pagination-summary { min-width: 0; margin-inline-end: auto; text-align: start; }
 }
@@ -2123,23 +2157,6 @@ h1, h2, h3, .eyebrow {
   margin-bottom: 12px;
   line-height: 1.55;
 }
-.service-preview {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 12px 0;
-  padding: 0;
-  list-style: none;
-}
-.service-preview li {
-  padding: 5px 9px;
-  border: 1px solid rgba(215, 173, 89, .44);
-  border-radius: 7px;
-  background: rgba(255, 255, 255, .07);
-  color: #fffdf6;
-  font-size: 11px;
-  font-weight: 700;
-}
 .welcome-promise { margin-block: 12px 0; }
 .brand-illustration {
   width: min(100%, 390px);
@@ -2160,11 +2177,6 @@ h1, h2, h3, .eyebrow {
   .trust-points { margin-block-start: 10px; }
   .login-card { padding: 20px; }
 }
-@media (max-width: 380px) {
-  .service-preview { gap: 5px; }
-  .service-preview li { padding: 4px 7px; }
-}
-
 .workspace-launch-card {
   width: 100%;
   text-align: start;
@@ -2261,32 +2273,14 @@ h1, h2, h3, .eyebrow {
   outline-color: var(--opportunity-yellow) !important;
   box-shadow: 0 0 0 2px var(--green-dark) !important;
 }
-.brand-mark {
+.brand-lockup {
   display: block;
-  flex: 0 0 48px;
-  width: 48px;
-  height: 48px;
+  flex: 0 1 auto;
+  width: clamp(190px, 22vw, 250px);
+  max-width: 100%;
+  height: auto;
+  max-height: 76px;
   object-fit: contain;
-}
-.brand-copy { display: grid; min-width: 0; gap: 3px; }
-.brand-name {
-  color: #fffdf6;
-  font-family: Manrope, "Noto Sans Ethiopic", Inter, "Segoe UI", sans-serif;
-  font-size: clamp(20px, 1.5vw, 22px);
-  font-weight: 800;
-  letter-spacing: -.035em;
-  line-height: 1.05;
-  white-space: nowrap;
-}
-.brand-detail {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0 5px;
-  color: #e1ebe4;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.3;
 }
 
 @media (max-width: 920px) and (min-width: 651px) {
@@ -2309,13 +2303,7 @@ h1, h2, h3, .eyebrow {
     align-items: center;
   }
   .topbar .brand { grid-area: brand; gap: 8px; }
-  .brand-mark {
-    flex-basis: 42px;
-    width: 42px;
-    height: 42px;
-  }
-  .brand-name { font-size: 18px; }
-  .brand-detail { gap: 0 4px; font-size: 11px; }
+  .brand-lockup { width: clamp(168px, 53vw, 210px); }
   .topbar .language-picker { grid-area: language; justify-self: end; margin: 0; }
   .topbar .language-picker select { min-width: 104px; max-width: 120px; }
   .topbar .install-app {
@@ -2344,13 +2332,7 @@ h1, h2, h3, .eyebrow {
     column-gap: 7px;
   }
   .topbar .brand { gap: 8px; }
-  .brand-mark {
-    flex-basis: 40px;
-    width: 40px;
-    height: 40px;
-  }
-  .brand-name { font-size: 17px; }
-  .brand-detail { font-size: 11px; }
+  .brand-lockup { width: clamp(168px, 53vw, 210px); }
   .topbar .language-picker select { min-width: 86px; max-width: 102px; }
   .topbar .account-tools .button { min-height: 38px; }
   .topbar .account-tools { justify-self: end; }

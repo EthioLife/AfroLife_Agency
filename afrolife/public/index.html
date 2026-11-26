@@ -19,11 +19,7 @@
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="topbar">
       <a class="brand" href="/" aria-label="AfroSherik — Connect · Access · Thrive">
-        <img class="brand-mark" src="/brand/afrosherik-mark-transparent.svg" alt="" aria-hidden="true" width="48" height="48">
-        <span class="brand-copy">
-          <span class="brand-name">AfroSherik</span>
-          <span class="brand-detail">Connect <span aria-hidden="true">·</span> Access <span aria-hidden="true">·</span> Thrive</span>
-        </span>
+        <img class="brand-lockup" src="/brand/afrosherik-brand-lockup-transparent.png" alt="" aria-hidden="true" width="490" height="152">
       </a>
       <label class="language-picker">
         <span class="visually-hidden">Language</span>
@@ -57,12 +53,6 @@
           <a class="welcome-signin-shortcut" href="#login-form">Sign in</a>
           <h1>One trusted place to get work moving.</h1>
           <p>Explore connected services and opportunities across work, homes, marketplace, agents, payments, protection, and support.</p>
-          <ul class="service-preview" aria-label="Service categories">
-            <li>Work</li>
-            <li>Homes</li>
-            <li>Marketplace</li>
-            <li>Community</li>
-          </ul>
           <p class="welcome-promise">Connect <span aria-hidden="true">•</span> Access <span aria-hidden="true">•</span> Thrive <span class="welcome-promise-note">Building a Prosperous Africa Together.</span></p>
           <figure class="brand-illustration">
             <img src="/brand/afrosherik-campaign-hero.png" alt="AfroSherik campaign artwork showing a woman with a phone and the Addis Ababa skyline beside the message: More Opportunities. Stronger Communities." width="427" height="204">
@@ -446,6 +436,7 @@
           <div id="workspace-search-results" class="workspace-search-results" role="status" aria-live="polite" hidden></div>
         </form>
         <div id="stat-grid" class="stat-grid"></div>
+        <nav id="mobile-admin-activity-menu" class="admin-activity-menu" aria-label="Admin activities" hidden></nav>
         <div class="workspace-layout">
           <nav class="tabs" aria-label="Workspace sections">
           <section class="workspace-nav-group workspace-nav-core" aria-label="Core modules">
@@ -479,7 +470,8 @@
               <h2>Configuration</h2>
               <button id="privacy-tab" class="tab" data-panel="privacy" type="button">Privacy requests &amp; incidents</button>
               <button class="tab" data-panel="security" type="button">Security</button>
-              <button id="admin-tab" class="tab" data-panel="admin" type="button" hidden>Admin &amp; review</button>
+              <button id="admin-tab" class="tab" data-panel="admin" type="button" aria-controls="admin-submenu mobile-admin-activity-menu" aria-expanded="false" hidden>Admin &amp; review</button>
+              <nav id="admin-submenu" class="admin-submenu" aria-label="Admin activities" hidden></nav>
             </section>
           </div>
           </nav>

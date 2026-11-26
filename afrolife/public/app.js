@@ -3135,6 +3135,45 @@ function renderMobileWorkspaceNav() {
   nav.append(moreButton);
 }
 
+function renderAdminActivityMenus(wrap) {
+  const sidebarMenu = $('#admin-submenu');
+  const compactMenu = $('#mobile-admin-activity-menu');
+  const items = state.panel === 'admin' && wrap
+    ? [...wrap.children]
+      .filter((activity) => !activity.classList.contains('section-heading'))
+      .map((activity, index) => {
+        const heading = activity.querySelector('h2, h3');
+        if (!heading) return null;
+        const label = (heading.firstChild ? getLocalizedNodeSource(heading.firstChild) : '').trim() || heading.textContent.trim();
+        if (!label) return null;
+        if (!activity.id) {
+          const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `section-${index + 1}`;
+          activity.id = `admin-activity-${slug}-${index + 1}`;
+        }
+        activity.tabIndex = -1;
+        return { activity, label };
+      })
+      .filter(Boolean)
+    : [];
+  const createLinks = () => items.map(({ activity, label }) => {
+    const link = node('button', label, 'admin-activity-link');
+    link.type = 'button';
+    link.addEventListener('click', () => {
+      const target = activity;
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      target.focus({ preventScroll: true });
+    });
+    return link;
+  });
+  sidebarMenu.replaceChildren(...createLinks());
+  compactMenu.replaceChildren(...createLinks());
+  sidebarMenu.hidden = state.panel !== 'admin' || !items.length;
+  compactMenu.hidden = state.panel !== 'admin' || !items.length;
+  $('#admin-tab').setAttribute('aria-expanded', String(state.panel === 'admin' && items.length > 0));
+  translateContent(sidebarMenu);
+  translateContent(compactMenu);
+}
+
 function renderLeads() {
   const wrap = node('div');
   wrap.append(sectionHeading('Lead book', 'Every opportunity stays attributed to the agent who sourced it.'));
@@ -6632,7 +6671,7 @@ function renderPlatformControlPlane() {
   const packageForm = node('form', undefined, 'inline-form');
   packageForm.dataset.form = 'platform-service-package';
   packageForm.append(
-    field('Package key', 'package_key', 'text', true, { pattern: '[a-z][a-z0-9_-]{1,79}', placeholder: 'full-platform' }).label,
+    field('Package key', 'package_key', 'text', true, { pattern: '[a-z][a-z0-9_\\-]{1,79}', placeholder: 'full-platform' }).label,
     field('Package name', 'display_name').label,
     field('Description', 'description', 'text', true, { maxlength: '1000' }).label,
   );
@@ -6687,7 +6726,7 @@ function renderPlatformControlPlane() {
   const tenantForm = node('form', undefined, 'inline-form');
   tenantForm.dataset.form = 'platform-tenant';
   tenantForm.append(
-    field('Tenant key', 'tenant_key', 'text', true, { pattern: '[a-z][a-z0-9-]{1,79}', placeholder: 'afrolife-legacy' }).label,
+    field('Tenant key', 'tenant_key', 'text', true, { pattern: '[a-z][a-z0-9\\-]{1,79}', placeholder: 'afrolife-legacy' }).label,
     field('Tenant name', 'display_name').label,
     field('Hosting mode', 'hosting_mode', 'select').label,
     field('Region (optional)', 'region', 'text', false, { maxlength: '120' }).label,
@@ -6809,7 +6848,7 @@ function renderPlatformControlPlane() {
   const productForm = node('form', undefined, 'inline-form');
   productForm.dataset.form = 'platform-catalog-product';
   productForm.append(
-    field('Product key', 'product_key', 'text', true, { pattern: '[a-z][a-z0-9_-]{1,79}', placeholder: 'household-support-plan' }).label,
+    field('Product key', 'product_key', 'text', true, { pattern: '[a-z][a-z0-9_\\-]{1,79}', placeholder: 'household-support-plan' }).label,
     field('Product name', 'display_name').label,
     field('Description', 'description', 'text', true, { maxlength: '2000' }).label,
     field('Catalog category', 'category', 'select').label,
@@ -7834,6 +7873,7 @@ function finishWorkspaceRender() {
 }
 
 function renderPanel() {
+  renderAdminActivityMenus(null);
   $('#workspace').dataset.panel = state.panel;
   $('.page-heading').dataset.panel = state.panel;
   document.querySelectorAll('.tab').forEach((tab) => {
@@ -7971,7 +8011,9 @@ function renderPanel() {
     password: renderPasswordChange,
     security: renderSecurity,
   }[state.panel] ?? renderOverview;
-  $('#workspace').replaceChildren(renderer());
+  const rendered = renderer();
+  renderAdminActivityMenus(rendered);
+  $('#workspace').replaceChildren(rendered);
   finishWorkspaceRender();
 }
 

@@ -590,7 +590,7 @@ test('agent signup accepts typed territory names and offers seeded Ethiopian reg
   }
 });
 
-test('AfroSherik sign-in keeps a compact shared brand header and campaign artwork', () => {
+test('AfroSherik sign-in shows its transparent lockup and campaign artwork', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
   const icon = readFileSync(new URL('../public/icons/afrosherik-icon-192.png', import.meta.url));
@@ -614,8 +614,8 @@ test('AfroSherik sign-in keeps a compact shared brand header and campaign artwor
     }
     return inflateSync(Buffer.concat(idatChunks))[4] === 0;
   };
-  assert.match(header, /<a class="brand" href="\/" aria-label="AfroSherik — Connect · Access · Thrive">\s*<img class="brand-mark" src="\/brand\/afrosherik-mark-transparent\.svg" alt="" aria-hidden="true" width="48" height="48">\s*<span class="brand-copy">\s*<span class="brand-name">AfroSherik<\/span>\s*<span class="brand-detail">Connect <span aria-hidden="true">·<\/span> Access <span aria-hidden="true">·<\/span> Thrive<\/span>/);
-  assert.doesNotMatch(header, /afrosherik-brand-lockup/);
+  assert.match(header, /<a class="brand" href="\/" aria-label="AfroSherik — Connect · Access · Thrive">\s*<img class="brand-lockup" src="\/brand\/afrosherik-brand-lockup-transparent\.png" alt="" aria-hidden="true" width="490" height="152">/);
+  assert.doesNotMatch(header, /brand-copy|brand-name|brand-detail/);
   assert.match(html, /<img src="\/brand\/afrosherik-campaign-hero\.png" alt="AfroSherik campaign artwork showing a woman with a phone and the Addis Ababa skyline beside the message: More Opportunities\. Stronger Communities\." width="427" height="204">/);
   assert.deepEqual(pngDimensions(icon), [192, 192]);
   assert.match(transparentMark, /viewBox="89 96 334 353"/);
@@ -627,18 +627,21 @@ test('AfroSherik sign-in keeps a compact shared brand header and campaign artwor
   assert.equal(transparentLockup[25], 6, 'transparent lockup should retain its RGBA alpha channel');
   assert.equal(hasTransparentTopLeftPixel(transparentLockup), true, 'transparent export background should be transparent');
   assert.deepEqual(pngDimensions(hero), [427, 204]);
-  assert.match(styles, /\.brand-mark\s*\{[^}]*flex:\s*0 0 48px;[^}]*width:\s*48px;[^}]*height:\s*48px;[^}]*object-fit:\s*contain;/s);
-  assert.doesNotMatch(styles, /\.brand-mark\s*\{[^}]*box-shadow:/s);
+  assert.match(styles, /\.brand-lockup\s*\{[^}]*width:\s*clamp\(190px,\s*22vw,\s*250px\);[^}]*max-width:\s*100%;[^}]*height:\s*auto;[^}]*object-fit:\s*contain;/s);
+  assert.match(styles, /@media \(max-width: 650px\) \{[\s\S]*?\.brand-lockup \{ width: clamp\(168px,\s*53vw,\s*210px\); \}/);
+  assert.doesNotMatch(styles, /\.brand-mark\b|\.brand-copy\b|\.brand-name\b|\.brand-detail\b/);
   assert.doesNotMatch(styles, /\.brand img\b|\.brand small\b|width:\s*312px|height:\s*104px/);
   assert.equal((styles.match(/(?:^|\n)\.topbar\s*\{/g) ?? []).length, 1, 'shared header should have one base rule');
   assert.doesNotMatch(styles, /(?:^|\n)\.brand\s*\{/);
   const tabletHeaderStyles = styles.slice(styles.lastIndexOf('@media (max-width: 920px) and (min-width: 651px) {'));
   assert.match(tabletHeaderStyles, /grid-template-areas:\s*"brand language" "install account"/);
   const mobileHeaderStyles = styles.slice(styles.lastIndexOf('@media (max-width: 650px) {'));
-  assert.match(mobileHeaderStyles, /grid-template-columns:\s*minmax\(0, 1fr\) auto;[\s\S]*?grid-template-areas:\s*"brand language" "install account";[\s\S]*?\.brand-mark\s*\{[^}]*width:\s*42px;[^}]*height:\s*42px;/);
+  assert.match(mobileHeaderStyles, /grid-template-columns:\s*minmax\(0, 1fr\) auto;[\s\S]*?grid-template-areas:\s*"brand language" "install account";/);
   const narrowHeaderStyles = styles.slice(styles.lastIndexOf('@media (max-width: 380px) {'));
   assert.match(narrowHeaderStyles, /grid-template-areas:\s*"brand language" "install install" "account account"/);
-  assert.match(narrowHeaderStyles, /\.brand-mark\s*\{[^}]*width:\s*40px;[^}]*height:\s*40px;/);
+  assert.match(narrowHeaderStyles, /\.brand-lockup \{ width: clamp\(168px,\s*53vw,\s*210px\); \}/);
+  assert.doesNotMatch(html, /<ul class="service-preview" aria-label="Service categories">/);
+  assert.match(html, /Explore connected services and opportunities across work, homes, marketplace, agents, payments, protection, and support\./);
   assert.match(html, /class="welcome-signin-shortcut" href="#login-form">Sign in<\/a>/);
   assert.match(styles, /\.welcome-signin-shortcut\s*\{\s*display:\s*none;\s*\}/);
   assert.match(styles, /@media \(max-width: 700px\) \{\s*\.welcome-signin-shortcut\s*\{\s*display:\s*inline-flex;[\s\S]*?min-height:\s*46px;/);
@@ -744,7 +747,7 @@ test('public hub integrates the campaign artwork with the existing public action
   assert.match(styles, /@media \(max-width: 700px\) \{[\s\S]*?\.hub-service-network \{ min-height: 220px; \}/);
   assert.match(styles, /\.hub-heading \{ grid-template-columns: minmax\(0, 1fr\); gap:/);
   assert.match(styles, /#public-hub \.service-card\[data-panel\] \.service-icon\s*\{[^}]*background:\s*var\(--mini-app-tint\);[^}]*color:\s*var\(--mini-app-ink/s);
-  assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v50'/);
+  assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v51'/);
   assert.match(serviceWorker, /'\/passkeys\.js'/);
   assert.match(serviceWorker, /'\/tenant-data-admin\.js'/);
   for (const asset of [
@@ -759,7 +762,7 @@ test('public hub integrates the campaign artwork with the existing public action
   }
 });
 
-test('public landing page reuses only the brand icon across raster image elements', () => {
+test('public landing page uses its brand lockup once across raster image elements', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const styles = [
     readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8'),
@@ -771,11 +774,11 @@ test('public landing page reuses only the brand icon across raster image element
   ].filter((source) => /\.(?:png|jpe?g|webp|avif|gif)(?:[?#]|$)/i.test(source))
     .map((source) => source.split(/[?#]/, 1)[0].toLowerCase());
   const repeatedSources = [...new Set(imageSources.filter((source, index) => (
-    source !== '/icons/afrosherik-icon-192.png' && imageSources.indexOf(source) !== index
+    source !== '/brand/afrosherik-brand-lockup-transparent.png' && imageSources.indexOf(source) !== index
   )))];
 
   assert.deepEqual(repeatedSources, []);
-  assert.equal(imageSources.filter((source) => source === '/icons/afrosherik-icon-192.png').length, 1);
+  assert.equal(imageSources.filter((source) => source === '/brand/afrosherik-brand-lockup-transparent.png').length, 1);
   assert.equal(imageSources.filter((source) => source === '/brand/afrosherik-campaign-hero.png').length, 1);
 });
 
