@@ -526,6 +526,12 @@ test('public signup actions open generic registration and allow returning to sig
   assert.match(app, /#public-create-account'\)\.addEventListener\('click', \(\) => openSignup\(false\)\)/);
   assert.match(app, /#create-account'\)\.addEventListener\('click', \(\) => openSignup\(false\)\)/);
   assert.match(html, /id="show-login"[^>]*>Already have an account\? Sign in<\/button>/);
+  const openSignup = app.slice(app.indexOf('function openSignup('), app.indexOf('function showSignupFollowupMode('));
+  const returnToLogin = app.slice(app.indexOf("$('#show-login').addEventListener('click'"), app.indexOf("$('#save-server').addEventListener"));
+  assert.match(openSignup, /focusFormField\(\$\('#signup-form'\), 'input\[name="legal_name"\]'\)/);
+  assert.match(returnToLogin, /focusFormField\(\$\('#login-form'\), 'input\[name="phone"\]'\)/);
+  assert.match(app, /function focusFormField\(form, selector\)[\s\S]*?form\.scrollIntoView\(\{ behavior: reducedMotion \? 'auto' : 'smooth', block: 'start' \}\)[\s\S]*?form\.querySelector\(selector\)\?\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8'), /#signup-form \{ scroll-margin-block-start: 1rem; \}/);
 });
 
 test('hidden signup document-replacement controls do not block initial registration', () => {
@@ -583,22 +589,32 @@ test('agent signup accepts typed territory names and offers seeded Ethiopian reg
   }
 });
 
-test('AfroSherik sign-in uses the supplied campaign and brand artwork', () => {
+test('AfroSherik sign-in keeps a compact shared brand header and campaign artwork', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
-  const logo = readFileSync(new URL('../public/brand/afrosherik-brand-lockup.png', import.meta.url));
+  const icon = readFileSync(new URL('../public/icons/afrosherik-icon-192.png', import.meta.url));
   const hero = readFileSync(new URL('../public/brand/afrosherik-campaign-hero.png', import.meta.url));
+  const header = html.slice(html.indexOf('<header class="topbar">'), html.indexOf('</header>') + '</header>'.length);
   const pngDimensions = (image) => {
     assert.equal(image.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
     return [image.readUInt32BE(16), image.readUInt32BE(20)];
   };
-  assert.match(html, /<a class="brand" href="\/" aria-label="AfroSherik">\s*<img src="\/brand\/afrosherik-brand-lockup\.png" alt="AfroSherik — Connect · Access · Thrive" width="312" height="104">/);
+  assert.match(header, /<a class="brand" href="\/" aria-label="AfroSherik — Connect · Access · Thrive">\s*<img class="brand-mark" src="\/icons\/afrosherik-icon-192\.png" alt="" aria-hidden="true" width="48" height="48">\s*<span class="brand-copy">\s*<span class="brand-name">AfroSherik<\/span>\s*<span class="brand-detail">Connect <span aria-hidden="true">·<\/span> Access <span aria-hidden="true">·<\/span> Thrive<\/span>/);
+  assert.doesNotMatch(header, /afrosherik-brand-lockup/);
   assert.match(html, /<img src="\/brand\/afrosherik-campaign-hero\.png" alt="AfroSherik campaign artwork showing a woman with a phone and the Addis Ababa skyline beside the message: More Opportunities\. Stronger Communities\." width="427" height="204">/);
-  assert.deepEqual(pngDimensions(logo), [490, 152]);
+  assert.deepEqual(pngDimensions(icon), [192, 192]);
   assert.deepEqual(pngDimensions(hero), [427, 204]);
-  assert.match(styles, /\.topbar \.brand img\s*\{[^}]*width:\s*312px;[^}]*height:\s*104px;[^}]*object-fit:\s*contain;/s);
-  assert.match(styles, /@media \(max-width: 650px\) \{[\s\S]*?\.topbar \.brand img\s*\{[^}]*width:\s*min\(312px, 100%\);[^}]*height:\s*auto;[^}]*max-height:\s*104px;/);
-  assert.match(styles, /@media \(max-width: 920px\) and \(min-width: 651px\) \{\s*\.topbar\s*\{[^}]*grid-template-areas:\s*"brand language" "install account";/);
+  assert.match(styles, /\.brand-mark\s*\{[^}]*flex:\s*0 0 48px;[^}]*width:\s*48px;[^}]*height:\s*48px;[^}]*object-fit:\s*cover;/s);
+  assert.doesNotMatch(styles, /\.brand img\b|\.brand small\b|width:\s*312px|height:\s*104px/);
+  assert.equal((styles.match(/(?:^|\n)\.topbar\s*\{/g) ?? []).length, 1, 'shared header should have one base rule');
+  assert.doesNotMatch(styles, /(?:^|\n)\.brand\s*\{/);
+  const tabletHeaderStyles = styles.slice(styles.lastIndexOf('@media (max-width: 920px) and (min-width: 651px) {'));
+  assert.match(tabletHeaderStyles, /grid-template-areas:\s*"brand language" "install account"/);
+  const mobileHeaderStyles = styles.slice(styles.lastIndexOf('@media (max-width: 650px) {'));
+  assert.match(mobileHeaderStyles, /grid-template-columns:\s*minmax\(0, 1fr\) auto;[\s\S]*?grid-template-areas:\s*"brand language" "install account";[\s\S]*?\.brand-mark\s*\{[^}]*width:\s*42px;[^}]*height:\s*42px;/);
+  const narrowHeaderStyles = styles.slice(styles.lastIndexOf('@media (max-width: 380px) {'));
+  assert.match(narrowHeaderStyles, /grid-template-areas:\s*"brand language" "install install" "account account"/);
+  assert.match(narrowHeaderStyles, /\.brand-mark\s*\{[^}]*width:\s*40px;[^}]*height:\s*40px;/);
   assert.match(html, /class="welcome-signin-shortcut" href="#login-form">Sign in<\/a>/);
   assert.match(styles, /\.welcome-signin-shortcut\s*\{\s*display:\s*none;\s*\}/);
   assert.match(styles, /@media \(max-width: 700px\) \{\s*\.welcome-signin-shortcut\s*\{\s*display:\s*inline-flex;[\s\S]*?min-height:\s*46px;/);
@@ -718,7 +734,7 @@ test('public hub integrates the campaign artwork with the existing public action
   }
 });
 
-test('public landing page does not repeat raster artwork across visible image elements', () => {
+test('public landing page reuses only the brand icon across raster image elements', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const styles = [
     readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8'),
@@ -729,9 +745,12 @@ test('public landing page does not repeat raster artwork across visible image el
     ...[...styles.matchAll(/url\(\s*(["']?)([^"')]+)\1\s*\)/gi)].map(([, , source]) => source),
   ].filter((source) => /\.(?:png|jpe?g|webp|avif|gif)(?:[?#]|$)/i.test(source))
     .map((source) => source.split(/[?#]/, 1)[0].toLowerCase());
-  const repeatedSources = [...new Set(imageSources.filter((source, index) => imageSources.indexOf(source) !== index))];
+  const repeatedSources = [...new Set(imageSources.filter((source, index) => (
+    source !== '/icons/afrosherik-icon-192.png' && imageSources.indexOf(source) !== index
+  )))];
 
   assert.deepEqual(repeatedSources, []);
+  assert.equal(imageSources.filter((source) => source === '/icons/afrosherik-icon-192.png').length, 2);
   assert.equal(imageSources.filter((source) => source === '/brand/afrosherik-campaign-hero.png').length, 1);
 });
 
@@ -760,11 +779,11 @@ test('Forgot password opens the recovery flow and reliably returns to sign-in', 
   assert.match(html, /id="open-password-recovery"[^>]*>Forgot password\?</);
   assert.doesNotMatch(html, /show-password-recovery|password-recovery-help|Contact your organization’s administrator/);
   assert.match(html, /id="recovery-form"[^>]*hidden/);
-  assert.match(app, /\$\('#open-password-recovery'\)\.addEventListener\('click',[\s\S]*?\$\('#login-form'\)\.hidden = true;[\s\S]*?form\.hidden = false;[\s\S]*?form\.scrollIntoView/);
-  assert.match(app, /\$\('#back-to-sign-in'\)\.addEventListener\('click',[\s\S]*?\$\('#recovery-form'\)\.hidden = true;[\s\S]*?\$\('#login-form'\)\.hidden = false;/);
+  const recoveryFlow = app.slice(app.indexOf("$('#open-password-recovery').addEventListener('click'"), app.indexOf("document.querySelectorAll('[data-open-edir-registration]')"));
+  assert.match(recoveryFlow, /\$\('#login-form'\)\.hidden = true;[\s\S]*?form\.hidden = false;[\s\S]*?focusFormField\(form, '\[name="phone"\]'\)/);
+  assert.match(recoveryFlow, /\$\('#recovery-form'\)\.hidden = true;[\s\S]*?\$\('#login-form'\)\.hidden = false;[\s\S]*?focusFormField\(\$\('#login-form'\), '\[name="phone"\]'\)/);
   assert.match(app, /document\.querySelectorAll\('a\[href="#login-form"\]'\)/);
-  assert.match(app, /loginForm\.scrollIntoView\(\{ behavior: reducedMotion \? 'auto' : 'smooth', block: 'start' \}\)/);
-  assert.match(app, /loginForm\.querySelector\('input\[name="phone"\]'\)\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(app, /focusFormField\(loginForm, 'input\[name="phone"\]'\)/);
   assert.match(html, /WhatsApp recovery is available only after delivery is configured and for opted-in active accounts\./);
   assert.match(html, /If it is unavailable, contact support/);
   assert.match(styles, /#login-form \{ scroll-margin-block-start: 1rem; \}/);

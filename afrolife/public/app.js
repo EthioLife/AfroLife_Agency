@@ -982,6 +982,12 @@ function updateSignupFields() {
   updatePlanLabels();
 }
 
+function focusFormField(form, selector) {
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  form.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+  form.querySelector(selector)?.focus({ preventScroll: true });
+}
+
 function openSignup(agentPlans = false, edirMember = false) {
   $('#login-form').hidden = true;
   $('#recovery-form').hidden = true;
@@ -1003,6 +1009,7 @@ function openSignup(agentPlans = false, edirMember = false) {
     updateSignupFields();
   }
   if (edirMember) $('#signup-form [name="edir_member_interest"]').checked = true;
+  focusFormField($('#signup-form'), 'input[name="legal_name"]');
   loadSignupOptions().catch((error) => {
     setLocalizedText($('#signup-error'), error.message);
     setLocalizedText($('#signup-kyc-required-note'), 'Document requirements are not available yet. Try again before submitting.');
@@ -11664,9 +11671,7 @@ document.querySelectorAll('a[href="#login-form"]').forEach((link) => link.addEve
     loginForm.hidden = false;
   }
   if (window.location.hash !== '#login-form') window.history.pushState(null, '', '#login-form');
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  loginForm.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
-  loginForm.querySelector('input[name="phone"]').focus({ preventScroll: true });
+  focusFormField(loginForm, 'input[name="phone"]');
 }));
 $('#create-account').addEventListener('click', () => openSignup(false));
 $('#public-create-account').addEventListener('click', () => openSignup(false));
@@ -11677,14 +11682,12 @@ $('#open-password-recovery').addEventListener('click', () => {
   const form = $('#recovery-form');
   form.hidden = false;
   setLocalizedText($('#recovery-status'), '');
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  form.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
-  form.querySelector('[name="phone"]').focus({ preventScroll: true });
+  focusFormField(form, '[name="phone"]');
 });
 $('#back-to-sign-in').addEventListener('click', () => {
   $('#recovery-form').hidden = true;
   $('#login-form').hidden = false;
-  $('#login-form [name="phone"]').focus({ preventScroll: true });
+  focusFormField($('#login-form'), '[name="phone"]');
 });
 document.querySelectorAll('[data-open-edir-registration]').forEach((button) => button.addEventListener('click', () => {
   edirRegistrationTrigger = button;
@@ -11706,6 +11709,7 @@ $('#show-login').addEventListener('click', () => {
   $('#recovery-form').hidden = true;
   $('#login-form').hidden = false;
   setLocalizedText($('#login-error'), '');
+  focusFormField($('#login-form'), 'input[name="phone"]');
 });
 $('#save-server').addEventListener('click', saveNativeServer);
 $('#logout').addEventListener('click', () => signOut());
