@@ -47,6 +47,29 @@ const MINI_APP_PANELS = new Set([
   'insurance', 'privacy', 'global-bi',
 ]);
 const $ = (selector) => document.querySelector(selector);
+
+function removeSensitiveLoginQuery() {
+  const url = new URL(window.location.href);
+  const sensitiveKeys = new Set([
+    'password',
+    'code',
+    'phone',
+    'phone_country_code',
+    'phone_national_number',
+    'trust_device',
+  ]);
+  let changed = false;
+  for (const key of [...url.searchParams.keys()]) {
+    if (sensitiveKeys.has(key.toLowerCase())) {
+      url.searchParams.delete(key);
+      changed = true;
+    }
+  }
+  if (changed) history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`);
+}
+
+removeSensitiveLoginQuery();
+
 const state = { user: null, features: { mfiPilotEnabled: false, edirEnabled: false, accountingEnabled: false, globalBiEnabled: false, insuranceBrokerageSandboxEnabled: false, enabledModules: [] }, edirMe: null, edirOrganizationId: localStorage.getItem(EDIR_ORGANIZATION_KEY) ?? DEFAULT_EDIR_ORGANIZATION, propertyTenantContextId: localStorage.getItem(PROPERTY_TENANT_KEY), propertyTenantMemberships: [], platformTenantContextId: null, dataAdminTenantId: null, myDataCapabilities: [], tenantDataWorkspace: null, tenantAnalyticsStatus: null, tenantMigrationRuns: [], panel: panelFromUrl(window.location.href, KNOWN_PANELS), mfaRequired: false, accessOptions: [], mfaSetup: null, authSessions: [], trustedDevices: [], supportCases: [], supportQueue: [], supportAccessRequests: [], supportAgents: [], supportCaseDetail: null, supportCaseEvents: [], leads: [], workers: [], workerDocumentExpiry: [], workerPortalEngagements: [], workerPortalReports: [], workerPortalSettlements: [], workerSupportRequests: [], workerSupportQueue: [], workerPortalShifts: [], workerPortalLeave: [], workerPortalPayrollExports: [], workforceEngagements: [], workforceShifts: [], workforceTimeQueue: [], workforceLeaveQueue: [], workforcePolicies: [], workforcePayrollExports: [], workforcePayableCalculation: null, workforcePayrollExportBatch: null, requests: [], staffingEngagements: [], staffingFinanceEngagements: [], pendingStaffingWork: [], properties: [], propertyAuthorityReviewQueue: [], propertyArc: { requests: [], eligible_properties: [] }, propertyAssociations: { currency: null, associations: [], assessments: [], amenity_policies: [], dues_policies: [], dues_cycles: [], amenity_reservations: [] }, propertyAssociationReport: null, propertyMoveOutInspectionDrafts: [], propertyMoveOutInspectionSyncError: '', rentalApplications: [], residentPropertyWorkspace: { leases: [], charges: [], payments: [], maintenance: [] }, maintenanceRequests: [], maintenanceVendors: [], maintenanceMetrics: null, maintenanceOverdue: [], maintenanceCostQueue: [], maintenanceInvoiceMismatchQueue: [], maintenanceInvoiceApprovalQueue: [], maintenanceHasMore: false, maintenanceLoadingMore: false, ownerStatements: [], territories: [], commissions: [], summary: null, users: [], team: [], globalAdminPromotions: [], businessRules: [], roleAccess: null, notificationDeliveryStatus: [], learningContent: [], signupOptions: null, contracts: [], leases: [], tenants: [], pendingRent: [], serviceIdentities: [], readinessEvidence: [], propertyAccountingTemplate: null, propertyPeriodClose: null, marketplaceConfig: {}, marketplaceListings: [], marketplaceSellers: [], insuranceRequests: [], insuranceStaffRequests: [], insuranceAgentReferrals: [], insuranceEligibleAgents: [], insuranceSandboxStatus: null, insuranceSandboxCases: [], platformServices: [], platformServicePackages: [], platformTenants: [], tenantAdminTenants: [], platformCatalogProducts: [], platformDataAdmin: null, businessTenants: [], serviceStatus: null, serviceMetrics: null, searchResults: [], searchUnavailable: [], searchQuery: '', workspaceDataErrors: [], workspaceDataOmitted: [] };
 let edirRegistrationTrigger = null;
 state.passkeySecurity = null;

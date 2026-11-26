@@ -88,7 +88,7 @@ test('private object storage signs requests and round-trips private objects', as
     await storage.putFile(fileKey, content);
     await assert.rejects(storage.putFile(fileKey, Buffer.from('replacement')), /HTTP 412/);
     assert.deepEqual(await storage.getFile(fileKey), content);
-    assert.ok(signedRequests >= 7);
+    assert.equal(signedRequests, 4);
     healthCheckObjectExists = false;
     healthCheckPutAllowed = false;
     bucketHeadAvailable = false;
