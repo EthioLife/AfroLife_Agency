@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="89 96 334 353" role="img" aria-labelledby="title desc">
+  <title id="title">AfroSherik mark</title>
+  <desc id="desc">Three service and community members connected through a shared opportunity hub.</desc>
+  <g fill="none" stroke="#d7ad59" stroke-linecap="round" stroke-width="14">
+    <path d="m224 230-37-37"/>
+    <path d="m288 230 37-37"/>
+    <path d="M256 315v20"/>
+  </g>
+  <g fill="#fff">
+    <circle cx="151" cy="158" r="52"/>
+    <circle cx="361" cy="158" r="52"/>
+    <circle cx="256" cy="387" r="52"/>
+  </g>
+  <g fill="#174b3d">
+    <circle cx="151" cy="147" r="12"/>
+    <path d="M126 183c3-16 11-24 25-24s22 8 25 24z"/>
+    <circle cx="361" cy="147" r="12"/>
+    <path d="M336 183c3-16 11-24 25-24s22 8 25 24z"/>
+    <circle cx="256" cy="376" r="12"/>
+    <path d="M231 412c3-16 11-24 25-24s22 8 25 24z"/>
+  </g>
+  <circle cx="256" cy="264" r="53" fill="#d7ad59"/>
+  <circle cx="256" cy="264" r="18" fill="#fff"/>
+  <circle cx="256" cy="264" r="7" fill="#174b3d"/>
+</svg>

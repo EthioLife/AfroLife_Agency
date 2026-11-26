@@ -188,11 +188,13 @@ test('AfroSherik identity and install artwork stay aligned with the brand shell'
   assert.match(html, /<title>AfroSherik \| አፍሮ-ሸሪክ<\/title>/);
   assert.match(html, /<h2>Apply to join AfroSherik<\/h2>/);
   assert.match(html, /Access is limited to approved AfroSherik accounts\./);
-  assert.match(html, /<a class="brand" href="\/" aria-label="AfroSherik — Connect · Access · Thrive">\s*<img class="brand-mark" src="\/icons\/afrosherik-icon-192\.png" alt="" aria-hidden="true" width="48" height="48">\s*<span class="brand-copy">\s*<span class="brand-name">AfroSherik<\/span>/);
+  assert.match(html, /<a class="brand" href="\/" aria-label="AfroSherik — Connect · Access · Thrive">\s*<img class="brand-mark" src="\/brand\/afrosherik-mark-transparent\.svg" alt="" aria-hidden="true" width="48" height="48">\s*<span class="brand-copy">\s*<span class="brand-name">AfroSherik<\/span>/);
   assert.match(html, /rel="icon" href="\/icons\/afrosherik-icon-192\.png" type="image\/png"/);
   assert.doesNotMatch(html, /AfroLife Agency|AFROLIFE AGENCY|afrolife-brand/i);
   for (const assetPath of [
     '../public/brand/afrosherik-brand-lockup.png',
+    '../public/brand/afrosherik-brand-lockup-transparent.png',
+    '../public/brand/afrosherik-mark-transparent.svg',
     '../public/brand/afrosherik-campaign-hero.png',
     '../public/icons/afrosherik-icon-192.png',
     '../public/icons/afrosherik-icon-256.png',
