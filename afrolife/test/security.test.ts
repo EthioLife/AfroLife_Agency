@@ -1,6 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { keyFrom, keyFromMfaEncryptionSecret, seal, open, sign, verifySignature, passwordProblem, randomPassword, mfaKeys, openAny } from '../src/security.js';
+import {
+  keyFrom,
+  keyFromMfaEncryptionSecret,
+  seal,
+  open,
+  sign,
+  verifySignature,
+  passwordProblem,
+  randomPassword,
+  mfaKeys,
+  openAny,
+  reencryptMfaSecret,
+} from '../src/security.js';
 
 test('sealed secrets round-trip and cannot be tampered with', () => {
   const k = keyFrom('a'.repeat(32));
@@ -58,6 +70,18 @@ test('MFA_ENC_KEY_PREVIOUS can decrypt old records while new records use the act
   assert.equal(openAny(newlySealed, activeKeys), 'NEW-MFA-SECRET');
   assert.throws(() => mfaKeys('new-jwt'.repeat(5), 'n'.repeat(40), 'short'), /MFA_ENC_KEY_PREVIOUS/);
   assert.throws(() => mfaKeys('new-jwt'.repeat(5), 'n'.repeat(40), 'n'.repeat(40)), /different/);
+});
+
+test('MFA re-encryption verifies active-key output and removes the previous-key dependency', () => {
+  const oldKey = keyFromMfaEncryptionSecret('o'.repeat(40));
+  const activeKey = keyFromMfaEncryptionSecret('n'.repeat(40));
+  const original = seal('EXISTING-MFA-SECRET', oldKey);
+  const rotated = reencryptMfaSecret(original, [activeKey, oldKey], activeKey);
+
+  assert.notEqual(rotated, original);
+  assert.equal(open(rotated, activeKey), 'EXISTING-MFA-SECRET');
+  assert.throws(() => open(rotated, oldKey));
+  assert.throws(() => reencryptMfaSecret(original, [activeKey], activeKey));
 });
 
 test('active MFA key derivation matches runtime encryption and rejects weak keys', () => {

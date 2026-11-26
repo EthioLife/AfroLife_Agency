@@ -1,6 +1,6 @@
 import '../src/env.js';
 import pg from 'pg';
-import { keyFrom, mfaKeys, openAny, seal } from '../src/security.js';
+import { keyFrom, mfaKeys, openAny, reencryptMfaSecret } from '../src/security.js';
 
 const runtimeUrl = process.env.DATABASE_URL;
 const migrationUrl = process.env.MIGRATION_DATABASE_URL;
@@ -62,20 +62,17 @@ try {
   );
 
   for (const user of users.rows) {
-    let plaintext: string;
+    let reencrypted: string;
     try {
-      plaintext = openAny(user.mfa_secret, decryptionKeys);
+      reencrypted = reencryptMfaSecret(user.mfa_secret, decryptionKeys, activeKey);
     } catch {
-      throw new Error('An MFA secret could not be decrypted; no records were changed.');
+      throw new Error('An MFA secret could not be safely re-encrypted; no records were changed.');
     }
     const updated = await client.query<{ mfa_secret: string }>(
       'UPDATE public.users SET mfa_secret = $2 WHERE id = $1 AND mfa_secret = $3 RETURNING mfa_secret',
-      [user.id, seal(plaintext, activeKey), user.mfa_secret],
+      [user.id, reencrypted, user.mfa_secret],
     );
-    if (
-      updated.rowCount !== 1
-      || openAny(updated.rows[0].mfa_secret, [activeKey]) !== plaintext
-    ) {
+    if (updated.rowCount !== 1 || updated.rows[0].mfa_secret !== reencrypted) {
       throw new Error('An MFA secret changed or failed active-key verification; no records were committed.');
     }
   }
