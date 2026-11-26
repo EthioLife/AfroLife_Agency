@@ -63,6 +63,7 @@ export function createPrivateStorage(env: Environment) {
           const putUrl = objectUrl(objectStorage.healthCheckObjectKey);
           try {
             await send(putUrl, 'PUT', new Uint8Array(0), AbortSignal.timeout(5_000));
+            return;
           } catch {
             // Some providers do not permit or acknowledge health-marker PUTs;
             // the bounded HEAD retry below determines whether the marker exists.
