@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
+import { inflateSync } from 'node:zlib';
 import {
   marketplaceDashboardMetrics,
   workforceDashboardMetrics,
@@ -526,6 +527,12 @@ test('public signup actions open generic registration and allow returning to sig
   assert.match(app, /#public-create-account'\)\.addEventListener\('click', \(\) => openSignup\(false\)\)/);
   assert.match(app, /#create-account'\)\.addEventListener\('click', \(\) => openSignup\(false\)\)/);
   assert.match(html, /id="show-login"[^>]*>Already have an account\? Sign in<\/button>/);
+  const openSignup = app.slice(app.indexOf('function openSignup('), app.indexOf('function showSignupFollowupMode('));
+  const returnToLogin = app.slice(app.indexOf("$('#show-login').addEventListener('click'"), app.indexOf("$('#save-server').addEventListener"));
+  assert.match(openSignup, /focusFormField\(\$\('#signup-form'\), 'input\[name="legal_name"\]'\)/);
+  assert.match(returnToLogin, /focusFormField\(\$\('#login-form'\), 'input\[name="phone"\]'\)/);
+  assert.match(app, /function focusFormField\(form, selector\)[\s\S]*?form\.scrollIntoView\(\{ behavior: reducedMotion \? 'auto' : 'smooth', block: 'start' \}\)[\s\S]*?form\.querySelector\(selector\)\?\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8'), /#signup-form \{ scroll-margin-block-start: 1rem; \}/);
 });
 
 test('hidden signup document-replacement controls do not block initial registration', () => {
@@ -583,22 +590,58 @@ test('agent signup accepts typed territory names and offers seeded Ethiopian reg
   }
 });
 
-test('AfroSherik sign-in uses the supplied campaign and brand artwork', () => {
+test('AfroSherik sign-in shows its transparent lockup and campaign artwork', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const styles = readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8');
-  const logo = readFileSync(new URL('../public/brand/afrosherik-brand-lockup.png', import.meta.url));
+  const icon = readFileSync(new URL('../public/icons/afrosherik-icon-192.png', import.meta.url));
+  const transparentMark = readFileSync(new URL('../public/brand/afrosherik-mark-transparent.svg', import.meta.url), 'utf8');
+  const lockup = readFileSync(new URL('../public/brand/afrosherik-brand-lockup.png', import.meta.url));
+  const transparentLockup = readFileSync(new URL('../public/brand/afrosherik-brand-lockup-transparent.png', import.meta.url));
   const hero = readFileSync(new URL('../public/brand/afrosherik-campaign-hero.png', import.meta.url));
+  const header = html.slice(html.indexOf('<header class="topbar">'), html.indexOf('</header>') + '</header>'.length);
   const pngDimensions = (image) => {
     assert.equal(image.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
     return [image.readUInt32BE(16), image.readUInt32BE(20)];
   };
-  assert.match(html, /<a class="brand" href="\/" aria-label="AfroSherik">\s*<img src="\/brand\/afrosherik-brand-lockup\.png" alt="AfroSherik — Connect · Access · Thrive" width="312" height="104">/);
+  const hasTransparentTopLeftPixel = (image) => {
+    const idatChunks = [];
+    for (let offset = 8; offset < image.length;) {
+      const length = image.readUInt32BE(offset);
+      if (image.toString('ascii', offset + 4, offset + 8) === 'IDAT') {
+        idatChunks.push(image.subarray(offset + 8, offset + 8 + length));
+      }
+      offset += length + 12;
+    }
+    return inflateSync(Buffer.concat(idatChunks))[4] === 0;
+  };
+  assert.match(header, /<a class="brand" href="\/" aria-label="AfroSherik — Connect · Access · Thrive">\s*<img class="brand-lockup" src="\/brand\/afrosherik-brand-lockup-transparent\.png" alt="" aria-hidden="true" width="490" height="152">/);
+  assert.doesNotMatch(header, /brand-copy|brand-name|brand-detail/);
   assert.match(html, /<img src="\/brand\/afrosherik-campaign-hero\.png" alt="AfroSherik campaign artwork showing a woman with a phone and the Addis Ababa skyline beside the message: More Opportunities\. Stronger Communities\." width="427" height="204">/);
-  assert.deepEqual(pngDimensions(logo), [490, 152]);
+  assert.deepEqual(pngDimensions(icon), [192, 192]);
+  assert.match(transparentMark, /viewBox="89 96 334 353"/);
+  assert.doesNotMatch(transparentMark, /<rect\b[^>]*fill="#174b3d"/);
+  assert.deepEqual(pngDimensions(lockup), [490, 152]);
+  assert.equal(lockup[25], 6, 'brand lockup should retain its RGBA alpha channel');
+  assert.equal(hasTransparentTopLeftPixel(lockup), true, 'brand lockup background should be transparent');
+  assert.deepEqual(pngDimensions(transparentLockup), [490, 152]);
+  assert.equal(transparentLockup[25], 6, 'transparent lockup should retain its RGBA alpha channel');
+  assert.equal(hasTransparentTopLeftPixel(transparentLockup), true, 'transparent export background should be transparent');
   assert.deepEqual(pngDimensions(hero), [427, 204]);
-  assert.match(styles, /\.topbar \.brand img\s*\{[^}]*width:\s*312px;[^}]*height:\s*104px;[^}]*object-fit:\s*contain;/s);
-  assert.match(styles, /@media \(max-width: 650px\) \{[\s\S]*?\.topbar \.brand img\s*\{[^}]*width:\s*min\(312px, 100%\);[^}]*height:\s*auto;[^}]*max-height:\s*104px;/);
-  assert.match(styles, /@media \(max-width: 920px\) and \(min-width: 651px\) \{\s*\.topbar\s*\{[^}]*grid-template-areas:\s*"brand language" "install account";/);
+  assert.match(styles, /\.brand-lockup\s*\{[^}]*width:\s*clamp\(190px,\s*22vw,\s*250px\);[^}]*max-width:\s*100%;[^}]*height:\s*auto;[^}]*object-fit:\s*contain;/s);
+  assert.match(styles, /@media \(max-width: 650px\) \{[\s\S]*?\.brand-lockup \{ width: clamp\(168px,\s*53vw,\s*210px\); \}/);
+  assert.doesNotMatch(styles, /\.brand-mark\b|\.brand-copy\b|\.brand-name\b|\.brand-detail\b/);
+  assert.doesNotMatch(styles, /\.brand img\b|\.brand small\b|width:\s*312px|height:\s*104px/);
+  assert.equal((styles.match(/(?:^|\n)\.topbar\s*\{/g) ?? []).length, 1, 'shared header should have one base rule');
+  assert.doesNotMatch(styles, /(?:^|\n)\.brand\s*\{/);
+  const tabletHeaderStyles = styles.slice(styles.lastIndexOf('@media (max-width: 920px) and (min-width: 651px) {'));
+  assert.match(tabletHeaderStyles, /grid-template-areas:\s*"brand language" "install account"/);
+  const mobileHeaderStyles = styles.slice(styles.lastIndexOf('@media (max-width: 650px) {'));
+  assert.match(mobileHeaderStyles, /grid-template-columns:\s*minmax\(0, 1fr\) auto;[\s\S]*?grid-template-areas:\s*"brand language" "install account";/);
+  const narrowHeaderStyles = styles.slice(styles.lastIndexOf('@media (max-width: 380px) {'));
+  assert.match(narrowHeaderStyles, /grid-template-areas:\s*"brand language" "install install" "account account"/);
+  assert.match(narrowHeaderStyles, /\.brand-lockup \{ width: clamp\(168px,\s*53vw,\s*210px\); \}/);
+  assert.doesNotMatch(html, /<ul class="service-preview" aria-label="Service categories">/);
+  assert.match(html, /Explore connected services and opportunities across work, homes, marketplace, agents, payments, protection, and support\./);
   assert.match(html, /class="welcome-signin-shortcut" href="#login-form">Sign in<\/a>/);
   assert.match(styles, /\.welcome-signin-shortcut\s*\{\s*display:\s*none;\s*\}/);
   assert.match(styles, /@media \(max-width: 700px\) \{\s*\.welcome-signin-shortcut\s*\{\s*display:\s*inline-flex;[\s\S]*?min-height:\s*46px;/);
@@ -704,12 +747,13 @@ test('public hub integrates the campaign artwork with the existing public action
   assert.match(styles, /@media \(max-width: 700px\) \{[\s\S]*?\.hub-service-network \{ min-height: 220px; \}/);
   assert.match(styles, /\.hub-heading \{ grid-template-columns: minmax\(0, 1fr\); gap:/);
   assert.match(styles, /#public-hub \.service-card\[data-panel\] \.service-icon\s*\{[^}]*background:\s*var\(--mini-app-tint\);[^}]*color:\s*var\(--mini-app-ink/s);
-  assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v48'/);
+  assert.match(serviceWorker, /const CACHE = 'afrolife-shell-v51'/);
   assert.match(serviceWorker, /'\/passkeys\.js'/);
   assert.match(serviceWorker, /'\/tenant-data-admin\.js'/);
   for (const asset of [
     '/icons/afrosherik-icon-192.png', '/icons/afrosherik-icon-256.png', '/icons/afrosherik-icon-512.png',
-    '/icon.svg', '/brand/afrosherik-campaign-hero.png', '/brand/afrosherik-brand-lockup.png',
+    '/icon.svg', '/brand/afrosherik-mark-transparent.svg', '/brand/afrosherik-campaign-hero.png',
+    '/brand/afrosherik-brand-lockup.png', '/brand/afrosherik-brand-lockup-transparent.png',
   ]) assert.ok(serviceWorker.includes(`'${asset}'`), `service worker should cache ${asset}`);
   const shellAssets = [...serviceWorker.matchAll(/const SHELL = \[([\s\S]*?)\];/g)][0]?.[1]
     ?.match(/'([^']+)'/g).map((asset) => asset.slice(1, -1)) ?? [];
@@ -718,7 +762,7 @@ test('public hub integrates the campaign artwork with the existing public action
   }
 });
 
-test('public landing page does not repeat raster artwork across visible image elements', () => {
+test('public landing page uses its brand lockup once across raster image elements', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const styles = [
     readFileSync(new URL('../public/styles.css', import.meta.url), 'utf8'),
@@ -729,9 +773,12 @@ test('public landing page does not repeat raster artwork across visible image el
     ...[...styles.matchAll(/url\(\s*(["']?)([^"')]+)\1\s*\)/gi)].map(([, , source]) => source),
   ].filter((source) => /\.(?:png|jpe?g|webp|avif|gif)(?:[?#]|$)/i.test(source))
     .map((source) => source.split(/[?#]/, 1)[0].toLowerCase());
-  const repeatedSources = [...new Set(imageSources.filter((source, index) => imageSources.indexOf(source) !== index))];
+  const repeatedSources = [...new Set(imageSources.filter((source, index) => (
+    source !== '/brand/afrosherik-brand-lockup-transparent.png' && imageSources.indexOf(source) !== index
+  )))];
 
   assert.deepEqual(repeatedSources, []);
+  assert.equal(imageSources.filter((source) => source === '/brand/afrosherik-brand-lockup-transparent.png').length, 1);
   assert.equal(imageSources.filter((source) => source === '/brand/afrosherik-campaign-hero.png').length, 1);
 });
 
@@ -760,11 +807,11 @@ test('Forgot password opens the recovery flow and reliably returns to sign-in', 
   assert.match(html, /id="open-password-recovery"[^>]*>Forgot password\?</);
   assert.doesNotMatch(html, /show-password-recovery|password-recovery-help|Contact your organization’s administrator/);
   assert.match(html, /id="recovery-form"[^>]*hidden/);
-  assert.match(app, /\$\('#open-password-recovery'\)\.addEventListener\('click',[\s\S]*?\$\('#login-form'\)\.hidden = true;[\s\S]*?form\.hidden = false;[\s\S]*?form\.scrollIntoView/);
-  assert.match(app, /\$\('#back-to-sign-in'\)\.addEventListener\('click',[\s\S]*?\$\('#recovery-form'\)\.hidden = true;[\s\S]*?\$\('#login-form'\)\.hidden = false;/);
+  const recoveryFlow = app.slice(app.indexOf("$('#open-password-recovery').addEventListener('click'"), app.indexOf("document.querySelectorAll('[data-open-edir-registration]')"));
+  assert.match(recoveryFlow, /\$\('#login-form'\)\.hidden = true;[\s\S]*?form\.hidden = false;[\s\S]*?focusFormField\(form, '\[name="phone"\]'\)/);
+  assert.match(recoveryFlow, /\$\('#recovery-form'\)\.hidden = true;[\s\S]*?\$\('#login-form'\)\.hidden = false;[\s\S]*?focusFormField\(\$\('#login-form'\), '\[name="phone"\]'\)/);
   assert.match(app, /document\.querySelectorAll\('a\[href="#login-form"\]'\)/);
-  assert.match(app, /loginForm\.scrollIntoView\(\{ behavior: reducedMotion \? 'auto' : 'smooth', block: 'start' \}\)/);
-  assert.match(app, /loginForm\.querySelector\('input\[name="phone"\]'\)\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(app, /focusFormField\(loginForm, 'input\[name="phone"\]'\)/);
   assert.match(html, /WhatsApp recovery is available only after delivery is configured and for opted-in active accounts\./);
   assert.match(html, /If it is unavailable, contact support/);
   assert.match(styles, /#login-form \{ scroll-margin-block-start: 1rem; \}/);

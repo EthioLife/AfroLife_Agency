@@ -28,6 +28,10 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: afrolife/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
       - run: npm ci
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
@@ -58,6 +62,9 @@ jobs:
         run: npm run ios:sync
       - name: Sync Android Capacitor project
         run: npx cap sync android
+      - name: Build Android debug app
+        run: ./gradlew --no-daemon assembleDebug
+        working-directory: afrolife/android
       - run: npm run build
       - run: npm run build:insurance
       - run: npm run build:accounting

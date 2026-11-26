@@ -56,6 +56,17 @@ jobs:
           -derivedDataPath "$RUNNER_TEMP/afrolife-derived-data"
           CODE_SIGNING_ALLOWED=NO
           build
+      - name: Build iOS device Release configuration
+        run: >-
+          xcodebuild
+          -workspace ios/App/App.xcworkspace
+          -scheme App
+          -configuration Release
+          -sdk iphoneos
+          -destination 'generic/platform=iOS'
+          -derivedDataPath "$RUNNER_TEMP/afrolife-device-derived-data"
+          CODE_SIGNING_ALLOWED=NO
+          build
       - name: Package simulator app
         id: package
         run: |

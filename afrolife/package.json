@@ -55,6 +55,7 @@
     "android:open": "cap open android",
     "android:build": "npm run android:branding && cap sync android && cd android && .\\gradlew.bat --project-cache-dir \"%LOCALAPPDATA%\\AfroLife\\gradle-project-cache\" --init-script gradle\\build-output.init.gradle assembleDebug && cd .. && node scripts/publish-android-debug.mjs",
     "android:release": "npm run android:branding && cap sync android && cd android && .\\gradlew.bat --project-cache-dir \"%LOCALAPPDATA%\\AfroLife\\gradle-project-cache\" --init-script gradle\\build-output.init.gradle assembleRelease",
+    "android:bundle:release": "npm run android:branding && cap sync android && cd android && .\\gradlew.bat --project-cache-dir \"%LOCALAPPDATA%\\AfroLife\\gradle-project-cache\" --init-script gradle\\build-output.init.gradle bundleRelease",
     "ios:add": "cap add ios",
     "ios:sync": "cap sync ios",
     "ios:open": "cap open ios",

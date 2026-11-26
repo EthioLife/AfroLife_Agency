@@ -80,6 +80,26 @@ test('tenant package services restrict the caller deployment modules without ele
   assert.deepEqual(workspaceModulesForServices(baseModules, []), []);
 });
 
+test('admin key patterns compile with browser UnicodeSets semantics', async () => {
+  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  const sourcePatterns = [...app.matchAll(/pattern:\s*'((?:\\.|[^'])*)'/g)];
+  const patterns = sourcePatterns.map(([, literal]) => JSON.parse(`"${literal}"`) as string);
+  const keyPatterns = patterns.filter((pattern) => pattern.startsWith('[a-z]'));
+
+  assert.equal(keyPatterns.length, 3);
+  for (const pattern of patterns) {
+    assert.doesNotThrow(() => new RegExp(pattern, 'v'), `Invalid HTML pattern: ${pattern}`);
+  }
+
+  const htmlPattern = (pattern: string) => new RegExp(`^(?:${pattern})$`, 'v');
+  const packageKeyPattern = htmlPattern(keyPatterns.find((pattern) => pattern.includes('_'))!);
+  const tenantKeyPattern = htmlPattern(keyPatterns.find((pattern) => !pattern.includes('_'))!);
+  assert.equal(packageKeyPattern.test('qa-validation_2026-11'), true);
+  assert.equal(tenantKeyPattern.test('qa-tenant-2026-11'), true);
+  assert.equal(packageKeyPattern.test('QA-invalid'), false);
+  assert.equal(tenantKeyPattern.test('QA-invalid'), false);
+});
+
 test('tenant control-plane migration stores deployment references, never database credentials', async () => {
   const migration = await readFile(
     new URL('../migrations/070_platform_tenant_control_plane.sql', import.meta.url),

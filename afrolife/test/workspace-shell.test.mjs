@@ -278,6 +278,22 @@ test('workspace deep links retain the current URL and only resolve visible panel
   assert.equal(isMiniAppAllowed('global-bi', undefined), false);
 });
 
+test('Admin and Review renders activity jump links for desktop and compact navigation', async () => {
+  const [app, index, styles] = await Promise.all([
+    readFile(new URL('../public/app.js', import.meta.url), 'utf8'),
+    readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/styles.css', import.meta.url), 'utf8'),
+  ]);
+  assert.match(index, /id="admin-tab"[^>]*aria-controls="admin-submenu/);
+  assert.match(index, /<nav id="admin-submenu" class="admin-submenu"/);
+  assert.match(app, /function renderAdminActivityMenus\(wrap\)/);
+  assert.match(app, /activity\.tabIndex = -1/);
+  assert.match(app, /target\.scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\)/);
+  assert.match(app, /sidebarMenu\.hidden = state\.panel !== 'admin' \|\| !items\.length/);
+  assert.match(styles, /\.admin-activity-menu \{ display: none; \}/);
+  assert.match(styles, /\.admin-activity-menu \{\s+display: grid;/);
+});
+
 test('Global BI normalization preserves real empty-state values without filling sample metrics', () => {
   assert.deepEqual(normalizeGlobalBiDashboard({
     asOf: null,

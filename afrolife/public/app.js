@@ -1005,6 +1005,12 @@ function updateSignupFields() {
   updatePlanLabels();
 }
 
+function focusFormField(form, selector) {
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  form.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+  form.querySelector(selector)?.focus({ preventScroll: true });
+}
+
 function openSignup(agentPlans = false, edirMember = false) {
   $('#login-form').hidden = true;
   $('#recovery-form').hidden = true;
@@ -1026,6 +1032,7 @@ function openSignup(agentPlans = false, edirMember = false) {
     updateSignupFields();
   }
   if (edirMember) $('#signup-form [name="edir_member_interest"]').checked = true;
+  focusFormField($('#signup-form'), 'input[name="legal_name"]');
   loadSignupOptions().catch((error) => {
     setLocalizedText($('#signup-error'), error.message);
     setLocalizedText($('#signup-kyc-required-note'), 'Document requirements are not available yet. Try again before submitting.');
@@ -3126,6 +3133,45 @@ function renderMobileWorkspaceNav() {
   moreIcon.setAttribute('aria-hidden', 'true');
   moreButton.append(moreIcon, node('span', 'More', 'workspace-nav-label'));
   nav.append(moreButton);
+}
+
+function renderAdminActivityMenus(wrap) {
+  const sidebarMenu = $('#admin-submenu');
+  const compactMenu = $('#mobile-admin-activity-menu');
+  const items = state.panel === 'admin' && wrap
+    ? [...wrap.children]
+      .filter((activity) => !activity.classList.contains('section-heading'))
+      .map((activity, index) => {
+        const heading = activity.querySelector('h2, h3');
+        if (!heading) return null;
+        const label = (heading.firstChild ? getLocalizedNodeSource(heading.firstChild) : '').trim() || heading.textContent.trim();
+        if (!label) return null;
+        if (!activity.id) {
+          const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `section-${index + 1}`;
+          activity.id = `admin-activity-${slug}-${index + 1}`;
+        }
+        activity.tabIndex = -1;
+        return { activity, label };
+      })
+      .filter(Boolean)
+    : [];
+  const createLinks = () => items.map(({ activity, label }) => {
+    const link = node('button', label, 'admin-activity-link');
+    link.type = 'button';
+    link.addEventListener('click', () => {
+      const target = activity;
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      target.focus({ preventScroll: true });
+    });
+    return link;
+  });
+  sidebarMenu.replaceChildren(...createLinks());
+  compactMenu.replaceChildren(...createLinks());
+  sidebarMenu.hidden = state.panel !== 'admin' || !items.length;
+  compactMenu.hidden = state.panel !== 'admin' || !items.length;
+  $('#admin-tab').setAttribute('aria-expanded', String(state.panel === 'admin' && items.length > 0));
+  translateContent(sidebarMenu);
+  translateContent(compactMenu);
 }
 
 function renderLeads() {
@@ -6625,7 +6671,7 @@ function renderPlatformControlPlane() {
   const packageForm = node('form', undefined, 'inline-form');
   packageForm.dataset.form = 'platform-service-package';
   packageForm.append(
-    field('Package key', 'package_key', 'text', true, { pattern: '[a-z][a-z0-9_-]{1,79}', placeholder: 'full-platform' }).label,
+    field('Package key', 'package_key', 'text', true, { pattern: '[a-z][a-z0-9_\\-]{1,79}', placeholder: 'full-platform' }).label,
     field('Package name', 'display_name').label,
     field('Description', 'description', 'text', true, { maxlength: '1000' }).label,
   );
@@ -6680,7 +6726,7 @@ function renderPlatformControlPlane() {
   const tenantForm = node('form', undefined, 'inline-form');
   tenantForm.dataset.form = 'platform-tenant';
   tenantForm.append(
-    field('Tenant key', 'tenant_key', 'text', true, { pattern: '[a-z][a-z0-9-]{1,79}', placeholder: 'afrolife-legacy' }).label,
+    field('Tenant key', 'tenant_key', 'text', true, { pattern: '[a-z][a-z0-9\\-]{1,79}', placeholder: 'afrolife-legacy' }).label,
     field('Tenant name', 'display_name').label,
     field('Hosting mode', 'hosting_mode', 'select').label,
     field('Region (optional)', 'region', 'text', false, { maxlength: '120' }).label,
@@ -6802,7 +6848,7 @@ function renderPlatformControlPlane() {
   const productForm = node('form', undefined, 'inline-form');
   productForm.dataset.form = 'platform-catalog-product';
   productForm.append(
-    field('Product key', 'product_key', 'text', true, { pattern: '[a-z][a-z0-9_-]{1,79}', placeholder: 'household-support-plan' }).label,
+    field('Product key', 'product_key', 'text', true, { pattern: '[a-z][a-z0-9_\\-]{1,79}', placeholder: 'household-support-plan' }).label,
     field('Product name', 'display_name').label,
     field('Description', 'description', 'text', true, { maxlength: '2000' }).label,
     field('Catalog category', 'category', 'select').label,
@@ -7827,6 +7873,7 @@ function finishWorkspaceRender() {
 }
 
 function renderPanel() {
+  renderAdminActivityMenus(null);
   $('#workspace').dataset.panel = state.panel;
   $('.page-heading').dataset.panel = state.panel;
   document.querySelectorAll('.tab').forEach((tab) => {
@@ -7964,7 +8011,9 @@ function renderPanel() {
     password: renderPasswordChange,
     security: renderSecurity,
   }[state.panel] ?? renderOverview;
-  $('#workspace').replaceChildren(renderer());
+  const rendered = renderer();
+  renderAdminActivityMenus(rendered);
+  $('#workspace').replaceChildren(rendered);
   finishWorkspaceRender();
 }
 
@@ -11687,9 +11736,7 @@ document.querySelectorAll('a[href="#login-form"]').forEach((link) => link.addEve
     loginForm.hidden = false;
   }
   if (window.location.hash !== '#login-form') window.history.pushState(null, '', '#login-form');
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  loginForm.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
-  loginForm.querySelector('input[name="phone"]').focus({ preventScroll: true });
+  focusFormField(loginForm, 'input[name="phone"]');
 }));
 $('#create-account').addEventListener('click', () => openSignup(false));
 $('#public-create-account').addEventListener('click', () => openSignup(false));
@@ -11700,14 +11747,12 @@ $('#open-password-recovery').addEventListener('click', () => {
   const form = $('#recovery-form');
   form.hidden = false;
   setLocalizedText($('#recovery-status'), '');
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  form.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
-  form.querySelector('[name="phone"]').focus({ preventScroll: true });
+  focusFormField(form, '[name="phone"]');
 });
 $('#back-to-sign-in').addEventListener('click', () => {
   $('#recovery-form').hidden = true;
   $('#login-form').hidden = false;
-  $('#login-form [name="phone"]').focus({ preventScroll: true });
+  focusFormField($('#login-form'), '[name="phone"]');
 });
 document.querySelectorAll('[data-open-edir-registration]').forEach((button) => button.addEventListener('click', () => {
   edirRegistrationTrigger = button;
@@ -11729,6 +11774,7 @@ $('#show-login').addEventListener('click', () => {
   $('#recovery-form').hidden = true;
   $('#login-form').hidden = false;
   setLocalizedText($('#login-error'), '');
+  focusFormField($('#login-form'), 'input[name="phone"]');
 });
 $('#save-server').addEventListener('click', saveNativeServer);
 $('#logout').addEventListener('click', () => signOut());
