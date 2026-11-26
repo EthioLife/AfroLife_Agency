@@ -39,10 +39,11 @@ export function createPrivateStorage(env: Environment) {
       method: 'GET' | 'HEAD' | 'PUT',
       body?: Uint8Array<ArrayBuffer>,
       signal?: AbortSignal,
+      requireAbsent = false,
     ) => {
       const response = await client.fetch(url, {
         method,
-        headers: method === 'PUT' ? { 'If-None-Match': '*' } : undefined,
+        headers: method === 'PUT' && requireAbsent ? { 'If-None-Match': '*' } : undefined,
         body,
         signal,
       });
@@ -54,12 +55,43 @@ export function createPrivateStorage(env: Environment) {
     };
 
     return {
-      check: async () => { await send(bucketUrl(), 'HEAD', undefined, AbortSignal.timeout(5_000)); },
+      check: async () => {
+        const url = objectStorage.healthCheckObjectKey
+          ? objectUrl(objectStorage.healthCheckObjectKey)
+          : bucketUrl();
+        if (objectStorage.healthCheckObjectKey) {
+          const putUrl = objectUrl(objectStorage.healthCheckObjectKey);
+          try {
+            await send(putUrl, 'PUT', new Uint8Array(0), AbortSignal.timeout(5_000));
+            return;
+          } catch {
+            // Some providers do not permit or acknowledge health-marker PUTs;
+            // the bounded HEAD retry below determines whether the marker exists.
+          }
+        }
+        let lastHeadError: unknown;
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          try {
+            await send(url, 'HEAD', undefined, AbortSignal.timeout(5_000));
+            return;
+          } catch (error) {
+            lastHeadError = error;
+            if (attempt < 4) await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+          }
+        }
+        try {
+          await send(bucketUrl(), 'HEAD', undefined, AbortSignal.timeout(5_000));
+          return;
+        } catch {
+          // Keep readiness fail-closed if neither the marker nor bucket is readable.
+        }
+        throw lastHeadError;
+      },
       putFile: async (key: string, content: Buffer) => {
         if (!/^[0-9a-f-]{36}$/i.test(key)) throw new Error('Invalid private file key');
         const body = new Uint8Array(content.byteLength);
         body.set(content);
-        await send(objectUrl(key), 'PUT', body);
+        await send(objectUrl(key), 'PUT', body, undefined, true);
       },
       getFile: async (key: string) => {
         if (!/^[0-9a-f-]{36}$/i.test(key)) throw new Error('Invalid private file key');

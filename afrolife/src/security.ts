@@ -32,9 +32,22 @@ export function mfaKeys(
   return keys;
 }
 
-export function openAny(sealed: string, keys: Buffer[]): string {
+export function openAny(sealed: string, keys: readonly Buffer[]): string {
   for (const k of keys) { try { return open(sealed, k); } catch { /* try the next key */ } }
   throw new Error('MFA secret cannot be decrypted with any configured key');
+}
+
+export function reencryptMfaSecret(
+  sealed: string,
+  decryptionKeys: readonly Buffer[],
+  activeKey: Buffer,
+): string {
+  const plaintext = openAny(sealed, decryptionKeys);
+  const reencrypted = seal(plaintext, activeKey);
+  if (open(reencrypted, activeKey) !== plaintext) {
+    throw new Error('Re-encrypted MFA secret failed active-key verification.');
+  }
+  return reencrypted;
 }
 
 export function seal(plain: string, key: Buffer): string {

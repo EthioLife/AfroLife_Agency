@@ -805,6 +805,17 @@ test('signup and recovery password fields accept passwords from eight characters
   assert.match(readFileSync(new URL('../src/security.ts', import.meta.url), 'utf8'), /Use at least 8 characters\./);
   assert.match(readFileSync(new URL('../src/support-faq.ts', import.meta.url), 'utf8'), /Use at least 8 characters/);
 });
+
+test('login form is POST-only and startup removes login secrets from the URL', () => {
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
+
+  assert.match(html, /<form id="login-form"[^>]*method="post"[^>]*action="\/"/);
+  assert.match(app, /function removeSensitiveLoginQuery\(\)/);
+  assert.match(app, /'phone_country_code'/);
+  assert.match(app, /history\.replaceState\(history\.state, '', `\$\{url\.pathname\}\$\{url\.search\}\$\{url\.hash\}`\)/);
+});
+
 test('login password visibility toggles without submitting and exposes its state', () => {
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
