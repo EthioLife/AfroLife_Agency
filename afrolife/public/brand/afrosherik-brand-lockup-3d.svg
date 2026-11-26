@@ -53,7 +53,7 @@
     <path d="M56 16C65 3 73 0 81 10c12 15 17 37 31 50 10 10 23 14 37 11-7 14-20 19-34 14-18-7-28-25-38-44-6-11-11-18-17-20Z" fill="url(#gold-ribbon)" stroke="#fff4bc" stroke-opacity=".75" stroke-width="1.5"/>
     <path d="M6 98c13-8 20-23 31-35 11-12 21-14 33-5 14 10 20 28 37 33-10 11-23 12-36 4-11-7-17-19-26-18-9 1-17 20-29 28-5 4-11 3-14-1Z" fill="url(#gold-ribbon)" stroke="#fff0ad" stroke-opacity=".65" stroke-width="1.4"/>
   </g>
-  <path d="M42 79c6-2 14-1 19 2l5 8 4 3-4 5-2 7-4 5-2 6-5 11-3-4-3-8-4-7-2-6-5-4-3-5 1-6 3-7Z" fill="url(#africa-fill)" stroke="#d7ad59" stroke-opacity=".55" stroke-width="1"/>
+  <path d="M39 82c7-5 15-7 24-6l10 5 7 7-2 5 5 5-1 7-5 5-5 10-5 8-3 13-7 4-4-8-5-8-3-9-5-7-4-10-2-11 1-7Z" fill="url(#africa-fill)" stroke="#d7ad59" stroke-opacity=".55" stroke-width="1"/>
   <path d="M194 104h46M400 104h46" fill="none" stroke="url(#gold-ribbon)" stroke-linecap="round" stroke-width="2" filter="url(#raised)"/>
   <path d="M61 13c6-6 10-5 14 1 8 12 13 27 21 39" fill="none" stroke="#fff8d6" stroke-linecap="round" stroke-opacity=".78" stroke-width="2"/>
   <path d="M12 96c9-6 15-14 21-22" fill="none" stroke="#fff9dc" stroke-linecap="round" stroke-opacity=".68" stroke-width="1.8"/>
