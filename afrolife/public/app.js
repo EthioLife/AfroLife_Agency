@@ -3136,13 +3136,15 @@ function renderMobileWorkspaceNav() {
 }
 
 function renderAdminActivityMenus(wrap) {
-  const sidebarMenu = $('#admin-submenu');
+  const sidebarMenu = $('#admin-navigation');
   const compactMenu = $('#mobile-admin-activity-menu');
   const items = state.panel === 'admin' && wrap
-    ? [...wrap.children]
-      .filter((activity) => !activity.classList.contains('section-heading'))
+    ? [...new Set([
+      ...[...wrap.children].filter((activity) => !activity.classList.contains('section-heading')),
+      ...wrap.querySelectorAll('[data-admin-navigation]'),
+    ])]
       .map((activity, index) => {
-        const heading = activity.querySelector('h2, h3');
+        const heading = activity.querySelector(':scope > h2, :scope > h3');
         if (!heading) return null;
         const label = (heading.firstChild ? getLocalizedNodeSource(heading.firstChild) : '').trim() || heading.textContent.trim();
         if (!label) return null;
@@ -3159,6 +3161,8 @@ function renderAdminActivityMenus(wrap) {
     const link = node('button', label, 'admin-activity-link');
     link.type = 'button';
     link.addEventListener('click', () => {
+      link.parentElement.querySelectorAll('.admin-activity-link').forEach((item) => item.removeAttribute('aria-current'));
+      link.setAttribute('aria-current', 'location');
       const target = activity;
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
       target.focus({ preventScroll: true });
@@ -6723,6 +6727,12 @@ function renderPlatformControlPlane() {
   if (!state.platformServicePackages.length) packageList.append(empty('No service packages are configured yet.'));
   section.append(packageList);
 
+  const tenantOnboarding = node('section', undefined, 'admin-onboarding-section');
+  tenantOnboarding.dataset.adminNavigation = 'true';
+  tenantOnboarding.append(
+    node('h3', 'Tenant Onboarding'),
+    node('p', 'Register a deployment tenant, assign its service package, then verify the deployment before activation.'),
+  );
   const tenantForm = node('form', undefined, 'inline-form');
   tenantForm.dataset.form = 'platform-tenant';
   tenantForm.append(
@@ -6737,12 +6747,17 @@ function renderPlatformControlPlane() {
     const option = node('option', labelText); option.value = value; tenantForm.elements.hosting_mode.append(option);
   }
   const packageSelect = tenantForm.elements.package_id;
-  const packagePlaceholder = node('option', 'Choose service package'); packagePlaceholder.value = ''; packageSelect.append(packagePlaceholder);
+  const packagePlaceholder = node('option', 'Choose service package');
+  packagePlaceholder.value = '';
+  packagePlaceholder.disabled = true;
+  packagePlaceholder.selected = true;
+  packageSelect.append(packagePlaceholder);
   for (const item of state.platformServicePackages.filter((entry) => entry.active)) {
     const option = node('option', `${item.display_name} · ${item.services.length} services`); option.value = item.id; packageSelect.append(option);
   }
   tenantForm.append(button('Register tenant', 'submit', 'button button-primary span-2'));
-  section.append(tenantForm);
+  tenantOnboarding.append(tenantForm);
+  section.append(tenantOnboarding);
 
   const serviceList = node('div', undefined, 'list');
   for (const service of state.platformServices) {
@@ -7106,6 +7121,158 @@ function renderTenantDataGovernance() {
   return section;
 }
 
+function createFixedAgentOnboardingSection(role) {
+  const isFieldAgent = role === 'field_agent';
+  const title = isFieldAgent ? 'Direct Agent Onboarding' : 'Master Agent Onboarding';
+  const section = node('section', undefined, 'panel form-card admin-onboarding-section');
+  section.dataset.adminNavigation = 'true';
+  section.append(
+    node('h3', title),
+    node('p', isFieldAgent
+      ? 'Create a Field Agent under an active Master Agent in the same territory. Compliance must approve KYC before a Global Admin independently activates the account.'
+      : 'Create a Master Agent account. Compliance must approve KYC before a Global Admin independently activates the account.'),
+  );
+  const form = node('form', undefined, 'inline-form');
+  form.dataset.form = 'user';
+  const roleInput = node('input');
+  roleInput.type = 'hidden';
+  roleInput.name = 'role';
+  roleInput.value = role;
+  form.append(roleInput);
+  form.append(
+    field('Legal name', 'legal_name').label,
+    field('Phone', 'phone', 'tel', true, { placeholder: '0911 234 567' }).label,
+  );
+  const territory = field(
+    isFieldAgent ? 'Territory (must match the Master Agent)' : 'Territory',
+    'territory_id',
+    'select',
+    true,
+  );
+  territory.input.append(new Option(t('Choose a territory'), ''));
+  for (const entry of state.territories) {
+    territory.input.append(new Option(entry.name, entry.id));
+  }
+  form.append(territory.label);
+
+  let parent;
+  if (isFieldAgent) {
+    parent = field('Active Master Agent', 'parent_agent_id', 'select', true);
+    parent.input.append(new Option(t('Choose an active Master Agent'), ''));
+    for (const user of state.users.filter((item) =>
+      item.role === 'master_agent' && item.active && item.created_by === state.user.id)) {
+      const option = new Option(user.legal_name, user.id);
+      option.dataset.territoryId = String(user.territory_id ?? '');
+      parent.input.append(option);
+    }
+    parent.input.addEventListener('change', () => {
+      territory.input.value = parent.input.selectedOptions[0]?.dataset.territoryId ?? '';
+    });
+    territory.input.addEventListener('change', () => {
+      const selectedTerritory = territory.input.value;
+      const selectedMaster = parent.input.selectedOptions[0]?.dataset.territoryId;
+      if (selectedMaster && selectedTerritory !== selectedMaster) parent.input.value = '';
+    });
+    form.append(parent.label);
+  }
+
+  const plan = field('Agent service plan', 'requested_plan', 'select', true);
+  plan.input.append(new Option(t('Choose a service plan'), ''));
+  for (const [value, label] of [['free', 'Free'], ['pro', 'Pro'], ['enterprise', 'Enterprise']]) {
+    plan.input.append(new Option(t(label), value));
+  }
+  const specialization = field(
+    'Profile focus (optional; does not limit agent services)',
+    'service_specialization',
+    'select',
+    false,
+  );
+  for (const [value, label] of [
+    ['', 'General agent'],
+    ['financial_service', 'Financial services focus'],
+    ['growth_partnership', 'Growth & partnerships focus'],
+    ['workforce_property', 'Workforce & property focus'],
+  ]) {
+    specialization.input.append(new Option(t(label), value));
+  }
+  form.append(
+    plan.label,
+    specialization.label,
+    field('Email', 'email', 'email', false).label,
+    button(isFieldAgent ? 'Create Direct Agent account' : 'Create Master Agent account', 'submit', 'button button-primary span-2'),
+  );
+  if (parent && parent.input.options.length === 1) {
+    form.querySelector('button[type="submit"]').disabled = true;
+    section.append(empty('An active Master Agent created by this Super Admin is required before direct agent onboarding.'));
+  }
+  section.append(form);
+  return section;
+}
+
+function renderKycOnboardingTable(users, role) {
+  const section = node('section', undefined, 'panel form-card admin-onboarding-section');
+  section.dataset.adminNavigation = 'true';
+  section.append(
+    node('h3', 'KYC Data Onboarding Table'),
+    node('p', role === 'global_admin'
+      ? 'Role-scoped onboarding records and document counts. Global Admin can open document records; Compliance remains responsible for independent KYC review.'
+      : 'Role-scoped onboarding status metadata only. KYC documents and review decisions remain restricted to authorized Compliance and Global Admin workflows.'),
+  );
+  const table = document.createElement('table');
+  table.className = 'app-dashboard-table admin-kyc-table';
+  const caption = document.createElement('caption');
+  caption.className = 'visually-hidden';
+  caption.textContent = t('KYC onboarding status by account');
+  table.append(caption);
+  const head = document.createElement('thead');
+  const headingRow = document.createElement('tr');
+  for (const label of ['Account', 'Phone', 'Role', 'KYC status', 'Documents', 'Account status', 'Records']) {
+    const cell = document.createElement('th');
+    cell.scope = 'col';
+    cell.textContent = t(label);
+    headingRow.append(cell);
+  }
+  head.append(headingRow);
+  const body = document.createElement('tbody');
+  if (!users.length) {
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    cell.colSpan = 7;
+    cell.textContent = t('No onboarding accounts are available in this role scope.');
+    row.append(cell);
+    body.append(row);
+  }
+  for (const user of users) {
+    const row = document.createElement('tr');
+    const account = document.createElement('th');
+    account.scope = 'row';
+    account.textContent = user.legal_name;
+    const phone = document.createElement('td');
+    phone.textContent = user.phone;
+    const userRole = document.createElement('td');
+    userRole.textContent = roleLabel(user.role);
+    const kyc = document.createElement('td');
+    kyc.textContent = t(user.kyc_status ?? 'unknown');
+    const documentCount = document.createElement('td');
+    documentCount.textContent = Number(user.kyc_document_count ?? 0).toLocaleString(document.documentElement.lang);
+    const accountStatus = document.createElement('td');
+    accountStatus.textContent = user.active ? t('active') : t('inactive');
+    const records = document.createElement('td');
+    if (role === 'global_admin' && user.signup_account_type) {
+      records.append(button('View KYC documents', 'user-documents', 'button button-outline', { id: user.id }));
+    } else {
+      records.textContent = role === 'global_admin' ? '—' : t('Compliance review only');
+    }
+    row.append(account, phone, userRole, kyc, documentCount, accountStatus, records);
+    body.append(row);
+  }
+  table.append(head, body);
+  const scroll = node('div', undefined, 'admin-table-scroll');
+  scroll.append(table);
+  section.append(scroll);
+  return section;
+}
+
 function renderAdmin() {
   const wrap = node('div');
   const isAdmin = isPlatformAdmin();
@@ -7336,10 +7503,15 @@ function renderAdmin() {
     }
     wrap.append(identities);
   }
-  if (canProvisionAgents) {
+  if (state.user.role === 'super_admin') {
+    wrap.append(
+      createFixedAgentOnboardingSection('master_agent'),
+      createFixedAgentOnboardingSection('field_agent'),
+    );
+  } else if (canProvisionAgents) {
     const form = node('form', undefined, 'panel form-card inline-form');
     form.dataset.form = 'user';
-    const title = node('h3', isGlobalAdmin ? 'Create a platform account' : state.user.role === 'master_agent' ? 'Onboard a sub-agent' : 'Onboard an agent'); title.className = 'span-2'; form.append(title);
+    const title = node('h3', 'Account details'); title.className = 'span-2'; form.append(title);
     form.append(field('Legal name', 'legal_name').label, field('Phone', 'phone', 'tel', true, { placeholder: '0911 234 567' }).label);
     const role = field('Role', 'role', 'select');
     const accountRoles = isGlobalAdmin
@@ -7351,9 +7523,12 @@ function renderAdmin() {
       const option = node('option', label); option.value = value; role.input.append(option);
     }
     form.append(role.label);
+    let vendor;
     if (isGlobalAdmin) {
-      const vendor = field('Property-vendor business (required for vendor portal accounts)', 'vendor_id', 'select', false);
-      const vendorEmpty = node('option', 'Choose property-vendor business'); vendorEmpty.value = ''; vendor.input.append(vendorEmpty);
+      vendor = field('Property-vendor business', 'vendor_id', 'select', false);
+      const vendorEmpty = new Option(t('Choose property-vendor business'), '');
+      vendorEmpty.selected = true;
+      vendor.input.append(vendorEmpty);
       for (const item of state.maintenanceVendors ?? []) { const option = node('option', item.name); option.value = item.id; vendor.input.append(option); }
       form.append(vendor.label);
     }
@@ -7363,14 +7538,15 @@ function renderAdmin() {
     }
     form.append(specialization.label);
     const area = field('Territory', 'territory_id', 'select', false);
-    const none = node('option', 'No territory'); none.value = ''; area.input.append(none);
+    area.input.append(new Option(t('Choose a territory'), ''));
     for (const territory of state.territories) { const option = node('option', territory.name); option.value = territory.id; area.input.append(option); }
     form.append(area.label);
     const agentPlan = field('Agent service plan', 'requested_plan', 'select', false);
+    agentPlan.input.append(new Option(t('Choose a service plan'), ''));
     for (const [value,label] of [['free','Free'],['pro','Pro'],['enterprise','Enterprise']]) { const option=node('option',label); option.value=value; agentPlan.input.append(option); }
     form.append(agentPlan.label);
     const parent = field('Master agent (required for field agents)', 'parent_agent_id', 'select', false);
-    const parentEmpty = node('option', 'Choose master agent'); parentEmpty.value = ''; parent.input.append(parentEmpty);
+    parent.input.append(new Option(t('Choose an active Master Agent'), ''));
     if (state.user.role === 'master_agent') {
       const option = node('option', state.user.legal_name); option.value = state.user.id; parent.input.append(option);
       parent.input.value = state.user.id;
@@ -7380,17 +7556,49 @@ function renderAdmin() {
     form.append(parent.label);
     form.append(field('Email', 'email', 'email', false).label);
     form.append(button('Create account', 'submit', 'button button-primary span-2'));
-    columns.append(form);
+    const updateProvisioningRequirements = () => {
+      const agentRole = ['master_agent', 'field_agent'].includes(role.input.value);
+      const fieldAgentRole = role.input.value === 'field_agent';
+      area.label.hidden = !agentRole;
+      area.input.required = agentRole;
+      agentPlan.label.hidden = !agentRole;
+      agentPlan.input.required = agentRole;
+      parent.label.hidden = !fieldAgentRole;
+      parent.input.required = fieldAgentRole;
+      parent.input.disabled = !fieldAgentRole;
+      if (!fieldAgentRole) parent.input.value = '';
+      if (!agentRole) {
+        area.input.value = '';
+        agentPlan.input.value = '';
+      }
+      if (vendor) {
+        const vendorRole = role.input.value === 'property_vendor';
+        vendor.label.hidden = !vendorRole;
+        vendor.input.required = vendorRole;
+        vendor.input.disabled = !vendorRole;
+        if (!vendorRole) vendor.input.value = '';
+      }
+    };
+    role.input.addEventListener('change', updateProvisioningRequirements);
+    updateProvisioningRequirements();
+    if (isGlobalAdmin) {
+      const onboarding = node('section', undefined, 'panel form-card admin-onboarding-section');
+      onboarding.dataset.adminNavigation = 'true';
+      onboarding.append(
+        node('h3', 'Super / Master Agent Onboarding'),
+        node('p', 'Create Super Admin or agent accounts. New agents remain inactive until KYC review and independent activation; Super Admin access also requires tenant assignment.'),
+        form,
+      );
+      wrap.append(onboarding);
+    } else {
+      columns.append(form);
+    }
   }
   if (state.user.role === 'super_admin') wrap.append(renderTenantAdminWorkspace());
   const users = node('div', undefined, 'list');
-  const visibleUsers = state.user.role === 'super_admin'
-    ? state.users.filter((user) => user.role === 'super_admin' && !user.active)
-    : state.users;
+  const visibleUsers = state.users;
   if (!visibleUsers.length) {
-    users.append(empty(state.user.role === 'super_admin'
-      ? 'No pending Super Admin accounts are awaiting activation.'
-      : 'No accounts to display.'));
+    users.append(empty('No accounts to display.'));
   }
   for (const user of visibleUsers.slice(0, 25)) {
     const signupDetails = user.signup_account_type
@@ -7451,19 +7659,23 @@ function renderAdmin() {
       roleForm.append(button('Save role', 'submit', 'button button-primary span-2'));
       item.append(roleForm);
     }
-    if (user.signup_account_type && ['global_admin', 'compliance'].includes(state.user.role)) {
+    if (user.signup_account_type && state.user.role === 'compliance') {
       item.append(button(`KYC documents (${user.kyc_document_count ?? 0})`, 'user-documents', 'button button-outline', { id: user.id }));
     }
     if (state.user.role === 'compliance' && ['uploaded','under_review'].includes(user.kyc_status) && user.id !== state.user.id) {
       item.append(button('Verify KYC', 'user-kyc', 'button button-primary', { id: user.id, decision: 'verified' }));
       item.append(button('Reject', 'user-kyc', 'button button-outline', { id: user.id, decision: 'rejected' }));
     }
-    if (isAdmin && !user.active && user.created_by !== state.user.id) item.append(button('Activate', 'user-activate', 'button button-primary', { id: user.id }));
+    const canActivateUser = !user.active
+      && user.created_by !== state.user.id
+      && (isGlobalAdmin || (state.user.role === 'super_admin' && user.role === 'super_admin'));
+    if (canActivateUser) item.append(button('Activate', 'user-activate', 'button button-primary', { id: user.id }));
     if (isGlobalAdmin && user.active && user.id !== state.user.id) item.append(button('Deactivate', 'user-deactivate', 'button button-outline', { id: user.id }));
     users.append(item);
   }
   if (isAdmin || isBusinessManager || state.user.role === 'compliance') columns.append(users);
   wrap.append(columns);
+  if (isAdmin) wrap.append(renderKycOnboardingTable(visibleUsers, state.user.role));
   if (isAdmin && state.summary) {
     const summary = node('section', undefined, 'panel form-card');
     summary.style.marginTop = '20px';
@@ -9176,6 +9388,16 @@ async function submitForm(form) {
     delete form.dataset.idempotencyKey;
   } else if (form.dataset.form === 'user') {
     const payload = { ...values };
+    if (['master_agent', 'field_agent'].includes(payload.role)) {
+      if (!payload.territory_id) throw new Error('Choose a territory before creating an agent account.');
+      if (!payload.requested_plan) throw new Error('Choose an agent service plan before creating an agent account.');
+      if (payload.role === 'field_agent' && !payload.parent_agent_id) {
+        throw new Error('Choose an active Master Agent before creating a Field Agent account.');
+      }
+    }
+    if (payload.role === 'property_vendor' && !payload.vendor_id) {
+      throw new Error('Choose the property-vendor business before creating this account.');
+    }
     if (!payload.territory_id) delete payload.territory_id;
     else payload.territory_id = number(payload.territory_id);
     if (!payload.parent_agent_id) delete payload.parent_agent_id;
@@ -9684,11 +9906,13 @@ document.addEventListener('submit', (event) => {
   const form = event.target.closest('form[data-form]');
   if (!form) return;
   event.preventDefault();
+  if (form.dataset.submitting === 'true') return;
+  form.dataset.submitting = 'true';
   showAlert('');
   const submit = form.querySelector('button[type="submit"]');
   const saveFeedbackForms = new Set([
     'user-role', 'role-access', 'business-rules', 'marketplace-config',
-    'platform-service-package', 'platform-service-package-update', 'platform-service',
+    'user', 'platform-service-package', 'platform-service-package-update', 'platform-service',
     'platform-tenant', 'platform-tenant-admin', 'platform-tenant-update',
     'platform-catalog-product', 'platform-catalog-product-update',
     'tenant-module-config', 'tenant-deployment-registration', 'platform-tenant-capabilities',
@@ -9704,6 +9928,7 @@ document.addEventListener('submit', (event) => {
   submitForm(form)
     .catch((error) => showAlert(error.message, true))
     .finally(() => {
+      delete form.dataset.submitting;
       if (submit?.isConnected) {
         submit.disabled = false;
         if (submit.dataset.idleLabel) {

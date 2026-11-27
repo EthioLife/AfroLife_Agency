@@ -162,6 +162,8 @@ test('Global Admin provisions Super and Master Agents while Super and Master Age
   });
   assert.equal(onboardedMaster.status, 201, JSON.stringify(onboardedMaster.body));
   assert.equal(onboardedMaster.body.user.role, 'master_agent');
+  assert.equal(onboardedMaster.body.user.active, false);
+  assert.equal(typeof onboardedMaster.body.signup_upload_token, 'string');
 
   const superOwnedMaster = await mkUser('master_agent', 95);
   await db.query('UPDATE users SET created_by=$1,territory_id=$2 WHERE id=$3', [admin.id, tid, superOwnedMaster.id]);
@@ -176,6 +178,14 @@ test('Global Admin provisions Super and Master Agents while Super and Master Age
   });
   assert.equal(superOnboardedField.status, 201, JSON.stringify(superOnboardedField.body));
   assert.equal(superOnboardedField.body.user.role, 'field_agent');
+  assert.equal(superOnboardedField.body.user.active, false);
+  assert.equal(typeof superOnboardedField.body.signup_upload_token, 'string');
+  const scopedOnboarding = await call(admin, 'GET', '/users');
+  assert.equal(scopedOnboarding.status, 200);
+  const scopedFieldAgent = scopedOnboarding.body.find((user: any) => user.id === superOnboardedField.body.user.id);
+  assert.ok(scopedFieldAgent, 'Super Admin should see the agent account they created');
+  assert.equal(scopedFieldAgent.kyc_document_count, 0);
+  assert.equal((await call(admin, 'GET', `/users/${superOnboardedField.body.user.id}/documents`)).status, 403);
 
   const masterOnboardedField = await call(master, 'POST', '/users', {
     legal_name: `Master Agent Sub-agent ${run}`,
@@ -210,6 +220,38 @@ test('Global Admin provisions Super and Master Agents while Super and Master Age
     requested_plan: 'free',
   });
   assert.equal(deniedMasterTier.status, 403);
+});
+
+test('Global Admin tenant onboarding creates and reads a provisioning tenant end to end', async () => {
+  const serviceResponse = await call(globalAdmin, 'GET', '/platform/services');
+  assert.equal(serviceResponse.status, 200);
+  const availableService = serviceResponse.body.find((service: any) => service.available);
+  assert.ok(availableService, 'An available platform service is required for a tenant package');
+  const servicePackage = await call(globalAdmin, 'POST', '/platform/service-packages', {
+    package_key: `qa-${run}`,
+    display_name: `QA tenant onboarding ${run}`,
+    description: 'Disposable integration-test package for tenant onboarding.',
+    services: [availableService.service_key],
+  });
+  assert.equal(servicePackage.status, 201, JSON.stringify(servicePackage.body));
+
+  const createdTenant = await call(globalAdmin, 'POST', '/platform/tenants', {
+    tenant_key: `qa-tenant-${run}`,
+    display_name: `QA tenant onboarding ${run}`,
+    hosting_mode: 'cloud',
+    region: 'Addis Ababa',
+    deployment_reference: `qa-deployment-${run}`,
+    package_id: servicePackage.body.id,
+  });
+  assert.equal(createdTenant.status, 201, JSON.stringify(createdTenant.body));
+  assert.equal(createdTenant.body.status, 'provisioning');
+  assert.equal(createdTenant.body.deployment_status, 'not_registered');
+
+  const tenantList = await call(globalAdmin, 'GET', '/platform/tenants');
+  assert.equal(tenantList.status, 200);
+  const persistedTenant = tenantList.body.find((tenant: any) => tenant.id === createdTenant.body.id);
+  assert.ok(persistedTenant, 'The newly registered tenant should appear in the Global Admin tenant list');
+  assert.equal(persistedTenant.packages[0].display_name, servicePackage.body.display_name);
 });
 
 test('users can list and revoke only their own active sessions', async () => {
