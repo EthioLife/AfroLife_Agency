@@ -2281,6 +2281,7 @@ h1, h2, h3, .eyebrow {
   height: auto;
   max-height: 76px;
   object-fit: contain;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, .28)) drop-shadow(0 3px 2px rgba(0, 0, 0, .4));
 }
 
 @media (max-width: 920px) and (min-width: 651px) {
