@@ -47,17 +47,13 @@ test('maintenance SLA escalation levels use the agreed 1, 24, and 72 hour thresh
 
 test('maintenance SLA dispatch can use a Global Admin when no Super Admin remains', async () => {
   const actorId = '00000000-0000-4000-8000-000000000001';
-  const poolQueries: string[] = [];
   const clientQueries: string[] = [];
   const pool = {
-    query: async (sql: string) => {
-      poolQueries.push(sql);
-      return { rows: [{ id: actorId }], rowCount: 1 };
-    },
     connect: async () => ({
       query: async (sql: string) => {
         clientQueries.push(sql);
         if (sql.includes('WITH eligible_recipients')) return { rows: [], rowCount: 0 };
+        if (sql.includes("role IN ('super_admin','global_admin')")) return { rows: [{ id: actorId }], rowCount: 1 };
         if (sql.includes('WHERE id=$1 AND active=true')) return { rows: [{ id: actorId }], rowCount: 1 };
         return { rows: [], rowCount: 1 };
       },
@@ -66,6 +62,7 @@ test('maintenance SLA dispatch can use a Global Admin when no Super Admin remain
   } as unknown as Pool;
 
   assert.equal(await dispatchMaintenanceSlaEscalations(pool), 0);
-  assert.match(poolQueries[0], /role IN \('super_admin','global_admin'\)/);
+  assert.ok(clientQueries.indexOf("SELECT set_config('app.service','maintenance_sla',true)") <
+    clientQueries.findIndex((sql) => sql.includes("role IN ('super_admin','global_admin')")));
   assert.ok(clientQueries.some((sql) => sql.includes("role IN ('super_admin','global_admin')")));
 });

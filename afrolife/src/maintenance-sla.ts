@@ -27,16 +27,16 @@ type EscalationTarget = {
 };
 
 export async function dispatchMaintenanceSlaEscalations(pool: Pool): Promise<number> {
-  const systemActorId = (await pool.query<{ id: string }>(
-    `SELECT id FROM users
-     WHERE active=true AND role IN ('super_admin','global_admin')
-     ORDER BY CASE role WHEN 'super_admin' THEN 0 ELSE 1 END,id LIMIT 1`,
-  )).rows[0]?.id;
-  if (!systemActorId) throw new Error('Maintenance SLA escalation requires an active platform admin system actor');
-
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await client.query("SELECT set_config('app.service','maintenance_sla',true)");
+    const systemActorId = (await client.query<{ id: string }>(
+      `SELECT id FROM users
+       WHERE active=true AND role IN ('super_admin','global_admin')
+       ORDER BY CASE role WHEN 'super_admin' THEN 0 ELSE 1 END,id LIMIT 1`,
+    )).rows[0]?.id;
+    if (!systemActorId) throw new Error('Maintenance SLA escalation requires an active platform admin system actor');
     await client.query(
       `SELECT set_config('app.user_id',$1,true),set_config('app.role','super_admin',true),
          set_config('app.edir_id','00000000-0000-4000-8000-000000000002',true),

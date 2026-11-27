@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import { normalizePhone } from './phone.js';
 import { WORKSPACE_MODULES } from './runtime-config.js';
@@ -97,6 +98,16 @@ export async function bootstrapInitialAfroSherikAdmins(
       throw new Error('A Global Admin already exists; use the standard account and promotion workflows instead.');
     }
 
+    const bootstrapActor = (await client.query<{ id: string }>(
+      `SELECT id FROM users
+       WHERE role='super_admin' AND active=true
+       ORDER BY id LIMIT 1 FOR SHARE`,
+    )).rows[0];
+    if (!bootstrapActor) {
+      throw new Error('The initial administrator bootstrap requires an existing active Super Admin system actor.');
+    }
+    await client.query("SELECT set_config('app.user_id',$1,true)", [bootstrapActor.id]);
+
     const results: Array<{ id: string }> = [];
     for (const [index, identity] of IDENTITIES.entries()) {
       const phone = normalizePhone(identity.phone);
@@ -109,11 +120,13 @@ export async function bootstrapInitialAfroSherikAdmins(
         throw new Error(`An account already uses the configured phone number for ${identity.name}; no account was changed.`);
       }
 
+      const id = randomUUID();
+      await client.query("SELECT set_config('app.user_creation_id',$1,true)", [id]);
       const account = (await client.query<{ id: string }>(
-        `INSERT INTO users (legal_name,phone,role,kyc_status,active,password_hash,must_change_password)
-         VALUES ($1,$2,'global_admin','verified',true,$3,true)
+        `INSERT INTO users (id,legal_name,phone,role,kyc_status,active,password_hash,must_change_password,created_by)
+         VALUES ($1,$2,$3,'global_admin','verified',true,$4,true,$5)
          RETURNING id`,
-        [identity.name, phone, passwordHashes[index]],
+        [id, identity.name, phone, passwordHashes[index], bootstrapActor.id],
       )).rows[0];
       results.push({ id: account.id });
     }

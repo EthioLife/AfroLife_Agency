@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import { normalizePhone } from './phone.js';
 
@@ -63,13 +64,14 @@ export async function seedPlatformSuperAdmin(pool: Pool, input: PlatformAdminSee
     const existing = await client.query('SELECT 1 FROM users WHERE phone = $1', [seed.phone]);
     if (existing.rowCount) throw new Error('An account with SEED_PLATFORM_ADMIN_PHONE already exists');
 
+    const userId = randomUUID();
+    await client.query("SELECT set_config('app.user_creation_id',$1,true)", [userId]);
     const inserted = await client.query<{ id: string }>(
-      `INSERT INTO users (legal_name, phone, role, kyc_status, active, password_hash, must_change_password)
-       VALUES ($1,$2,'super_admin','verified',true,$3,true)
+      `INSERT INTO users (id, legal_name, phone, role, kyc_status, active, password_hash, must_change_password, created_by)
+       VALUES ($1,$2,$3,'super_admin','verified',true,$4,true,$5)
        RETURNING id`,
-      [seed.name, seed.phone, passwordHash],
+      [userId, seed.name, seed.phone, passwordHash, seed.actorId],
     );
-    const userId = inserted.rows[0].id;
 
     await client.query(
       `INSERT INTO audit_logs (actor_id, action, entity, entity_id, new_value)

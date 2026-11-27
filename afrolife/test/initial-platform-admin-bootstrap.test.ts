@@ -56,7 +56,9 @@ test('bootstrap source scopes Super Admin access to the existing AfroSherik tena
   const source = await readFile(new URL('../src/initial-platform-admin-bootstrap.ts', import.meta.url), 'utf8');
   assert.match(source, /display_name\.trim\(\)\.toLowerCase\(\) !== 'afrosherik'/);
   assert.match(source, /SELECT 1 FROM users WHERE role='global_admin' LIMIT 1/);
-  assert.match(source, /'global_admin','verified',true,\$3,true/);
+  assert.match(source, /set_config\('app\.user_creation_id'/);
+  assert.match(source, /created_by\)\s*VALUES \(\$1,\$2,\$3,'global_admin'/);
+  assert.match(source, /'global_admin','verified',true,\$4,true,\$5/);
   assert.match(source, /VALUES\(\$1,'super_admin',\$2,false,\$3\)/);
   assert.match(source, /mfa_enrollment_required: true/);
   assert.match(source, /must_change_password: true/);
