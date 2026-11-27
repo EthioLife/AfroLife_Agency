@@ -150,7 +150,7 @@ try{
   const vendor=await request('POST','/property-vendors',financeManager,{name:`LOCAL QA Vendor ${suffix}`,tax_id:`QA-${suffix}`,phone:'+12025550999',email:`vendor-${suffix.toLowerCase()}@example.test`},201);
   const billPayload={vendor_id:vendor.id,invoice_reference:`INV-${suffix}`,amount:1250.50,invoice_date:new Date().toISOString().slice(0,10),due_date:new Date(Date.now()+86400000*30).toISOString().slice(0,10)};
   await request('POST',`/maintenance/${maintenance.id}/update`,propertyManager,{status:'triaged',sla_hours:24,resolution_note:'Synthetic maintenance triage for finance E2E'});
-  await request('POST',`/maintenance/${maintenance.id}/update`,propertyManager,{status:'assigned',assigned_to:fieldAgentAssignment.fieldAgentId});
+  await request('POST',`/maintenance/${maintenance.id}/update`,propertyManager,{status:'assigned',assigned_to:fieldAgentAssignment.fieldAgentId},200,fieldAgentAssignment.tenantSystemId);
   await request('POST',`/maintenance/${maintenance.id}/update`,fieldAgent,{status:'in_progress',resolution_note:'Synthetic maintenance work started'},200,fieldAgentAssignment.tenantSystemId);
   await request('POST',`/maintenance/${maintenance.id}/vendor-bills`,financeManager,billPayload,409);
   await request('POST',`/maintenance/${maintenance.id}/update`,fieldAgent,{status:'awaiting_review',resolution_note:'Synthetic maintenance work completed and submitted for review'},200,fieldAgentAssignment.tenantSystemId);

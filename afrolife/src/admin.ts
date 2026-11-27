@@ -2732,6 +2732,7 @@ adminRouter.get('/users', requireRole('global_admin', 'compliance', 'corporate_b
             (SELECT count(*)::int FROM user_documents d WHERE d.user_id = u.id) AS kyc_document_count
      FROM users u LEFT JOIN user_signups s ON s.user_id = u.id LEFT JOIN agents a ON a.id = u.id
      WHERE $1::text IN ('global_admin','compliance')
+        OR ($1::text='super_admin' AND u.role='super_admin')
         OR u.created_by=$2
         OR ($1::text='super_admin' AND EXISTS (
           SELECT 1 FROM platform_tenant_users member

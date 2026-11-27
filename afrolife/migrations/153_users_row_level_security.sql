@@ -16,9 +16,22 @@ LANGUAGE sql STABLE AS $$
   )
 $$;
 
+CREATE OR REPLACE FUNCTION app_is_pending_global_admin_promotion(target_user uuid) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,pg_temp
+AS $$
+  SELECT app_role()='super_admin' AND EXISTS (
+    SELECT 1 FROM global_admin_role_change_requests request
+    WHERE request.target_user_id=target_user
+      AND request.status='pending'
+      AND request.requested_by<>app_user_id()
+      AND request.target_user_id<>app_user_id()
+  )
+$$;
+
 REVOKE ALL ON FUNCTION app_user_creation_id() FROM PUBLIC;
 REVOKE ALL ON FUNCTION app_user_phone_lookup(text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION app_user_creation_id(),app_user_phone_lookup(text) TO "{{role}}";
+REVOKE ALL ON FUNCTION app_is_pending_global_admin_promotion(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION app_user_creation_id(),app_user_phone_lookup(text),app_is_pending_global_admin_promotion(uuid) TO "{{role}}";
 
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
@@ -29,12 +42,14 @@ CREATE POLICY users_platform_tenant_scope ON users AS RESTRICTIVE FOR ALL
     OR app_can_access_agent(id)
     OR id=app_user_id()
     OR id=app_user_creation_id()
+    OR (app_role()='super_admin' AND role='super_admin')
   )
   WITH CHECK (
     NOT app_is_platform_tenant_scoped()
     OR app_can_access_agent(id)
     OR id=app_user_id()
     OR id=app_user_creation_id()
+    OR (app_role()='super_admin' AND role='super_admin')
   );
 
 CREATE POLICY users_application_read ON users FOR SELECT
@@ -42,6 +57,7 @@ CREATE POLICY users_application_read ON users FOR SELECT
     id=app_user_id()
     OR id=app_user_creation_id()
     OR app_user_phone_lookup(phone)
+    OR (app_role()='super_admin' AND role='super_admin')
     OR app_role() IN ('global_admin','compliance','finance','finance_manager')
     OR (app_role()='super_admin' AND app_platform_tenant_id() IS NULL AND created_by=app_user_id())
     OR (app_role()='corporate_business_manager' AND created_by=app_user_id())
@@ -94,6 +110,7 @@ CREATE POLICY users_application_update ON users FOR UPDATE
       AND app_is_platform_tenant_scoped()
       AND app_can_access_agent(id)
     )
+    OR (app_role()='super_admin' AND role='super_admin')
   )
   WITH CHECK (
     id=app_user_id()
@@ -102,5 +119,11 @@ CREATE POLICY users_application_update ON users FOR UPDATE
       app_role()='super_admin'
       AND app_is_platform_tenant_scoped()
       AND app_can_access_agent(id)
+    )
+    OR (app_role()='super_admin' AND role='super_admin')
+    OR (
+      app_role()='super_admin'
+      AND role='global_admin'
+      AND app_is_pending_global_admin_promotion(id)
     )
   );

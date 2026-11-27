@@ -296,7 +296,7 @@ test('a Super Admin may activate a different Super Admin but not other roles', a
   const source = await readFile(new URL('../src/admin.ts', import.meta.url), 'utf8');
   assert.match(source, /req\.user!\.role === 'super_admin' && target\.role !== 'super_admin'/);
   assert.match(source, /target\.created_by === req\.user!\.id/);
-  assert.match(source, /\$1::text='super_admin' AND u\.role='super_admin'[\s\S]*?u\.active=false/);
+  assert.match(source, /if \(target\.active\) throw new HttpError\(409, 'Account is already active'\)/);
 
   for (const role of ['global_admin', 'super_admin']) {
     let denied: unknown;

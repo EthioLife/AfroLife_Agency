@@ -70,7 +70,7 @@ function Set-AgencyDomainRuntimePrivileges([string]$Database, [string]$Role, [st
     "REVOKE CREATE ON SCHEMA public FROM $Role;"
     'REVOKE CREATE ON SCHEMA public FROM PUBLIC;'
     "GRANT USAGE ON SCHEMA public TO $Role;"
-    "GRANT EXECUTE ON FUNCTION public.app_platform_tenant_id(), public.app_is_platform_tenant_scoped() TO $Role;"
+    "GRANT EXECUTE ON FUNCTION public.app_platform_tenant_id(), public.app_is_platform_tenant_scoped(), public.app_user_creation_id(), public.app_user_phone_lookup(text), public.app_is_pending_global_admin_promotion(uuid) TO $Role;"
   )
   if ($Domain -eq 'marketplace') {
     $statements += "GRANT EXECUTE ON FUNCTION public.app_platform_tenant_has_user(uuid) TO $Role;"

@@ -172,11 +172,19 @@ test('users RLS is active and preserves scoped authentication and onboarding pat
   assert.match(migration, /CREATE POLICY users_platform_tenant_scope ON users AS RESTRICTIVE[\s\S]*app_user_creation_id\(\)/);
   assert.match(migration, /CREATE POLICY users_application_insert ON users FOR INSERT[\s\S]*public_signup/);
   assert.match(migration, /CREATE POLICY users_application_read ON users FOR SELECT[\s\S]*app_user_phone_lookup\(phone\)/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION app_is_pending_global_admin_promotion[\s\S]*app_role\(\)='super_admin' AND EXISTS/);
+  assert.match(migration, /role='global_admin'[\s\S]*app_is_pending_global_admin_promotion\(id\)/);
   assert.match(core, /withUserPhoneLookup[\s\S]*set_config\('app\.user_lookup_phones'/);
   assert.match(core, /withUser\(\{ id, role: 'customer' \}/);
   assert.match(admin, /requireSuperAdminTenantContext/);
   assert.match(admin, /member\.tenant_id=\$3 AND member\.user_id=u\.id/);
+  assert.match(admin, /\(\$1::text='super_admin' AND u\.role='super_admin'\)/);
   assert.match(admin, /set_config\('app\.user_creation_id'/);
+  const runtimePrivileges = await readFile(
+    new URL('../scripts/agency-domain-runtime-privileges.ps1', import.meta.url),
+    'utf8',
+  );
+  assert.match(runtimePrivileges, /app_is_pending_global_admin_promotion\(uuid\)/);
 });
 
 test('tenant user migration safely replaces the existing tenant event policy', async () => {
