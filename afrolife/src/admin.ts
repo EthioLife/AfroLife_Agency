@@ -1,5 +1,6 @@
 ﻿import { Router, Request, Response, RequestHandler } from 'express';
 import express from 'express';
+import type { PoolClient } from 'pg';
 import { createHash, createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -66,6 +67,41 @@ const requireSuperAdminPromotionRole: RequestHandler = (req, _res, next) => {
   return next();
 };
 const PROVISIONABLE_ROLES = ['super_admin', 'corporate_business_manager', 'compliance', 'finance', 'finance_manager', 'master_agent', 'field_agent', 'customer', 'worker', 'property_owner', 'property_vendor'] as const;
+const PLATFORM_TENANT_USER_ROLES = ['corporate_business_manager', 'master_agent', 'field_agent', 'customer', 'worker', 'property_owner', 'property_vendor'] as const;
+const PLATFORM_TENANT_ROLE_SERVICES: Partial<Record<(typeof PLATFORM_TENANT_USER_ROLES)[number], string>> = {
+  corporate_business_manager: 'agency',
+  master_agent: 'agency',
+  field_agent: 'agency',
+  customer: 'workforce',
+  worker: 'workforce',
+  property_owner: 'property',
+  property_vendor: 'property',
+};
+async function requirePlatformTenantServiceEntitlement(
+  client: PoolClient,
+  tenantId: string,
+  serviceKey: string,
+): Promise<void> {
+  const enabled = (await client.query(
+    `SELECT EXISTS (
+       SELECT 1 FROM platform_tenants t
+       JOIN platform_tenant_packages tp ON tp.tenant_id=t.id
+       JOIN platform_service_packages p ON p.id=tp.package_id AND p.active
+       JOIN platform_service_package_items i ON i.package_id=p.id AND i.service_key=$2
+       JOIN platform_services s ON s.service_key=i.service_key AND s.available
+       WHERE t.id=$1 AND t.status='active'
+         AND (
+           NOT EXISTS (SELECT 1 FROM platform_tenant_module_config c WHERE c.tenant_id=t.id)
+           OR EXISTS (
+             SELECT 1 FROM platform_tenant_module_config c
+             WHERE c.tenant_id=t.id AND $2=ANY(c.enabled_services)
+           )
+         )
+     ) AS enabled`,
+    [tenantId, serviceKey],
+  )).rows[0]?.enabled;
+  if (!enabled) throw new HttpError(409, 'The required service is not enabled for this tenant.');
+}
 const PLATFORM_SERVICE_KEYS = [
   'agency', 'workforce', 'staffing', 'property', 'marketplace', 'accounting', 'insurance',
   'sacco_mfi', 'edir', 'learning', 'privacy', 'operations', 'global_bi',
@@ -946,14 +982,333 @@ adminRouter.get('/platform/my-tenants', requireRole('super_admin'), h(async (req
        COALESCE(jsonb_agg(DISTINCT jsonb_build_object('package_key',p.package_key,'display_name',p.display_name,
          'services',COALESCE((SELECT jsonb_agg(i.service_key ORDER BY i.service_key)
            FROM platform_service_package_items i WHERE i.package_id=p.id),'[]'::jsonb)))
-         FILTER (WHERE p.id IS NOT NULL),'[]'::jsonb) AS configured_packages
+         FILTER (WHERE p.id IS NOT NULL),'[]'::jsonb) AS configured_packages,
+       COALESCE((
+         SELECT jsonb_agg(jsonb_build_object(
+           'id',u.id,'legal_name',u.legal_name,'phone',u.phone,'role',u.role,
+           'active',u.active,'territory_id',u.territory_id,'status',tu.status
+         ) ORDER BY u.legal_name)
+         FROM platform_tenant_users tu JOIN users u ON u.id=tu.user_id
+         WHERE tu.tenant_id=t.id AND tu.status='active'
+       ),'[]'::jsonb) AS tenant_users,
+       COALESCE((
+         SELECT jsonb_agg(jsonb_build_object(
+           'id',entity.id,'tenant_key',entity.tenant_key,'display_name',entity.display_name,
+           'tenant_type',entity.tenant_type,'owner_user_id',entity.owner_user_id,
+           'owner_name',owner.legal_name,'status',entity.status
+         ) ORDER BY entity.display_name)
+         FROM platform_business_tenants entity
+         JOIN users owner ON owner.id=entity.owner_user_id
+         WHERE entity.platform_tenant_id=t.id
+       ),'[]'::jsonb) AS business_entities,
+       COALESCE((
+         SELECT jsonb_agg(jsonb_build_object(
+           'id',vendor.id,'name',vendor.name,'active',vendor.active
+         ) ORDER BY vendor.name)
+         FROM property_vendors vendor WHERE vendor.platform_tenant_id=t.id
+       ),'[]'::jsonb) AS property_vendors,
+       COALESCE((
+         SELECT jsonb_agg(jsonb_build_object(
+           'id',property_tenant.id,'tenant_key',property_tenant.tenant_key,
+           'legal_name',property_tenant.legal_name
+         ) ORDER BY property_tenant.legal_name)
+         FROM property_operating_tenants property_tenant
+         WHERE property_tenant.status='active'
+           AND EXISTS (
+             SELECT 1 FROM property_operating_tenant_members property_member
+             JOIN platform_tenant_users deployment_member
+               ON deployment_member.user_id=property_member.user_id
+              AND deployment_member.tenant_id=t.id
+              AND deployment_member.status='active'
+             WHERE property_member.tenant_system_id=property_tenant.id
+               AND property_member.status='active'
+           )
+       ),'[]'::jsonb) AS property_operating_tenants,
+       COALESCE((
+         SELECT jsonb_agg(jsonb_build_object(
+           'id',entity.id,'tenant_key',entity.tenant_key,'display_name',entity.display_name,
+           'tenant_type',entity.tenant_type,'owner_user_id',entity.owner_user_id,
+           'owner_name',owner.legal_name,'status',entity.status
+         ) ORDER BY entity.display_name)
+         FROM platform_business_tenants entity
+         JOIN users owner ON owner.id=entity.owner_user_id
+         WHERE entity.platform_tenant_id IS NULL
+           AND (
+             entity.owner_user_id=$1
+             OR EXISTS (
+               SELECT 1 FROM platform_tenant_users member
+               JOIN platform_tenant_admins assigned ON assigned.tenant_id=member.tenant_id
+               WHERE member.user_id=entity.owner_user_id AND member.status='active'
+                 AND assigned.user_id=$1
+             )
+           )
+       ),'[]'::jsonb) AS eligible_entities,
+       COALESCE((
+         SELECT jsonb_agg(jsonb_build_object(
+           'id',candidate.id,'legal_name',candidate.legal_name,'role',candidate.role,
+           'active',candidate.active,'territory_id',candidate.territory_id
+         ) ORDER BY candidate.legal_name)
+         FROM users candidate
+         WHERE candidate.role=ANY($2::text[])
+           AND NOT EXISTS (
+             SELECT 1 FROM platform_tenant_users current_member
+             WHERE current_member.tenant_id=t.id AND current_member.user_id=candidate.id
+               AND current_member.status='active'
+           )
+           AND (
+             candidate.created_by=$1
+             OR EXISTS (
+               SELECT 1 FROM platform_tenant_users other_member
+               JOIN platform_tenant_admins other_admin
+                 ON other_admin.tenant_id=other_member.tenant_id AND other_admin.user_id=$1
+               WHERE other_member.user_id=candidate.id AND other_member.status='active'
+             )
+           )
+       ),'[]'::jsonb) AS eligible_users
      FROM platform_tenant_admins a JOIN platform_tenants t ON t.id=a.tenant_id
      LEFT JOIN platform_tenant_packages tp ON tp.tenant_id=t.id
      LEFT JOIN platform_service_packages p ON p.id=tp.package_id AND p.active
      WHERE a.user_id=$1 GROUP BY t.id,a.assigned_at ORDER BY t.display_name`,
-    [req.user!.id],
+    [req.user!.id, PLATFORM_TENANT_USER_ROLES],
   )).rows);
   res.json(tenants);
+}));
+
+adminRouter.put('/platform/my-tenants/:tenantId/users/:userId', requireRole('super_admin'), h(async (req, res) => {
+  const tenantId = z.string().uuid().parse(req.params.tenantId);
+  const userId = z.string().uuid().parse(req.params.userId);
+  const updated = await withUser(req.user!, async (client) => {
+    const tenant = (await client.query(
+      `SELECT t.id,t.status FROM platform_tenants t
+       JOIN platform_tenant_admins a ON a.tenant_id=t.id
+       WHERE t.id=$1 AND a.user_id=$2`,
+      [tenantId, req.user!.id],
+    )).rows[0];
+    if (!tenant) throw new HttpError(404, 'Assigned tenant not found.');
+    if (tenant.status !== 'active') throw new HttpError(409, 'Only active assigned tenants can receive users.');
+    const target = (await client.query(
+      `SELECT u.id,u.role,u.created_by,s.vendor_id
+       FROM users u LEFT JOIN user_signups s ON s.user_id=u.id
+       WHERE u.id=$1 AND u.role=ANY($2::text[])
+         AND (
+           u.created_by=$3 OR EXISTS (
+             SELECT 1 FROM platform_tenant_users member
+             JOIN platform_tenant_admins assigned ON assigned.tenant_id=member.tenant_id
+             WHERE member.user_id=u.id AND member.status='active' AND assigned.user_id=$3
+           )
+         )
+       FOR UPDATE OF u`,
+      [userId, PLATFORM_TENANT_USER_ROLES, req.user!.id],
+    )).rows[0];
+    if (!target) throw new HttpError(404, 'Eligible tenant user not found.');
+    const requiredService = PLATFORM_TENANT_ROLE_SERVICES[target.role as keyof typeof PLATFORM_TENANT_ROLE_SERVICES];
+    if (requiredService) {
+      await requirePlatformTenantServiceEntitlement(client, tenantId, requiredService);
+    }
+    if (target.role === 'property_vendor') {
+      const vendor = (await client.query(
+        'SELECT id FROM property_vendors WHERE id=$1 AND platform_tenant_id=$2',
+        [target.vendor_id, tenantId],
+      )).rows[0];
+      if (!vendor) throw new HttpError(422, 'Property-vendor users must be linked to a vendor in this tenant.');
+    }
+    const row = (await client.query(
+      `INSERT INTO platform_tenant_users(tenant_id,user_id,assigned_by,status)
+       VALUES($1,$2,$3,'active')
+       ON CONFLICT(tenant_id,user_id) DO UPDATE
+       SET assigned_by=EXCLUDED.assigned_by,status='active',updated_at=now()
+       RETURNING tenant_id,user_id,status,assigned_at,updated_at`,
+      [tenantId, userId, req.user!.id],
+    )).rows[0];
+    await client.query(
+      `UPDATE platform_business_tenants SET platform_tenant_id=$2,config_version=config_version+1,updated_at=now()
+       WHERE owner_user_id=$1 AND (platform_tenant_id IS NULL OR platform_tenant_id=$2)`,
+      [userId, tenantId],
+    );
+    await client.query(
+      `INSERT INTO platform_tenant_events(tenant_id,actor_id,event_type,event_data)
+       VALUES($1,$2,'tenant_user_assigned',$3)`,
+      [tenantId, req.user!.id, JSON.stringify({ user_id: userId, role: target.role })],
+    );
+    await audit(client, req.user!.id, 'platform_tenant_user_assigned', 'platform_tenant', tenantId, null, {
+      user_id: userId, role: target.role,
+    });
+    return row;
+  });
+  res.json(updated);
+}));
+
+adminRouter.delete('/platform/my-tenants/:tenantId/users/:userId', requireRole('super_admin'), h(async (req, res) => {
+  const tenantId = z.string().uuid().parse(req.params.tenantId);
+  const userId = z.string().uuid().parse(req.params.userId);
+  await withUser(req.user!, async (client) => {
+    const membership = (await client.query(
+      `UPDATE platform_tenant_users member
+       SET status='inactive',updated_at=now()
+       WHERE member.tenant_id=$1 AND member.user_id=$2 AND member.status='active'
+         AND EXISTS (
+           SELECT 1 FROM platform_tenant_admins a
+           WHERE a.tenant_id=member.tenant_id AND a.user_id=$3
+         )
+       RETURNING member.user_id`,
+      [tenantId, userId, req.user!.id],
+    )).rows[0];
+    if (!membership) throw new HttpError(404, 'Active tenant user assignment not found.');
+    await client.query(
+      `INSERT INTO platform_tenant_events(tenant_id,actor_id,event_type,event_data)
+       VALUES($1,$2,'tenant_user_unassigned',$3)`,
+      [tenantId, req.user!.id, JSON.stringify({ user_id: userId })],
+    );
+    await audit(client, req.user!.id, 'platform_tenant_user_unassigned', 'platform_tenant', tenantId, {
+      user_id: userId,
+    }, null);
+  });
+  res.sendStatus(204);
+}));
+
+adminRouter.post('/platform/my-tenants/:tenantId/entities/:entityId', requireRole('super_admin'), h(async (req, res) => {
+  const tenantId = z.string().uuid().parse(req.params.tenantId);
+  const entityId = z.string().uuid().parse(req.params.entityId);
+  const entity = await withUser(req.user!, async (client) => {
+    const tenant = (await client.query(
+      `SELECT t.id,t.status FROM platform_tenants t
+       JOIN platform_tenant_admins a ON a.tenant_id=t.id
+       WHERE t.id=$1 AND a.user_id=$2`,
+      [tenantId, req.user!.id],
+    )).rows[0];
+    if (!tenant) throw new HttpError(404, 'Assigned tenant not found.');
+    if (tenant.status !== 'active') throw new HttpError(409, 'Only active assigned tenants can receive entities.');
+    const target = (await client.query(
+      `SELECT entity.id,entity.platform_tenant_id,entity.owner_user_id,entity.tenant_type
+       FROM platform_business_tenants entity
+       WHERE entity.id=$1 AND (
+         entity.owner_user_id=$2 OR EXISTS (
+           SELECT 1 FROM platform_tenant_users member
+           WHERE member.tenant_id=$3 AND member.user_id=entity.owner_user_id AND member.status='active'
+         )
+       )
+       FOR UPDATE`,
+      [entityId, req.user!.id, tenantId],
+    )).rows[0];
+    if (!target) throw new HttpError(404, 'Business entity is not in this tenant user scope.');
+    if (target.platform_tenant_id && target.platform_tenant_id !== tenantId) {
+      throw new HttpError(409, 'Business entities cannot be moved between deployment tenants.');
+    }
+    if (target.tenant_type === 'agent_network') {
+      await requirePlatformTenantServiceEntitlement(client, tenantId, 'agency');
+    }
+    const updated = (await client.query(
+      `UPDATE platform_business_tenants
+       SET platform_tenant_id=$2,config_version=config_version+1,updated_at=now()
+       WHERE id=$1
+       RETURNING id,tenant_key,display_name,tenant_type,owner_user_id,platform_tenant_id,status,config_version`,
+      [entityId, tenantId],
+    )).rows[0];
+    await client.query(
+      `INSERT INTO platform_business_tenant_events(tenant_id,actor_id,event_type,event_data)
+       VALUES($1,$2,'platform_tenant_assigned',$3)`,
+      [entityId, req.user!.id, JSON.stringify({ platform_tenant_id: tenantId })],
+    );
+    await client.query(
+      `INSERT INTO platform_tenant_events(tenant_id,actor_id,event_type,event_data)
+       VALUES($1,$2,'business_entity_assigned',$3)`,
+      [tenantId, req.user!.id, JSON.stringify({ business_entity_id: entityId })],
+    );
+    await audit(client, req.user!.id, 'platform_business_entity_assigned', 'platform_business_tenant', entityId, null, {
+      platform_tenant_id: tenantId,
+    });
+    return updated;
+  });
+  res.json(entity);
+}));
+
+adminRouter.delete('/platform/my-tenants/:tenantId/entities/:entityId', requireRole('super_admin'), h(async (req, res) => {
+  const tenantId = z.string().uuid().parse(req.params.tenantId);
+  const entityId = z.string().uuid().parse(req.params.entityId);
+  await withUser(req.user!, async (client) => {
+    const entity = (await client.query(
+      `SELECT entity.id FROM platform_business_tenants entity
+       JOIN platform_tenant_admins a ON a.tenant_id=entity.platform_tenant_id
+       WHERE entity.id=$1 AND entity.platform_tenant_id=$2 AND a.user_id=$3
+       FOR UPDATE OF entity`,
+      [entityId, tenantId, req.user!.id],
+    )).rows[0];
+    if (!entity) throw new HttpError(404, 'Assigned business entity not found.');
+    await client.query(
+      `INSERT INTO platform_business_tenant_events(tenant_id,actor_id,event_type,event_data)
+       VALUES($1,$2,'platform_tenant_unassigned',$3)`,
+      [entityId, req.user!.id, JSON.stringify({ platform_tenant_id: tenantId })],
+    );
+    await client.query(
+      `UPDATE platform_business_tenants
+       SET platform_tenant_id=NULL,config_version=config_version+1,updated_at=now()
+       WHERE id=$1`,
+      [entityId],
+    );
+    await client.query(
+      `INSERT INTO platform_tenant_events(tenant_id,actor_id,event_type,event_data)
+       VALUES($1,$2,'business_entity_unassigned',$3)`,
+      [tenantId, req.user!.id, JSON.stringify({ business_entity_id: entityId })],
+    );
+    await audit(client, req.user!.id, 'platform_business_entity_unassigned', 'platform_business_tenant', entityId, {
+      platform_tenant_id: tenantId,
+    }, null);
+  });
+  res.sendStatus(204);
+}));
+
+adminRouter.post('/platform/my-tenants/:tenantId/vendors', requireRole('super_admin'), h(async (req, res) => {
+  const tenantId = z.string().uuid().parse(req.params.tenantId);
+  const body = z.object({
+    name: z.string().trim().min(2).max(200),
+    tax_id: z.string().trim().max(80).optional(),
+    phone: z.string().trim().max(40).optional(),
+    email: z.string().email().optional(),
+    property_tenant_system_id: z.string().uuid(),
+  }).strict().parse(req.body);
+  const vendor = await withUser({
+    ...req.user!,
+    platformTenantId: tenantId,
+    propertyTenantSystemId: body.property_tenant_system_id,
+  }, async (client) => {
+    const tenant = (await client.query(
+      `SELECT t.id,t.status FROM platform_tenants t
+       JOIN platform_tenant_admins a ON a.tenant_id=t.id
+       WHERE t.id=$1 AND a.user_id=$2`,
+      [tenantId, req.user!.id],
+    )).rows[0];
+    if (!tenant) throw new HttpError(404, 'Assigned tenant not found.');
+    if (tenant.status !== 'active') throw new HttpError(409, 'Only active assigned tenants can receive entities.');
+    await requirePlatformTenantServiceEntitlement(client, tenantId, 'property');
+    const propertyTenant = (await client.query(
+      `SELECT id FROM property_operating_tenants
+       WHERE id=$1 AND status='active'
+         AND app_can_access_platform_property_tenant(id)`,
+      [body.property_tenant_system_id],
+    )).rows[0];
+    if (!propertyTenant) {
+      throw new HttpError(422, 'Choose an active property tenant that has members in this deployment.');
+    }
+    const created = (await client.query(
+      `INSERT INTO property_vendors(name,tax_id,phone,email,created_by,platform_tenant_id,tenant_system_id)
+       VALUES($1,$2,$3,$4,$5,$6,$7)
+       RETURNING id,name,tax_id,phone,email,active,platform_tenant_id,tenant_system_id,created_at`,
+      [
+        body.name, body.tax_id ?? null, body.phone ?? null, body.email ?? null,
+        req.user!.id, tenantId, body.property_tenant_system_id,
+      ],
+    )).rows[0];
+    await client.query(
+      `INSERT INTO platform_tenant_events(tenant_id,actor_id,event_type,event_data)
+       VALUES($1,$2,'tenant_updated',$3)`,
+      [tenantId, req.user!.id, JSON.stringify({ entity_type: 'property_vendor', entity_id: created.id })],
+    );
+    await audit(client, req.user!.id, 'platform_tenant_vendor_created', 'property_vendor', created.id, null, {
+      tenant_id: tenantId, name: body.name,
+    });
+    return created;
+  });
+  res.status(201).json(vendor);
 }));
 
 adminRouter.patch('/platform/my-tenants/:tenantId/registration', requireRole('super_admin'), h(async (req, res) => {
@@ -2319,7 +2674,12 @@ adminRouter.get('/users', requireRole('global_admin', 'compliance', 'corporate_b
      WHERE $1::text IN ('global_admin','compliance')
         OR u.created_by=$2
         OR ($1::text='super_admin' AND u.role='super_admin'
-            AND (u.active=false OR (u.active=true AND u.mfa_enabled=true)))
+             AND (u.active=false OR (u.active=true AND u.mfa_enabled=true)))
+        OR ($1::text='super_admin' AND EXISTS (
+          SELECT 1 FROM platform_tenant_users member
+          JOIN platform_tenant_admins assigned ON assigned.tenant_id=member.tenant_id
+          WHERE member.user_id=u.id AND member.status='active' AND assigned.user_id=$2
+        ))
      ORDER BY u.created_at DESC LIMIT 300`,
     [_req.user!.role,_req.user!.id],
   )).rows);
@@ -2350,7 +2710,13 @@ adminRouter.patch('/users/:id/role', requireRole('global_admin', 'super_admin'),
   const result = await withUser(req.user!, async (c) => {
     const target = (await c.query(
       `SELECT id, role, active, created_by, territory_id FROM users
-       WHERE id=$1 AND ($2::text='global_admin' OR created_by=$3) FOR UPDATE`,
+     WHERE id=$1 AND ($2::text='global_admin' OR (
+       created_by=$3 AND ($2::text<>'super_admin' OR EXISTS (
+         SELECT 1 FROM platform_tenant_users member
+         JOIN platform_tenant_admins assigned ON assigned.tenant_id=member.tenant_id
+         WHERE member.user_id=users.id AND member.status='active' AND assigned.user_id=$3
+       ))
+     )) FOR UPDATE`,
       [userId, req.user!.role, req.user!.id],
     )).rows[0];
     if (!target) throw new HttpError(404, 'User not found.');
@@ -2610,6 +2976,7 @@ adminRouter.post('/users', requireRole('global_admin','super_admin','master_agen
   const b = z.object({
     legal_name: z.string().min(2), phone: Phone, email: z.string().email().optional(),
     role: z.enum(PROVISIONABLE_ROLES), territory_id: z.number().int().optional(), parent_agent_id: z.string().uuid().optional(),
+    platform_tenant_id: z.string().uuid().optional(),
     requested_plan: z.enum(['free','pro','enterprise']).optional(),
     service_specialization: z.enum(['financial_service', 'growth_partnership', 'workforce_property']).optional(),
     vendor_id: z.string().uuid().optional(),
@@ -2617,14 +2984,20 @@ adminRouter.post('/users', requireRole('global_admin','super_admin','master_agen
   if (req.user!.role === 'corporate_business_manager' && !['master_agent','field_agent'].includes(b.role)) {
     throw new HttpError(403, 'Business Admins may onboard direct Master Agents and Field Agents only.');
   }
-  if (req.user!.role === 'super_admin' && !['master_agent','field_agent'].includes(b.role)) {
-    throw new HttpError(403, 'Super Admins may onboard Master Agents and Field Agents only.');
+  if (req.user!.role === 'super_admin' && !PLATFORM_TENANT_USER_ROLES.includes(b.role as typeof PLATFORM_TENANT_USER_ROLES[number])) {
+    throw new HttpError(403, 'Super Admins may onboard only tenant business and agent roles.');
+  }
+  if (req.user!.role === 'super_admin' && !b.platform_tenant_id) {
+    throw new HttpError(422, 'Select an assigned platform tenant before onboarding a user.');
+  }
+  if (req.user!.role !== 'super_admin' && b.platform_tenant_id) {
+    throw new HttpError(403, 'Only Super Admin tenant onboarding may assign a platform tenant.');
   }
   if (req.user!.role === 'master_agent' && b.role !== 'field_agent') {
     throw new HttpError(403, 'Master Agents may onboard Field Agents only.');
   }
-  if (b.role === 'property_vendor' && req.user!.role !== 'global_admin') {
-    throw new HttpError(403, 'Only a Global Admin may provision a property-vendor account.');
+  if (b.role === 'property_vendor' && !['global_admin', 'super_admin'].includes(req.user!.role)) {
+    throw new HttpError(403, 'Only a platform administrator may provision a property-vendor account.');
   }
   if (b.role === 'property_vendor' && !b.vendor_id) {
     throw new HttpError(422, 'Choose the property-vendor business for this portal account.');
@@ -2639,20 +3012,38 @@ adminRouter.post('/users', requireRole('global_admin','super_admin','master_agen
   const temp = randomPassword();
   let uploadToken: string | undefined;
   const user = await withUser(req.user!, async (c) => {
+    if (b.platform_tenant_id) {
+      const tenant = (await c.query(
+        `SELECT t.id FROM platform_tenants t
+         JOIN platform_tenant_admins a ON a.tenant_id=t.id
+         WHERE t.id=$1 AND t.status='active' AND a.user_id=$2`,
+        [b.platform_tenant_id, req.user!.id],
+      )).rows[0];
+      if (!tenant) throw new HttpError(404, 'Assigned active tenant not found.');
+      const requiredService = PLATFORM_TENANT_ROLE_SERVICES[b.role as typeof PLATFORM_TENANT_USER_ROLES[number]];
+      if (requiredService) {
+        await requirePlatformTenantServiceEntitlement(c, b.platform_tenant_id, requiredService);
+      }
+    }
     if (b.role === 'field_agent') {
       const parent = (await c.query(
         `SELECT a.id FROM agents a JOIN users u ON u.id=a.id
          WHERE a.id=$1 AND a.agent_type='master' AND u.role='master_agent' AND u.active=true AND a.territory_id=$2
            AND ($3::text NOT IN ('corporate_business_manager','super_admin') OR u.created_by=$4)
+           AND ($3::text <> 'super_admin' OR EXISTS (
+             SELECT 1 FROM platform_tenant_users scoped
+             WHERE scoped.tenant_id=$5 AND scoped.user_id=u.id AND scoped.status='active'
+           ))
            AND ($3::text <> 'master_agent' OR a.id=$4)`,
-        [b.parent_agent_id,b.territory_id,req.user!.role,req.user!.id],
+        [b.parent_agent_id,b.territory_id,req.user!.role,req.user!.id,b.platform_tenant_id ?? null],
       )).rows[0];
       if (!parent) throw new HttpError(422, 'Choose an active Master Agent in the selected territory.');
     }
     if (b.role === 'property_vendor') {
       const vendor = (await c.query(
-        'SELECT id FROM property_vendors WHERE id=$1 AND active FOR UPDATE',
-        [b.vendor_id],
+        `SELECT id FROM property_vendors WHERE id=$1 AND active
+           AND ($2::text <> 'super_admin' OR platform_tenant_id=$3) FOR UPDATE`,
+        [b.vendor_id, req.user!.role, b.platform_tenant_id ?? null],
       )).rows[0];
       if (!vendor) throw new HttpError(422, 'Choose an active property-vendor business.');
     }
@@ -2673,6 +3064,36 @@ adminRouter.post('/users', requireRole('global_admin','super_admin','master_agen
         `INSERT INTO user_signups(user_id,account_type,payment_status,vendor_id)
          VALUES($1,'property_vendor','not_required',$2)`,
         [r.rows[0].id,b.vendor_id],
+      );
+    }
+    if (b.platform_tenant_id) {
+      await c.query(
+        `INSERT INTO platform_tenant_users(tenant_id,user_id,assigned_by,status)
+         VALUES($1,$2,$3,'active')`,
+        [b.platform_tenant_id, r.rows[0].id, req.user!.id],
+      );
+      const entityOwner = b.role === 'master_agent'
+        ? r.rows[0].id
+        : b.role === 'field_agent' ? b.parent_agent_id : null;
+      if (entityOwner) {
+        await c.query(
+          `UPDATE platform_business_tenants
+           SET platform_tenant_id=$2,config_version=config_version+1,updated_at=now()
+           WHERE owner_user_id=$1 AND (platform_tenant_id IS NULL OR platform_tenant_id=$2)`,
+          [entityOwner, b.platform_tenant_id],
+        );
+      }
+      if (b.role === 'property_vendor') {
+        await c.query(
+          `UPDATE property_vendors SET platform_tenant_id=$2
+           WHERE id=$1 AND platform_tenant_id=$2`,
+          [b.vendor_id, b.platform_tenant_id],
+        );
+      }
+      await c.query(
+        `INSERT INTO platform_tenant_events(tenant_id,actor_id,event_type,event_data)
+         VALUES($1,$2,'tenant_user_assigned',$3)`,
+        [b.platform_tenant_id, req.user!.id, JSON.stringify({ user_id: r.rows[0].id, role: b.role })],
       );
     }
     if (AGENT_ROLES.includes(b.role) || b.role === 'property_vendor') {

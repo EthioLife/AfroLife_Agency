@@ -9,6 +9,8 @@ type DatabaseMetadata = {
   can_read_auth_secrets?: boolean;
   can_create_schema?: boolean;
   can_access_financial_data?: boolean;
+  scoped_admin_available?: boolean;
+  member_scope_available?: boolean;
 };
 
 type Queryable = {
@@ -207,9 +209,40 @@ export const agencyDomainSchemaRequirements: Record<AgencyDomain, {
   },
 };
 
+const platformTenantScopeTables = [
+  'platform_business_tenant_members',
+  'platform_business_tenants',
+  'platform_tenant_users',
+  'platform_tenants',
+  'property_operating_tenant_members',
+  'property_operating_tenants',
+];
+const platformTenantScopeColumns = [
+  'platform_business_tenant_members.tenant_id',
+  'platform_business_tenant_members.user_id',
+  'platform_business_tenant_members.status',
+  'platform_business_tenants.owner_user_id',
+  'platform_business_tenants.platform_tenant_id',
+  'platform_tenant_users.tenant_id',
+  'platform_tenant_users.user_id',
+  'platform_tenant_users.status',
+  'platform_tenants.id',
+  'property_operating_tenant_members.tenant_system_id',
+  'property_operating_tenant_members.user_id',
+  'property_operating_tenant_members.status',
+  'property_operating_tenants.id',
+  'property_operating_tenants.status',
+];
+
 export async function assertAgencyDomainDatabaseReady(domain: AgencyDomain | LegacyAgencyDomain, database: Queryable): Promise<void> {
   const canonicalDomain = domain === 'worker-management' ? 'workforce-management' : domain;
   const requirements = agencyDomainSchemaRequirements[canonicalDomain];
+  const requiredTables = [...new Set([...requirements.required, ...platformTenantScopeTables])];
+  const requiredColumns = [...new Set([...requirements.requiredColumns, ...platformTenantScopeColumns])];
+  const requiredRlsTables = [...new Set([
+    ...requirements.rowLevelSecurity,
+    ...platformTenantScopeTables,
+  ])];
   const result = await database.query(
     `SELECT requested.table_name,
             to_regclass(format('%I.%I', 'public', requested.table_name)) IS NULL AS missing,
@@ -217,17 +250,26 @@ export async function assertAgencyDomainDatabaseReady(domain: AgencyDomain | Leg
      FROM unnest($1::text[]) AS requested(table_name)
      LEFT JOIN pg_class relation
        ON relation.oid = to_regclass(format('%I.%I', 'public', requested.table_name))`,
-    [requirements.required],
+    [requiredTables],
   );
   const rowByTable = new Map(result.rows.map((row) => [row.table_name, row]));
-  const missing = requirements.required.filter((table) => rowByTable.get(table)?.missing !== false);
-  const unprotected = requirements.rowLevelSecurity.filter((table) => rowByTable.get(table)?.rls_enabled !== true);
+  const missing = requiredTables.filter((table) => rowByTable.get(table)?.missing !== false);
+  const unprotected = requiredRlsTables.filter((table) => rowByTable.get(table)?.rls_enabled !== true);
   if (missing.length || unprotected.length) {
     const problems = [
       ...(missing.length ? [`missing tables: ${missing.join(', ')}`] : []),
       ...(unprotected.length ? [`RLS is disabled: ${unprotected.join(', ')}`] : []),
     ];
     throw new Error(`${canonicalDomain} database schema is not ready (${problems.join('; ')})`);
+  }
+
+  const tenantScope = await database.query(
+    `SELECT to_regprocedure('public.app_is_platform_tenant_scoped()') IS NOT NULL AS scoped_admin_available,
+            to_regprocedure('public.app_platform_tenant_has_user(uuid)') IS NOT NULL AS member_scope_available`,
+    [],
+  );
+  if (!tenantScope.rows[0]?.scoped_admin_available || !tenantScope.rows[0]?.member_scope_available) {
+    throw new Error(`${canonicalDomain} database schema is not ready (platform tenant data isolation is unavailable)`);
   }
 
   const columns = await database.query(
@@ -239,9 +281,9 @@ export async function assertAgencyDomainDatabaseReady(domain: AgencyDomain | Leg
                 AND actual.attnum>0 AND NOT actual.attisdropped
             ) AS missing
      FROM unnest($1::text[]) AS requested(column_key)`,
-    [requirements.requiredColumns],
+    [requiredColumns],
   );
-  const missingColumns = requirements.requiredColumns.filter((column) =>
+  const missingColumns = requiredColumns.filter((column) =>
     columns.rows.find((row) => row.column_key === column)?.missing !== false);
   if (missingColumns.length) {
     throw new Error(`${canonicalDomain} database schema is not ready (missing columns: ${missingColumns.join(', ')})`);

@@ -319,7 +319,10 @@ const requirePlatformTenantService = (...serviceKeys: string[]): RequestHandler 
     if (!serviceKeys.some((serviceKey) => enabledServices.includes(serviceKey))) {
       throw new HttpError(403, 'The selected platform tenant is not active, assigned, or entitled to this service.');
     }
-  }).then(() => next(), next);
+  }).then(() => {
+    req.user!.platformTenantId = tenantId.data;
+    next();
+  }, next);
 };
 
 const requirePropertyTenantContext: RequestHandler = (req, _res, next) => {
@@ -404,7 +407,7 @@ api.get('/property/tenant-systems', requireRole('global_admin'), h(async (_req, 
      ORDER BY legal_name,id`,
   )).rows));
 }));
-api.get('/property/tenant-systems/mine', h(async (req, res) => {
+api.get('/property/tenant-systems/mine', requirePlatformTenantService('property'), h(async (req, res) => {
   res.json(await withUser(req.user!, async (client) => (await client.query(
     `SELECT tenant.id,tenant.tenant_key,tenant.legal_name,tenant.jurisdiction,tenant.timezone,tenant.currency,
        tenant.status,member.tenant_role
@@ -432,7 +435,7 @@ api.post('/property/tenant-systems', requireRole('global_admin'), h(async (req, 
   )).then((result) => result.rows[0].id as string);
   res.status(201).json({ id: tenantSystemId, tenant_key: body.tenant_key });
 }));
-api.post('/property/tenant-systems/:id/members', requirePropertyTenantContext, h(async (req, res) => {
+api.post('/property/tenant-systems/:id/members', requirePropertyTenantContext, requirePlatformTenantService('property'), h(async (req, res) => {
   const tenantSystemId = z.string().uuid().parse(req.params.id);
   const body = z.object({
     user_id: z.string().uuid(),
@@ -449,7 +452,7 @@ api.post('/property/tenant-systems/:id/members', requirePropertyTenantContext, h
   });
   res.status(204).end();
 }));
-api.post('/property/tenant-systems/:id/members/:userId/status', requirePropertyTenantContext, h(async (req, res) => {
+api.post('/property/tenant-systems/:id/members/:userId/status', requirePropertyTenantContext, requirePlatformTenantService('property'), h(async (req, res) => {
   const tenantSystemId = z.string().uuid().parse(req.params.id);
   const targetUserId = z.string().uuid().parse(req.params.userId);
   const body = z.object({
@@ -464,7 +467,7 @@ api.post('/property/tenant-systems/:id/members/:userId/status', requirePropertyT
   });
   res.status(204).end();
 }));
-api.get('/property/tenant-systems/:id/agent-scopes', requirePropertyTenantContext, h(async (req, res) => {
+api.get('/property/tenant-systems/:id/agent-scopes', requirePropertyTenantContext, requirePlatformTenantService('property'), h(async (req, res) => {
   const tenantSystemId = z.string().uuid().parse(req.params.id);
   res.json(await withUser(req.user!, async (client) => (await client.query(
     `SELECT scope.tenant_system_id,scope.property_id,property.address,scope.user_id,user_row.legal_name,
@@ -477,7 +480,7 @@ api.get('/property/tenant-systems/:id/agent-scopes', requirePropertyTenantContex
     [tenantSystemId],
   )).rows));
 }));
-api.get('/property/tenant-systems/:id/agent-candidates', requirePropertyTenantContext, h(async (req, res) => {
+api.get('/property/tenant-systems/:id/agent-candidates', requirePropertyTenantContext, requirePlatformTenantService('property'), h(async (req, res) => {
   const tenantSystemId = z.string().uuid().parse(req.params.id);
   const propertyId = req.query.property_id === undefined
     ? null
@@ -488,7 +491,7 @@ api.get('/property/tenant-systems/:id/agent-candidates', requirePropertyTenantCo
     [tenantSystemId,propertyId],
   )).rows));
 }));
-api.post('/property/tenant-systems/:id/agent-scopes', requirePropertyTenantContext, h(async (req, res) => {
+api.post('/property/tenant-systems/:id/agent-scopes', requirePropertyTenantContext, requirePlatformTenantService('property'), h(async (req, res) => {
   const tenantSystemId = z.string().uuid().parse(req.params.id);
   const body = z.object({
     property_id: z.string().uuid(),
@@ -504,7 +507,7 @@ api.post('/property/tenant-systems/:id/agent-scopes', requirePropertyTenantConte
   });
   res.status(204).end();
 }));
-api.post('/property/tenant-systems/:id/agent-scopes/:propertyId/:userId/status', requirePropertyTenantContext, h(async (req, res) => {
+api.post('/property/tenant-systems/:id/agent-scopes/:propertyId/:userId/status', requirePropertyTenantContext, requirePlatformTenantService('property'), h(async (req, res) => {
   const tenantSystemId = z.string().uuid().parse(req.params.id);
   const propertyId = z.string().uuid().parse(req.params.propertyId);
   const userId = z.string().uuid().parse(req.params.userId);

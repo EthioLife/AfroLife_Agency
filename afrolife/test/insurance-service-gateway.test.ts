@@ -46,6 +46,32 @@ test('insurance gateway assertion rejects tampering, replay, and weak secrets', 
   assert.equal(verifyInsuranceServiceAssertion('weak', assertion, sign(), method, path, body, 1_030_000), null);
 });
 
+test('service assertions preserve platform tenant scope only for Super Admin identities', () => {
+  const platformTenantId = 'c15692d9-ae34-4c12-8203-3dc1051cab98';
+  const signAssertion = (role: string) => {
+    const scopedAssertion = Buffer.from(JSON.stringify({
+      userId: '3cd21265-95d9-40a4-9e68-95538d8d6650',
+      role,
+      platformTenantId,
+      issuedAt: 1_000_000,
+    })).toString('base64url');
+    const bodyHash = createHash('sha256').update(JSON.stringify(body)).digest('hex');
+    const canonical = `${scopedAssertion}\n${method}\n${path}\n${bodyHash}`;
+    const signature = createHmac('sha256', secret).update(canonical).digest('hex');
+    return { scopedAssertion, signature };
+  };
+  const valid = signAssertion('super_admin');
+  assert.equal(
+    verifyInsuranceServiceAssertion(secret, valid.scopedAssertion, valid.signature, method, path, body, 1_030_000)?.platformTenantId,
+    platformTenantId,
+  );
+  const invalid = signAssertion('finance_manager');
+  assert.equal(
+    verifyInsuranceServiceAssertion(secret, invalid.scopedAssertion, invalid.signature, method, path, body, 1_030_000),
+    null,
+  );
+});
+
 test('idempotency key is bound to the signed gateway request', () => {
   const key = '8f7dd367-3b74-4e8c-9c44-89f884979fb3';
   const signed = sign(body, method, path, key);

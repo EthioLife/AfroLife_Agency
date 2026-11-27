@@ -17,6 +17,7 @@ export interface AuthUser {
   miniAppGrants?: MiniAppKey[];
   propertyTenantSystemId?: string;
   propertyTenantPurpose?: string;
+  platformTenantId?: string;
   adminRoleModules?: MiniAppKey[];
   adminRoleAllTenants?: boolean;
   accessOptions?: string[];

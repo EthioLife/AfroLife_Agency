@@ -15,6 +15,7 @@ export interface InsuranceServiceAssertion {
   rolePermissions?: RoleActivityOverrides;
   propertyTenantSystemId?: string;
   propertyTenantPurpose?: string;
+  platformTenantId?: string;
   issuedAt: number;
 }
 
@@ -62,6 +63,9 @@ export function verifyServiceAssertion(
     || (decoded.propertyTenantSystemId !== undefined && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(decoded.propertyTenantSystemId))
     || (decoded.propertyTenantPurpose !== undefined && (typeof decoded.propertyTenantPurpose !== 'string'
       || decoded.propertyTenantPurpose.trim().length < 10 || decoded.propertyTenantPurpose.length > 1000))
+    || (decoded.platformTenantId !== undefined
+      && (decoded.role !== 'super_admin'
+        || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(decoded.platformTenantId)))
     || !Number.isSafeInteger(decoded.issuedAt)
     || Math.abs(now - decoded.issuedAt) > 60_000) return null;
   return decoded;
@@ -125,6 +129,7 @@ export function createServiceGateway(options: {
       ...(req.user!.rolePermissions ? { rolePermissions: req.user!.rolePermissions } : {}),
       ...(req.user!.propertyTenantSystemId ? { propertyTenantSystemId: req.user!.propertyTenantSystemId } : {}),
       ...(req.user!.propertyTenantPurpose ? { propertyTenantPurpose: req.user!.propertyTenantPurpose } : {}),
+      ...(req.user!.platformTenantId ? { platformTenantId: req.user!.platformTenantId } : {}),
       issuedAt,
     })).toString('base64url');
     const bodyHash = requestBodyHash(req.body);

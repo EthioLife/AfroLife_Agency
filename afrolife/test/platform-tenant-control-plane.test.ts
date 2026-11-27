@@ -147,6 +147,20 @@ test('Super Admin configuration stays scoped to assigned tenant modules', async 
   assert.match(server, /req\.user!\.role === 'super_admin' && req\.query\.platform_tenant_id === undefined/);
 });
 
+test('platform tenant context scopes domain records through restrictive RLS policies', async () => {
+  const migration = await readFile(
+    new URL('../migrations/152_platform_tenant_domain_scope.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(migration, /CREATE OR REPLACE FUNCTION app_is_platform_tenant_scoped/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION app_can_access_agent/);
+  assert.match(migration, /platform_tenant_users member[\s\S]*?member\.tenant_id=app_platform_tenant_id\(\)/);
+  assert.match(migration, /CREATE POLICY agents_platform_tenant_scope ON agents AS RESTRICTIVE/);
+  assert.match(migration, /CREATE POLICY marketplace_service_requests_platform_tenant_scope[\s\S]*?AS RESTRICTIVE/);
+  assert.match(migration, /app_can_access_platform_property_tenant\(tenant_system_id\)/);
+  assert.match(migration, /CREATE POLICY users_platform_tenant_scope ON users AS RESTRICTIVE/);
+});
+
 test('global catalog explicitly excludes regulated financial-product definitions', async () => {
   const migration = await readFile(
     new URL('../migrations/070_platform_tenant_control_plane.sql', import.meta.url),

@@ -6898,6 +6898,116 @@ function renderPlatformControlPlane() {
   return section;
 }
 
+function createTenantUserForm(tenant) {
+  const form = node('form', undefined, 'inline-form');
+  form.dataset.form = 'user';
+  const tenantInput = node('input');
+  tenantInput.type = 'hidden';
+  tenantInput.name = 'platform_tenant_id';
+  tenantInput.value = tenant.id;
+  form.append(tenantInput);
+
+  const role = field('Tenant account role', 'role', 'select', true);
+  role.input.append(new Option(t('Choose an account role'), ''));
+  for (const [value, label] of [
+    ['corporate_business_manager', 'Tenant business manager'],
+    ['master_agent', 'Master agent'],
+    ['field_agent', 'Field agent'],
+    ['customer', 'Customer'],
+    ['worker', 'Worker'],
+    ['property_owner', 'Property owner'],
+    ['property_vendor', 'Property vendor'],
+  ]) role.input.append(new Option(t(label), value));
+
+  const territory = field('Territory', 'territory_id', 'select');
+  territory.input.append(new Option(t('Choose a territory'), ''));
+  for (const entry of state.territories) territory.input.append(new Option(entry.name, entry.id));
+
+  const parent = field('Active Master Agent in this tenant', 'parent_agent_id', 'select');
+  parent.input.append(new Option(t('Choose an active Master Agent'), ''));
+  const masters = (tenant.tenant_users ?? []).filter((user) =>
+    user.role === 'master_agent' && user.active);
+  for (const master of masters) {
+    const option = new Option(master.legal_name, master.id);
+    option.dataset.territoryId = String(master.territory_id ?? '');
+    parent.input.append(option);
+  }
+  parent.input.addEventListener('change', () => {
+    territory.input.value = parent.input.selectedOptions[0]?.dataset.territoryId ?? '';
+  });
+  territory.input.addEventListener('change', () => {
+    if (parent.input.selectedOptions[0]?.dataset.territoryId
+      && parent.input.selectedOptions[0].dataset.territoryId !== territory.input.value) {
+      parent.input.value = '';
+    }
+  });
+
+  const plan = field('Agent service plan', 'requested_plan', 'select');
+  plan.input.append(new Option(t('Choose a service plan'), ''));
+  for (const [value, label] of [['free', 'Free'], ['pro', 'Pro'], ['enterprise', 'Enterprise']]) {
+    plan.input.append(new Option(t(label), value));
+  }
+  const specialization = field(
+    'Profile focus (optional; does not limit agent services)',
+    'service_specialization',
+    'select',
+  );
+  for (const [value, label] of [
+    ['', 'General agent'],
+    ['financial_service', 'Financial services focus'],
+    ['growth_partnership', 'Growth & partnerships focus'],
+    ['workforce_property', 'Workforce & property focus'],
+  ]) specialization.input.append(new Option(t(label), value));
+
+  const vendor = field('Property-vendor business', 'vendor_id', 'select');
+  vendor.input.append(new Option(t('Choose property-vendor business'), ''));
+  for (const entry of tenant.property_vendors ?? []) {
+    if (entry.active) vendor.input.append(new Option(entry.name, entry.id));
+  }
+
+  form.append(
+    field('Legal name', 'legal_name').label,
+    field('Phone', 'phone', 'tel', true, { placeholder: '0911 234 567' }).label,
+    role.label,
+    territory.label,
+    parent.label,
+    plan.label,
+    specialization.label,
+    vendor.label,
+    field('Email', 'email', 'email', false).label,
+  );
+  const submit = button('Create tenant user', 'submit', 'button button-primary span-2');
+  form.append(submit);
+  const updateRequirements = () => {
+    const agent = ['master_agent', 'field_agent'].includes(role.input.value);
+    const fieldAgent = role.input.value === 'field_agent';
+    const propertyVendor = role.input.value === 'property_vendor';
+    territory.label.hidden = !agent;
+    territory.input.required = agent;
+    plan.label.hidden = !agent;
+    plan.input.required = agent;
+    parent.label.hidden = !fieldAgent;
+    parent.input.disabled = !fieldAgent;
+    parent.input.required = fieldAgent;
+    specialization.label.hidden = !agent;
+    vendor.label.hidden = !propertyVendor;
+    vendor.input.disabled = !propertyVendor;
+    vendor.input.required = propertyVendor;
+    if (!agent) {
+      territory.input.value = '';
+      plan.input.value = '';
+      specialization.input.value = '';
+    }
+    if (!fieldAgent) parent.input.value = '';
+    if (!propertyVendor) vendor.input.value = '';
+    submit.disabled = fieldAgent && masters.length === 0;
+  };
+  role.input.addEventListener('change', updateRequirements);
+  updateRequirements();
+  if (!masters.length) form.append(node('p', 'An active tenant Master Agent is required before onboarding a Field Agent.'));
+  return form;
+}
+
 function renderTenantAdminWorkspace() {
   const section = node('section', undefined, 'panel form-card');
   section.style.marginTop = '20px';
@@ -6949,6 +7059,95 @@ function renderTenantAdminWorkspace() {
       }
       form.append(services, button('Save entity modules', 'submit', 'button button-primary span-2'));
       item.append(form);
+
+      item.append(node('h4', 'Tenant users'));
+      const users = node('div', undefined, 'list');
+      for (const user of tenant.tenant_users ?? []) {
+        const userCard = card(
+          user.legal_name,
+          `${user.phone} · ${roleLabel(user.role)} · ${user.active ? 'active account' : 'onboarding account'}`,
+          user.status,
+        );
+        userCard.append(button('Remove tenant access', 'tenant-user-remove', 'button button-outline', {
+          tenantId: tenant.id, userId: user.id,
+        }));
+        users.append(userCard);
+      }
+      if (!(tenant.tenant_users ?? []).length) users.append(empty('No users are assigned to this tenant.'));
+      item.append(users);
+      item.append(createTenantUserForm(tenant));
+
+      const assignment = node('form', undefined, 'inline-form');
+      assignment.dataset.form = 'tenant-user-assignment';
+      assignment.dataset.tenantId = tenant.id;
+      const eligibleUser = field('Assign an existing eligible user', 'user_id', 'select');
+      eligibleUser.input.append(new Option(t('Choose an eligible account'), ''));
+      for (const user of tenant.eligible_users ?? []) {
+        eligibleUser.input.append(new Option(`${user.legal_name} · ${roleLabel(user.role)}`, user.id));
+      }
+      assignment.append(eligibleUser.label);
+      assignment.append(button('Assign user to tenant', 'submit', 'button button-outline'));
+      item.append(assignment);
+
+      item.append(node('h4', 'Business entities'));
+      const entityList = node('div', undefined, 'list');
+      for (const entity of tenant.business_entities ?? []) {
+        const entityCard = card(
+          entity.display_name,
+          `${entity.tenant_type.replaceAll('_', ' ')} · owner ${entity.owner_name} · ${entity.status}`,
+          entity.tenant_key,
+        );
+        entityCard.append(button('Remove tenant entity link', 'tenant-entity-remove', 'button button-outline', {
+          tenantId: tenant.id, entityId: entity.id,
+        }));
+        entityList.append(entityCard);
+      }
+      if (!(tenant.business_entities ?? []).length) entityList.append(empty('No business entities are linked to this tenant.'));
+      item.append(entityList);
+      if ((tenant.eligible_entities ?? []).length) {
+        const entityForm = node('form', undefined, 'inline-form');
+        entityForm.dataset.form = 'tenant-entity-assignment';
+        entityForm.dataset.tenantId = tenant.id;
+        const entitySelect = field('Assign an eligible business entity', 'entity_id', 'select');
+        entitySelect.input.append(new Option(t('Choose an eligible entity'), ''));
+        for (const entity of tenant.eligible_entities) {
+          entitySelect.input.append(new Option(`${entity.display_name} · ${entity.tenant_type.replaceAll('_', ' ')}`, entity.id));
+        }
+        entityForm.append(entitySelect.label, button('Assign entity', 'submit', 'button button-outline'));
+        item.append(entityForm);
+      }
+
+      item.append(node('h4', 'Property-vendor entities'));
+      for (const vendor of tenant.property_vendors ?? []) {
+        item.append(node('p', `${vendor.name} · ${vendor.active ? 'active' : 'inactive'}`));
+      }
+      const vendorForm = node('form', undefined, 'inline-form');
+      vendorForm.dataset.form = 'tenant-vendor';
+      vendorForm.dataset.tenantId = tenant.id;
+      const propertyTenant = field('Property operating tenant', 'property_tenant_system_id', 'select', true);
+      propertyTenant.input.append(new Option(t('Choose an active property tenant'), ''));
+      for (const propertyTenantRow of tenant.property_operating_tenants ?? []) {
+        propertyTenant.input.append(new Option(
+          `${propertyTenantRow.legal_name} · ${propertyTenantRow.tenant_key}`,
+          propertyTenantRow.id,
+        ));
+      }
+      if (!(tenant.property_operating_tenants ?? []).length) {
+        propertyTenant.input.disabled = true;
+      }
+      vendorForm.append(
+        propertyTenant.label,
+        field('Vendor name', 'name').label,
+        field('Tax ID (optional)', 'tax_id', 'text', false, { maxlength: '80' }).label,
+        field('Phone (optional)', 'phone', 'tel', false, { maxlength: '40' }).label,
+        field('Email (optional)', 'email', 'email', false).label,
+        button('Add property-vendor entity', 'submit', 'button button-outline span-2'),
+      );
+      if (!(tenant.property_operating_tenants ?? []).length) {
+        vendorForm.append(node('p', 'Link a property operating tenant with active deployment users before adding vendors.'));
+        vendorForm.querySelector('button[type="submit"]').disabled = true;
+      }
+      item.append(vendorForm);
     }
     if (tenant.status !== 'active') {
       item.append(node('p', 'Global System Admin must activate this entity before its business modules can be used.'));
@@ -7209,6 +7408,11 @@ function createFixedAgentOnboardingSection(role) {
   return section;
 }
 
+function getKycDocumentCount(user) {
+  const count = Number(user.kyc_document_count ?? 0);
+  return Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+}
+
 function renderKycOnboardingTable(users, role) {
   const section = node('section', undefined, 'panel form-card admin-onboarding-section');
   section.dataset.adminNavigation = 'true';
@@ -7244,6 +7448,7 @@ function renderKycOnboardingTable(users, role) {
   }
   for (const user of users) {
     const row = document.createElement('tr');
+    const kycDocumentCount = getKycDocumentCount(user);
     const account = document.createElement('th');
     account.scope = 'row';
     account.textContent = user.legal_name;
@@ -7254,12 +7459,16 @@ function renderKycOnboardingTable(users, role) {
     const kyc = document.createElement('td');
     kyc.textContent = t(user.kyc_status ?? 'unknown');
     const documentCount = document.createElement('td');
-    documentCount.textContent = Number(user.kyc_document_count ?? 0).toLocaleString(document.documentElement.lang);
+    documentCount.textContent = kycDocumentCount.toLocaleString(document.documentElement.lang);
     const accountStatus = document.createElement('td');
     accountStatus.textContent = user.active ? t('active') : t('inactive');
     const records = document.createElement('td');
     if (role === 'global_admin' && user.signup_account_type) {
-      records.append(button('View KYC documents', 'user-documents', 'button button-outline', { id: user.id }));
+      if (kycDocumentCount > 0) {
+        records.append(button('View KYC documents', 'user-documents', 'button button-outline', { id: user.id }));
+      } else {
+        records.textContent = t('No documents uploaded');
+      }
     } else {
       records.textContent = role === 'global_admin' ? '—' : t('Compliance review only');
     }
@@ -7503,12 +7712,7 @@ function renderAdmin() {
     }
     wrap.append(identities);
   }
-  if (state.user.role === 'super_admin') {
-    wrap.append(
-      createFixedAgentOnboardingSection('master_agent'),
-      createFixedAgentOnboardingSection('field_agent'),
-    );
-  } else if (canProvisionAgents) {
+  if (state.user.role !== 'super_admin' && canProvisionAgents) {
     const form = node('form', undefined, 'panel form-card inline-form');
     form.dataset.form = 'user';
     const title = node('h3', 'Account details'); title.className = 'span-2'; form.append(title);
@@ -7601,6 +7805,7 @@ function renderAdmin() {
     users.append(empty('No accounts to display.'));
   }
   for (const user of visibleUsers.slice(0, 25)) {
+    const kycDocumentCount = getKycDocumentCount(user);
     const signupDetails = user.signup_account_type
       ? t('{{phone}} · {{role}} · {{plan}}', {
         phone: user.phone,
@@ -7660,9 +7865,13 @@ function renderAdmin() {
       item.append(roleForm);
     }
     if (user.signup_account_type && state.user.role === 'compliance') {
-      item.append(button(`KYC documents (${user.kyc_document_count ?? 0})`, 'user-documents', 'button button-outline', { id: user.id }));
+      if (kycDocumentCount > 0) {
+        item.append(button(`KYC documents (${kycDocumentCount})`, 'user-documents', 'button button-outline', { id: user.id }));
+      } else {
+        item.append(node('span', 'No documents uploaded', 'muted'));
+      }
     }
-    if (state.user.role === 'compliance' && ['uploaded','under_review'].includes(user.kyc_status) && user.id !== state.user.id) {
+    if (state.user.role === 'compliance' && kycDocumentCount > 0 && ['uploaded','under_review'].includes(user.kyc_status) && user.id !== state.user.id) {
       item.append(button('Verify KYC', 'user-kyc', 'button button-primary', { id: user.id, decision: 'verified' }));
       item.append(button('Reject', 'user-kyc', 'button button-outline', { id: user.id, decision: 'rejected' }));
     }
@@ -8863,6 +9072,43 @@ async function submitForm(form) {
     showAlert('Assigned entity modules saved.');
     return;
   }
+  if (form.dataset.form === 'tenant-user-assignment') {
+    if (!values.user_id) throw new Error('Choose an eligible account before assigning tenant access.');
+    await api(`/platform/my-tenants/${encodeURIComponent(form.dataset.tenantId)}/users/${encodeURIComponent(values.user_id)}`, {
+      method: 'PUT',
+    });
+    await refresh();
+    showAlert('User assigned to the platform tenant.');
+    return;
+  }
+  if (form.dataset.form === 'tenant-entity-assignment') {
+    if (!values.entity_id) throw new Error('Choose an eligible entity before assigning it.');
+    await api(`/platform/my-tenants/${encodeURIComponent(form.dataset.tenantId)}/entities/${encodeURIComponent(values.entity_id)}`, {
+      method: 'POST',
+    });
+    await refresh();
+    showAlert('Business entity assigned to the platform tenant.');
+    return;
+  }
+  if (form.dataset.form === 'tenant-vendor') {
+    if (!values.property_tenant_system_id) {
+      throw new Error(t('Choose an active property tenant'));
+    }
+    const body = {
+      name: values.name.trim(),
+      property_tenant_system_id: values.property_tenant_system_id,
+    };
+    if (values.tax_id.trim()) body.tax_id = values.tax_id.trim();
+    if (values.phone.trim()) body.phone = values.phone.trim();
+    if (values.email.trim()) body.email = values.email.trim();
+    await api(`/platform/my-tenants/${encodeURIComponent(form.dataset.tenantId)}/vendors`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    await refresh();
+    showAlert('Property-vendor entity added to the platform tenant.');
+    return;
+  }
   if (form.dataset.form === 'platform-service') {
     await api(`/platform/services/${encodeURIComponent(form.dataset.serviceKey)}`, {
       method: 'PATCH',
@@ -9405,6 +9651,7 @@ async function submitForm(form) {
     if (!payload.email) delete payload.email;
     if (!payload.service_specialization) delete payload.service_specialization;
     if (!['master_agent','field_agent'].includes(payload.role)) delete payload.requested_plan;
+    if (!payload.platform_tenant_id) delete payload.platform_tenant_id;
     const result = await api('/users', { method: 'POST', body: JSON.stringify(payload) });
     form.reset();
     await refresh();
@@ -9916,6 +10163,7 @@ document.addEventListener('submit', (event) => {
     'platform-tenant', 'platform-tenant-admin', 'platform-tenant-update',
     'platform-catalog-product', 'platform-catalog-product-update',
     'tenant-module-config', 'tenant-deployment-registration', 'platform-tenant-capabilities',
+    'tenant-user-assignment', 'tenant-entity-assignment', 'tenant-vendor',
   ]);
   if (submit) {
     submit.disabled = true;
@@ -10628,6 +10876,28 @@ document.addEventListener('click', async (event) => {
       action.textContent = 'Load 200 older requests';
       showAlert(error.message, true);
     }
+    return;
+  }
+  if (name === 'tenant-user-remove') {
+    if (!window.confirm(t('Remove this user from the selected tenant? Their account will remain available to other tenants.'))) return;
+    try {
+      await api(`/platform/my-tenants/${encodeURIComponent(action.dataset.tenantId)}/users/${encodeURIComponent(action.dataset.userId)}`, {
+        method: 'DELETE',
+      });
+      await refresh();
+      showAlert('User removed from the platform tenant.');
+    } catch (error) { showAlert(error.message, true); }
+    return;
+  }
+  if (name === 'tenant-entity-remove') {
+    if (!window.confirm(t('Remove this entity link from the selected tenant? The entity and its records will not be deleted.'))) return;
+    try {
+      await api(`/platform/my-tenants/${encodeURIComponent(action.dataset.tenantId)}/entities/${encodeURIComponent(action.dataset.entityId)}`, {
+        method: 'DELETE',
+      });
+      await refresh();
+      showAlert('Business entity link removed from the platform tenant.');
+    } catch (error) { showAlert(error.message, true); }
     return;
   }
   if (name === 'tenant-admin-remove') {

@@ -82,6 +82,7 @@ export async function startAgencyDomainService(
       edir_id: user.organizationId,
       propertyTenantSystemId: user.propertyTenantSystemId,
       propertyTenantPurpose: user.propertyTenantPurpose,
+      platformTenantId: user.platformTenantId,
     };
     next();
   }, serviceRouter);

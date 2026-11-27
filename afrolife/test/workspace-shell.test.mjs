@@ -305,11 +305,14 @@ test('Admin onboarding exposes scoped tenant, agent, and KYC workflows with vali
   ]);
   assert.match(app, /node\('h3', 'Tenant Onboarding'\)/);
   assert.match(app, /node\('h3', 'Super \/ Master Agent Onboarding'\)/);
-  assert.match(app, /createFixedAgentOnboardingSection\('master_agent'\)/);
-  assert.match(app, /createFixedAgentOnboardingSection\('field_agent'\)/);
+  assert.match(app, /function createTenantUserForm\(tenant\)/);
+  assert.match(app, /if \(state\.user\.role !== 'super_admin' && canProvisionAgents\)/);
   assert.match(app, /node\('h3', 'KYC Data Onboarding Table'\)/);
   assert.match(app, /const visibleUsers = state\.users/);
   assert.match(app, /role === 'global_admin' && user\.signup_account_type/);
+  assert.match(app, /function getKycDocumentCount\(user\)/);
+  assert.match(app, /if \(kycDocumentCount > 0\)/);
+  assert.match(app, /kycDocumentCount > 0 && \['uploaded','under_review'\]/);
   assert.match(app, /payload\.role === 'field_agent' && !payload\.parent_agent_id/);
   assert.match(app, /form\.dataset\.submitting === 'true'/);
   assert.match(app, /'user', 'platform-service-package'/);

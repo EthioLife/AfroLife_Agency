@@ -2,6 +2,31 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { agencyDomainSchemaRequirements, assertAgencyDomainDatabaseReady, type AgencyDomain } from '../src/domain-database-readiness.js';
 
+const tenantScopeTables = [
+  'platform_business_tenant_members',
+  'platform_business_tenants',
+  'platform_tenant_users',
+  'platform_tenants',
+  'property_operating_tenant_members',
+  'property_operating_tenants',
+];
+const tenantScopeColumns = [
+  'platform_business_tenant_members.tenant_id',
+  'platform_business_tenant_members.user_id',
+  'platform_business_tenant_members.status',
+  'platform_business_tenants.owner_user_id',
+  'platform_business_tenants.platform_tenant_id',
+  'platform_tenant_users.tenant_id',
+  'platform_tenant_users.user_id',
+  'platform_tenant_users.status',
+  'platform_tenants.id',
+  'property_operating_tenant_members.tenant_system_id',
+  'property_operating_tenant_members.user_id',
+  'property_operating_tenant_members.status',
+  'property_operating_tenants.id',
+  'property_operating_tenants.status',
+];
+
 function databaseFor(
   domain: AgencyDomain,
   tables: string[],
@@ -11,10 +36,13 @@ function databaseFor(
     can_create_schema: false,
     can_access_financial_data: false,
   },
-  columns = agencyDomainSchemaRequirements[domain].requiredColumns,
+  columns = [...agencyDomainSchemaRequirements[domain].requiredColumns, ...tenantScopeColumns],
 ) {
   return {
     async query(sql: string, values: unknown[]) {
+      if (sql.includes('to_regprocedure')) {
+        return { rows: [{ scoped_admin_available: true, member_scope_available: true }] };
+      }
       if (values.length === 0) {
         return { rows: [privileges] };
       }
@@ -37,12 +65,16 @@ function databaseFor(
 
 const completeSchemas: Record<AgencyDomain, { tables: string[]; rls: string[] }> = {
   'workforce-management': {
-    tables: ['agents', 'audit_logs', 'documents', 'notifications', 'territories', 'users', 'workers'],
-    rls: ['agents', 'documents', 'workers'],
+    tables: ['agents', 'audit_logs', 'documents', 'notifications', 'territories', 'users', 'workers',
+      ...tenantScopeTables],
+    rls: ['agents', 'documents', 'workers',
+      ...tenantScopeTables],
   },
   staffing: {
-    tables: ['agents', 'audit_logs', 'config_rules', 'documents', 'job_requests', 'leads', 'matches', 'notifications', 'territories', 'users', 'workers'],
-    rls: ['agents', 'documents', 'job_requests', 'leads', 'matches', 'workers'],
+    tables: ['agents', 'audit_logs', 'config_rules', 'documents', 'job_requests', 'leads', 'matches', 'notifications', 'territories', 'users', 'workers',
+      ...tenantScopeTables],
+    rls: ['agents', 'documents', 'job_requests', 'leads', 'matches', 'workers',
+      ...tenantScopeTables],
   },
   'property-management': {
     tables: [
@@ -64,6 +96,7 @@ const completeSchemas: Record<AgencyDomain, { tables: string[]; rls: string[] }>
       'property_operating_tenant_events', 'property_operating_tenant_support_grants',
       'property_agent_scopes', 'property_agent_scope_events',
       'property_tenant_export_requests', 'property_tenant_export_events',
+      ...tenantScopeTables,
     ],
     rls: [
       'agents', 'marketplace_configuration', 'maintenance_requests', 'properties', 'property_photos',
@@ -82,12 +115,15 @@ const completeSchemas: Record<AgencyDomain, { tables: string[]; rls: string[] }>
       'property_operating_tenant_events', 'property_operating_tenant_support_grants',
       'property_agent_scopes', 'property_agent_scope_events',
       'property_tenant_export_requests', 'property_tenant_export_events',
+      ...tenantScopeTables,
     ],
   },
   marketplace: {
     tables: ['agents', 'audit_logs', 'marketplace_configuration', 'marketplace_listings', 'marketplace_media',
-      'marketplace_service_requests', 'notifications', 'territories', 'users', 'user_signups'],
-    rls: ['agents', 'marketplace_configuration', 'marketplace_listings', 'marketplace_media', 'marketplace_service_requests'],
+      'marketplace_service_requests', 'notifications', 'territories', 'users', 'user_signups',
+      ...tenantScopeTables],
+    rls: ['agents', 'marketplace_configuration', 'marketplace_listings', 'marketplace_media', 'marketplace_service_requests',
+      ...tenantScopeTables],
   },
 };
 
@@ -112,6 +148,20 @@ test('database readiness rejects missing row-level security', async () => {
   await assert.rejects(
     assertAgencyDomainDatabaseReady('marketplace', databaseFor('marketplace', completeSchemas.marketplace.tables, ['agents'])),
     /RLS is disabled:.*marketplace_listings/,
+  );
+});
+
+test('database readiness requires tenant-membership tables and scoped policies', async () => {
+  await assert.rejects(
+    assertAgencyDomainDatabaseReady(
+      'marketplace',
+      databaseFor(
+        'marketplace',
+        completeSchemas.marketplace.tables.filter((table) => table !== 'platform_tenant_users'),
+        completeSchemas.marketplace.rls,
+      ),
+    ),
+    /missing tables:.*platform_tenant_users/,
   );
 });
 
