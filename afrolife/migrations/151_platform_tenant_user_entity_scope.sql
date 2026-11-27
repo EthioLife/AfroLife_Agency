@@ -212,6 +212,7 @@ ALTER TABLE platform_business_tenant_events ADD CONSTRAINT platform_business_ten
     'tenant_suspended','tenant_retired','platform_tenant_assigned','platform_tenant_unassigned'
   )
 );
+DROP POLICY IF EXISTS platform_tenant_events_assigned_insert ON platform_tenant_events;
 CREATE POLICY platform_tenant_events_assigned_insert ON platform_tenant_events FOR INSERT
   WITH CHECK (
     actor_id=app_user_id()

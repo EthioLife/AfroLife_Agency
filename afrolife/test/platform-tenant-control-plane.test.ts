@@ -161,6 +161,17 @@ test('platform tenant context scopes domain records through restrictive RLS poli
   assert.match(migration, /CREATE POLICY users_platform_tenant_scope ON users AS RESTRICTIVE/);
 });
 
+test('tenant user migration safely replaces the existing tenant event policy', async () => {
+  const migration = await readFile(
+    new URL('../migrations/151_platform_tenant_user_entity_scope.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(
+    migration,
+    /DROP POLICY IF EXISTS platform_tenant_events_assigned_insert ON platform_tenant_events;\s*CREATE POLICY platform_tenant_events_assigned_insert ON platform_tenant_events/,
+  );
+});
+
 test('global catalog explicitly excludes regulated financial-product definitions', async () => {
   const migration = await readFile(
     new URL('../migrations/070_platform_tenant_control_plane.sql', import.meta.url),
