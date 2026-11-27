@@ -174,6 +174,7 @@ test('users RLS is active and preserves scoped authentication and onboarding pat
   assert.match(migration, /CREATE POLICY users_application_read ON users FOR SELECT[\s\S]*app_user_phone_lookup\(phone\)/);
   assert.match(migration, /app\.service',true\)='maintenance_sla'/);
   assert.match(migration, /property_operating_tenant_members member[\s\S]*member\.tenant_system_id=app_property_tenant_system_id\(\)[\s\S]*app_property_tenant_role_matches\(member\.tenant_role,users\.role\)/);
+  assert.match(migration, /app_role\(\) IN \('global_admin','super_admin','corporate_business_manager','master_agent'\)[\s\S]*worker_support_requests request[\s\S]*request\.user_id=users\.id/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION app_is_pending_global_admin_promotion[\s\S]*app_role\(\)='super_admin' AND EXISTS/);
   assert.match(migration, /role='global_admin'[\s\S]*app_is_pending_global_admin_promotion\(id\)/);
   assert.match(core, /withUserPhoneLookup[\s\S]*set_config\('app\.user_lookup_phones'/);

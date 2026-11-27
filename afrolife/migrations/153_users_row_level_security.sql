@@ -65,6 +65,13 @@ CREATE POLICY users_application_read ON users FOR SELECT
         AND member.status='active'
         AND app_property_tenant_role_matches(member.tenant_role,users.role)
     )
+    OR (
+      app_role() IN ('global_admin','super_admin','corporate_business_manager','master_agent')
+      AND EXISTS (
+        SELECT 1 FROM worker_support_requests request
+        WHERE request.user_id=users.id
+      )
+    )
     OR (app_role()='super_admin' AND role='super_admin')
     OR app_role() IN ('global_admin','compliance','finance','finance_manager')
     OR (app_role()='super_admin' AND app_platform_tenant_id() IS NULL AND created_by=app_user_id())
