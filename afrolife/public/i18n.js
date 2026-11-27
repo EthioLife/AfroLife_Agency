@@ -237,9 +237,9 @@ const rows = [
   ['Free plan', 'ነፃ ዕቅድ', 'Karoora bilisaa', 'ነጻ መደብ'],
   ['Pro plan', 'ፕሮ ዕቅድ', 'Karoora Pro', 'መደብ Pro'],
   ['Enterprise plan', 'የድርጅት ዕቅድ', 'Karoora dhaabbataa', 'መደብ ድርጅት'],
-  ['Free', 'ነፃ', 'Bilisaa', 'ነጻ'],
-  ['Pro', 'ፕሮ', 'Pro', 'Pro'],
-  ['Enterprise', 'ድርጅት', 'Dhaabbata', 'ድርጅት'],
+  ['Free', 'ነፃ', 'Bilisaa', 'ነጻ', 'Bilaash', 'مجاني', 'Bure'],
+  ['Pro', 'ፕሮ', 'Pro', 'Pro', 'Pro', 'احترافي', 'Pro'],
+  ['Enterprise', 'ድርጅት', 'Dhaabbata', 'ድርጅት', 'Shirkad', 'مؤسسة', 'Biashara'],
   ['Plan choice is recorded as a request only. No payment will be collected or plan activated until billing is configured.', 'የዕቅድ ምርጫዎ እንደ ጥያቄ ብቻ ይመዘገባል። የክፍያ ሥርዓት እስኪዘጋጅ ድረስ ክፍያ አይሰበሰብም ወይም ዕቅድ አይነቃም።', 'Filannoon karooraa gaaffii qofa ta’ee galmaa’a. Sirni kaffaltii hamma qophaa’utti kaffaltiin hin funaanamu, karoorri hin hojii irra oolu.', 'ምርጫ መደብኩም ከም ሕቶ ጥራይ ይምዝገብ። ስርዓት ክፍሊት ክሳብ ዝዳሎ ክፍሊት ኣይእከብን መደብ ኣይንቀሳቐስን።'],
   ['Staff approval is required before sign-in. Your account will remain inactive until compliance review and activation are complete.', 'ከመግባትዎ በፊት የሠራተኛ ፈቃድ ያስፈልጋል። የተገዢነት ግምገማና ማንቃት እስኪጠናቀቁ ድረስ መለያዎ ንቁ አይሆንም።', 'Seenuun dura hayyamni hojjettootaa barbaachisa. Gamaaggamni to’annoo seeraa fi hojii irra oolchuun hamma xumuramutti herregni keessan hin hojii irra oolu.', 'ቅድሚ ምእታው ፍቓድ ሰራሕተኛ የድሊ። ግምገማ ተገዢነትን ምንቃሕን ክሳብ ዝውዳእ ሕሳብኩም ንጡፍ ኣይከውንን።'],
   ['Submit sign-up request', 'የምዝገባ ጥያቄ አስገባ', 'Gaaffii galmee ergaa', 'ሕቶ ምዝገባ ኣቕርብ'],
@@ -5767,6 +5767,32 @@ const publicSupportRows = [
   ['Some published support questions and answers may appear in English when a translation is unavailable.', 'ትርጉም በሌለበት ጊዜ አንዳንድ የታተሙ የድጋፍ ጥያቄዎችና መልሶች በእንግሊዝኛ ሊታዩ ይችላሉ።', 'Yeroo hiikni hin jirre, gaaffii fi deebiin deeggarsaa maxxanfame tokko tokko Afaan Ingiliziitiin mul’achuu danda’a.', 'ትርጉም ኣብ ዘይርከበሉ እዋን፡ ገለ ዝተሓትሙ ሕቶታትን መልስታትን ደገፍ ብእንግሊዝኛ ክረኣዩ ይኽእሉ።', 'Su’aalaha iyo jawaabaha taageerada qaarkood waxa lagu soo bandhigi karaa Ingiriisi marka tarjumaad la waayo.', 'قد تظهر بعض أسئلة وأجوبة الدعم المنشورة باللغة الإنجليزية عند عدم توفر ترجمة.', 'Baadhi ya maswali na majibu ya usaidizi yaliyochapishwa yanaweza kuonekana kwa Kiingereza ikiwa tafsiri haipatikani.'],
 ];
 for (const row of publicSupportRows) {
+  for (const [column, locale] of Object.keys(localeNames).entries()) {
+    catalogs[locale][row[0]] = row[column] ?? row[0];
+  }
+}
+const adminOnboardingRows = [
+  ['Tenant Onboarding', 'የተከራይ ምዝገባ', 'Galmeessa tenantii', 'ምምዝጋብ ተናንት', 'Diiwaangelinta kiraystaha', 'تسجيل المستأجر', 'Usajili wa mpangaji'],
+  ['Register a deployment tenant, assign its service package, then verify the deployment before activation.', 'የማሰማራት ተከራይ ይመዝግቡ፣ የአገልግሎት ጥቅሉን ይመድቡ፣ ከማንቃት በፊት ማሰማራቱን ያረጋግጡ።', 'Tenantii tajaajilaaf galmeessaa, paakeejii tajaajilaa ramadaa, hojii irra oolchuu dura mirkaneessaa.', 'ተናንት ምስ ኣገልግሎት ጥቕሉ መዝግቡ፣ ቅድሚ ምንቃሑ ድማ ምስራሑ ኣረጋግጹ።', 'Diiwaangeli kiraystaha, u qoondee xirmada adeegga, dabadeed xaqiiji hawlgelinta ka hor.', 'سجّل المستأجر، وعيّن حزمة الخدمة، ثم تحقّق من النشر قبل التفعيل.', 'Sajili mpangaji, mpe kifurushi cha huduma, kisha thibitisha usanidi kabla ya kuwezesha.'],
+  ['KYC Data Onboarding Table', 'የKYC ምዝገባ ውሂብ ሰንጠረዥ', 'Gabatee galmee odeeffannoo KYC', 'ሰንጠረዥ ሓበሬታ ምምዝጋብ KYC', 'Jadwalka xogta diiwaangelinta KYC', 'جدول بيانات تسجيل KYC', 'Jedwali la data ya usajili wa KYC'],
+  ['KYC onboarding status by account', 'የKYC ምዝገባ ሁኔታ በመለያ', 'Haala galmee KYC herrega irratti', 'ኩነታት ምምዝጋብ KYC ብመሰረት ሕሳብ', 'Xaaladda diiwaangelinta KYC ee koonto kasta', 'حالة تسجيل KYC حسب الحساب', 'Hali ya usajili wa KYC kwa kila akaunti'],
+  ['No onboarding accounts are available in this role scope.', 'በዚህ የሚና ወሰን ምንም የምዝገባ መለያዎች የሉም።', 'Daangaa gahee kana keessatti herregni galmee hin jiru.', 'ኣብዚ ወሰን ሓላፍነት ዝኾነ ሕሳብ ምምዝጋብ የለን።', 'Ma jiraan koontooyin diiwaangelin ah oo ku jira baaxadda doorkan.', 'لا توجد حسابات تسجيل ضمن نطاق هذا الدور.', 'Hakuna akaunti za usajili katika wigo wa jukumu hili.'],
+  ['active', 'ንቁ', 'hojii irra jira', 'ንጡፍ', 'firfircoon', 'نشط', 'hai'],
+  ['inactive', 'ንቁ ያልሆነ', 'hojii irra hin jirre', 'ንጡፍ ዘይኮነ', 'aan firfircoonayn', 'غير نشط', 'si hai'],
+  ['Compliance review only', 'የተገዢነት ግምገማ ብቻ', 'Gamaaggama seeraa qofa', 'ግምገማ ተገዢነት ጥራይ', 'Dib-u-eegis waafaqsanaan oo keliya', 'مراجعة الامتثال فقط', 'Ukaguzi wa uzingatiaji pekee'],
+  ['Account details', 'የመለያ ዝርዝሮች', 'Bal’ina herregaa', 'ዝርዝር ሕሳብ', 'Faahfaahinta koontada', 'تفاصيل الحساب', 'Maelezo ya akaunti'],
+  ['Super / Master Agent Onboarding', 'የሱፐር እና ዋና ወኪል ምዝገባ', 'Galmeessa Super fi Master Agent', 'ምምዝጋብ Super / Master Agent', 'Diiwaangelinta Wakiilka Sare / Master', 'تسجيل الوكيل الفائق / الرئيسي', 'Usajili wa Wakala Mkuu / wa Ngazi ya Juu'],
+  ['Create Super Admin or agent accounts. New agents remain inactive until KYC review and independent activation; Super Admin access also requires tenant assignment.', 'የሱፐር አስተዳዳሪ ወይም የወኪል መለያዎችን ይፍጠሩ። አዲስ ወኪሎች የKYC ግምገማና ገለልተኛ ማንቃት እስኪጠናቀቅ ንቁ አይሆኑም፤ ለሱፐር አስተዳዳሪ መዳረሻ የተከራይ ምደባም ያስፈልጋል።', 'Herrega Super Admin ykn bakka bu’aa uumaa. Bakka bu’oonni haaraan gamaaggama KYC fi mirkaneessa walaba ta’een hamma hin xumuramnetti hojii irra hin oolan; Super Admin’f ramaddiin tenantii ni barbaachisa.', 'ሕሳባት Super Admin ወይ ወኪል ፍጠሩ። ሓደሽቲ ወኪላት ግምገማ KYCን ናጻ ምንቃሕን ክሳብ ዝውዳእ ኣይንጠፉን፤ ንSuper Admin ምድባ ተናንት እውን የድሊ።', 'Abuur koontooyin Maamule Sare ama wakiil. Wakiillada cusub ma hawlgalaan ilaa dib-u-eegista KYC iyo hawlgelin madax-bannaan la dhammaystiro; Maamulaha Sare sidoo kale wuxuu u baahan yahay kirayste loo qoondeeyo.', 'أنشئ حسابات مدير فائق أو وكلاء. يظل الوكلاء الجدد غير نشطين حتى اكتمال مراجعة KYC والتفعيل المستقل؛ كما يتطلب وصول المدير الفائق تعيين مستأجر.', 'Unda akaunti za Msimamizi Mkuu au wakala. Mawakala wapya hubaki hawajawashwa hadi ukaguzi wa KYC na uanzishaji huru ukamilike; ufikiaji wa Msimamizi Mkuu pia unahitaji kupangiwa mpangaji.'],
+  ['Choose a territory', 'ክልል ይምረጡ', 'Naannoo filadhaa', 'ከባቢ ምረጽ', 'Dooro deegaan', 'اختر منطقة', 'Chagua eneo'],
+  ['Choose an active Master Agent', 'ንቁ ዋና ወኪል ይምረጡ', 'Master Agent hojii irra jiru filadhaa', 'ንጡፍ Master Agent ምረጽ', 'Dooro Wakiil Master ah oo firfircoon', 'اختر وكيلاً رئيسياً نشطاً', 'Chagua Wakala Mkuu aliye hai'],
+  ['Choose a service plan', 'የአገልግሎት ዕቅድ ይምረጡ', 'Karoora tajaajilaa filadhaa', 'መደብ ኣገልግሎት ምረጽ', 'Dooro qorshaha adeegga', 'اختر خطة الخدمة', 'Chagua mpango wa huduma'],
+  ['General agent', 'አጠቃላይ ወኪል', 'Bakka bu’aa waliigalaa', 'ሓፈሻዊ ወኪል', 'Wakiil guud', 'وكيل عام', 'Wakala wa jumla'],
+  ['Financial services focus', 'በፋይናንስ አገልግሎቶች ላይ ትኩረት', 'Xiyyeeffannoo tajaajila faayinaansii', 'ትኹረት ኣብ ኣገልግሎታት ፋይናንስ', 'Diiradda adeegyada maaliyadeed', 'التركيز على الخدمات المالية', 'Lenga kwenye huduma za kifedha'],
+  ['Growth & partnerships focus', 'በእድገትና በሽርክና ላይ ትኩረት', 'Xiyyeeffannoo guddinaa fi tumsa', 'ትኹረት ኣብ ዕቤትን ሽርክናን', 'Diiradda kobaca iyo iskaashiga', 'التركيز على النمو والشراكات', 'Lenga kwenye ukuaji na ushirikiano'],
+  ['Workforce & property focus', 'በሰው ኃይልና በንብረት ላይ ትኩረት', 'Xiyyeeffannoo humna namaa fi qabeenyaa', 'ትኹረት ኣብ ሓይሊ ሰብን ንብረትን', 'Diiradda shaqaalaha iyo hantida maguurtada ah', 'التركيز على القوى العاملة والعقارات', 'Lenga kwenye wafanyakazi na mali'],
+  ['unknown', 'ያልታወቀ', 'hin beekamne', 'ዘይፍለጥ', 'aan la aqoon', 'غير معروف', 'haijulikani'],
+];
+for (const row of adminOnboardingRows) {
   for (const [column, locale] of Object.keys(localeNames).entries()) {
     catalogs[locale][row[0]] = row[column] ?? row[0];
   }

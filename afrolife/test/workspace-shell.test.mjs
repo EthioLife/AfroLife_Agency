@@ -278,20 +278,45 @@ test('workspace deep links retain the current URL and only resolve visible panel
   assert.equal(isMiniAppAllowed('global-bi', undefined), false);
 });
 
-test('Admin and Review renders activity jump links for desktop and compact navigation', async () => {
+test('Administration renders activity navigation alongside workspace menus', async () => {
   const [app, index, styles] = await Promise.all([
     readFile(new URL('../public/app.js', import.meta.url), 'utf8'),
     readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
     readFile(new URL('../public/styles.css', import.meta.url), 'utf8'),
   ]);
-  assert.match(index, /id="admin-tab"[^>]*aria-controls="admin-submenu/);
-  assert.match(index, /<nav id="admin-submenu" class="admin-submenu"/);
+  assert.match(index, /id="admin-tab"[^>]*aria-controls="admin-navigation/);
+  assert.match(index, /<nav id="admin-navigation" class="admin-navigation" aria-label="Administration"/);
   assert.match(app, /function renderAdminActivityMenus\(wrap\)/);
   assert.match(app, /activity\.tabIndex = -1/);
   assert.match(app, /target\.scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\)/);
+  assert.match(app, /link\.setAttribute\('aria-current', 'location'\)/);
   assert.match(app, /sidebarMenu\.hidden = state\.panel !== 'admin' \|\| !items\.length/);
+  assert.match(styles, /\.admin-navigation \{ display: grid; gap: 4px; \}/);
+  assert.match(styles, /\.admin-activity-link \{\s+width: 100%;\s+min-width: 0;\s+min-height: 42px/);
   assert.match(styles, /\.admin-activity-menu \{ display: none; \}/);
   assert.match(styles, /\.admin-activity-menu \{\s+display: grid;/);
+});
+
+test('Admin onboarding exposes scoped tenant, agent, and KYC workflows with validated submissions', async () => {
+  const [app, index, styles] = await Promise.all([
+    readFile(new URL('../public/app.js', import.meta.url), 'utf8'),
+    readFile(new URL('../public/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../public/styles.css', import.meta.url), 'utf8'),
+  ]);
+  assert.match(app, /node\('h3', 'Tenant Onboarding'\)/);
+  assert.match(app, /node\('h3', 'Super \/ Master Agent Onboarding'\)/);
+  assert.match(app, /createFixedAgentOnboardingSection\('master_agent'\)/);
+  assert.match(app, /createFixedAgentOnboardingSection\('field_agent'\)/);
+  assert.match(app, /node\('h3', 'KYC Data Onboarding Table'\)/);
+  assert.match(app, /const visibleUsers = state\.users/);
+  assert.match(app, /role === 'global_admin' && user\.signup_account_type/);
+  assert.match(app, /payload\.role === 'field_agent' && !payload\.parent_agent_id/);
+  assert.match(app, /form\.dataset\.submitting === 'true'/);
+  assert.match(app, /'user', 'platform-service-package'/);
+  assert.match(app, /tenantForm\.elements\.package_id/);
+  assert.match(app, /packagePlaceholder\.disabled = true/);
+  assert.match(index, /aria-label="Administration" hidden><\/nav>/);
+  assert.match(styles, /\.admin-kyc-table \{ min-width: 720px; \}/);
 });
 
 test('Global BI normalization preserves real empty-state values without filling sample metrics', () => {

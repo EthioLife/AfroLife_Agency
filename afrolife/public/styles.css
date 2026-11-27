@@ -1216,24 +1216,30 @@ body {
 }
 .workspace-nav-core { display: grid; gap: 4px; }
 .workspace-nav-groups { display: grid; gap: 13px; }
-.admin-submenu { display: grid; gap: 4px; margin: 3px 0 7px; padding-inline-start: 12px; }
+.admin-navigation { display: grid; gap: 4px; }
+.admin-onboarding-section { min-width: 0; scroll-margin-top: 96px; }
+.admin-onboarding-section > p { margin: 0 0 12px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.admin-table-scroll { min-width: 0; overflow-x: auto; }
+.admin-kyc-table { min-width: 720px; }
 .admin-activity-menu { display: none; }
 .admin-activity-link {
   width: 100%;
   min-width: 0;
-  padding: 7px 10px;
+  min-height: 42px;
+  padding: 9px 12px;
   border: 0;
-  border-inline-start: 2px solid #d5e3d8;
-  border-radius: 0 7px 7px 0;
+  border-inline-start: 3px solid transparent;
+  border-radius: 9px;
   background: transparent;
-  color: #536b5f;
+  color: #465d53;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 700;
   line-height: 1.35;
   text-align: start;
   overflow-wrap: anywhere;
 }
-.admin-activity-link:hover, .admin-activity-link:focus-visible {
+.admin-activity-link:hover, .admin-activity-link:focus-visible, .admin-activity-link[aria-current="location"] {
   border-inline-start-color: var(--gold);
   background: #f2f7f2;
   color: var(--green-dark);
