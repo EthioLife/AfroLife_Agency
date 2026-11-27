@@ -54,6 +54,23 @@ export async function withUser<T>(u: AuthUser, fn: (c: PoolClient) => Promise<T>
   }
 }
 
+export async function withUserPhoneLookup<T>(phones: readonly string[], fn: (c: PoolClient) => Promise<T>): Promise<T> {
+  if (!phones.length) throw new Error('At least one phone number is required for an authentication lookup');
+  const c = await pool.connect();
+  try {
+    await c.query('BEGIN');
+    await c.query("SELECT set_config('app.user_lookup_phones',$1,true)", [JSON.stringify(phones)]);
+    const result = await fn(c);
+    await c.query('COMMIT');
+    return result;
+  } catch (error) {
+    await c.query('ROLLBACK');
+    throw error;
+  } finally {
+    c.release();
+  }
+}
+
 export async function withService<T>(service: 'payment_webhook' | 'messaging_webhook', fn: (c: PoolClient) => Promise<T>): Promise<T> {
   const c = await pool.connect();
   try {
@@ -94,7 +111,7 @@ export function invalidateUser(id: string) { stateCache.delete(id); }
 async function currentState(id: string) {
   const hit = stateCache.get(id);
   if (hit && Date.now() - hit.at < STATE_TTL_MS) return hit;
-  const r = (await pool.query(
+  const r = (await withUser({ id, role: 'customer' }, (client) => client.query(
     `SELECT u.active, u.role, u.legal_name, u.phone, u.email, u.kyc_status,
        coalesce((
          SELECT jsonb_object_agg(p.activity_key, p.enabled)
@@ -119,7 +136,7 @@ async function currentState(id: string) {
        ), '[]'::jsonb) AS mini_app_grants
      FROM users u WHERE u.id = $1`,
     [id],
-  )).rows[0];
+  ))).rows[0];
   const miniAppAccessMode = (r?.mini_app_access_mode ?? 'role_default') as MiniAppAccessMode;
   const miniAppGrants: unknown = r?.mini_app_grants ?? [];
   if (!['role_default', 'custom'].includes(miniAppAccessMode)) {

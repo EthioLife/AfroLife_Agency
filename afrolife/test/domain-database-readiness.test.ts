@@ -67,13 +67,13 @@ const completeSchemas: Record<AgencyDomain, { tables: string[]; rls: string[] }>
   'workforce-management': {
     tables: ['agents', 'audit_logs', 'documents', 'notifications', 'territories', 'users', 'workers',
       ...tenantScopeTables],
-    rls: ['agents', 'documents', 'workers',
+    rls: ['agents', 'documents', 'users', 'workers',
       ...tenantScopeTables],
   },
   staffing: {
     tables: ['agents', 'audit_logs', 'config_rules', 'documents', 'job_requests', 'leads', 'matches', 'notifications', 'territories', 'users', 'workers',
       ...tenantScopeTables],
-    rls: ['agents', 'documents', 'job_requests', 'leads', 'matches', 'workers',
+    rls: ['agents', 'documents', 'job_requests', 'leads', 'matches', 'users', 'workers',
       ...tenantScopeTables],
   },
   'property-management': {
@@ -99,7 +99,7 @@ const completeSchemas: Record<AgencyDomain, { tables: string[]; rls: string[] }>
       ...tenantScopeTables,
     ],
     rls: [
-      'agents', 'marketplace_configuration', 'maintenance_requests', 'properties', 'property_photos',
+      'agents', 'marketplace_configuration', 'maintenance_requests', 'properties', 'property_photos', 'users',
       'property_units', 'rent_charges', 'leases', 'property_tenant_access_invitations',
       'property_tenant_account_links', 'property_authority_evidence', 'property_authority_review_events',
       'maintenance_sla_escalations',
@@ -122,7 +122,7 @@ const completeSchemas: Record<AgencyDomain, { tables: string[]; rls: string[] }>
     tables: ['agents', 'audit_logs', 'marketplace_configuration', 'marketplace_listings', 'marketplace_media',
       'marketplace_service_requests', 'notifications', 'territories', 'users', 'user_signups',
       ...tenantScopeTables],
-    rls: ['agents', 'marketplace_configuration', 'marketplace_listings', 'marketplace_media', 'marketplace_service_requests',
+    rls: ['agents', 'marketplace_configuration', 'marketplace_listings', 'marketplace_media', 'marketplace_service_requests', 'users',
       ...tenantScopeTables],
   },
 };
@@ -148,6 +148,17 @@ test('database readiness rejects missing row-level security', async () => {
   await assert.rejects(
     assertAgencyDomainDatabaseReady('marketplace', databaseFor('marketplace', completeSchemas.marketplace.tables, ['agents'])),
     /RLS is disabled:.*marketplace_listings/,
+  );
+  await assert.rejects(
+    assertAgencyDomainDatabaseReady(
+      'marketplace',
+      databaseFor(
+        'marketplace',
+        completeSchemas.marketplace.tables,
+        completeSchemas.marketplace.rls.filter((table) => table !== 'users'),
+      ),
+    ),
+    /RLS is disabled:.*users/,
   );
 });
 

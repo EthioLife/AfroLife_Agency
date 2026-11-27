@@ -24,7 +24,7 @@ export const agencyDomainSchemaRequirements: Record<AgencyDomain, {
 }> = {
   'workforce-management': {
     required: ['agents', 'audit_logs', 'documents', 'notifications', 'territories', 'users', 'workers'],
-    rowLevelSecurity: ['agents', 'documents', 'workers'],
+    rowLevelSecurity: ['agents', 'documents', 'users', 'workers'],
     requiredColumns: [
       'users.id', 'users.active', 'users.role', 'users.legal_name', 'users.phone',
       'agents.id', 'agents.parent_id', 'agents.territory_id',
@@ -42,7 +42,7 @@ export const agencyDomainSchemaRequirements: Record<AgencyDomain, {
       'agents', 'audit_logs', 'config_rules', 'documents', 'job_requests', 'leads',
       'matches', 'notifications', 'territories', 'users', 'workers',
     ],
-    rowLevelSecurity: ['agents', 'documents', 'job_requests', 'leads', 'matches', 'workers'],
+    rowLevelSecurity: ['agents', 'documents', 'job_requests', 'leads', 'matches', 'users', 'workers'],
     requiredColumns: [
       'users.id', 'users.active', 'users.role', 'users.legal_name', 'users.phone',
       'agents.id', 'agents.parent_id', 'agents.territory_id',
@@ -81,7 +81,7 @@ export const agencyDomainSchemaRequirements: Record<AgencyDomain, {
       'property_tenant_export_requests', 'property_tenant_export_events',
     ],
     rowLevelSecurity: [
-      'agents', 'marketplace_configuration', 'maintenance_requests', 'properties', 'property_photos',
+      'agents', 'marketplace_configuration', 'maintenance_requests', 'properties', 'property_photos', 'users',
       'property_units', 'rent_charges', 'leases', 'property_tenant_access_invitations',
       'property_tenant_account_links', 'property_authority_evidence', 'property_authority_review_events',
       'maintenance_sla_escalations',
@@ -168,7 +168,7 @@ export const agencyDomainSchemaRequirements: Record<AgencyDomain, {
       'marketplace_media', 'marketplace_service_requests', 'notifications', 'territories', 'users', 'user_signups',
     ],
     rowLevelSecurity: [
-      'agents', 'marketplace_configuration', 'marketplace_listings', 'marketplace_media',
+      'agents', 'marketplace_configuration', 'marketplace_listings', 'marketplace_media', 'users',
       'marketplace_service_requests',
     ],
     requiredColumns: [

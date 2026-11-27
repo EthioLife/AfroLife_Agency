@@ -161,6 +161,24 @@ test('platform tenant context scopes domain records through restrictive RLS poli
   assert.match(migration, /CREATE POLICY users_platform_tenant_scope ON users AS RESTRICTIVE/);
 });
 
+test('users RLS is active and preserves scoped authentication and onboarding paths', async () => {
+  const migration = await readFile(
+    new URL('../migrations/153_users_row_level_security.sql', import.meta.url),
+    'utf8',
+  );
+  const admin = await readFile(new URL('../src/admin.ts', import.meta.url), 'utf8');
+  const core = await readFile(new URL('../src/core.ts', import.meta.url), 'utf8');
+  assert.match(migration, /ALTER TABLE users ENABLE ROW LEVEL SECURITY/);
+  assert.match(migration, /CREATE POLICY users_platform_tenant_scope ON users AS RESTRICTIVE[\s\S]*app_user_creation_id\(\)/);
+  assert.match(migration, /CREATE POLICY users_application_insert ON users FOR INSERT[\s\S]*public_signup/);
+  assert.match(migration, /CREATE POLICY users_application_read ON users FOR SELECT[\s\S]*app_user_phone_lookup\(phone\)/);
+  assert.match(core, /withUserPhoneLookup[\s\S]*set_config\('app\.user_lookup_phones'/);
+  assert.match(core, /withUser\(\{ id, role: 'customer' \}/);
+  assert.match(admin, /requireSuperAdminTenantContext/);
+  assert.match(admin, /member\.tenant_id=\$3 AND member\.user_id=u\.id/);
+  assert.match(admin, /set_config\('app\.user_creation_id'/);
+});
+
 test('tenant user migration safely replaces the existing tenant event policy', async () => {
   const migration = await readFile(
     new URL('../migrations/151_platform_tenant_user_entity_scope.sql', import.meta.url),

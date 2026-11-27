@@ -386,6 +386,7 @@ try {
     await staffingGrants.query(`GRANT SELECT ON config_rules,leads,territories,job_requests,matches,documents,workers TO ${staffingRole}`);
     await staffingGrants.query(`GRANT EXECUTE ON FUNCTION app_worker_can_view_engagement_client(uuid) TO ${staffingRole}`);
     await staffingGrants.query(`GRANT EXECUTE ON FUNCTION app_worker_owns_phone(text) TO ${staffingRole}`);
+    await staffingGrants.query(`GRANT EXECUTE ON FUNCTION app_platform_tenant_id(),app_is_platform_tenant_scoped() TO ${staffingRole}`);
     await staffingGrants.query(`GRANT INSERT (lead_id,sector,skills_required,languages_required,min_experience,rate_offered,territory_id,source_agent_id,idempotency_user_id,idempotency_key,payload_hash) ON job_requests TO ${staffingRole}`);
     await staffingGrants.query(`GRANT UPDATE (status) ON job_requests,matches TO ${staffingRole}`);
     await staffingGrants.query(`GRANT INSERT (request_id,worker_id,score,score_breakdown,created_by) ON matches TO ${staffingRole}`);
