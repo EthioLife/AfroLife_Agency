@@ -6,7 +6,7 @@ import { runInNewContext } from 'node:vm';
 const workerSource = readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8');
 
 test('changed public shell assets advance the cache version', () => {
-  assert.match(workerSource, /const CACHE = 'afrolife-shell-v57'/);
+  assert.match(workerSource, /const CACHE = 'afrolife-shell-v58'/);
   assert.match(workerSource, /'\/passkeys\.js'/);
   assert.match(workerSource, /'\/financial-workspaces\.css'/);
   assert.match(workerSource, /'\/accounting-dashboard\.js'/);
@@ -20,6 +20,7 @@ test('changed public shell assets advance the cache version', () => {
   assert.match(workerSource, /'\/icon\.svg'/);
   assert.match(workerSource, /'\/icons\/afrosherik-icon-512\.png'/);
   assert.match(workerSource, /'\/brand\/afrosherik-brand-lockup\.svg'/);
+  assert.match(workerSource, /'\/brand\/afrosherik_logo_subtle_tagline_glow\.png'/);
   assert.match(workerSource, /'\/brand\/afrosherik-mark-transparent\.svg'/);
   assert.match(workerSource, /'\/brand\/afrosherik-campaign-hero\.png'/);
   assert.doesNotMatch(workerSource, /'\/icons\/afrolife-icon-/);

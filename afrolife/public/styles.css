@@ -92,6 +92,18 @@ html[data-portal-mode="admin"] .admin-portal-copy { display: block; }
     linear-gradient(125deg, #0b3029 0%, #104b3b 58%, #0b3932 100%);
   box-shadow: 0 26px 64px rgba(11, 44, 36, .2);
 }
+.hub-heading::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  width: clamp(260px, 38vw, 520px);
+  aspect-ratio: 2595 / 768;
+  right: clamp(-58px, -3vw, -18px);
+  bottom: clamp(-52px, -4vw, -22px);
+  background: url("/brand/afrosherik_logo_subtle_tagline_glow.png") center / contain no-repeat;
+  opacity: .12;
+  pointer-events: none;
+}
 .hub-copy, .hub-campaign { position: relative; z-index: 1; min-width: 0; }
 .hub-copy .eyebrow { margin-bottom: 17px; color: #f0c772; }
 .hub-heading h2 { max-width: 600px; margin: 0 0 15px; color: #fffdf6; font-size: clamp(30px, 4vw, 48px); line-height: 1.1; letter-spacing: -1.7px; }
@@ -1659,6 +1671,7 @@ body {
   .workspace .panel,
   .workspace .form-card { border-radius: 13px; }
   .hub-heading { grid-template-columns: minmax(0, 1fr); gap: 24px; padding: clamp(22px, 6vw, 36px); border-radius: 22px; }
+  .hub-heading::before { width: clamp(210px, 58vw, 360px); right: -44px; bottom: 44%; opacity: .09; }
   .hub-heading h2 { font-size: clamp(29px, 8vw, 40px); }
   .hub-campaign { width: 100%; max-width: 600px; }
   .hub-service-network { min-height: 220px; }
