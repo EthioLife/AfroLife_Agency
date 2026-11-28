@@ -19,6 +19,7 @@ import { MFI_SANDBOX_SIMULATIONS, runMfiSandboxSimulation } from './mfi-sandbox.
 export type MfiWithUser = <T>(
   user: AuthUser,
   callback: (client: PoolClient) => Promise<T>,
+  options?: { userLookupPhones?: readonly string[] },
 ) => Promise<T>;
 
 const h = (fn: (req: Request, res: Response) => Promise<unknown>): RequestHandler =>
@@ -33,6 +34,7 @@ function createInstitutionRunner(withUser: MfiWithUser) {
     institutionId: string,
     allowedRoles: readonly InstitutionRole[],
     fn: (client: PoolClient, role: InstitutionRole) => Promise<T>,
+    options?: { userLookupPhones?: readonly string[] },
   ): Promise<T> {
     return withUser(user, async (client) => {
       await client.query("SELECT set_config('app.mfi_institution_id', $1, true)", [institutionId]);
@@ -59,7 +61,7 @@ function createInstitutionRunner(withUser: MfiWithUser) {
         });
       }
       return fn(client, platformAdmin ? 'institution_admin' : membership.role);
-    });
+    }, options);
   };
 }
 
@@ -749,7 +751,7 @@ mfiRouter.post('/institutions/:institutionId/staff', h(async (req, res) => {
       legal_name: staff.legal_name, phone: staff.phone, role: body.role,
     });
     return row;
-  });
+  }, { userLookupPhones: [body.phone] });
   res.status(201).json(membership);
 }));
 

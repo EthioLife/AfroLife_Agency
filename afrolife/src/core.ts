@@ -16,6 +16,10 @@ pg.types.setTypeParser(1082, (v: string) => v); // keep DATE columns as 'YYYY-MM
 export const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 export const JWT_SECRET = process.env.JWT_SECRET ?? '';
 
+export type UserContextOptions = {
+  userLookupPhones?: readonly string[];
+};
+
 export async function assertRuntimeDatabaseSafety() {
   const role = (await pool.query(
     `SELECT r.rolsuper, r.rolbypassrls
@@ -37,12 +41,22 @@ export async function assertRuntimeDatabaseSafety() {
 }
 
 /** Runs fn in one transaction with the caller's identity set for row-level security. */
-export async function withUser<T>(u: AuthUser, fn: (c: PoolClient) => Promise<T>): Promise<T> {
+export async function withUser<T>(
+  u: AuthUser,
+  fn: (c: PoolClient) => Promise<T>,
+  options: UserContextOptions = {},
+): Promise<T> {
   const c = await pool.connect();
   try {
     await c.query('BEGIN');
     await c.query("SELECT set_config('app.user_id',$1,true), set_config('app.role',$2,true), set_config('app.edir_id',$3,true), set_config('app.role_permissions',$4,true), set_config('app.property_tenant_system_id',$5,true), set_config('app.property_tenant_purpose',$6,true), set_config('app.platform_tenant_id',$7,true)",
       [u.id, u.role, u.edir_id ?? '00000000-0000-4000-8000-000000000002', JSON.stringify(u.rolePermissions ?? {}), u.propertyTenantSystemId ?? '', u.propertyTenantPurpose ?? '', u.platformTenantId ?? '']);
+    if (options.userLookupPhones) {
+      if (!options.userLookupPhones.length) {
+        throw new Error('At least one phone number is required for a user lookup context');
+      }
+      await c.query("SELECT set_config('app.user_lookup_phones',$1,true)", [JSON.stringify(options.userLookupPhones)]);
+    }
     const r = await fn(c);
     await c.query('COMMIT');
     return r;

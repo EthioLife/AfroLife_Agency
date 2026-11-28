@@ -6,6 +6,8 @@ import { MFI_SANDBOX_SIMULATIONS, runMfiSandboxSimulation } from '../src/mfi-san
 
 const sharedPortals = readFileSync(new URL('../migrations/050_shared_mini_app_portals.sql', import.meta.url), 'utf8');
 const mfiRouter = readFileSync(new URL('../src/mfi.ts', import.meta.url), 'utf8');
+const mfiStaffLookupMigration = readFileSync(new URL('../migrations/154_scoped_mfi_staff_phone_lookup.sql', import.meta.url), 'utf8');
+const core = readFileSync(new URL('../src/core.ts', import.meta.url), 'utf8');
 const mfiUi = readFileSync(new URL('../public/mfi.js', import.meta.url), 'utf8');
 const mfiE2e = readFileSync(new URL('../scripts/local-mfi-e2e.ts', import.meta.url), 'utf8');
 const mfiApprovalMigration = readFileSync(new URL('../migrations/073_mfi_journal_maker_checker.sql', import.meta.url), 'utf8');
@@ -33,6 +35,13 @@ test('MFI E2E requires matching disposable fixture and migration database URLs',
   assert.match(mfiE2e, /MIGRATION_DATABASE_URL must explicitly target the MFI E2E database/);
   assert.match(mfiE2e, /migrationDatabase === fixtureDatabase/);
   assert.match(mfiE2e, /afrolife_test_\[a-z0-9_-\]/);
+});
+
+test('tenant-scoped MFI staff provisioning only looks up the explicitly requested phone', () => {
+  assert.match(mfiStaffLookupMigration, /ALTER POLICY users_platform_tenant_scope ON users[\s\S]*app_role\(\)='super_admin'[\s\S]*app_platform_tenant_id\(\) IS NOT NULL[\s\S]*app_user_phone_lookup\(phone\)/);
+  assert.match(mfiRouter, /withUser\(req\.user!, async \(client\) => \{[\s\S]*WHERE phone=\$1 AND active AND role IN \('global_admin','super_admin','compliance','finance','finance_manager'\)/);
+  assert.match(mfiRouter, /\}, \{ userLookupPhones: \[body\.phone\] \}\)/);
+  assert.match(core, /options\.userLookupPhones[\s\S]*set_config\('app\.user_lookup_phones'/);
 });
 
 test('synthetic MFI financial events balance and MFI savings/repayments require an independent checker', () => {
