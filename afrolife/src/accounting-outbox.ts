@@ -17,7 +17,7 @@ export async function enqueueAccountingEvent(
   if (input.maker_id === input.checker_id) throw new Error('Accounting events require distinct maker and checker identities');
   if (!process.env.ACCOUNTING_SERVICE_URL && !process.env.ACCOUNTING_INGEST_SECRET) return;
   if (!process.env.ACCOUNTING_SERVICE_URL || !process.env.ACCOUNTING_INGEST_SECRET) throw new Error('Accounting event delivery requires both ACCOUNTING_SERVICE_URL and ACCOUNTING_INGEST_SECRET');
-  if (options.mfiInstitutionId && input.source_entity_id !== options.mfiInstitutionId) {
+  if (options.mfiInstitutionId !== undefined && input.source_entity_id !== options.mfiInstitutionId) {
     throw new Error('MFI accounting events must use the active institution as their source entity');
   }
   const source_event_id = randomUUID();
