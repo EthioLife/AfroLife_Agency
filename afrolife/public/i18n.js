@@ -5831,6 +5831,20 @@ const adminOnboardingRows = [
   ['unknown', 'ያልታወቀ', 'hin beekamne', 'ዘይፍለጥ', 'aan la aqoon', 'غير معروف', 'haijulikani'],
   ['No documents uploaded', 'ምንም ሰነድ አልተጫነም', 'Galmeen tokko illee hin olkaa’amne', 'ሰነዳት ኣይተሰቐሉን', 'Wax dukumenti ah lama soo gelin', 'لم يتم تحميل أي مستندات', 'Hakuna hati zilizopakiwa'],
 ];
+const platformDatabaseToolRows = [
+  ['Read-only platform database tools', 'የመድረክ ዳታቤዝ ተነባቢ መሣሪያዎች', 'Meeshaalee kuusdeetaa waltajjii dubbisuu qofaaf', 'ንባብ ጥራይ ዝፍቀድ መሳርሒታት ዳታቤዝ መድረኽ', 'Aaladaha kaydka xogta madasha ee akhris-keliya', 'أدوات قاعدة بيانات المنصة للقراءة فقط', 'Zana za hifadhidata ya jukwaa za kusoma pekee'],
+  ['Global Admin only. These fixed diagnostics accept no SQL or query parameters and never modify database contents.', 'ለGlobal Admin ብቻ። እነዚህ ቋሚ ምርመራዎች SQL ወይም የጥያቄ መለኪያዎችን አይቀበሉም፣ የዳታቤዝ ይዘትንም አይቀይሩም።', 'Global Admin qofaaf. Qorannoowwan murtaa’oo kun SQL yookaan paaraameetira gaaffii hin fudhatan, qabiyyee kuusdeetaas hin jijjiiran.', 'ንGlobal Admin ጥራይ። እዞም ውሱናት ምርመራታት SQL ወይ መለክዒታት ሕቶ ኣይቅበሉን፣ ትሕዝቶ ዳታቤዝ እውን ኣይቅይሩን።', 'Global Admin oo keliya. Baaritaannadan go’an ma aqbalaan SQL ama cabbirro su’aal, mana beddelaan xogta kaydka.', 'لمدير المنصة العام فقط. لا تقبل هذه الفحوصات الثابتة استعلامات SQL أو معلمات، ولا تغيّر محتويات قاعدة البيانات.', 'Kwa Global Admin pekee. Ukaguzi huu maalum haukubali SQL au vigezo vya hoja na haubadilishi yaliyomo kwenye hifadhidata.'],
+  ['Check runtime role safety', 'የሩጫ ጊዜ ሚና ደህንነትን ያረጋግጡ', 'Nageenya gahee runtime mirkaneessi', 'ድሕነት ግደ ኣብ ግዜ ስራሕ ኣረጋግጽ', 'Hubi badbaadada doorka runtime-ka', 'تحقق من أمان دور التشغيل', 'Angalia usalama wa jukumu la runtime'],
+  ['Check users RLS policies and grants', 'የተጠቃሚዎችን RLS ፖሊሲዎችና ፈቃዶች ያረጋግጡ', 'Imaammata RLS fi hayyama fayyadamtootaa mirkaneessi', 'ፖሊሲታት RLSን ፍቓዳትን ተጠቀምቲ ኣረጋግጽ', 'Hubi siyaasadaha RLS iyo oggolaanshaha isticmaalayaasha', 'تحقق من سياسات RLS وصلاحيات المستخدمين', 'Angalia sera za RLS na ruhusa za watumiaji'],
+  ['Check migration checksums', 'የማይግሬሽን ቼክሰሞችን ያረጋግጡ', 'Checksum migration mirkaneessi', 'Checksum ማይግሬሽን ኣረጋግጽ', 'Hubi jeegagga migrations-ka', 'تحقق من بصمات الترحيل', 'Angalia checksum za uhamishaji'],
+  ['Running read-only diagnostic…', 'ተነባቢ ምርመራ በማካሄድ ላይ…', 'Qorannoo dubbisuu qofaaf gaggeessaa jira…', 'ምርመራ ንባብ ጥራይ ይካየድ ኣሎ…', 'Waxaa socda baaritaan akhris-keliya ah…', 'جارٍ تشغيل الفحص للقراءة فقط…', 'Ukaguzi wa kusoma pekee unaendelea…'],
+  ['The diagnostic could not be completed.', 'ምርመራውን ማጠናቀቅ አልተቻለም።', 'Qorannoon xumuramuu hin dandeenye.', 'እቲ ምርመራ ክዛዘም ኣይከኣለን።', 'Baaritaanka lama dhammaystiri karin.', 'تعذر إكمال الفحص.', 'Ukaguzi haukuweza kukamilika.'],
+];
+for (const row of platformDatabaseToolRows) {
+  for (const [column, locale] of Object.keys(localeNames).entries()) {
+    catalogs[locale][row[0]] = row[column] ?? row[0];
+  }
+}
 for (const row of adminOnboardingRows) {
   for (const [column, locale] of Object.keys(localeNames).entries()) {
     catalogs[locale][row[0]] = row[column] ?? row[0];
