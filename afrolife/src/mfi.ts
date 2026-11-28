@@ -281,7 +281,7 @@ async function postJournal(
       lines:input.lines.map(line=>({source_account_code:line.code,debit:line.debit,credit:line.credit})),
       maker_id:input.accountingApproval.makerId,checker_id:input.accountingApproval.checkerId,
       checker_reason:input.accountingApproval.reason,
-    });
+    }, { mfiInstitutionId: input.institutionId });
   }
   return { ...posted, replayed: false };
 }
@@ -366,7 +366,8 @@ async function approvePendingFinancialJournal(
   await enqueueAccountingEvent(client,{source_entity_id:institutionId,entry_date:posted.posted_date,
     source_reference:`mfi:${journal.transaction_type}:${journalId}`,description:`MFI ${String(journal.transaction_type).replaceAll('_',' ')} ${journalId}`,
     lines:lines.map((l)=>({source_account_code:String(l.account_code),debit:String(l.debit),credit:String(l.credit)})),
-    maker_id:String(journal.created_by),checker_id:checkerId,checker_reason:reason});
+    maker_id:String(journal.created_by),checker_id:checkerId,checker_reason:reason},
+    { mfiInstitutionId: institutionId });
   return posted;
 }
 

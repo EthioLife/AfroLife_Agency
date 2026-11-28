@@ -9,6 +9,8 @@ const mfiRouter = readFileSync(new URL('../src/mfi.ts', import.meta.url), 'utf8'
 const mfiStaffLookupMigration = readFileSync(new URL('../migrations/154_scoped_mfi_staff_phone_lookup.sql', import.meta.url), 'utf8');
 const scopedMfiOutboxMigration = readFileSync(new URL('../migrations/155_scoped_mfi_accounting_outbox.sql', import.meta.url), 'utf8');
 const consolidatedMfiOutboxMigration = readFileSync(new URL('../migrations/156_scope_mfi_accounting_outbox_policy.sql', import.meta.url), 'utf8');
+const scopedMfiOutboxEnqueueMigration = readFileSync(new URL('../migrations/157_scoped_mfi_accounting_outbox_enqueue.sql', import.meta.url), 'utf8');
+const accountingOutbox = readFileSync(new URL('../src/accounting-outbox.ts', import.meta.url), 'utf8');
 const core = readFileSync(new URL('../src/core.ts', import.meta.url), 'utf8');
 const mfiUi = readFileSync(new URL('../public/mfi.js', import.meta.url), 'utf8');
 const mfiE2e = readFileSync(new URL('../scripts/local-mfi-e2e.ts', import.meta.url), 'utf8');
@@ -52,6 +54,9 @@ test('scoped MFI outbox inserts require the current institution', () => {
   assert.match(scopedMfiOutboxMigration, /source_entity_id = nullif\(current_setting\('app\.mfi_institution_id', true\), ''\)/);
   assert.match(consolidatedMfiOutboxMigration, /DROP POLICY IF EXISTS accounting_event_outbox_scoped_mfi_insert/);
   assert.match(consolidatedMfiOutboxMigration, /ALTER POLICY accounting_event_outbox_staff[\s\S]*WITH CHECK[\s\S]*app_is_staff\(\)[\s\S]*OR[\s\S]*app_is_platform_tenant_scoped\(\)[\s\S]*source_entity_id = nullif\(current_setting\('app\.mfi_institution_id', true\), ''\)/);
+  assert.match(scopedMfiOutboxEnqueueMigration, /SECURITY DEFINER[\s\S]*app_is_platform_tenant_scoped\(\)[\s\S]*app\.mfi_institution_id[\s\S]*checker_id[\s\S]*maker_id[\s\S]*source_reference/);
+  assert.match(scopedMfiOutboxEnqueueMigration, /REVOKE ALL ON FUNCTION enqueue_scoped_mfi_accounting_event[\s\S]*GRANT EXECUTE ON FUNCTION enqueue_scoped_mfi_accounting_event/);
+  assert.match(accountingOutbox, /enqueue_scoped_mfi_accounting_event/);
 });
 
 test('synthetic MFI financial events balance and MFI savings/repayments require an independent checker', () => {

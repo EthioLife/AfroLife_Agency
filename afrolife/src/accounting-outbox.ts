@@ -7,17 +7,33 @@ type AccountingEvent = {
   description: string; lines: AccountingLine[]; maker_id: string; checker_id: string; checker_reason: string;
 };
 
-export async function enqueueAccountingEvent(client: PoolClient, input: Omit<AccountingEvent, 'source_event_id'>): Promise<string | undefined> {
+type AccountingEventOptions = { mfiInstitutionId?: string };
+
+export async function enqueueAccountingEvent(
+  client: PoolClient,
+  input: Omit<AccountingEvent, 'source_event_id'>,
+  options: AccountingEventOptions = {},
+): Promise<string | undefined> {
   if (input.maker_id === input.checker_id) throw new Error('Accounting events require distinct maker and checker identities');
   if (!process.env.ACCOUNTING_SERVICE_URL && !process.env.ACCOUNTING_INGEST_SECRET) return;
   if (!process.env.ACCOUNTING_SERVICE_URL || !process.env.ACCOUNTING_INGEST_SECRET) throw new Error('Accounting event delivery requires both ACCOUNTING_SERVICE_URL and ACCOUNTING_INGEST_SECRET');
+  if (options.mfiInstitutionId && input.source_entity_id !== options.mfiInstitutionId) {
+    throw new Error('MFI accounting events must use the active institution as their source entity');
+  }
   const source_event_id = randomUUID();
   const payload = { ...input, source_event_id };
-  await client.query(
-    `INSERT INTO accounting_event_outbox(source_event_id,source_entity_id,payload)
-     VALUES($1,$2,$3::jsonb) ON CONFLICT(source_event_id) DO NOTHING`,
-    [source_event_id, input.source_entity_id, JSON.stringify(payload)],
-  );
+  if (options.mfiInstitutionId) {
+    await client.query(
+      'SELECT enqueue_scoped_mfi_accounting_event($1,$2,$3::jsonb)',
+      [source_event_id, input.source_entity_id, JSON.stringify(payload)],
+    );
+  } else {
+    await client.query(
+      `INSERT INTO accounting_event_outbox(source_event_id,source_entity_id,payload)
+       VALUES($1,$2,$3::jsonb) ON CONFLICT(source_event_id) DO NOTHING`,
+      [source_event_id, input.source_entity_id, JSON.stringify(payload)],
+    );
+  }
   return source_event_id;
 }
 
