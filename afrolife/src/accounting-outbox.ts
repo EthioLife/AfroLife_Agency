@@ -20,6 +20,11 @@ export async function enqueueAccountingEvent(client: PoolClient, input: Omit<Acc
     [input.source_entity_id],
   )).rows[0];
   console.error('MFI accounting outbox RLS context', context);
+  const policies = (await client.query(
+    `SELECT policyname,permissive,roles,cmd,qual,with_check
+     FROM pg_policies WHERE schemaname='public' AND tablename='accounting_event_outbox'`,
+  )).rows;
+  console.error('MFI accounting outbox RLS policies', policies);
   await client.query(
     `INSERT INTO accounting_event_outbox(source_event_id,source_entity_id,payload)
      VALUES($1,$2,$3::jsonb) ON CONFLICT(source_event_id) DO NOTHING`,
