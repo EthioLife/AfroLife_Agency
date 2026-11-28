@@ -437,6 +437,7 @@ try {
     { ...suiteEnv, API_URL: `http://127.0.0.1:${port}` },
     'SACCO/MFI role journey E2E',
   );
+  if (mfiExitCode !== 0) console.error(`Core API logs before MFI E2E failure:\n${apiLogs}`);
   assert.equal(mfiExitCode, 0, `SACCO/MFI role journey E2E failed with exit code ${mfiExitCode}`);
   suiteExitCode = await runNodeAsync(
     ['--import', 'tsx', '--test', 'test/api.test.ts', 'test/supply.test.ts'],
