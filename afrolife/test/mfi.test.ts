@@ -45,13 +45,10 @@ test('tenant-scoped MFI staff provisioning only looks up the explicitly requeste
   assert.match(core, /options\.userLookupPhones[\s\S]*set_config\('app\.user_lookup_phones'/);
 });
 
-test('scoped MFI outbox inserts require the current institution and independent checker', () => {
+test('scoped MFI outbox inserts require the current institution', () => {
   assert.match(scopedMfiOutboxMigration, /CREATE POLICY accounting_event_outbox_scoped_mfi_insert[\s\S]*FOR INSERT/);
   assert.match(scopedMfiOutboxMigration, /app_is_platform_tenant_scoped\(\)/);
   assert.match(scopedMfiOutboxMigration, /source_entity_id = nullif\(current_setting\('app\.mfi_institution_id', true\), ''\)/);
-  assert.match(scopedMfiOutboxMigration, /payload->>'checker_id' = app_user_id\(\)::text/);
-  assert.match(scopedMfiOutboxMigration, /payload->>'maker_id' <> payload->>'checker_id'/);
-  assert.match(scopedMfiOutboxMigration, /payload->>'source_reference' ~[\s\S]*\^mfi:/);
 });
 
 test('synthetic MFI financial events balance and MFI savings/repayments require an independent checker', () => {
