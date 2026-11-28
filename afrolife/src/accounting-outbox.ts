@@ -13,6 +13,13 @@ export async function enqueueAccountingEvent(client: PoolClient, input: Omit<Acc
   if (!process.env.ACCOUNTING_SERVICE_URL || !process.env.ACCOUNTING_INGEST_SECRET) throw new Error('Accounting event delivery requires both ACCOUNTING_SERVICE_URL and ACCOUNTING_INGEST_SECRET');
   const source_event_id = randomUUID();
   const payload = { ...input, source_event_id };
+  const context = (await client.query(
+    `SELECT app_role() AS role,app_is_platform_tenant_scoped() AS platform_scoped,
+      nullif(current_setting('app.mfi_institution_id',true),'') IS NOT NULL AS mfi_context_set,
+      $1::text=nullif(current_setting('app.mfi_institution_id',true),'') AS institution_matches`,
+    [input.source_entity_id],
+  )).rows[0];
+  console.error('MFI accounting outbox RLS context', context);
   await client.query(
     `INSERT INTO accounting_event_outbox(source_event_id,source_entity_id,payload)
      VALUES($1,$2,$3::jsonb) ON CONFLICT(source_event_id) DO NOTHING`,
