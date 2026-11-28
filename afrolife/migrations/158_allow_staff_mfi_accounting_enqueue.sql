@@ -9,7 +9,10 @@ SET search_path=public,pg_temp
 SET row_security=off
 AS $$
 BEGIN
-  IF NOT (app_is_platform_tenant_scoped() OR app_is_staff())
+  IF NOT (
+      app_is_platform_tenant_scoped()
+      OR (app_is_staff() AND mfi_has_access(event_source_entity_id::uuid))
+    )
     OR event_source_entity_id IS DISTINCT FROM nullif(current_setting('app.mfi_institution_id', true), '')
     OR app_user_id() IS NULL
     OR nullif(event_payload->>'maker_id', '') IS NULL

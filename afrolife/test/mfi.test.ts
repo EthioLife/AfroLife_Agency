@@ -58,7 +58,7 @@ test('scoped MFI outbox inserts require the current institution', () => {
   assert.match(scopedMfiOutboxEnqueueMigration, /SECURITY DEFINER[\s\S]*SET row_security=off[\s\S]*app_is_platform_tenant_scoped\(\)[\s\S]*app\.mfi_institution_id[\s\S]*checker_id[\s\S]*maker_id[\s\S]*source_event_id[\s\S]*source_entity_id[\s\S]*source_reference/);
   assert.match(scopedMfiOutboxEnqueueMigration, /nullif\(event_payload->>'maker_id', ''\) IS NULL[\s\S]*nullif\(event_payload->>'checker_id', ''\) IS NULL[\s\S]*maker_id[\s\S]*checker_id/);
   assert.match(scopedMfiOutboxEnqueueMigration, /REVOKE ALL ON FUNCTION enqueue_scoped_mfi_accounting_event[\s\S]*GRANT EXECUTE ON FUNCTION enqueue_scoped_mfi_accounting_event/);
-  assert.match(staffMfiOutboxEnqueueMigration, /NOT \(app_is_platform_tenant_scoped\(\) OR app_is_staff\(\)\)[\s\S]*app\.mfi_institution_id[\s\S]*maker_id[\s\S]*checker_id/);
+  assert.match(staffMfiOutboxEnqueueMigration, /app_is_platform_tenant_scoped\(\)[\s\S]*app_is_staff\(\) AND mfi_has_access\(event_source_entity_id::uuid\)[\s\S]*app\.mfi_institution_id[\s\S]*maker_id[\s\S]*checker_id/);
   assert.match(accountingOutbox, /enqueue_scoped_mfi_accounting_event/);
   assert.match(mfiRouter, /enqueueAccountingEvent\(client,[\s\S]*?\}, \{ mfiInstitutionId: input\.institutionId \}\)/);
   assert.match(mfiRouter, /enqueueAccountingEvent\(client,[\s\S]*?\{ mfiInstitutionId: institutionId \}\)/);
