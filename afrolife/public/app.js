@@ -7277,6 +7277,24 @@ function renderTenantDataGovernance() {
   }
   section.append(assignments);
 
+  const databaseTools = node('section', undefined, 'admin-data-database-tools');
+  databaseTools.append(
+    node('h4', 'Read-only platform database tools'),
+    node('p', 'Global Admin only. These fixed diagnostics accept no SQL or query parameters and never modify database contents.'),
+  );
+  const toolResults = node('div', undefined, 'admin-data-database-tool-results');
+  toolResults.setAttribute('aria-live', 'polite');
+  for (const [toolId, label] of [
+    ['runtime-role-safety', 'Check runtime role safety'],
+    ['users-rls-readiness', 'Check users RLS policies and grants'],
+    ['migration-readiness', 'Check migration checksums'],
+  ]) {
+    const run = button(label, 'run-database-admin-tool', 'button button-outline', { toolId });
+    databaseTools.append(run);
+  }
+  databaseTools.append(toolResults);
+  section.append(databaseTools);
+
   const checklist = node('details', undefined, 'admin-data-checklist');
   checklist.append(node('summary', 'Operator readiness checklists (manual evidence only)'));
   const migrationChecklist = node('section');
@@ -10303,6 +10321,23 @@ document.addEventListener('click', async (event) => {
   const action = event.target.closest('button[data-action]');
   if (!action || action.type === 'submit') return;
   const { action: name, id } = action.dataset;
+  if (name === 'run-database-admin-tool') {
+    const results = document.querySelector('.admin-data-database-tool-results');
+    if (!results) return;
+    action.disabled = true;
+    results.replaceChildren(node('p', 'Running read-only diagnostic…'));
+    try {
+      const result = await api(`/platform/admin/database-tools/${encodeURIComponent(action.dataset.toolId)}`);
+      const output = node('pre', JSON.stringify(result, null, 2));
+      output.className = 'admin-data-database-tool-output';
+      results.replaceChildren(output);
+    } catch (error) {
+      results.replaceChildren(node('p', error.message ?? 'The diagnostic could not be completed.'));
+    } finally {
+      action.disabled = false;
+    }
+    return;
+  }
   if (name === 'property-tenant-export-decision') {
     const decision = action.dataset.decision;
     const reason = window.prompt(t(`Explain why this tenant archive is being ${decision} (minimum 10 characters).`));

@@ -7,6 +7,7 @@ import {
   tenantCapabilitiesSchema,
   tenantOperatorRequestSchema,
 } from '../src/platform-data-admin.js';
+import { DATABASE_ADMIN_TOOL_CATALOG, runDatabaseAdminTool } from '../src/database-admin-tools.js';
 import { getMyTenantDataScopes, getTenantDataScope, requireTenantDataCapability } from '../src/tenant-data-access.js';
 
 const routes = adminRouter.stack.flatMap((layer) => layer.route ? [{
@@ -36,6 +37,42 @@ test('tenant data capability and operator request endpoints are Global Admin-onl
     route.middleware[0]({ user: { role: 'global_admin' } }, {}, (error?: unknown) => { allowed = error; });
     assert.equal(allowed, undefined);
   }
+});
+
+test('database diagnostic tools are Global Admin-only and expose a fixed read-only allowlist', async () => {
+  const catalogRoute = routes.find((entry) => entry.path === '/platform/admin/database-tools' && entry.methods.get);
+  const runRoute = routes.find((entry) => entry.path === '/platform/admin/database-tools/:toolId' && entry.methods.get);
+  assert.ok(catalogRoute);
+  assert.ok(runRoute);
+  assert.equal(catalogRoute.names[0], 'requireGlobalAdmin');
+  assert.equal(runRoute.names[0], 'requireGlobalAdmin');
+  for (const route of [catalogRoute, runRoute]) {
+    let denied: unknown;
+    route.middleware[0]({ user: { role: 'database_admin' } }, {}, (error?: unknown) => { denied = error; });
+    assert.equal((denied as { status?: number })?.status, 403);
+  }
+  assert.deepEqual(DATABASE_ADMIN_TOOL_CATALOG.map((tool) => tool.id), [
+    'runtime-role-safety',
+    'users-rls-readiness',
+    'migration-readiness',
+  ]);
+  const calls: string[] = [];
+  const client = {
+    query: async (sql: string) => {
+      calls.push(sql);
+      return { rows: [] };
+    },
+  } as unknown as import('pg').PoolClient;
+  for (const tool of DATABASE_ADMIN_TOOL_CATALOG) {
+    await runDatabaseAdminTool(tool.id, client);
+  }
+  assert.equal(calls.length, DATABASE_ADMIN_TOOL_CATALOG.length);
+  for (const sql of calls) {
+    assert.match(sql.trimStart(), /^SELECT/i);
+    assert.doesNotMatch(sql, /\b(?:INSERT|UPDATE|DELETE|ALTER|DROP|CREATE|TRUNCATE|GRANT|REVOKE)\b/i);
+  }
+  await assert.rejects(runDatabaseAdminTool('arbitrary-sql', client), /Unsupported database administration tool/);
+  assert.equal(calls.length, DATABASE_ADMIN_TOOL_CATALOG.length);
 });
 
 test('capability allowlist and operator request schema reject escalation and executable input', () => {
@@ -170,4 +207,12 @@ test('tenant data admin UI is assignment-gated and never renders global analytic
   assert.match(ui, /No tenant analytics are available from the central platform/);
   assert.match(ui, /Global BI and other tenants are not available here/);
   assert.match(ui, /Execution: not performed/);
+});
+
+test('Global Admin workspace exposes only the fixed read-only database diagnostics', async () => {
+  const app = await readFile(new URL('../public/app.js', import.meta.url), 'utf8');
+  assert.match(app, /platform\/admin\/database-tools\/\$\{encodeURIComponent\(action\.dataset\.toolId\)\}/);
+  assert.match(app, /runtime-role-safety/);
+  assert.match(app, /users-rls-readiness/);
+  assert.match(app, /migration-readiness/);
 });

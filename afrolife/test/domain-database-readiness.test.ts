@@ -37,11 +37,32 @@ function databaseFor(
     can_access_financial_data: false,
   },
   columns = [...agencyDomainSchemaRequirements[domain].requiredColumns, ...tenantScopeColumns],
+  missingPolicies: string[] = [],
+  hasRequiredUsersPolicies = true,
+  userRlsHelpersAvailable = true,
 ) {
   return {
     async query(sql: string, values: unknown[]) {
       if (sql.includes('to_regprocedure')) {
-        return { rows: [{ scoped_admin_available: true, member_scope_available: true }] };
+        return {
+          rows: [{
+            scoped_admin_available: true,
+            member_scope_available: true,
+            user_rls_helpers_available: userRlsHelpersAvailable,
+          }],
+        };
+      }
+      if (sql.includes('pg_policy')) {
+        const required = values[0] as string[];
+        return {
+          rows: required.map((table_name) => ({
+            table_name,
+            missing: !tables.includes(table_name),
+            rls_enabled: rlsTables.includes(table_name),
+            has_rls_policy: rlsTables.includes(table_name) && !missingPolicies.includes(table_name),
+            has_required_users_policies: table_name !== 'users' || hasRequiredUsersPolicies,
+          })),
+        };
       }
       if (values.length === 0) {
         return { rows: [privileges] };
@@ -159,6 +180,60 @@ test('database readiness rejects missing row-level security', async () => {
       ),
     ),
     /RLS is disabled:.*users/,
+  );
+});
+
+test('database readiness rejects enabled RLS without policies', async () => {
+  await assert.rejects(
+    assertAgencyDomainDatabaseReady(
+      'marketplace',
+      databaseFor(
+        'marketplace',
+        completeSchemas.marketplace.tables,
+        completeSchemas.marketplace.rls,
+        undefined,
+        undefined,
+        ['users'],
+      ),
+    ),
+    /RLS policies are missing: users/,
+  );
+});
+
+test('database readiness requires restrictive tenant scope and application policies on users', async () => {
+  await assert.rejects(
+    assertAgencyDomainDatabaseReady(
+      'marketplace',
+      databaseFor(
+        'marketplace',
+        completeSchemas.marketplace.tables,
+        completeSchemas.marketplace.rls,
+        undefined,
+        undefined,
+        [],
+        false,
+      ),
+    ),
+    /users RLS policies are missing or have incorrect commands or permissive modes/,
+  );
+});
+
+test('database readiness requires executable users RLS helper functions', async () => {
+  await assert.rejects(
+    assertAgencyDomainDatabaseReady(
+      'marketplace',
+      databaseFor(
+        'marketplace',
+        completeSchemas.marketplace.tables,
+        completeSchemas.marketplace.rls,
+        undefined,
+        undefined,
+        [],
+        true,
+        false,
+      ),
+    ),
+    /users RLS helper functions or runtime grants are unavailable/,
   );
 });
 

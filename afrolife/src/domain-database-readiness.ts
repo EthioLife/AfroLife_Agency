@@ -6,6 +6,9 @@ type DatabaseMetadata = {
   column_key?: string;
   missing: boolean;
   rls_enabled: boolean;
+  has_rls_policy?: boolean;
+  has_required_users_policies?: boolean;
+  user_rls_helpers_available?: boolean;
   can_read_auth_secrets?: boolean;
   can_create_schema?: boolean;
   can_access_financial_data?: boolean;
@@ -246,7 +249,41 @@ export async function assertAgencyDomainDatabaseReady(domain: AgencyDomain | Leg
   const result = await database.query(
     `SELECT requested.table_name,
             to_regclass(format('%I.%I', 'public', requested.table_name)) IS NULL AS missing,
-            coalesce(relation.relrowsecurity, false) AS rls_enabled
+            coalesce(relation.relrowsecurity, false) AS rls_enabled,
+            EXISTS (
+              SELECT 1 FROM pg_policy policy
+              WHERE policy.polrelid=relation.oid
+            ) AS has_rls_policy,
+            CASE WHEN requested.table_name='users' THEN (
+              EXISTS (
+                SELECT 1 FROM pg_policy policy
+                WHERE policy.polrelid=relation.oid
+                  AND policy.polname='users_platform_tenant_scope'
+                  AND policy.polcmd='*'
+                  AND NOT policy.polpermissive
+              )
+              AND EXISTS (
+                SELECT 1 FROM pg_policy policy
+                WHERE policy.polrelid=relation.oid
+                  AND policy.polname='users_application_read'
+                  AND policy.polcmd='r'
+                  AND policy.polpermissive
+              )
+              AND EXISTS (
+                SELECT 1 FROM pg_policy policy
+                WHERE policy.polrelid=relation.oid
+                  AND policy.polname='users_application_insert'
+                  AND policy.polcmd='a'
+                  AND policy.polpermissive
+              )
+              AND EXISTS (
+                SELECT 1 FROM pg_policy policy
+                WHERE policy.polrelid=relation.oid
+                  AND policy.polname='users_application_update'
+                  AND policy.polcmd='w'
+                  AND policy.polpermissive
+              )
+            ) ELSE true END AS has_required_users_policies
      FROM unnest($1::text[]) AS requested(table_name)
      LEFT JOIN pg_class relation
        ON relation.oid = to_regclass(format('%I.%I', 'public', requested.table_name))`,
@@ -255,21 +292,43 @@ export async function assertAgencyDomainDatabaseReady(domain: AgencyDomain | Leg
   const rowByTable = new Map(result.rows.map((row) => [row.table_name, row]));
   const missing = requiredTables.filter((table) => rowByTable.get(table)?.missing !== false);
   const unprotected = requiredRlsTables.filter((table) => rowByTable.get(table)?.rls_enabled !== true);
-  if (missing.length || unprotected.length) {
+  const missingPolicies = requiredRlsTables.filter((table) => rowByTable.get(table)?.has_rls_policy !== true);
+  const invalidUsersPolicies = rowByTable.get('users')?.has_required_users_policies !== true;
+  if (missing.length || unprotected.length || missingPolicies.length || invalidUsersPolicies) {
     const problems = [
       ...(missing.length ? [`missing tables: ${missing.join(', ')}`] : []),
       ...(unprotected.length ? [`RLS is disabled: ${unprotected.join(', ')}`] : []),
+      ...(missingPolicies.length ? [`RLS policies are missing: ${missingPolicies.join(', ')}`] : []),
+      ...(invalidUsersPolicies ? ['users RLS policies are missing or have incorrect commands or permissive modes'] : []),
     ];
     throw new Error(`${canonicalDomain} database schema is not ready (${problems.join('; ')})`);
   }
 
   const tenantScope = await database.query(
     `SELECT to_regprocedure('public.app_is_platform_tenant_scoped()') IS NOT NULL AS scoped_admin_available,
-            to_regprocedure('public.app_platform_tenant_has_user(uuid)') IS NOT NULL AS member_scope_available`,
+            to_regprocedure('public.app_platform_tenant_has_user(uuid)') IS NOT NULL AS member_scope_available,
+            (
+              to_regprocedure('public.app_user_creation_id()') IS NOT NULL
+              AND to_regprocedure('public.app_user_phone_lookup(text)') IS NOT NULL
+              AND to_regprocedure('public.app_is_pending_global_admin_promotion(uuid)') IS NOT NULL
+              AND coalesce(has_function_privilege(
+                current_user,to_regprocedure('public.app_user_creation_id()'),'EXECUTE'
+              ),false)
+              AND coalesce(has_function_privilege(
+                current_user,to_regprocedure('public.app_user_phone_lookup(text)'),'EXECUTE'
+              ),false)
+              AND coalesce(has_function_privilege(
+                current_user,to_regprocedure('public.app_is_pending_global_admin_promotion(uuid)'),'EXECUTE'
+              ),false)
+            ) AS user_rls_helpers_available`,
     [],
   );
-  if (!tenantScope.rows[0]?.scoped_admin_available || !tenantScope.rows[0]?.member_scope_available) {
+  const tenantScopeMetadata = tenantScope.rows[0];
+  if (!tenantScopeMetadata?.scoped_admin_available || !tenantScopeMetadata?.member_scope_available) {
     throw new Error(`${canonicalDomain} database schema is not ready (platform tenant data isolation is unavailable)`);
+  }
+  if (!tenantScopeMetadata.user_rls_helpers_available) {
+    throw new Error(`${canonicalDomain} database schema is not ready (users RLS helper functions or runtime grants are unavailable)`);
   }
 
   const columns = await database.query(

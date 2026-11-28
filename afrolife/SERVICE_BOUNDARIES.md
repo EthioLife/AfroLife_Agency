@@ -45,6 +45,13 @@ access for tenant operators. Migration and backup/restore review requests are
 immutable evidence records only; no database change or restore is executed by
 the control plane.
 
+Global Admin also has fixed, read-only diagnostics for central runtime-role
+safety, `users` RLS policy metadata and helper grants, and migration checksum
+readiness. These tools accept no SQL or query parameters and do not read tenant
+business records, access tenant databases, or execute changes. They do not
+replace disposable cross-tenant RLS tests. Tenant BI remains unavailable until
+a trusted tenant-local projector and verified ingestion path are deployed.
+
 Existing shared-database and legacy-schema access remain transitional until
 tenant-by-tenant migration, reconciliation, role grants, rollback, and
 disposable UAT have passed. Do not redirect production services or combine

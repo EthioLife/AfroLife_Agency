@@ -36,6 +36,7 @@ import {
   tenantOperatorRequestSchema,
 } from './platform-data-admin.js';
 import { getMyTenantDataScopes, getTenantDataScope, requireTenantDataCapability } from './tenant-data-access.js';
+import { DATABASE_ADMIN_TOOL_CATALOG, runDatabaseAdminTool } from './database-admin-tools.js';
 import { getKycRequirements, requiredKycDocuments, ConfigScope, validateMarketplaceConfig, loadMarketplaceConfig } from './marketplace-config.js';
 import { getArchitectureGovernanceSnapshot } from './architecture-governance.js';
 import {
@@ -1565,6 +1566,16 @@ adminRouter.delete('/platform/tenants/:tenantId/admins/:userId', requirePlatform
 adminRouter.get('/platform/my-data-capabilities', h(async (req, res) => {
   const scopes = await withUser(req.user!, (client) => getMyTenantDataScopes(client, req.user!.id));
   res.json(scopes);
+}));
+
+adminRouter.get('/platform/admin/database-tools', requireGlobalAdmin, (_req, res) => {
+  res.json(DATABASE_ADMIN_TOOL_CATALOG);
+});
+
+adminRouter.get('/platform/admin/database-tools/:toolId', requireGlobalAdmin, h(async (req, res) => {
+  const toolId = z.enum(DATABASE_ADMIN_TOOL_CATALOG.map((tool) => tool.id) as [string, ...string[]]).parse(req.params.toolId);
+  const result = await withUser(req.user!, (client) => runDatabaseAdminTool(toolId, client));
+  res.json({ tool: toolId, read_only: true, result });
 }));
 
 adminRouter.get('/platform/my-data/:tenantId/workspace', h(async (req, res) => {
