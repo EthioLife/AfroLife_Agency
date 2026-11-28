@@ -7,6 +7,7 @@ import { MFI_SANDBOX_SIMULATIONS, runMfiSandboxSimulation } from '../src/mfi-san
 const sharedPortals = readFileSync(new URL('../migrations/050_shared_mini_app_portals.sql', import.meta.url), 'utf8');
 const mfiRouter = readFileSync(new URL('../src/mfi.ts', import.meta.url), 'utf8');
 const mfiStaffLookupMigration = readFileSync(new URL('../migrations/154_scoped_mfi_staff_phone_lookup.sql', import.meta.url), 'utf8');
+const scopedMfiOutboxMigration = readFileSync(new URL('../migrations/155_scoped_mfi_accounting_outbox.sql', import.meta.url), 'utf8');
 const core = readFileSync(new URL('../src/core.ts', import.meta.url), 'utf8');
 const mfiUi = readFileSync(new URL('../public/mfi.js', import.meta.url), 'utf8');
 const mfiE2e = readFileSync(new URL('../scripts/local-mfi-e2e.ts', import.meta.url), 'utf8');
@@ -42,6 +43,15 @@ test('tenant-scoped MFI staff provisioning only looks up the explicitly requeste
   assert.match(mfiRouter, /withUser\(req\.user!, async \(client\) => \{[\s\S]*WHERE phone=\$1 AND active AND role IN \('global_admin','super_admin','compliance','finance','finance_manager'\)/);
   assert.match(mfiRouter, /\}, \{ userLookupPhones: \[body\.phone\] \}\)/);
   assert.match(core, /options\.userLookupPhones[\s\S]*set_config\('app\.user_lookup_phones'/);
+});
+
+test('scoped MFI outbox inserts require a matching approved journal', () => {
+  assert.match(scopedMfiOutboxMigration, /CREATE POLICY accounting_event_outbox_scoped_mfi_insert[\s\S]*FOR INSERT/);
+  assert.match(scopedMfiOutboxMigration, /app_is_platform_tenant_scoped\(\)/);
+  assert.match(scopedMfiOutboxMigration, /source_entity_id = nullif\(current_setting\('app\.mfi_institution_id', true\), ''\)/);
+  assert.match(scopedMfiOutboxMigration, /journal\.status = 'posted'[\s\S]*journal\.requires_approval[\s\S]*journal\.approved_by = app_user_id\(\)/);
+  assert.match(scopedMfiOutboxMigration, /journal\.created_by::text = payload->>'maker_id'/);
+  assert.match(scopedMfiOutboxMigration, /payload->>'checker_id' = app_user_id\(\)::text/);
 });
 
 test('synthetic MFI financial events balance and MFI savings/repayments require an independent checker', () => {
