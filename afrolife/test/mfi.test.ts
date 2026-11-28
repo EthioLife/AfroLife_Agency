@@ -10,6 +10,7 @@ const mfiStaffLookupMigration = readFileSync(new URL('../migrations/154_scoped_m
 const scopedMfiOutboxMigration = readFileSync(new URL('../migrations/155_scoped_mfi_accounting_outbox.sql', import.meta.url), 'utf8');
 const consolidatedMfiOutboxMigration = readFileSync(new URL('../migrations/156_scope_mfi_accounting_outbox_policy.sql', import.meta.url), 'utf8');
 const scopedMfiOutboxEnqueueMigration = readFileSync(new URL('../migrations/157_scoped_mfi_accounting_outbox_enqueue.sql', import.meta.url), 'utf8');
+const staffMfiOutboxEnqueueMigration = readFileSync(new URL('../migrations/158_allow_staff_mfi_accounting_enqueue.sql', import.meta.url), 'utf8');
 const accountingOutbox = readFileSync(new URL('../src/accounting-outbox.ts', import.meta.url), 'utf8');
 const core = readFileSync(new URL('../src/core.ts', import.meta.url), 'utf8');
 const mfiUi = readFileSync(new URL('../public/mfi.js', import.meta.url), 'utf8');
@@ -57,6 +58,7 @@ test('scoped MFI outbox inserts require the current institution', () => {
   assert.match(scopedMfiOutboxEnqueueMigration, /SECURITY DEFINER[\s\S]*SET row_security=off[\s\S]*app_is_platform_tenant_scoped\(\)[\s\S]*app\.mfi_institution_id[\s\S]*checker_id[\s\S]*maker_id[\s\S]*source_event_id[\s\S]*source_entity_id[\s\S]*source_reference/);
   assert.match(scopedMfiOutboxEnqueueMigration, /nullif\(event_payload->>'maker_id', ''\) IS NULL[\s\S]*nullif\(event_payload->>'checker_id', ''\) IS NULL[\s\S]*maker_id[\s\S]*checker_id/);
   assert.match(scopedMfiOutboxEnqueueMigration, /REVOKE ALL ON FUNCTION enqueue_scoped_mfi_accounting_event[\s\S]*GRANT EXECUTE ON FUNCTION enqueue_scoped_mfi_accounting_event/);
+  assert.match(staffMfiOutboxEnqueueMigration, /NOT \(app_is_platform_tenant_scoped\(\) OR app_is_staff\(\)\)[\s\S]*app\.mfi_institution_id[\s\S]*maker_id[\s\S]*checker_id/);
   assert.match(accountingOutbox, /enqueue_scoped_mfi_accounting_event/);
   assert.match(mfiRouter, /enqueueAccountingEvent\(client,[\s\S]*?\}, \{ mfiInstitutionId: input\.institutionId \}\)/);
   assert.match(mfiRouter, /enqueueAccountingEvent\(client,[\s\S]*?\{ mfiInstitutionId: institutionId \}\)/);
