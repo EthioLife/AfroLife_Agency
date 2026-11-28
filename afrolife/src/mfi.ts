@@ -1931,7 +1931,7 @@ mfiRouter.get('/institutions/:institutionId/npl-events', h(async (req, res) => {
          l.created_by,l.checked_by,l.disbursed_by,u.legal_name AS proposer_name
        FROM mfi_npl_events e JOIN mfi_loans l ON l.institution_id=e.institution_id AND l.id=e.loan_id
        JOIN mfi_members m ON m.institution_id=l.institution_id AND m.id=l.member_id
-       JOIN users u ON u.id=e.proposed_by
+       LEFT        LEFT JOIN users u ON u.id=e.proposed_by
        WHERE e.institution_id=$1 ORDER BY e.created_at DESC LIMIT 200`, [req.params.institutionId],
     )).rows,
   );

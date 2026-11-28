@@ -62,6 +62,10 @@ test('scoped MFI outbox inserts require the current institution', () => {
   assert.match(mfiRouter, /enqueueAccountingEvent\(client,[\s\S]*?\{ mfiInstitutionId: institutionId \}\)/);
 });
 
+test('NPL event history remains visible when proposer details are hidden by user RLS', () => {
+  assert.match(mfiRouter, /FROM mfi_npl_events e[\s\S]*LEFT JOIN users u ON u\.id=e\.proposed_by/);
+});
+
 test('synthetic MFI financial events balance and MFI savings/repayments require an independent checker', () => {
   assert.equal(accountingMock.events.length,4);
   assert.equal(new Set(accountingMock.events.map((event)=>event.source_reference)).size,accountingMock.events.length);
