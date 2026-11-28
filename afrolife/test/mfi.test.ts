@@ -55,6 +55,7 @@ test('scoped MFI outbox inserts require the current institution', () => {
   assert.match(consolidatedMfiOutboxMigration, /DROP POLICY IF EXISTS accounting_event_outbox_scoped_mfi_insert/);
   assert.match(consolidatedMfiOutboxMigration, /ALTER POLICY accounting_event_outbox_staff[\s\S]*WITH CHECK[\s\S]*app_is_staff\(\)[\s\S]*OR[\s\S]*app_is_platform_tenant_scoped\(\)[\s\S]*source_entity_id = nullif\(current_setting\('app\.mfi_institution_id', true\), ''\)/);
   assert.match(scopedMfiOutboxEnqueueMigration, /SECURITY DEFINER[\s\S]*SET row_security=off[\s\S]*app_is_platform_tenant_scoped\(\)[\s\S]*app\.mfi_institution_id[\s\S]*checker_id[\s\S]*maker_id[\s\S]*source_event_id[\s\S]*source_entity_id[\s\S]*source_reference/);
+  assert.match(scopedMfiOutboxEnqueueMigration, /nullif\(event_payload->>'maker_id', ''\) IS NULL[\s\S]*nullif\(event_payload->>'checker_id', ''\) IS NULL[\s\S]*maker_id[\s\S]*checker_id/);
   assert.match(scopedMfiOutboxEnqueueMigration, /REVOKE ALL ON FUNCTION enqueue_scoped_mfi_accounting_event[\s\S]*GRANT EXECUTE ON FUNCTION enqueue_scoped_mfi_accounting_event/);
   assert.match(accountingOutbox, /enqueue_scoped_mfi_accounting_event/);
   assert.match(mfiRouter, /enqueueAccountingEvent\(client,[\s\S]*?\}, \{ mfiInstitutionId: input\.institutionId \}\)/);

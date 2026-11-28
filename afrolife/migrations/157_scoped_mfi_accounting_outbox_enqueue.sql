@@ -12,8 +12,8 @@ BEGIN
   IF NOT app_is_platform_tenant_scoped()
     OR event_source_entity_id IS DISTINCT FROM nullif(current_setting('app.mfi_institution_id', true), '')
     OR app_user_id() IS NULL
-    OR event_payload->>'checker_id' IS DISTINCT FROM app_user_id()::text
     OR nullif(event_payload->>'maker_id', '') IS NULL
+    OR nullif(event_payload->>'checker_id', '') IS NULL
     OR event_payload->>'maker_id' IS NOT DISTINCT FROM event_payload->>'checker_id'
     OR event_payload->>'source_event_id' IS DISTINCT FROM event_source_event_id::text
     OR event_payload->>'source_entity_id' IS DISTINCT FROM event_source_entity_id
